@@ -14,6 +14,10 @@ function isValidRole(role: string): role is Message['role'] {
   return ['user', 'assistant', 'system', 'data'].includes(role);
 }
 
+// Mark this page as dynamically rendered
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+
 export default async function Page(props: { params: Promise<{ id: string }> }) {
   try {
     const params = await props.params;
@@ -83,6 +87,9 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
       </>
     );
   } catch (error) {
+    if (error && typeof error === 'object' && '$$typeof' in error) {
+      throw error; // Re-throw React special objects
+    }
     console.error('Page error:', error);
     return notFound();
   }
