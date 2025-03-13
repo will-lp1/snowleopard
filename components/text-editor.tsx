@@ -3,7 +3,7 @@
 import { exampleSetup } from 'prosemirror-example-setup';
 import { inputRules } from 'prosemirror-inputrules';
 import { EditorState } from 'prosemirror-state';
-import { EditorView } from 'prosemirror-view';
+import { DecorationSet, EditorView } from 'prosemirror-view';
 import React, { memo, useEffect, useRef } from 'react';
 
 import type { Suggestion } from '@/lib/db/schema';
@@ -30,6 +30,7 @@ type EditorProps = {
   isCurrentVersion: boolean;
   currentVersionIndex: number;
   suggestions: Array<Suggestion>;
+  onSuggestionResolve: (suggestionId: string, shouldApply: boolean) => void;
 };
 
 function PureEditor({
@@ -37,6 +38,7 @@ function PureEditor({
   onSaveContent,
   suggestions,
   status,
+  onSuggestionResolve,
 }: EditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<EditorView | null>(null);
@@ -137,13 +139,16 @@ function PureEditor({
       const decorations = createDecorations(
         projectedSuggestions,
         editorRef.current,
+        (suggestion) => {
+          onSuggestionResolve(suggestion.id, false);
+        }
       );
 
       const transaction = editorRef.current.state.tr;
       transaction.setMeta(suggestionsPluginKey, { decorations });
       editorRef.current.dispatch(transaction);
     }
-  }, [suggestions, content]);
+  }, [suggestions, content, onSuggestionResolve]);
 
   return (
     <div className="relative prose dark:prose-invert" ref={containerRef} />
@@ -157,7 +162,8 @@ function areEqual(prevProps: EditorProps, nextProps: EditorProps) {
     prevProps.isCurrentVersion === nextProps.isCurrentVersion &&
     !(prevProps.status === 'streaming' && nextProps.status === 'streaming') &&
     prevProps.content === nextProps.content &&
-    prevProps.onSaveContent === nextProps.onSaveContent
+    prevProps.onSaveContent === nextProps.onSaveContent &&
+    prevProps.onSuggestionResolve === nextProps.onSuggestionResolve
   );
 }
 

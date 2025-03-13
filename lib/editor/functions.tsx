@@ -18,13 +18,14 @@ export const buildDocumentFromContent = (content: string) => {
   return parser.parse(tempContainer);
 };
 
-export const buildContentFromDocument = (document: Node) => {
-  return defaultMarkdownSerializer.serialize(document);
+export const buildContentFromDocument = (doc: Node) => {
+  return defaultMarkdownSerializer.serialize(doc);
 };
 
 export const createDecorations = (
   suggestions: Array<UISuggestion>,
   view: EditorView,
+  onReject?: (suggestion: UISuggestion) => void
 ) => {
   const decorations: Array<Decoration> = [];
 
@@ -47,7 +48,7 @@ export const createDecorations = (
       Decoration.widget(
         suggestion.selectionStart,
         (view) => {
-          const { dom } = createSuggestionWidget(suggestion, view);
+          const { dom } = createSuggestionWidget(suggestion, view, onReject);
           return dom;
         },
         {

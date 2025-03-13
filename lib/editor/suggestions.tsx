@@ -70,6 +70,7 @@ export function projectWithPositions(
 export function createSuggestionWidget(
   suggestion: UISuggestion,
   view: EditorView,
+  onReject?: (suggestion: UISuggestion) => void,
   artifactKind: ArtifactKind = 'text',
 ): { dom: HTMLElement; destroy: () => void } {
   const dom = document.createElement('span');
@@ -113,10 +114,36 @@ export function createSuggestionWidget(
     dispatch(textTransaction);
   };
 
+  const handleReject = () => {
+    const { state, dispatch } = view;
+
+    const decorationTransaction = state.tr;
+    const currentState = suggestionsPluginKey.getState(state);
+    const currentDecorations = currentState?.decorations;
+
+    if (currentDecorations) {
+      const newDecorations = DecorationSet.create(
+        state.doc,
+        currentDecorations.find().filter((decoration: Decoration) => {
+          return decoration.spec.suggestionId !== suggestion.id;
+        }),
+      );
+
+      decorationTransaction.setMeta(suggestionsPluginKey, {
+        decorations: newDecorations,
+        selected: null,
+      });
+      dispatch(decorationTransaction);
+    }
+
+    onReject?.(suggestion);
+  };
+
   root.render(
     <PreviewSuggestion
       suggestion={suggestion}
       onApply={onApply}
+      onReject={handleReject}
       artifactKind={artifactKind}
     />,
   );

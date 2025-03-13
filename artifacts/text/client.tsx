@@ -29,16 +29,25 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
     const suggestions = await getSuggestions({ documentId });
 
     setMetadata({
-      suggestions,
+      suggestions: suggestions.map(s => ({
+        ...s,
+        documentCreatedAt: new Date(s.documentCreatedAt),
+        createdAt: new Date(s.createdAt)
+      })),
     });
   },
   onStreamPart: ({ streamPart, setMetadata, setArtifact }) => {
     if (streamPart.type === 'suggestion') {
       setMetadata((metadata) => {
+        const suggestion = streamPart.content as Suggestion;
         return {
           suggestions: [
             ...metadata.suggestions,
-            streamPart.content as Suggestion,
+            {
+              ...suggestion,
+              documentCreatedAt: new Date(suggestion.documentCreatedAt),
+              createdAt: new Date(suggestion.createdAt)
+            }
           ],
         };
       });
@@ -70,6 +79,7 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
     getDocumentContentById,
     isLoading,
     metadata,
+    setMetadata,
   }) => {
     if (isLoading) {
       return <DocumentSkeleton artifactKind="text" />;
@@ -83,6 +93,30 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
     }
 
     const hasUnresolvedSuggestions = metadata?.suggestions?.some(s => !s.isResolved) ?? false;
+
+    const handleSuggestionResolve = (suggestionId: string, shouldApply: boolean) => {
+      if (!metadata?.suggestions) return;
+
+      setMetadata(prevMetadata => ({
+        ...prevMetadata,
+        suggestions: prevMetadata.suggestions.map(s => 
+          s.id === suggestionId 
+            ? { ...s, isResolved: true }
+            : s
+        )
+      }));
+
+      if (shouldApply) {
+        const suggestion = metadata.suggestions.find(s => s.id === suggestionId);
+        if (suggestion) {
+          const updatedContent = content.replace(
+            suggestion.originalText,
+            suggestion.suggestedText
+          );
+          onSaveContent(updatedContent, false);
+        }
+      }
+    };
 
     return (
       <>
@@ -103,6 +137,7 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
                     suggestion.originalText,
                     suggestion.suggestedText
                   );
+                  handleSuggestionResolve(suggestion.id, false);
                 }
                 
                 onSaveContent(updatedContent, false);
@@ -122,6 +157,7 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
             currentVersionIndex={currentVersionIndex}
             status={status}
             onSaveContent={onSaveContent}
+            onSuggestionResolve={handleSuggestionResolve}
           />
 
           {metadata &&
