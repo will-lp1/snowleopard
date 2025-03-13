@@ -81,7 +81,7 @@ export function DocumentPreview({
   }
 
   if (isDocumentsFetching) {
-    return <LoadingSkeleton artifactKind={result.kind ?? args.kind} />;
+    return <LoadingSkeleton />;
   }
 
   const document: Document | null = previewDocument
@@ -97,7 +97,7 @@ export function DocumentPreview({
         }
       : null;
 
-  if (!document) return <LoadingSkeleton artifactKind={artifact.kind} />;
+  if (!document) return <LoadingSkeleton />;
 
   return (
     <div className="relative w-full cursor-pointer">
@@ -108,7 +108,6 @@ export function DocumentPreview({
       />
       <DocumentHeader
         title={document.title}
-        kind={document.kind}
         isStreaming={artifact.status === 'streaming'}
       />
       <DocumentContent document={document} />
@@ -116,7 +115,7 @@ export function DocumentPreview({
   );
 }
 
-const LoadingSkeleton = ({ artifactKind }: { artifactKind: ArtifactKind }) => (
+const LoadingSkeleton = () => (
   <div className="w-full">
     <div className="p-4 border rounded-t-2xl flex flex-row gap-2 items-center justify-between dark:bg-muted h-[57px] dark:border-zinc-700 border-b-0">
       <div className="flex flex-row items-center gap-3">
@@ -129,15 +128,9 @@ const LoadingSkeleton = ({ artifactKind }: { artifactKind: ArtifactKind }) => (
         <FullscreenIcon />
       </div>
     </div>
-    {artifactKind === 'image' ? (
-      <div className="overflow-y-scroll border rounded-b-2xl bg-muted border-t-0 dark:border-zinc-700">
-        <div className="animate-pulse h-[257px] bg-muted-foreground/20 w-full" />
-      </div>
-    ) : (
-      <div className="overflow-y-scroll border rounded-b-2xl p-8 pt-4 bg-muted border-t-0 dark:border-zinc-700">
-        <InlineDocumentSkeleton />
-      </div>
-    )}
+    <div className="overflow-y-scroll border rounded-b-2xl p-8 pt-4 bg-muted border-t-0 dark:border-zinc-700">
+      <InlineDocumentSkeleton />
+    </div>
   </div>
 );
 
@@ -201,11 +194,9 @@ const HitboxLayer = memo(PureHitboxLayer, (prevProps, nextProps) => {
 
 const PureDocumentHeader = ({
   title,
-  kind,
   isStreaming,
 }: {
   title: string;
-  kind: ArtifactKind;
   isStreaming: boolean;
 }) => (
   <div className="p-4 border rounded-t-2xl flex flex-row gap-2 items-start sm:items-center justify-between dark:bg-muted border-b-0 dark:border-zinc-700">
@@ -215,8 +206,6 @@ const PureDocumentHeader = ({
           <div className="animate-spin">
             <LoaderIcon />
           </div>
-        ) : kind === 'image' ? (
-          <ImageIcon />
         ) : (
           <FileIcon />
         )}
@@ -238,48 +227,20 @@ const DocumentContent = ({ document }: { document: Document }) => {
   const { artifact } = useArtifact();
 
   const containerClassName = cn(
-    'h-[257px] overflow-y-scroll border rounded-b-2xl dark:bg-muted border-t-0 dark:border-zinc-700',
-    {
-      'p-4 sm:px-14 sm:py-16': document.kind === 'text',
-      'p-0': document.kind === 'code',
-    },
+    'h-[257px] overflow-y-scroll border rounded-b-2xl dark:bg-muted border-t-0 dark:border-zinc-700 p-4 sm:px-14 sm:py-16'
   );
-
-  const commonProps = {
-    content: document.content ?? '',
-    isCurrentVersion: true,
-    currentVersionIndex: 0,
-    status: artifact.status,
-    saveContent: () => {},
-    suggestions: [],
-  };
 
   return (
     <div className={containerClassName}>
-      {document.kind === 'text' ? (
-        <Editor {...commonProps} onSaveContent={() => {}} />
-      ) : document.kind === 'code' ? (
-        <div className="flex flex-1 relative w-full">
-          <div className="absolute inset-0">
-            <CodeEditor {...commonProps} onSaveContent={() => {}} />
-          </div>
-        </div>
-      ) : document.kind === 'sheet' ? (
-        <div className="flex flex-1 relative size-full p-4">
-          <div className="absolute inset-0">
-            <SpreadsheetEditor {...commonProps} />
-          </div>
-        </div>
-      ) : document.kind === 'image' ? (
-        <ImageEditor
-          title={document.title}
-          content={document.content ?? ''}
-          isCurrentVersion={true}
-          currentVersionIndex={0}
-          status={artifact.status}
-          isInline={true}
-        />
-      ) : null}
+      <Editor 
+        content={document.content ?? ''}
+        isCurrentVersion={true}
+        currentVersionIndex={0}
+        status={artifact.status}
+        onSaveContent={() => {}}
+        suggestions={[]}
+        onSuggestionResolve={() => {}}
+      />
     </div>
   );
 };

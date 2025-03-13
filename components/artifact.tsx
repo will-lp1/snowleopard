@@ -21,9 +21,6 @@ import { ArtifactCloseButton } from './artifact-close-button';
 import { ArtifactMessages } from './artifact-messages';
 import { useSidebar } from './ui/sidebar';
 import { useArtifact } from '@/hooks/use-artifact';
-import { imageArtifact } from '@/artifacts/image/client';
-import { codeArtifact } from '@/artifacts/code/client';
-import { sheetArtifact } from '@/artifacts/sheet/client';
 import { textArtifact } from '@/artifacts/text/client';
 import equal from 'fast-deep-equal';
 import { UseChatHelpers } from '@ai-sdk/react';
@@ -33,9 +30,6 @@ import { toast } from 'sonner';
 
 export const artifactDefinitions = [
   textArtifact,
-  codeArtifact,
-  imageArtifact,
-  sheetArtifact,
 ];
 export type ArtifactKind = (typeof artifactDefinitions)[number]['kind'];
 
@@ -262,7 +256,7 @@ function PureArtifact({
           className="flex flex-row h-dvh w-dvw fixed top-0 left-0 z-50 bg-transparent"
           initial={{ opacity: 1 }}
           animate={{ opacity: 1 }}
-          exit={{ opacity: 0, transition: { delay: 0.4 } }}
+          exit={{ opacity: 0, transition: { duration: 0.2 } }}
         >
           {!isMobile && (
             <motion.div
@@ -273,8 +267,9 @@ function PureArtifact({
               }}
               animate={{ width: windowWidth - 400, left: 0 }}
               exit={{
-                width: isSidebarOpen ? windowWidth - 256 : windowWidth,
+                width: windowWidth,
                 left: 0,
+                transition: { duration: 0.2 },
               }}
             />
           )}
@@ -282,13 +277,13 @@ function PureArtifact({
           {!isMobile && (
             <motion.div
               className="relative w-[400px] bg-muted dark:bg-background h-dvh shrink-0 ml-auto"
-              initial={{ opacity: 0, x: -10, scale: 1 }}
+              initial={{ opacity: 0, x: 10, scale: 1 }}
               animate={{
                 opacity: 1,
                 x: 0,
                 scale: 1,
                 transition: {
-                  delay: 0.2,
+                  delay: 0.1,
                   type: 'spring',
                   stiffness: 200,
                   damping: 30,
@@ -296,9 +291,8 @@ function PureArtifact({
               }}
               exit={{
                 opacity: 0,
-                x: 0,
-                scale: 1,
-                transition: { duration: 0 },
+                x: 20,
+                transition: { duration: 0.2 },
               }}
             >
               <AnimatePresence>
@@ -382,7 +376,7 @@ function PureArtifact({
           )}
 
           <motion.div
-            className="fixed dark:bg-muted bg-background h-dvh flex flex-col overflow-y-scroll md:border-l dark:border-zinc-700 border-zinc-200"
+            className="fixed dark:bg-muted bg-background h-dvh flex flex-col overflow-y-scroll md:border-r dark:border-zinc-700 border-zinc-200"
             initial={
               isMobile
                 ? {
@@ -439,13 +433,8 @@ function PureArtifact({
             }
             exit={{
               opacity: 0,
-              scale: 0.5,
-              transition: {
-                delay: 0.1,
-                type: 'spring',
-                stiffness: 600,
-                damping: 30,
-              },
+              scale: 1,
+              transition: { duration: 0.2 },
             }}
           >
             <div className="p-2 flex flex-row justify-between items-start">
