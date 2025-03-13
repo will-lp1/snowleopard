@@ -113,7 +113,7 @@ export default function Home() {
 
           {/* Tagline */}
           <p className="text-base text-gray-600 dark:text-gray-400 max-w-md mx-auto font-light">
-            The most satisfying and intuitive ai writing tool,
+            the most satisfying, intuitive ai writing tool,
             <br />
             and it&apos;s open source
           </p>

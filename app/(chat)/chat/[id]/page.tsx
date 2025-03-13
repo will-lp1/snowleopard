@@ -8,6 +8,7 @@ import { getChatById, getMessagesByChatId } from '@/lib/db/queries';
 import { convertToUIMessages } from '@/lib/utils';
 import { DataStreamHandler } from '@/components/data-stream-handler';
 import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
+import { type VisibilityType } from '@/components/visibility-selector';
 
 // Type guard for message role
 function isValidRole(role: string): role is Message['role'] {
@@ -54,29 +55,42 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
   const cookieStore = await cookies();
   const chatModelFromCookie = cookieStore.get('chat-model');
 
-  if (!chatModelFromCookie) {
-    return (
-      <>
-        <Chat
-          id={chat.id}
-          initialMessages={uiMessages}
-          selectedChatModel={DEFAULT_CHAT_MODEL}
-          selectedVisibilityType={chat.visibility}
-          isReadonly={session?.user?.id !== chat.userId}
-        />
-        <DataStreamHandler id={id} />
-      </>
-    );
-  }
+  const chatModel = chatModelFromCookie?.value || DEFAULT_CHAT_MODEL;
 
+  return (
+    <ChatClientPage
+      id={chat.id}
+      initialMessages={uiMessages}
+      selectedChatModel={chatModel}
+      selectedVisibilityType={chat.visibility as VisibilityType}
+      isReadonly={session?.user?.id !== chat.userId}
+    />
+  );
+}
+
+'use client';
+
+function ChatClientPage({
+  id,
+  initialMessages,
+  selectedChatModel,
+  selectedVisibilityType,
+  isReadonly,
+}: {
+  id: string;
+  initialMessages: Array<Message>;
+  selectedChatModel: string;
+  selectedVisibilityType: VisibilityType;
+  isReadonly: boolean;
+}) {
   return (
     <>
       <Chat
-        id={chat.id}
-        initialMessages={uiMessages}
-        selectedChatModel={chatModelFromCookie.value}
-        selectedVisibilityType={chat.visibility}
-        isReadonly={session?.user?.id !== chat.userId}
+        id={id}
+        initialMessages={initialMessages}
+        selectedChatModel={selectedChatModel}
+        selectedVisibilityType={selectedVisibilityType}
+        isReadonly={isReadonly}
       />
       <DataStreamHandler id={id} />
     </>
