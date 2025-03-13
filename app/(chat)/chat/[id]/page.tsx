@@ -14,11 +14,12 @@ function isValidRole(role: string): role is Message['role'] {
   return ['user', 'assistant', 'system', 'data'].includes(role);
 }
 
-// @ts-ignore
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-export default async function Page({ params }: { params: { id: string } }) {
+export default async function Page(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const { id } = params;
+  
   // Get chat and handle potential errors
-  const chat = await getChatById({ id: params.id }).catch(error => {
+  const chat = await getChatById({ id }).catch(error => {
     console.error('Error fetching chat:', error);
     return null;
   });
@@ -42,7 +43,7 @@ export default async function Page({ params }: { params: { id: string } }) {
   }
 
   // Get messages and handle potential errors
-  const messagesFromDb = await getMessagesByChatId({ id: params.id }).catch(error => {
+  const messagesFromDb = await getMessagesByChatId({ id }).catch(error => {
     console.error('Error fetching messages:', error);
     return [];
   });
@@ -63,7 +64,7 @@ export default async function Page({ params }: { params: { id: string } }) {
           selectedVisibilityType={chat.visibility}
           isReadonly={session?.user?.id !== chat.userId}
         />
-        <DataStreamHandler id={params.id} />
+        <DataStreamHandler id={id} />
       </>
     );
   }
@@ -77,7 +78,7 @@ export default async function Page({ params }: { params: { id: string } }) {
         selectedVisibilityType={chat.visibility}
         isReadonly={session?.user?.id !== chat.userId}
       />
-      <DataStreamHandler id={params.id} />
+      <DataStreamHandler id={id} />
     </>
   );
 }

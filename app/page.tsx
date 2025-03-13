@@ -106,7 +106,7 @@ export default function Home() {
             
             <div className="relative mt-1">
               <h3 className={`text-[80px] ${crimson.className} tracking-[-0.01em] text-gray-900 font-bold`}>
-                Brilliance<span className="animate-blink ml-0.5 font-normal">&lsquo;</span>
+                Brilliance<span className="animate-blink ml-0.5 font-normal">|</span>
               </h3>
             </div>
           </div>
