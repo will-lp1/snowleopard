@@ -1,6 +1,6 @@
 'use server';
 
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
 
 export async function authenticate(
@@ -8,7 +8,7 @@ export async function authenticate(
   formData: FormData,
 ) {
   try {
-    const supabase = createServerSupabaseClient();
+    const supabase = await createClient();
     const { error } = await supabase.auth.signInWithPassword({
       email: formData.get('email') as string,
       password: formData.get('password') as string,
@@ -32,7 +32,7 @@ export async function register(
   formData: FormData,
 ) {
   try {
-    const supabase = createServerSupabaseClient();
+    const supabase = await createClient();
     const { error } = await supabase.auth.signUp({
       email: formData.get('email') as string,
       password: formData.get('password') as string,
@@ -55,7 +55,7 @@ export async function register(
 }
 
 export async function logout() {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createClient();
   await supabase.auth.signOut();
   redirect('/login');
 }
