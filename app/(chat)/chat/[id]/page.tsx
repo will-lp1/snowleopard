@@ -14,76 +14,68 @@ function isValidRole(role: string): role is Message['role'] {
   return ['user', 'assistant', 'system', 'data'].includes(role);
 }
 
-export default async function Page(props: { params: Promise<{ id: string }> }) {
-  try {
-    const params = await props.params;
-    const { id } = params;
-    
-    // Get chat and handle potential errors
-    const chat = await getChatById({ id }).catch(error => {
-      console.error('Error fetching chat:', error);
-      return null;
-    });
+export default async function Page({ params }: { params: { id: string } }) {
+  // Get chat and handle potential errors
+  const chat = await getChatById({ id: params.id }).catch(error => {
+    console.error('Error fetching chat:', error);
+    return null;
+  });
 
-    if (!chat) {
+  if (!chat) {
+    return notFound();
+  }
+
+  // Get Supabase session
+  const supabase = await createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (chat.visibility === 'private') {
+    if (!session || !session.user) {
       return notFound();
     }
 
-    // Get Supabase session
-    const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
-
-    if (chat.visibility === 'private') {
-      if (!session || !session.user) {
-        return notFound();
-      }
-
-      if (session.user.id !== chat.userId) {
-        return notFound();
-      }
+    if (session.user.id !== chat.userId) {
+      return notFound();
     }
+  }
 
-    // Get messages and handle potential errors
-    const messagesFromDb = await getMessagesByChatId({ id }).catch(error => {
-      console.error('Error fetching messages:', error);
-      return [];
-    });
+  // Get messages and handle potential errors
+  const messagesFromDb = await getMessagesByChatId({ id: params.id }).catch(error => {
+    console.error('Error fetching messages:', error);
+    return [];
+  });
 
-    // Convert messages using the utility function
-    const uiMessages = convertToUIMessages(messagesFromDb);
+  // Convert messages using the utility function
+  const uiMessages = convertToUIMessages(messagesFromDb);
 
-    const cookieStore = await cookies();
-    const chatModelFromCookie = cookieStore.get('chat-model');
+  const cookieStore = await cookies();
+  const chatModelFromCookie = cookieStore.get('chat-model');
 
-    if (!chatModelFromCookie) {
-      return (
-        <>
-          <Chat
-            id={chat.id}
-            initialMessages={uiMessages}
-            selectedChatModel={DEFAULT_CHAT_MODEL}
-            selectedVisibilityType={chat.visibility}
-            isReadonly={session?.user?.id !== chat.userId}
-          />
-          <DataStreamHandler id={id} />
-        </>
-      );
-    }
-
+  if (!chatModelFromCookie) {
     return (
       <>
         <Chat
           id={chat.id}
           initialMessages={uiMessages}
-          selectedChatModel={chatModelFromCookie.value}
+          selectedChatModel={DEFAULT_CHAT_MODEL}
           selectedVisibilityType={chat.visibility}
           isReadonly={session?.user?.id !== chat.userId}
         />
-        <DataStreamHandler id={id} />
+        <DataStreamHandler id={params.id} />
       </>
     );
-  } catch (error) {
-    console.error('Page error:', error);
-    return notFound();
   }
+
+  return (
+    <>
+      <Chat
+        id={chat.id}
+        initialMessages={uiMessages}
+        selectedChatModel={chatModelFromCookie.value}
+        selectedVisibilityType={chat.visibility}
+        isReadonly={session?.user?.id !== chat.userId}
+      />
+      <DataStreamHandler id={params.id} />
+    </>
+  );
 }
