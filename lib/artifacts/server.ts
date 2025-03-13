@@ -6,7 +6,7 @@ import { ArtifactKind } from '@/components/artifact';
 import { DataStreamWriter } from 'ai';
 import { Document } from '../db/schema';
 import { saveDocument } from '../db/queries';
-import { Session } from 'next-auth';
+import { Session } from '@supabase/auth-helpers-nextjs';
 
 export interface SaveDocumentProps {
   id: string;
@@ -93,4 +93,4 @@ export const documentHandlersByArtifactKind: Array<DocumentHandler> = [
   textDocumentHandler
 ];
 
-export const artifactKinds = ['text', 'code', 'image', 'sheet'] as const;
+export const artifactKinds = ['text'] as const;
