@@ -1,5 +1,4 @@
 import Form from 'next/form';
-
 import { signOut } from '@/app/(auth)/auth';
 
 export const SignOutForm = () => {
@@ -8,10 +7,7 @@ export const SignOutForm = () => {
       className="w-full"
       action={async () => {
         'use server';
-
-        await signOut({
-          redirectTo: '/',
-        });
+        await signOut();
       }}
     >
       <button

@@ -1,7 +1,7 @@
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createClient } from '@/utils/supabase/server';
 
 export async function checkAuth(request: Request) {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createClient();
   const { data: { session } } = await supabase.auth.getSession();
   const isLoggedIn = !!session?.user;
   const nextUrl = new URL(request.url);
@@ -53,7 +53,7 @@ export const authConfig: AuthConfig = {
   },
   callbacks: {
     authorized: async ({ request: { nextUrl } }) => {
-      const supabase = createServerSupabaseClient();
+      const supabase = await createClient();
       const { data: { session } } = await supabase.auth.getSession();
       const isLoggedIn = !!session?.user;
       const isOnChat = nextUrl.pathname.startsWith('/');

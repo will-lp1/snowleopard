@@ -1,8 +1,7 @@
-import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { cookies } from 'next/headers';
+import { createClient } from '@/utils/supabase/server';
 
 export async function signIn(email: string, password: string) {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
@@ -13,7 +12,7 @@ export async function signIn(email: string, password: string) {
 }
 
 export async function signUp(email: string, password: string) {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -27,25 +26,25 @@ export async function signUp(email: string, password: string) {
 }
 
 export async function signOut() {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createClient();
   const { error } = await supabase.auth.signOut();
   if (error) throw error;
 }
 
 export async function getSession() {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createClient();
   const { data: { session } } = await supabase.auth.getSession();
   return session;
 }
 
 export async function getCurrentUser() {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   return user;
 }
 
 export async function getUser() {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createClient();
   const { data: { session }, error } = await supabase.auth.getSession();
   
   if (error) {
@@ -60,7 +59,7 @@ export async function getUserDetails() {
   const user = await getUser();
   if (!user) return null;
 
-  const supabase = createServerSupabaseClient();
+  const supabase = await createClient();
   const { data: userDetails, error } = await supabase
     .from('User')
     .select('*')

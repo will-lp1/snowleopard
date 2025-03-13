@@ -1,7 +1,8 @@
 import 'server-only';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
-import type { Database } from '@/lib/supabase/database.types';
+import { createClient } from '@/utils/supabase/server';
+import type { Database } from '@/utils/supabase/database.types';
 import type { ArtifactKind } from '@/components/artifact';
+import { cookies } from 'next/headers';
 
 type Tables = Database['public']['Tables'];
 type Chat = Tables['Chat']['Row'];
@@ -11,7 +12,7 @@ type Suggestion = Tables['Suggestion']['Row'];
 type Vote = Tables['Vote']['Row'];
 
 export async function getUser(email: string) {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createClient();
   const { data: user, error } = await supabase
     .from('auth.users')
     .select()
@@ -31,7 +32,7 @@ export async function saveChat({
   userId: string;
   title: string;
 }) {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createClient();
   const { error } = await supabase.from('Chat').insert({
     id,
     userId,
@@ -39,17 +40,24 @@ export async function saveChat({
     createdAt: new Date().toISOString(),
   });
 
-  if (error) throw error;
+  if (error) {
+    console.error('Error saving chat:', error);
+    throw error;
+  }
 }
 
 export async function deleteChatById({ id }: { id: string }) {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createClient();
   const { error } = await supabase.from('Chat').delete().eq('id', id);
-  if (error) throw error;
+
+  if (error) {
+    console.error('Error deleting chat:', error);
+    throw error;
+  }
 }
 
 export async function getChatsByUserId({ id }: { id: string }): Promise<Chat[]> {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from('Chat')
     .select()
@@ -60,34 +68,46 @@ export async function getChatsByUserId({ id }: { id: string }): Promise<Chat[]> 
   return data;
 }
 
-export async function getChatById({ id }: { id: string }): Promise<Chat> {
-  const supabase = createServerSupabaseClient();
+export async function getChatById({ id }: { id: string }) {
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from('Chat')
-    .select()
+    .select('*')
     .eq('id', id)
-    .single();
+    .maybeSingle();
 
-  if (error) throw error;
+  if (error) {
+    console.error('Error fetching chat:', error);
+    return null;
+  }
+
   return data;
 }
 
 export async function saveMessages({ messages }: { messages: Array<Message> }) {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createClient();
   const { error } = await supabase.from('Message').insert(messages);
-  if (error) throw error;
+
+  if (error) {
+    console.error('Error saving messages:', error);
+    throw error;
+  }
 }
 
-export async function getMessagesByChatId({ id }: { id: string }): Promise<Message[]> {
-  const supabase = createServerSupabaseClient();
+export async function getMessagesByChatId({ id }: { id: string }) {
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from('Message')
-    .select()
+    .select('*')
     .eq('chatId', id)
     .order('createdAt', { ascending: true });
 
-  if (error) throw error;
-  return data;
+  if (error) {
+    console.error('Error fetching messages:', error);
+    return [];
+  }
+
+  return data || [];
 }
 
 export async function voteMessage({
@@ -99,7 +119,7 @@ export async function voteMessage({
   messageId: string;
   type: 'up' | 'down';
 }) {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createClient();
   const { data: existingVote, error: fetchError } = await supabase
     .from('Vote')
     .select()
@@ -128,7 +148,7 @@ export async function voteMessage({
 }
 
 export async function getVotesByChatId({ id }: { id: string }): Promise<Vote[]> {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from('Vote')
     .select()
@@ -151,7 +171,7 @@ export async function saveDocument({
   content: string;
   userId: string;
 }) {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createClient();
   const { error } = await supabase.from('Document').insert({
     id,
     title,
@@ -165,7 +185,7 @@ export async function saveDocument({
 }
 
 export async function getDocumentsById({ id }: { id: string }): Promise<Document[]> {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from('Document')
     .select()
@@ -177,7 +197,7 @@ export async function getDocumentsById({ id }: { id: string }): Promise<Document
 }
 
 export async function getDocumentById({ id }: { id: string }): Promise<Document> {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from('Document')
     .select()
@@ -197,7 +217,7 @@ export async function deleteDocumentsByIdAfterTimestamp({
   id: string;
   timestamp: Date;
 }) {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from('Document')
     .delete()
@@ -212,7 +232,7 @@ export async function saveSuggestions({
 }: {
   suggestions: Array<Suggestion>;
 }) {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createClient();
   const { error } = await supabase.from('Suggestion').insert(suggestions);
   if (error) throw error;
 }
@@ -222,7 +242,7 @@ export async function getSuggestionsByDocumentId({
 }: {
   documentId: string;
 }): Promise<Suggestion[]> {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from('Suggestion')
     .select()
@@ -233,7 +253,7 @@ export async function getSuggestionsByDocumentId({
 }
 
 export async function getMessageById({ id }: { id: string }): Promise<Message> {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from('Message')
     .select()
@@ -251,7 +271,7 @@ export async function deleteMessagesByChatIdAfterTimestamp({
   chatId: string;
   timestamp: Date;
 }) {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createClient();
   const { data: messagesToDelete, error: fetchError } = await supabase
     .from('Message')
     .select('id')
@@ -288,7 +308,7 @@ export async function updateChatVisiblityById({
   chatId: string;
   visibility: 'private' | 'public';
 }) {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from('Chat')
     .update({ visibility })

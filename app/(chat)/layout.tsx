@@ -3,8 +3,8 @@ import { cookies } from 'next/headers';
 import { AppSidebar } from '@/components/app-sidebar';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 
-import { createServerSupabaseClient } from '@/lib/supabase/server';
 import Script from 'next/script';
+import { createClient } from '@/utils/supabase/server';
 
 export const experimental_ppr = true;
 
@@ -13,10 +13,11 @@ export default async function Layout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createClient();
   const { data: { session } } = await supabase.auth.getSession();
   const cookieStore = await cookies();
-  const isCollapsed = cookieStore.get('sidebar:state')?.value !== 'true';
+  const sidebarState = cookieStore.get('sidebar:state');
+  const isCollapsed = sidebarState?.value !== 'true';
 
   return (
     <>

@@ -4,8 +4,7 @@ import {
   smoothStream,
   streamText,
 } from 'ai';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createClient } from '@/utils/supabase/server';
 import { systemPrompt } from '@/lib/ai/prompts';
 import {
   deleteChatById,
@@ -26,16 +25,26 @@ import { getWeather } from '@/lib/ai/tools/get-weather';
 import { isProductionEnvironment } from '@/lib/constants';
 import { NextResponse } from 'next/server';
 import { myProvider } from '@/lib/ai/providers';
-import type { Database } from '@/lib/supabase/database.types';
 
 export const maxDuration = 60;
 
+// Convert Supabase session to format expected by tools
+function adaptSession(supabaseSession: any) {
+  return {
+    ...supabaseSession,
+    expires: new Date(supabaseSession.expires_in ?? 0).toISOString(),
+  };
+}
+
 export async function POST(request: Request) {
   try {
-    const supabase = createRouteHandlerClient<Database>({ cookies });
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    const supabase = await createClient();
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+    if (sessionError) {
+      console.error('Session error:', sessionError);
+      return new Response('Authentication error', { status: 401 });
+    }
 
     if (!session?.user?.id) {
       return new Response('Unauthorized', { status: 401 });
@@ -72,8 +81,16 @@ export async function POST(request: Request) {
     }
 
     await saveMessages({
-      messages: [{ ...userMessage, createdAt: new Date(), chatId: id }],
+      messages: [{
+        id: userMessage.id,
+        chatId: id,
+        role: userMessage.role,
+        content: JSON.stringify(userMessage.content),
+        createdAt: new Date().toISOString(),
+      }],
     });
+
+    const adaptedSession = adaptSession(session);
 
     return createDataStreamResponse({
       execute: (dataStream) => {
@@ -95,10 +112,10 @@ export async function POST(request: Request) {
           experimental_generateMessageId: generateUUID,
           tools: {
             getWeather,
-            createDocument: createDocument({ session, dataStream }),
-            updateDocument: updateDocument({ session, dataStream }),
+            createDocument: createDocument({ session: adaptedSession, dataStream }),
+            updateDocument: updateDocument({ session: adaptedSession, dataStream }),
             requestSuggestions: requestSuggestions({
-              session,
+              session: adaptedSession,
               dataStream,
             }),
           },
@@ -111,15 +128,13 @@ export async function POST(request: Request) {
                 });
 
                 await saveMessages({
-                  messages: sanitizedResponseMessages.map((message) => {
-                    return {
-                      id: message.id,
-                      chatId: id,
-                      role: message.role,
-                      content: message.content,
-                      createdAt: new Date(),
-                    };
-                  }),
+                  messages: sanitizedResponseMessages.map((message) => ({
+                    id: message.id,
+                    chatId: id,
+                    role: message.role,
+                    content: JSON.stringify(message.content),
+                    createdAt: new Date().toISOString(),
+                  })),
                 });
               } catch (error) {
                 console.error('Failed to save chat');
@@ -139,33 +154,39 @@ export async function POST(request: Request) {
         });
       },
       onError: () => {
-        return 'Oops, an error occured!';
+        return 'Oops, an error occurred!';
       },
     });
   } catch (error) {
+    console.error('Chat route error:', error);
     return NextResponse.json({ error }, { status: 400 });
   }
 }
 
 export async function DELETE(request: Request) {
-  const supabase = createRouteHandlerClient<Database>({ cookies });
-  const { data: { session } } = await supabase.auth.getSession();
-
-  if (!session?.user) {
-    return new Response('Unauthorized', { status: 401 });
-  }
-
-  const { searchParams } = new URL(request.url);
-  const id = searchParams.get('id');
-
-  if (!id) {
-    return new Response('Not Found', { status: 404 });
-  }
-
   try {
+    const supabase = await createClient();
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+    if (sessionError) {
+      console.error('Session error:', sessionError);
+      return new Response('Authentication error', { status: 401 });
+    }
+
+    if (!session?.user) {
+      return new Response('Unauthorized', { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return new Response('Not Found', { status: 404 });
+    }
+
     const chat = await getChatById({ id });
 
-    if (chat.userId !== session.user.id) {
+    if (!chat || chat.userId !== session.user.id) {
       return new Response('Unauthorized', { status: 401 });
     }
 
@@ -173,6 +194,7 @@ export async function DELETE(request: Request) {
 
     return new Response('Chat deleted', { status: 200 });
   } catch (error) {
+    console.error('Delete chat error:', error);
     return new Response('An error occurred while processing your request', {
       status: 500,
     });
