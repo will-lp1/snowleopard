@@ -60,7 +60,7 @@ export async function middleware(request: NextRequest) {
   // Handle protected routes
   const { data: { session } } = await supabase.auth.getSession()
   const isLoggedIn = !!session?.user
-  const isOnChat = request.nextUrl.pathname === '/'
+  const isOnChat = request.nextUrl.pathname === '/chat'
   const isOnRegister = request.nextUrl.pathname === '/register'
   const isOnLogin = request.nextUrl.pathname === '/login'
 
@@ -81,5 +81,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/login', '/register']
+  matcher: ['/chat', '/login', '/register']
 }
