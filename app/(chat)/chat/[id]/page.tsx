@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { type Message } from 'ai';
@@ -10,22 +8,14 @@ import { getChatById, getMessagesByChatId } from '@/lib/db/queries';
 import { convertToUIMessages } from '@/lib/utils';
 import { DataStreamHandler } from '@/components/data-stream-handler';
 import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
-import { getSession } from '@/app/(auth)/auth';
 
 // Type guard for message role
 function isValidRole(role: string): role is Message['role'] {
   return ['user', 'assistant', 'system', 'data'].includes(role);
 }
 
-interface PageProps {
-  params: Promise<{ id: string }>;
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
-}
-
-export default async function Page(props: PageProps) {
+export default async function Page({ params }: { params: { id: string } }) {
   try {
-    const params = await props.params;
-    const searchParams = await props.searchParams;
     const { id } = params;
     
     // Get chat and handle potential errors
@@ -38,7 +28,9 @@ export default async function Page(props: PageProps) {
       return notFound();
     }
 
-    const session = await getSession();
+    // Get Supabase session
+    const supabase = await createClient();
+    const { data: { session } } = await supabase.auth.getSession();
 
     if (chat.visibility === 'private') {
       if (!session || !session.user) {
