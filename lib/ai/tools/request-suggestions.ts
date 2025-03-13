@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Session } from 'next-auth';
+import { Session } from '@supabase/auth-helpers-nextjs';
 import { DataStreamWriter, streamObject, tool } from 'ai';
 import { getDocumentById, saveSuggestions } from '@/lib/db/queries';
 import { Suggestion } from '@/lib/db/schema';
