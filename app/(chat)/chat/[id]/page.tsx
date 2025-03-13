@@ -7,15 +7,15 @@ import { getChatById, getMessagesByChatId } from '@/lib/db/queries';
 import { convertToUIMessages } from '@/lib/utils';
 import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
 import { type VisibilityType } from '@/components/visibility-selector';
-import { ChatClientPage } from './chat-client';
+import { Chat } from '@/components/chat';
+import { DataStreamHandler } from '@/components/data-stream-handler';
 
 // Type guard for message role
 function isValidRole(role: string): role is Message['role'] {
   return ['user', 'assistant', 'system', 'data'].includes(role);
 }
 
-export default async function Page(props: { params: Promise<{ id: string }> }) {
-  const params = await props.params;
+export default async function Page({ params }: { params: { id: string } }) {
   const { id } = params;
   
   // Get chat and handle potential errors
@@ -57,12 +57,15 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
   const chatModel = chatModelFromCookie?.value || DEFAULT_CHAT_MODEL;
 
   return (
-    <ChatClientPage
-      id={chat.id}
-      initialMessages={uiMessages}
-      selectedChatModel={chatModel}
-      selectedVisibilityType={chat.visibility as VisibilityType}
-      isReadonly={session?.user?.id !== chat.userId}
-    />
+    <>
+      <Chat
+        id={chat.id}
+        initialMessages={uiMessages}
+        selectedChatModel={chatModel}
+        selectedVisibilityType={chat.visibility as VisibilityType}
+        isReadonly={session?.user?.id !== chat.userId}
+      />
+      <DataStreamHandler id={chat.id} />
+    </>
   );
 }
