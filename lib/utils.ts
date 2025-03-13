@@ -4,7 +4,8 @@ import type {
   Message,
   TextStreamPart,
   ToolInvocation,
-  ToolSet,
+  ToolCall,
+  ToolResult,
 } from 'ai';
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -85,6 +86,11 @@ function addToolMessageToChat({
   });
 }
 
+// Extend ToolInvocation to include result
+type ExtendedToolInvocation = ToolInvocation & {
+  result?: any;
+};
+
 export function convertToUIMessages(
   messages: Array<DBMessage>,
 ): Array<Message> {
@@ -98,7 +104,7 @@ export function convertToUIMessages(
 
     let textContent = '';
     let reasoning: string | undefined = undefined;
-    const toolInvocations: Array<ToolInvocation> = [];
+    const toolInvocations: Array<ExtendedToolInvocation> = [];
 
     if (typeof message.content === 'string') {
       textContent = message.content;
@@ -106,13 +112,22 @@ export function convertToUIMessages(
       for (const content of message.content) {
         if (content.type === 'text') {
           textContent += content.text;
-        } else if (content.type === 'tool-call') {
+        } else if (content.type === 'tool_call') {
           toolInvocations.push({
             state: 'call',
             toolCallId: content.toolCallId,
             toolName: content.toolName,
             args: content.args,
           });
+        } else if (content.type === 'tool_result') {
+          // Find matching tool invocation and update it
+          const existingInvocation = toolInvocations.find(
+            inv => inv.toolCallId === content.toolCallId
+          );
+          if (existingInvocation) {
+            existingInvocation.state = 'result';
+            existingInvocation.result = content.result;
+          }
         } else if (content.type === 'reasoning') {
           reasoning = content.reasoning;
         }
@@ -124,7 +139,7 @@ export function convertToUIMessages(
       role: message.role as Message['role'],
       content: textContent,
       reasoning,
-      toolInvocations,
+      toolInvocations: toolInvocations.length > 0 ? toolInvocations : undefined,
     });
 
     return chatMessages;
@@ -228,4 +243,58 @@ export function getDocumentTimestampByIndex(
   if (index > documents.length) return new Date();
 
   return documents[index].createdAt;
+}
+
+interface MessageContent {
+  type: 'text' | 'tool_call' | 'tool_result';
+  content: any;
+  order: number;
+}
+
+export function parseMessageContent(content: any): MessageContent[] {
+  if (typeof content === 'string') {
+    try {
+      // Try to parse as JSON first
+      const parsed = JSON.parse(content);
+      if (Array.isArray(parsed)) {
+        return parsed.map((item, index) => ({
+          type: (item.type === 'tool-call' ? 'tool_call' : 
+                 item.type === 'tool-result' ? 'tool_result' : 
+                 item.type || 'text') as MessageContent['type'],
+          content: item,
+          order: index,
+        }));
+      }
+      // If parsed but not an array, treat as single text content
+      return [{
+        type: 'text',
+        content: parsed,
+        order: 0,
+      }];
+    } catch {
+      // If not valid JSON, treat as plain text
+      return [{
+        type: 'text',
+        content: content,
+        order: 0,
+      }];
+    }
+  }
+
+  if (Array.isArray(content)) {
+    return content.map((item, index) => ({
+      type: (item.type === 'tool-call' ? 'tool_call' : 
+             item.type === 'tool-result' ? 'tool_result' : 
+             item.type || 'text') as MessageContent['type'],
+      content: item,
+      order: index,
+    }));
+  }
+
+  // If object or other type, wrap in array
+  return [{
+    type: 'text',
+    content: content,
+    order: 0,
+  }];
 }

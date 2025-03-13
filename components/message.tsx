@@ -119,7 +119,13 @@ const PurePreviewMessage = ({
                       message.role === 'user',
                   })}
                 >
-                  <Markdown>{message.content as string}</Markdown>
+                  {typeof message.content === 'string' ? (
+                    <Markdown>{message.content}</Markdown>
+                  ) : (
+                    <pre className="text-sm text-red-500">
+                      Error: Invalid message content format
+                    </pre>
+                  )}
                 </div>
               </div>
             )}

@@ -2,7 +2,7 @@ import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { type Message } from 'ai';
 
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createClient } from '@/utils/supabase/server';
 import { Chat } from '@/components/chat';
 import { getChatById, getMessagesByChatId } from '@/lib/db/queries';
 import { convertToUIMessages } from '@/lib/utils';
@@ -48,16 +48,8 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
       return [];
     });
 
-    // Convert messages with proper date objects and validate roles
-    const uiMessages = messagesFromDb.map(msg => {
-      const role = isValidRole(msg.role) ? msg.role : 'user'; // Default to user if invalid role
-      return {
-        ...msg,
-        role,
-        createdAt: new Date(msg.createdAt),
-        content: typeof msg.content === 'string' ? JSON.parse(msg.content) : msg.content
-      };
-    });
+    // Convert messages using the utility function
+    const uiMessages = convertToUIMessages(messagesFromDb);
 
     const cookieStore = await cookies();
     const chatModelFromCookie = cookieStore.get('chat-model');

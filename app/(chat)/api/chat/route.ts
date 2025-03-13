@@ -11,11 +11,13 @@ import {
   getChatById,
   saveChat,
   saveMessages,
+  saveMessageContent,
 } from '@/lib/db/queries';
 import {
   generateUUID,
   getMostRecentUserMessage,
   sanitizeResponseMessages,
+  parseMessageContent,
 } from '@/lib/utils';
 import { generateTitleFromUserMessage } from '../../actions';
 import { createDocument } from '@/lib/ai/tools/create-document';
@@ -84,9 +86,14 @@ export async function POST(request: Request) {
         id: userMessage.id,
         chatId: id,
         role: userMessage.role,
-        content: JSON.stringify(userMessage.content),
+        content: '{}',
         createdAt: new Date().toISOString(),
       }],
+    });
+
+    await saveMessageContent({
+      messageId: userMessage.id,
+      contents: parseMessageContent(userMessage.content),
     });
 
     const adaptedSession = adaptSession(session);
@@ -129,12 +136,21 @@ export async function POST(request: Request) {
                     id: message.id,
                     chatId: id,
                     role: message.role,
-                    content: JSON.stringify(message.content),
+                    content: '{}',
                     createdAt: new Date().toISOString(),
                   })),
                 });
+
+                await Promise.all(
+                  sanitizedResponseMessages.map((message) =>
+                    saveMessageContent({
+                      messageId: message.id,
+                      contents: parseMessageContent(message.content),
+                    })
+                  )
+                );
               } catch (error) {
-                console.error('Failed to save chat');
+                console.error('Failed to save chat:', error);
               }
             }
           },

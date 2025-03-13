@@ -11,6 +11,17 @@ type Document = Tables['Document']['Row'];
 type Suggestion = Tables['Suggestion']['Row'];
 type Vote = Tables['Vote']['Row'];
 
+interface MessageContent {
+  type: 'text' | 'tool_call' | 'tool_result';
+  content: any;
+  order: number;
+}
+
+interface SaveMessageContentParams {
+  messageId: string;
+  contents: MessageContent[];
+}
+
 export async function getUser(email: string) {
   const supabase = await createClient();
   const { data: user, error } = await supabase
@@ -96,9 +107,18 @@ export async function saveMessages({ messages }: { messages: Array<Message> }) {
 
 export async function getMessagesByChatId({ id }: { id: string }) {
   const supabase = await createClient();
+  
+  // Get messages and their content
   const { data, error } = await supabase
     .from('Message')
-    .select('*')
+    .select(`
+      *,
+      MessageContent (
+        type,
+        content,
+        order
+      )
+    `)
     .eq('chatId', id)
     .order('createdAt', { ascending: true });
 
@@ -107,7 +127,40 @@ export async function getMessagesByChatId({ id }: { id: string }) {
     return [];
   }
 
-  return data || [];
+  // Transform the data to combine message content
+  return (data || []).map(message => {
+    // If message has content entries
+    if (message.MessageContent && message.MessageContent.length > 0) {
+      // Sort by order
+      const sortedContent = message.MessageContent.sort((a: any, b: any) => a.order - b.order);
+      
+      // Process each content entry
+      const processedContent = sortedContent.map((mc: any) => {
+        // Check if content is a JSON string
+        if (typeof mc.content === 'string') {
+          try {
+            // Try to parse as JSON
+            const parsed = JSON.parse(mc.content);
+            // Return the parsed object with correct type
+            return { type: mc.type, ...parsed };
+          } catch (e) {
+            // If not parseable, treat as text
+            return { type: mc.type, text: mc.content };
+          }
+        }
+        // Return non-string content
+        return { type: mc.type, ...mc.content };
+      });
+      
+      return {
+        ...message,
+        content: processedContent
+      };
+    }
+    
+    // If no MessageContent, return original message
+    return message;
+  });
 }
 
 export async function voteMessage({
@@ -315,4 +368,25 @@ export async function updateChatVisiblityById({
     .eq('id', chatId);
 
   if (error) throw error;
+}
+
+export async function saveMessageContent({ messageId, contents }: SaveMessageContentParams) {
+  const supabase = await createClient();
+
+  // Insert all content entries for the message
+  const { error } = await supabase
+    .from('MessageContent')
+    .insert(
+      contents.map((content) => ({
+        messageId,
+        type: content.type,
+        content: content.content,
+        order: content.order,
+      }))
+    );
+
+  if (error) {
+    console.error('Error saving message content:', error);
+    throw error;
+  }
 }

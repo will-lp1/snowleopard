@@ -26,7 +26,12 @@ export function MessageEditor({
 }: MessageEditorProps) {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  const [draftContent, setDraftContent] = useState<string>(message.content);
+  // Handle content properly regardless of type
+  const initialContent = typeof message.content === 'string' 
+    ? message.content 
+    : JSON.stringify(message.content);
+    
+  const [draftContent, setDraftContent] = useState<string>(initialContent);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
