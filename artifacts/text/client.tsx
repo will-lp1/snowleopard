@@ -1,8 +1,11 @@
+'use client';
+
 import { Artifact } from '@/components/create-artifact';
 import { DiffView } from '@/components/diffview';
 import { DocumentSkeleton } from '@/components/document-skeleton';
 import { Editor } from '@/components/text-editor';
 import {
+  CheckIcon,
   ClockRewind,
   CopyIcon,
   MessageIcon,
@@ -13,6 +16,7 @@ import {
 import { Suggestion } from '@/lib/db/schema';
 import { toast } from 'sonner';
 import { getSuggestions } from '../actions';
+import { Button } from '@/components/ui/button';
 
 interface TextArtifactMetadata {
   suggestions: Array<Suggestion>;
@@ -78,12 +82,42 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
       return <DiffView oldContent={oldContent} newContent={newContent} />;
     }
 
+    const hasUnresolvedSuggestions = metadata?.suggestions?.some(s => !s.isResolved) ?? false;
+
     return (
       <>
+        {hasUnresolvedSuggestions && (
+          <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2 bg-background shadow-lg border-2"
+              onClick={() => {
+                if (!metadata?.suggestions) return;
+                
+                const unresolvedSuggestions = metadata.suggestions.filter(s => !s.isResolved);
+                let updatedContent = content;
+                
+                for (const suggestion of unresolvedSuggestions) {
+                  updatedContent = updatedContent.replace(
+                    suggestion.originalText,
+                    suggestion.suggestedText
+                  );
+                }
+                
+                onSaveContent(updatedContent, false);
+                toast.success('Applied all suggestions');
+              }}
+            >
+              <CheckIcon size={14} />
+              Accept all suggestions
+            </Button>
+          </div>
+        )}
         <div className="flex flex-row py-8 md:p-20 px-4">
           <Editor
             content={content}
-            suggestions={metadata ? metadata.suggestions : []}
+            suggestions={metadata ? metadata.suggestions.filter(s => !s.isResolved) : []}
             isCurrentVersion={isCurrentVersion}
             currentVersionIndex={currentVersionIndex}
             status={status}
@@ -92,7 +126,7 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
 
           {metadata &&
           metadata.suggestions &&
-          metadata.suggestions.length > 0 ? (
+          metadata.suggestions.some(s => !s.isResolved) ? (
             <div className="md:hidden h-dvh w-12 shrink-0" />
           ) : null}
         </div>
