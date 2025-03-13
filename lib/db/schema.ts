@@ -21,7 +21,7 @@ export type User = InferSelectModel<typeof user>;
 
 export const chat = pgTable('Chat', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),
-  createdAt: timestamp('createdAt').notNull(),
+  createdAt: timestamp('createdAt', { mode: 'string' }).notNull(),
   title: text('title').notNull(),
   userId: uuid('userId')
     .notNull()
@@ -40,7 +40,7 @@ export const message = pgTable('Message', {
     .references(() => chat.id),
   role: varchar('role').notNull(),
   content: json('content').notNull(),
-  createdAt: timestamp('createdAt').notNull(),
+  createdAt: timestamp('createdAt', { mode: 'string' }).notNull(),
 });
 
 export type Message = InferSelectModel<typeof message>;
@@ -69,10 +69,10 @@ export const document = pgTable(
   'Document',
   {
     id: uuid('id').notNull().defaultRandom(),
-    createdAt: timestamp('createdAt').notNull(),
+    createdAt: timestamp('createdAt', { mode: 'string' }).notNull(),
     title: text('title').notNull(),
     content: text('content'),
-    kind: varchar('text', { enum: ['text', 'code', 'image', 'sheet'] })
+    kind: varchar('kind', { enum: ['text', 'code', 'image', 'sheet'] })
       .notNull()
       .default('text'),
     userId: uuid('userId')
@@ -93,7 +93,7 @@ export const suggestion = pgTable(
   {
     id: uuid('id').notNull().defaultRandom(),
     documentId: uuid('documentId').notNull(),
-    documentCreatedAt: timestamp('documentCreatedAt').notNull(),
+    documentCreatedAt: timestamp('documentCreatedAt', { mode: 'string' }).notNull(),
     originalText: text('originalText').notNull(),
     suggestedText: text('suggestedText').notNull(),
     description: text('description'),
@@ -101,7 +101,7 @@ export const suggestion = pgTable(
     userId: uuid('userId')
       .notNull()
       .references(() => user.id),
-    createdAt: timestamp('createdAt').notNull(),
+    createdAt: timestamp('createdAt', { mode: 'string' }).notNull(),
   },
   (table) => ({
     pk: primaryKey({ columns: [table.id] }),

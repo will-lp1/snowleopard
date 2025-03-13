@@ -268,14 +268,14 @@ export async function deleteDocumentsByIdAfterTimestamp({
   timestamp,
 }: {
   id: string;
-  timestamp: Date;
+  timestamp: string;
 }) {
   const supabase = await createClient();
   const { error } = await supabase
     .from('Document')
     .delete()
     .eq('id', id)
-    .gt('createdAt', timestamp.toISOString());
+    .gt('createdAt', timestamp);
 
   if (error) throw error;
 }
@@ -322,36 +322,16 @@ export async function deleteMessagesByChatIdAfterTimestamp({
   timestamp,
 }: {
   chatId: string;
-  timestamp: Date;
+  timestamp: string;
 }) {
   const supabase = await createClient();
-  const { data: messagesToDelete, error: fetchError } = await supabase
+  const { error } = await supabase
     .from('Message')
-    .select('id')
+    .delete()
     .eq('chatId', chatId)
-    .gte('createdAt', timestamp.toISOString());
+    .gt('createdAt', timestamp);
 
-  if (fetchError) throw fetchError;
-
-  if (messagesToDelete.length > 0) {
-    const messageIds = messagesToDelete.map((message) => message.id);
-
-    const { error: voteError } = await supabase
-      .from('Vote')
-      .delete()
-      .eq('chatId', chatId)
-      .in('messageId', messageIds);
-
-    if (voteError) throw voteError;
-
-    const { error: messageError } = await supabase
-      .from('Message')
-      .delete()
-      .eq('chatId', chatId)
-      .in('id', messageIds);
-
-    if (messageError) throw messageError;
-  }
+  if (error) throw error;
 }
 
 export async function updateChatVisiblityById({

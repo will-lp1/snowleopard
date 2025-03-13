@@ -94,7 +94,7 @@ export async function PATCH(request: Request) {
 
   await deleteDocumentsByIdAfterTimestamp({
     id,
-    timestamp: new Date(timestamp),
+    timestamp,
   });
 
   return new Response('Deleted', { status: 200 });

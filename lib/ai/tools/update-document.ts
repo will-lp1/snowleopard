@@ -1,8 +1,9 @@
 import { DataStreamWriter, tool } from 'ai';
-import { Session } from 'next-auth';
+import { Session } from '@supabase/auth-helpers-nextjs';
 import { z } from 'zod';
 import { getDocumentById, saveDocument } from '@/lib/db/queries';
 import { documentHandlersByArtifactKind } from '@/lib/artifacts/server';
+import type { Document } from '@/lib/db/schema';
 
 interface UpdateDocumentProps {
   session: Session;
@@ -41,12 +42,20 @@ export const updateDocument = ({ session, dataStream }: UpdateDocumentProps) =>
         throw new Error(`No document handler found for kind: ${document.kind}`);
       }
 
-      await documentHandler.onUpdateDocument({
-        document,
-        description,
-        dataStream,
-        session,
-      });
+      // Assert document kind matches handler kind
+      if (document.kind === documentHandler.kind) {
+        await documentHandler.onUpdateDocument({
+          document: {
+            ...document,
+            kind: document.kind as typeof documentHandler.kind
+          },
+          description,
+          dataStream,
+          session,
+        });
+      } else {
+        throw new Error(`Document kind ${document.kind} does not match handler kind ${documentHandler.kind}`);
+      }
 
       dataStream.writeData({ type: 'finish', content: '' });
 

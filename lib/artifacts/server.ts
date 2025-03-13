@@ -11,6 +11,7 @@ export interface SaveDocumentProps {
   kind: ArtifactKind;
   content: string;
   userId: string;
+  createdAt?: string;
 }
 
 export interface CreateDocumentCallbackProps {
@@ -21,7 +22,14 @@ export interface CreateDocumentCallbackProps {
 }
 
 export interface UpdateDocumentCallbackProps {
-  document: Document;
+  document: {
+    id: string;
+    title: string;
+    kind: ArtifactKind;
+    content: string | null;
+    createdAt: string;
+    userId: string;
+  };
   description: string;
   dataStream: DataStreamWriter;
   session: Session;

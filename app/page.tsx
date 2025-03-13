@@ -5,7 +5,6 @@ import Image from 'next/image'
 import { Crimson_Text } from 'next/font/google'
 import { useState } from 'react'
 
-
 const crimson = Crimson_Text({
   weight: ['400', '700'],
   subsets: ['latin'],
@@ -39,7 +38,7 @@ export default function Home() {
             alt=""
             width={400}
             height={400}
-            className="max-w-[300px] md:max-w-[400px] opacity-[0.15]"
+            className="max-w-[300px] md:max-w-[400px] opacity-15"
           />
         </div>
 
@@ -50,7 +49,7 @@ export default function Home() {
             alt=""
             width={400}
             height={400}
-            className="max-w-[300px] md:max-w-[400px] opacity-[0.15]"
+            className="max-w-[300px] md:max-w-[400px] opacity-15"
           />
         </div>
 
@@ -60,7 +59,7 @@ export default function Home() {
             onClick={() => setIsDialogOpen(true)}
             className="group px-6 py-2 rounded-full bg-white border border-gray-200 shadow-sm hover:bg-gray-50 transition-all duration-200 text-sm flex items-center gap-2 hover:border-gray-300 mx-auto mb-4"
           >
-            <svg className="w-4 h-4 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
+            <svg className="size-4 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
               <path d="M8 5v14l11-7z" />
             </svg>
             Watch demo
@@ -69,7 +68,7 @@ export default function Home() {
           {/* Video Dialog */}
           <dialog 
             open={isDialogOpen} 
-            className="fixed inset-0 w-full h-full bg-transparent p-0 m-0 max-w-none max-h-none z-50"
+            className="fixed inset-0 size-full bg-transparent p-0 m-0 max-w-none max-h-none z-50"
           >
             <div 
               className="fixed inset-0 bg-black/60 backdrop-blur-sm"
@@ -80,9 +79,9 @@ export default function Home() {
                 {/* Close button */}
                 <button 
                   onClick={() => setIsDialogOpen(false)}
-                  className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-black/10 hover:bg-black/20 transition-colors"
+                  className="absolute top-4 right-4 z-10 size-8 flex items-center justify-center rounded-full bg-black/10 hover:bg-black/20 transition-colors"
                 >
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="size-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
@@ -107,7 +106,7 @@ export default function Home() {
             
             <div className="relative mt-1">
               <h3 className={`text-[80px] ${crimson.className} tracking-[-0.01em] text-gray-900 font-bold`}>
-                Brilliance<span className="animate-blink ml-0.5 font-normal">|</span>
+                Brilliance<span className="animate-blink ml-0.5 font-normal">&lsquo;</span>
               </h3>
             </div>
           </div>
@@ -116,7 +115,7 @@ export default function Home() {
           <p className="text-base text-gray-600 dark:text-gray-400 max-w-md mx-auto font-light">
             The most satisfying and intuitive ai writing tool,
             <br />
-            and it's open source
+            and it&apos;s open source
           </p>
           
           {/* CTA Buttons */}

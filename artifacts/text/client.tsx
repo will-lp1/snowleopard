@@ -30,9 +30,7 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
 
     setMetadata({
       suggestions: suggestions.map(s => ({
-        ...s,
-        documentCreatedAt: new Date(s.documentCreatedAt),
-        createdAt: new Date(s.createdAt)
+        ...s
       })),
     });
   },
@@ -44,9 +42,7 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
           suggestions: [
             ...metadata.suggestions,
             {
-              ...suggestion,
-              documentCreatedAt: new Date(suggestion.documentCreatedAt),
-              createdAt: new Date(suggestion.createdAt)
+              ...suggestion
             }
           ],
         };

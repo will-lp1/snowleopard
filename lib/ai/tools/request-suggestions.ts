@@ -73,7 +73,7 @@ export const requestSuggestions = ({
           suggestions: suggestions.map((suggestion) => ({
             ...suggestion,
             userId,
-            createdAt: new Date(),
+            createdAt: new Date().toISOString(),
             documentCreatedAt: document.createdAt,
           })),
         });
