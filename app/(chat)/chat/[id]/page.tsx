@@ -14,9 +14,15 @@ function isValidRole(role: string): role is Message['role'] {
   return ['user', 'assistant', 'system', 'data'].includes(role);
 }
 
-// Mark this page as dynamically rendered
-export const dynamic = 'force-dynamic';
-export const fetchCache = 'force-no-store';
+// This ensures the page is server-side rendered but not statically optimized
+export const dynamic = 'auto';
+export const dynamicParams = true;
+export const revalidate = 0;
+
+// This helps Vercel understand the dynamic nature of the page
+export async function generateStaticParams() {
+  return [];
+}
 
 export default async function Page(props: { params: Promise<{ id: string }> }) {
   try {
