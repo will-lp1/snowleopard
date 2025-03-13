@@ -1,8 +1,9 @@
-import { auth } from '@/app/(auth)/auth';
 import { getChatsByUserId } from '@/lib/db/queries';
+import { createServerSupabaseClient } from '@/lib/supabase/server';
 
 export async function GET() {
-  const session = await auth();
+  const supabase = createServerSupabaseClient();
+  const { data: { session } } = await supabase.auth.getSession();
 
   if (!session || !session.user) {
     return Response.json('Unauthorized!', { status: 401 });

@@ -4,7 +4,8 @@ import {
   smoothStream,
   streamText,
 } from 'ai';
-import { auth } from '@/app/(auth)/auth';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 import { systemPrompt } from '@/lib/ai/prompts';
 import {
   deleteChatById,
@@ -25,11 +26,21 @@ import { getWeather } from '@/lib/ai/tools/get-weather';
 import { isProductionEnvironment } from '@/lib/constants';
 import { NextResponse } from 'next/server';
 import { myProvider } from '@/lib/ai/providers';
+import type { Database } from '@/lib/supabase/database.types';
 
 export const maxDuration = 60;
 
 export async function POST(request: Request) {
   try {
+    const supabase = createRouteHandlerClient<Database>({ cookies });
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.user?.id) {
+      return new Response('Unauthorized', { status: 401 });
+    }
+
     const {
       id,
       messages,
@@ -39,12 +50,6 @@ export async function POST(request: Request) {
       messages: Array<Message>;
       selectedChatModel: string;
     } = await request.json();
-
-    const session = await auth();
-
-    if (!session || !session.user || !session.user.id) {
-      return new Response('Unauthorized', { status: 401 });
-    }
 
     const userMessage = getMostRecentUserMessage(messages);
 
@@ -143,17 +148,18 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const supabase = createRouteHandlerClient<Database>({ cookies });
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (!session?.user) {
+    return new Response('Unauthorized', { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');
 
   if (!id) {
     return new Response('Not Found', { status: 404 });
-  }
-
-  const session = await auth();
-
-  if (!session || !session.user) {
-    return new Response('Unauthorized', { status: 401 });
   }
 
   try {

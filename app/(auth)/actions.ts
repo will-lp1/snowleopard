@@ -1,84 +1,61 @@
 'use server';
 
-import { z } from 'zod';
+import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
 
-import { createUser, getUser } from '@/lib/db/queries';
+export async function authenticate(
+  prevState: string | undefined,
+  formData: FormData,
+) {
+  try {
+    const supabase = createServerSupabaseClient();
+    const { error } = await supabase.auth.signInWithPassword({
+      email: formData.get('email') as string,
+      password: formData.get('password') as string,
+    });
 
-import { signIn } from './auth';
+    if (error) {
+      return error.message;
+    }
 
-const authFormSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6),
-});
-
-export interface LoginActionState {
-  status: 'idle' | 'in_progress' | 'success' | 'failed' | 'invalid_data';
+    redirect('/');
+  } catch (error) {
+    if (error instanceof Error) {
+      return error.message;
+    }
+    return 'Something went wrong';
+  }
 }
 
-export const login = async (
-  _: LoginActionState,
+export async function register(
+  prevState: string | undefined,
   formData: FormData,
-): Promise<LoginActionState> => {
+) {
   try {
-    const validatedData = authFormSchema.parse({
-      email: formData.get('email'),
-      password: formData.get('password'),
+    const supabase = createServerSupabaseClient();
+    const { error } = await supabase.auth.signUp({
+      email: formData.get('email') as string,
+      password: formData.get('password') as string,
+      options: {
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+      },
     });
 
-    await signIn('credentials', {
-      email: validatedData.email,
-      password: validatedData.password,
-      redirect: false,
-    });
-
-    return { status: 'success' };
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return { status: 'invalid_data' };
+    if (error) {
+      return error.message;
     }
 
-    return { status: 'failed' };
+    return 'Check your email to confirm your account';
+  } catch (error) {
+    if (error instanceof Error) {
+      return error.message;
+    }
+    return 'Something went wrong';
   }
-};
-
-export interface RegisterActionState {
-  status:
-    | 'idle'
-    | 'in_progress'
-    | 'success'
-    | 'failed'
-    | 'user_exists'
-    | 'invalid_data';
 }
 
-export const register = async (
-  _: RegisterActionState,
-  formData: FormData,
-): Promise<RegisterActionState> => {
-  try {
-    const validatedData = authFormSchema.parse({
-      email: formData.get('email'),
-      password: formData.get('password'),
-    });
-
-    const [user] = await getUser(validatedData.email);
-
-    if (user) {
-      return { status: 'user_exists' } as RegisterActionState;
-    }
-    await createUser(validatedData.email, validatedData.password);
-    await signIn('credentials', {
-      email: validatedData.email,
-      password: validatedData.password,
-      redirect: false,
-    });
-
-    return { status: 'success' };
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return { status: 'invalid_data' };
-    }
-
-    return { status: 'failed' };
-  }
-};
+export async function logout() {
+  const supabase = createServerSupabaseClient();
+  await supabase.auth.signOut();
+  redirect('/login');
+}

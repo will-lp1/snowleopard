@@ -1,55 +1,91 @@
-import { compare } from 'bcrypt-ts';
-import NextAuth, { type User, type Session } from 'next-auth';
-import Credentials from 'next-auth/providers/credentials';
+import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { cookies } from 'next/headers';
 
-import { getUser } from '@/lib/db/queries';
+export async function signIn(email: string, password: string) {
+  const supabase = createServerSupabaseClient();
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
 
-import { authConfig } from './auth.config';
-
-interface ExtendedSession extends Session {
-  user: User;
+  if (error) throw error;
+  return data.user;
 }
 
-export const {
-  handlers: { GET, POST },
-  auth,
-  signIn,
-  signOut,
-} = NextAuth({
-  ...authConfig,
-  providers: [
-    Credentials({
-      credentials: {},
-      async authorize({ email, password }: any) {
-        const users = await getUser(email);
-        if (users.length === 0) return null;
-        // biome-ignore lint: Forbidden non-null assertion.
-        const passwordsMatch = await compare(password, users[0].password!);
-        if (!passwordsMatch) return null;
-        return users[0] as any;
-      },
-    }),
-  ],
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id;
-      }
-
-      return token;
+export async function signUp(email: string, password: string) {
+  const supabase = createServerSupabaseClient();
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
     },
-    async session({
-      session,
-      token,
-    }: {
-      session: ExtendedSession;
-      token: any;
-    }) {
-      if (session.user) {
-        session.user.id = token.id as string;
-      }
+  });
 
-      return session;
-    },
-  },
-});
+  if (error) throw error;
+  return data.user;
+}
+
+export async function signOut() {
+  const supabase = createServerSupabaseClient();
+  const { error } = await supabase.auth.signOut();
+  if (error) throw error;
+}
+
+export async function getSession() {
+  const supabase = createServerSupabaseClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  return session;
+}
+
+export async function getCurrentUser() {
+  const supabase = createServerSupabaseClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  return user;
+}
+
+export async function getUser() {
+  const supabase = createServerSupabaseClient();
+  const { data: { session }, error } = await supabase.auth.getSession();
+  
+  if (error) {
+    console.error('Error getting user session:', error.message);
+    return null;
+  }
+
+  return session?.user ?? null;
+}
+
+export async function getUserDetails() {
+  const user = await getUser();
+  if (!user) return null;
+
+  const supabase = createServerSupabaseClient();
+  const { data: userDetails, error } = await supabase
+    .from('User')
+    .select('*')
+    .eq('id', user.id)
+    .single();
+
+  if (error) {
+    console.error('Error getting user details:', error.message);
+    return null;
+  }
+
+  return userDetails;
+}
+
+export async function requireAuth() {
+  const user = await getUser();
+  if (!user) {
+    throw new Error('Authentication required');
+  }
+  return user;
+}
+
+export async function requireUnauth() {
+  const user = await getUser();
+  if (user) {
+    throw new Error('Already authenticated');
+  }
+}
