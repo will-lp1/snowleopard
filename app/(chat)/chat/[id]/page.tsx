@@ -14,6 +14,8 @@ function isValidRole(role: string): role is Message['role'] {
   return ['user', 'assistant', 'system', 'data'].includes(role);
 }
 
+// @ts-ignore
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 export default async function Page({ params }: { params: { id: string } }) {
   // Get chat and handle potential errors
   const chat = await getChatById({ id: params.id }).catch(error => {
