@@ -95,10 +95,10 @@ const components: Partial<Components> = {
 
 const remarkPlugins = [remarkGfm];
 
-const NonMemoizedMarkdown = ({ children }: { children: string }) => {
+const NonMemoizedMarkdown = ({ children }: { children: string | React.ReactNode }) => {
   return (
     <ReactMarkdown remarkPlugins={remarkPlugins} components={components}>
-      {children}
+      {children?.toString() || ''}
     </ReactMarkdown>
   );
 };
