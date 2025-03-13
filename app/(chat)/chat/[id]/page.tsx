@@ -17,13 +17,12 @@ function isValidRole(role: string): role is Message['role'] {
 // Explicitly make this route fully dynamic for Vercel
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
-export const fetchCache = 'default-no-store';
 
-// Standard NextJS Dynamic route handler
-export default async function Page({ params }: { params: { id: string } }) {
-  const { id } = params;
-  
+export default async function Page(props: { params: Promise<{ id: string }> }) {
   try {
+    const params = await props.params;
+    const { id } = params;
+    
     // Get chat and handle potential errors
     const chat = await getChatById({ id }).catch(error => {
       console.error('Error fetching chat:', error);
