@@ -9,10 +9,22 @@ const iconsByType: Record<'success' | 'error', ReactNode> = {
   error: <WarningIcon />,
 };
 
-export function toast(props: Omit<ToastProps, 'id'>) {
-  return sonnerToast.custom((id) => (
-    <Toast id={id} type={props.type} description={props.description} />
-  ));
+interface ToastOptions {
+  type?: 'success' | 'error' | 'info';
+  description: string;
+}
+
+export function toast({ type = 'info', description }: ToastOptions) {
+  switch (type) {
+    case 'success':
+      sonnerToast.success(description);
+      break;
+    case 'error':
+      sonnerToast.error(description);
+      break;
+    default:
+      sonnerToast(description);
+  }
 }
 
 function Toast(props: ToastProps) {

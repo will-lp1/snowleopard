@@ -1,23 +1,23 @@
 'use client';
 
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
-import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { toast } from '@/components/toast';
+import { AuthForm } from '@/components/auth-form';
+import { SubmitButton } from '@/components/submit-button';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [isSuccessful, setIsSuccessful] = useState(false);
   const supabase = createClient();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
+  const handleSubmit = async (formData: FormData) => {
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
+    setEmail(email);
 
     try {
       const { error } = await supabase.auth.signInWithPassword({
@@ -26,53 +26,47 @@ export default function LoginPage() {
       });
 
       if (error) {
-        setError(error.message);
+        toast({
+          type: 'error',
+          description: 'Invalid credentials!',
+        });
         return;
       }
 
+      setIsSuccessful(true);
       router.push('/');
       router.refresh();
     } catch (err) {
-      setError('An unexpected error occurred');
+      toast({
+        type: 'error',
+        description: 'An unexpected error occurred',
+      });
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center">
-      <Card className="w-[350px]">
-        <CardHeader>
-          <CardTitle>Login</CardTitle>
-          <CardDescription>Enter your email and password to continue</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-            {error && <p className="text-sm text-red-500">{error}</p>}
-            <Button type="submit" className="w-full">
-              Login
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+    <div className="flex h-dvh w-screen items-start pt-12 md:pt-0 md:items-center justify-center bg-background">
+      <div className="w-full max-w-md overflow-hidden rounded-2xl flex flex-col gap-12">
+        <div className="flex flex-col items-center justify-center gap-2 px-4 text-center sm:px-16">
+          <h3 className="text-xl font-semibold dark:text-zinc-50">Sign In</h3>
+          <p className="text-sm text-gray-500 dark:text-zinc-400">
+            Use your email and password to sign in
+          </p>
+        </div>
+        <AuthForm action={handleSubmit} defaultEmail={email}>
+          <SubmitButton isSuccessful={isSuccessful}>Sign in</SubmitButton>
+          <p className="text-center text-sm text-gray-600 mt-4 dark:text-zinc-400">
+            {"Don't have an account? "}
+            <Link
+              href="/register"
+              className="font-semibold text-gray-800 hover:underline dark:text-zinc-200"
+            >
+              Sign up
+            </Link>
+            {' for free.'}
+          </p>
+        </AuthForm>
+      </div>
     </div>
   );
 }
