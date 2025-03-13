@@ -82,7 +82,7 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
     setMetadata,
   }) => {
     if (isLoading) {
-      return <DocumentSkeleton artifactKind="text" />;
+      return <DocumentSkeleton />;
     }
 
     if (mode === 'diff') {
