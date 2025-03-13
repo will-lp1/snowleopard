@@ -14,21 +14,16 @@ function isValidRole(role: string): role is Message['role'] {
   return ['user', 'assistant', 'system', 'data'].includes(role);
 }
 
-// This ensures the page is server-side rendered but not statically optimized
-export const dynamic = 'auto';
-export const dynamicParams = true;
+// Explicitly make this route fully dynamic for Vercel
+export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+export const fetchCache = 'default-no-store';
 
-// This helps Vercel understand the dynamic nature of the page
-export async function generateStaticParams() {
-  return [];
-}
-
-export default async function Page(props: { params: Promise<{ id: string }> }) {
+// Standard NextJS Dynamic route handler
+export default async function Page({ params }: { params: { id: string } }) {
+  const { id } = params;
+  
   try {
-    const params = await props.params;
-    const { id } = params;
-    
     // Get chat and handle potential errors
     const chat = await getChatById({ id }).catch(error => {
       console.error('Error fetching chat:', error);
