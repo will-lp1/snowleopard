@@ -120,35 +120,6 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
 
     return (
       <>
-        {hasUnresolvedSuggestions && (
-          <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50">
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-2 bg-background shadow-lg border-2"
-              onClick={() => {
-                if (!metadata?.suggestions) return;
-                
-                const unresolvedSuggestions = metadata.suggestions.filter(s => !s.isResolved);
-                let updatedContent = content;
-                
-                for (const suggestion of unresolvedSuggestions) {
-                  updatedContent = updatedContent.replace(
-                    suggestion.originalText,
-                    suggestion.suggestedText
-                  );
-                  handleSuggestionResolve(suggestion.id, false);
-                }
-                
-                onSaveContent(updatedContent, false);
-                toast.success('Applied all suggestions');
-              }}
-            >
-              <CheckIcon size={14} />
-              Accept all suggestions
-            </Button>
-          </div>
-        )}
         <div className="flex flex-row py-8 md:p-20 px-4">
           <Editor
             content={content}

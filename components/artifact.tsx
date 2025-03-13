@@ -11,7 +11,7 @@ import {
 } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 import { useDebounceCallback, useWindowSize } from 'usehooks-ts';
-import type { Document, Vote } from '@/lib/db/schema';
+import type { Document, Vote, Suggestion } from '@/lib/db/schema';
 import { fetcher } from '@/lib/utils';
 import { MultimodalInput } from './multimodal-input';
 import { Toolbar } from './toolbar';
@@ -27,6 +27,9 @@ import { sheetArtifact } from '@/artifacts/sheet/client';
 import { textArtifact } from '@/artifacts/text/client';
 import equal from 'fast-deep-equal';
 import { UseChatHelpers } from '@ai-sdk/react';
+import { Button } from './ui/button';
+import { CheckIcon } from './icons';
+import { toast } from 'sonner';
 
 export const artifactDefinitions = [
   textArtifact,
@@ -266,20 +269,20 @@ function PureArtifact({
               className="fixed bg-background h-dvh"
               initial={{
                 width: isSidebarOpen ? windowWidth - 256 : windowWidth,
-                right: 0,
+                left: 0,
               }}
-              animate={{ width: windowWidth, right: 0 }}
+              animate={{ width: windowWidth - 400, left: 0 }}
               exit={{
                 width: isSidebarOpen ? windowWidth - 256 : windowWidth,
-                right: 0,
+                left: 0,
               }}
             />
           )}
 
           {!isMobile && (
             <motion.div
-              className="relative w-[400px] bg-muted dark:bg-background h-dvh shrink-0"
-              initial={{ opacity: 0, x: 10, scale: 1 }}
+              className="relative w-[400px] bg-muted dark:bg-background h-dvh shrink-0 ml-auto"
+              initial={{ opacity: 0, x: -10, scale: 1 }}
               animate={{
                 opacity: 1,
                 x: 0,
@@ -321,22 +324,59 @@ function PureArtifact({
                   artifactStatus={artifact.status}
                 />
 
-                <form className="flex flex-row gap-2 relative items-end w-full px-4 pb-4">
-                  <MultimodalInput
-                    chatId={chatId}
-                    input={input}
-                    setInput={setInput}
-                    handleSubmit={handleSubmit}
-                    status={status}
-                    stop={stop}
-                    attachments={attachments}
-                    setAttachments={setAttachments}
-                    messages={messages}
-                    append={append}
-                    className="bg-background dark:bg-muted"
-                    setMessages={setMessages}
-                  />
-                </form>
+                <div className="flex flex-col w-full gap-2 px-4 pb-4">
+                  {metadata?.suggestions?.some((s: Suggestion) => !s.isResolved) && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-2 w-full"
+                      onClick={() => {
+                        if (!metadata?.suggestions || !artifact.content) return;
+                        
+                        const unresolvedSuggestions = metadata.suggestions.filter((s: Suggestion) => !s.isResolved);
+                        let updatedContent = artifact.content;
+                        
+                        for (const suggestion of unresolvedSuggestions) {
+                          updatedContent = updatedContent.replace(
+                            suggestion.originalText,
+                            suggestion.suggestedText
+                          );
+                        }
+
+                        setMetadata((prevMetadata: { suggestions: Suggestion[] }) => ({
+                          ...prevMetadata,
+                          suggestions: prevMetadata.suggestions.map((s: Suggestion) => ({ ...s, isResolved: true }))
+                        }));
+                        
+                        setArtifact(prev => ({
+                          ...prev,
+                          content: updatedContent
+                        }));
+
+                        toast.success('Applied all suggestions');
+                      }}
+                    >
+                      <CheckIcon size={14} />
+                      Accept all suggestions
+                    </Button>
+                  )}
+                  <form className="flex flex-row gap-2 relative items-end w-full">
+                    <MultimodalInput
+                      chatId={chatId}
+                      input={input}
+                      setInput={setInput}
+                      handleSubmit={handleSubmit}
+                      status={status}
+                      stop={stop}
+                      attachments={attachments}
+                      setAttachments={setAttachments}
+                      messages={messages}
+                      append={append}
+                      className="bg-background dark:bg-muted"
+                      setMessages={setMessages}
+                    />
+                  </form>
+                </div>
               </div>
             </motion.div>
           )}
@@ -381,7 +421,7 @@ function PureArtifact({
                   }
                 : {
                     opacity: 1,
-                    x: 400,
+                    x: 0,
                     y: 0,
                     height: windowHeight,
                     width: windowWidth
