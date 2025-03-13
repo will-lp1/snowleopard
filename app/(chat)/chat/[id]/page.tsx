@@ -1,3 +1,5 @@
+'use client';
+
 import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { type Message } from 'ai';
