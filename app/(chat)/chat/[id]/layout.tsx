@@ -1,9 +1,11 @@
 'use client';
 
+import { type ReactNode } from 'react';
+
 export default function ChatLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return <>{children}</>;
 } 
