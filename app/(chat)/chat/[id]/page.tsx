@@ -15,14 +15,15 @@ function isValidRole(role: string): role is Message['role'] {
   return ['user', 'assistant', 'system', 'data'].includes(role);
 }
 
-type Props = {
-  params: {
-    id: string
-  }
+interface PageProps {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-export default async function Page({ params }: Props) {
+export default async function Page(props: PageProps) {
   try {
+    const params = await props.params;
+    const searchParams = await props.searchParams;
     const { id } = params;
     
     // Get chat and handle potential errors
