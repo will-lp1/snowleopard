@@ -115,21 +115,30 @@ export function convertToUIMessages(
         } else if (content.type === 'tool_call') {
           toolInvocations.push({
             state: 'call',
-            toolCallId: content.toolCallId,
-            toolName: content.toolName,
-            args: content.args,
+            toolCallId: content.toolCallId || content.content.toolCallId,
+            toolName: content.toolName || content.content.toolName,
+            args: content.args || content.content.args,
           });
         } else if (content.type === 'tool_result') {
           // Find matching tool invocation and update it
           const existingInvocation = toolInvocations.find(
-            inv => inv.toolCallId === content.toolCallId
+            inv => inv.toolCallId === (content.toolCallId || content.content.toolCallId)
           );
           if (existingInvocation) {
             existingInvocation.state = 'result';
-            existingInvocation.result = content.result;
+            existingInvocation.result = content.result || content.content.result;
+          } else {
+            // If no matching invocation found, create a new one
+            toolInvocations.push({
+              state: 'result',
+              toolCallId: content.toolCallId || content.content.toolCallId,
+              toolName: content.toolName || content.content.toolName,
+              args: content.args || content.content.args,
+              result: content.result || content.content.result,
+            });
           }
         } else if (content.type === 'reasoning') {
-          reasoning = content.reasoning;
+          reasoning = content.reasoning || content.content.reasoning;
         }
       }
     }
@@ -257,13 +266,47 @@ export function parseMessageContent(content: any): MessageContent[] {
       // Try to parse as JSON first
       const parsed = JSON.parse(content);
       if (Array.isArray(parsed)) {
-        return parsed.map((item, index) => ({
-          type: (item.type === 'tool-call' ? 'tool_call' : 
-                 item.type === 'tool-result' ? 'tool_result' : 
-                 item.type || 'text') as MessageContent['type'],
-          content: item,
-          order: index,
-        }));
+        return parsed.map((item, index) => {
+          // Normalize type names
+          const type = (item.type === 'tool-call' ? 'tool_call' : 
+                       item.type === 'tool-result' ? 'tool_result' : 
+                       item.type || 'text') as MessageContent['type'];
+          
+          // For tool results, ensure proper structure
+          if (type === 'tool_result') {
+            return {
+              type,
+              content: {
+                type: 'tool_result',
+                toolCallId: item.toolCallId || item.content?.toolCallId,
+                toolName: item.toolName || item.content?.toolName,
+                result: item.result || item.content?.result
+              },
+              order: index
+            };
+          }
+          
+          // For tool calls, ensure proper structure
+          if (type === 'tool_call') {
+            return {
+              type,
+              content: {
+                type: 'tool_call',
+                toolCallId: item.toolCallId || item.content?.toolCallId,
+                toolName: item.toolName || item.content?.toolName,
+                args: item.args || item.content?.args
+              },
+              order: index
+            };
+          }
+          
+          // For text content
+          return {
+            type,
+            content: item.text || item.content || item,
+            order: index
+          };
+        });
       }
       // If parsed but not an array, treat as single text content
       return [{
@@ -282,13 +325,47 @@ export function parseMessageContent(content: any): MessageContent[] {
   }
 
   if (Array.isArray(content)) {
-    return content.map((item, index) => ({
-      type: (item.type === 'tool-call' ? 'tool_call' : 
-             item.type === 'tool-result' ? 'tool_result' : 
-             item.type || 'text') as MessageContent['type'],
-      content: item,
-      order: index,
-    }));
+    return content.map((item, index) => {
+      // Normalize type names
+      const type = (item.type === 'tool-call' ? 'tool_call' : 
+                   item.type === 'tool-result' ? 'tool_result' : 
+                   item.type || 'text') as MessageContent['type'];
+      
+      // For tool results, ensure proper structure
+      if (type === 'tool_result') {
+        return {
+          type,
+          content: {
+            type: 'tool_result',
+            toolCallId: item.toolCallId || item.content?.toolCallId,
+            toolName: item.toolName || item.content?.toolName,
+            result: item.result || item.content?.result
+          },
+          order: index
+        };
+      }
+      
+      // For tool calls, ensure proper structure
+      if (type === 'tool_call') {
+        return {
+          type,
+          content: {
+            type: 'tool_call',
+            toolCallId: item.toolCallId || item.content?.toolCallId,
+            toolName: item.toolName || item.content?.toolName,
+            args: item.args || item.content?.args
+          },
+          order: index
+        };
+      }
+      
+      // For text content
+      return {
+        type,
+        content: item.text || item.content || item,
+        order: index
+      };
+    });
   }
 
   // If object or other type, wrap in array
