@@ -319,41 +319,6 @@ function PureArtifact({
                 />
 
                 <div className="flex flex-col w-full gap-2 px-4 pb-4">
-                  {metadata?.suggestions?.some((s: Suggestion) => !s.isResolved) && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex items-center gap-2 w-full"
-                      onClick={() => {
-                        if (!metadata?.suggestions || !artifact.content) return;
-                        
-                        const unresolvedSuggestions = metadata.suggestions.filter((s: Suggestion) => !s.isResolved);
-                        let updatedContent = artifact.content;
-                        
-                        for (const suggestion of unresolvedSuggestions) {
-                          updatedContent = updatedContent.replace(
-                            suggestion.originalText,
-                            suggestion.suggestedText
-                          );
-                        }
-
-                        setMetadata((prevMetadata: { suggestions: Suggestion[] }) => ({
-                          ...prevMetadata,
-                          suggestions: prevMetadata.suggestions.map((s: Suggestion) => ({ ...s, isResolved: true }))
-                        }));
-                        
-                        setArtifact(prev => ({
-                          ...prev,
-                          content: updatedContent
-                        }));
-
-                        toast.success('Applied all suggestions');
-                      }}
-                    >
-                      <CheckIcon size={14} />
-                      Accept all suggestions
-                    </Button>
-                  )}
                   <form className="flex flex-row gap-2 relative items-end w-full">
                     <MultimodalInput
                       chatId={chatId}
