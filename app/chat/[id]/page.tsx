@@ -65,26 +65,29 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
     const isReadonly = session?.user?.id !== chat.userId;
 
     return (
-      <>
-        <div className="flex flex-row h-dvh w-full">
-          {/* Center panel - Artifact (always visible) */}
-          <div className="flex-1 border-r dark:border-zinc-700 border-border">
-            <AlwaysVisibleArtifact chatId={id} />
-          </div>
-          
-          {/* Resizable Chat Panel */}
-          <ResizablePanel defaultSize={400} minSize={300} maxSize={600}>
-            <Chat
-              id={chat.id}
-              initialMessages={uiMessages}
-              selectedChatModel={chatModel}
-              selectedVisibilityType={chat.visibility}
-              isReadonly={isReadonly}
-            />
-          </ResizablePanel>
+      <div className="flex flex-row h-full w-full">
+        {/* Center panel - Artifact (always visible) */}
+        <div className="flex-1 min-w-0 border-r border-border transition-all duration-200 ease-in-out">
+          <AlwaysVisibleArtifact chatId={id} />
         </div>
+        
+        {/* Right panel - Chat */}
+        <ResizablePanel 
+          defaultSize={400} 
+          minSize={320} 
+          maxSize={600}
+          className="border-l border-border transition-all duration-200"
+        >
+          <Chat
+            id={chat.id}
+            initialMessages={uiMessages}
+            selectedChatModel={chatModel}
+            selectedVisibilityType={chat.visibility}
+            isReadonly={isReadonly}
+          />
+        </ResizablePanel>
         <DataStreamHandler id={id} />
-      </>
+      </div>
     );
   } catch (error) {
     if (error && typeof error === 'object' && '$$typeof' in error) {

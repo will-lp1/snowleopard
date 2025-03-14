@@ -27,6 +27,7 @@ import { UseChatHelpers } from '@ai-sdk/react';
 import { Button } from './ui/button';
 import { CheckIcon } from './icons';
 import { toast } from 'sonner';
+import { PanelLeftIcon } from 'lucide-react';
 
 export const artifactDefinitions = [
   textArtifact,
@@ -80,6 +81,7 @@ function PureArtifact({
   isReadonly: boolean;
 }) {
   const { artifact, setArtifact, metadata, setMetadata } = useArtifact();
+  const { toggleSidebar } = useSidebar();
 
   const {
     data: documents,
@@ -405,6 +407,16 @@ function PureArtifact({
             <div className="p-2 flex flex-row justify-between items-start">
               <div className="flex flex-row gap-4 items-start">
                 <ArtifactCloseButton />
+                
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 hover:bg-accent"
+                  onClick={toggleSidebar}
+                >
+                  <PanelLeftIcon className="h-4 w-4" />
+                  <span className="sr-only">Toggle Sidebar</span>
+                </Button>
 
                 <div className="flex flex-col">
                   <div className="font-medium">{artifact.title}</div>
