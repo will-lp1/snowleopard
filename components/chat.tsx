@@ -48,7 +48,7 @@ export function Chat({
       mutate('/api/history');
     },
     onError: () => {
-      toast.error('An error occured, please try again!');
+      toast.error('An error occurred, please try again!');
     },
   });
 
@@ -60,7 +60,7 @@ export function Chat({
   const [attachments, setAttachments] = useState<Array<Attachment>>([]);
 
   return (
-    <div className="flex flex-col min-w-0 h-dvh bg-background">
+    <div className="flex flex-col h-full overflow-hidden">
       <ChatHeader
         chatId={id}
         selectedModelId={selectedChatModel}
@@ -68,19 +68,21 @@ export function Chat({
         isReadonly={isReadonly}
       />
 
-      <Messages
-        chatId={id}
-        status={status}
-        votes={votes}
-        messages={messages}
-        setMessages={setMessages}
-        reload={reload}
-        isReadonly={isReadonly}
-        isArtifactVisible={false}
-      />
+      <div className="flex-1 overflow-y-auto">
+        <Messages
+          chatId={id}
+          status={status}
+          votes={votes}
+          messages={messages}
+          setMessages={setMessages}
+          reload={reload}
+          isReadonly={isReadonly}
+          isArtifactVisible={false}
+        />
+      </div>
 
-      <form className="flex mx-auto px-4 bg-background pb-4 md:pb-6 gap-2 w-full">
-        {!isReadonly && (
+      {!isReadonly && (
+        <div className="p-4 border-t border-border">
           <MultimodalInput
             chatId={id}
             input={input}
@@ -94,8 +96,8 @@ export function Chat({
             setMessages={setMessages}
             append={append}
           />
-        )}
-      </form>
+        </div>
+      )}
     </div>
   );
 }

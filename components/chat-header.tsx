@@ -31,7 +31,7 @@ function PureChatHeader({
   const isMobile = windowWidth < 768;
 
   return (
-    <header className="flex sticky top-0 bg-background z-10 border-b border-border py-6 items-center px-8 gap-2 h-[45px]">
+    <header className="flex sticky top-0 bg-background z-10 border-b border-border items-center px-3 h-[45px] gap-2">
       {/* Only show sidebar toggle when we're in mobile view */}
       {isMobile && <SidebarToggle />}
 
