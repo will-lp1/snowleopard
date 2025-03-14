@@ -168,3 +168,43 @@ function areEqual(prevProps: EditorProps, nextProps: EditorProps) {
 }
 
 export const Editor = memo(PureEditor, areEqual);
+
+/**
+ * Example of how to use the suggestion overlay in another component:
+ * 
+ * import { useSuggestionOverlay } from '@/components/suggestion-overlay-provider';
+ * 
+ * function MyTextEditorWrapper() {
+ *   const { openSuggestionOverlay } = useSuggestionOverlay();
+ *   
+ *   // Setup shortcut to open suggestion overlay on text selection
+ *   useEffect(() => {
+ *     function handleKeyDown(e: KeyboardEvent) {
+ *       // Listen for Cmd+K or Ctrl+K
+ *       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+ *         e.preventDefault();
+ *         
+ *         // Get selected text if any
+ *         const selection = window.getSelection();
+ *         const selectedText = selection?.toString() || '';
+ *         
+ *         // Get position near cursor
+ *         let position = { x: 100, y: 100 }; // Default
+ *         if (selection && selection.rangeCount > 0) {
+ *           const range = selection.getRangeAt(0);
+ *           const rect = range.getBoundingClientRect();
+ *           position = { x: rect.right, y: rect.bottom + 10 };
+ *         }
+ *         
+ *         // Open the suggestion overlay
+ *         openSuggestionOverlay({ position, selectedText });
+ *       }
+ *     }
+ *     
+ *     window.addEventListener('keydown', handleKeyDown);
+ *     return () => window.removeEventListener('keydown', handleKeyDown);
+ *   }, [openSuggestionOverlay]);
+ *   
+ *   return <Editor {...props} />;
+ * }
+ */

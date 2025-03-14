@@ -20,6 +20,8 @@ import { Button } from '@/components/ui/button';
 
 interface TextArtifactMetadata {
   suggestions: Array<Suggestion>;
+  originalContent?: string;
+  pendingSuggestion?: string;
 }
 
 export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
@@ -32,6 +34,8 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
       suggestions: suggestions.map(s => ({
         ...s
       })),
+      originalContent: '',
+      pendingSuggestion: ''
     });
   },
   onStreamPart: ({ streamPart, setMetadata, setArtifact }) => {
@@ -39,6 +43,7 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
       setMetadata((metadata) => {
         const suggestion = streamPart.content as Suggestion;
         return {
+          ...metadata,
           suggestions: [
             ...metadata.suggestions,
             {
@@ -49,6 +54,25 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
       });
     }
 
+    if (streamPart.type === 'suggestion-delta') {
+      setMetadata((metadata) => {
+        return {
+          ...metadata,
+          pendingSuggestion: (metadata.pendingSuggestion || '') + (streamPart.content as string)
+        };
+      });
+    }
+
+    if (streamPart.type === 'original') {
+      setMetadata((metadata) => {
+        return {
+          ...metadata,
+          originalContent: streamPart.content as string,
+          pendingSuggestion: ''
+        };
+      });
+    }
+    
     if (streamPart.type === 'text-delta') {
       setArtifact((draftArtifact) => {
         return {

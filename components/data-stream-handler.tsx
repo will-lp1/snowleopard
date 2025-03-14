@@ -15,11 +15,21 @@ export type DataStreamDelta = {
     | 'title'
     | 'id'
     | 'suggestion'
+    | 'suggestion-delta'
+    | 'original'
     | 'clear'
     | 'finish'
     | 'kind';
   content: string | Suggestion;
 };
+
+// Define interface for metadata with our new fields
+interface SuggestionMetadata {
+  originalContent?: string;
+  pendingSuggestion?: string;
+  suggestions?: Suggestion[];
+  [key: string]: any;
+}
 
 export function DataStreamHandler({ id }: { id: string }) {
   const { data: dataStream } = useChat({ id });
@@ -78,6 +88,23 @@ export function DataStreamHandler({ id }: { id: string }) {
               content: '',
               status: 'streaming',
             };
+            
+          case 'original':
+            // Store original content in metadata for diff view
+            setMetadata((prevMetadata: SuggestionMetadata) => ({
+              ...prevMetadata,
+              originalContent: delta.content as string,
+              pendingSuggestion: ''
+            }));
+            return draftArtifact;
+            
+          case 'suggestion-delta':
+            // Accumulate the suggestion in metadata for direct overlay
+            setMetadata((prevMetadata: SuggestionMetadata) => ({
+              ...prevMetadata,
+              pendingSuggestion: (prevMetadata.pendingSuggestion || '') + (delta.content as string)
+            }));
+            return draftArtifact;
 
           case 'finish':
             return {
