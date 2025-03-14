@@ -8,6 +8,7 @@ export async function middleware(request: NextRequest) {
     },
   })
 
+  // Create supabase client
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -17,16 +18,6 @@ export async function middleware(request: NextRequest) {
           return request.cookies.get(name)?.value
         },
         set(name: string, value: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value,
-            ...options,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
           response.cookies.set({
             name,
             value,
@@ -34,16 +25,6 @@ export async function middleware(request: NextRequest) {
           })
         },
         remove(name: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
           response.cookies.set({
             name,
             value: '',
@@ -54,42 +35,32 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Refresh session if expired - required for Server Components
+  // Refresh session if expired
   await supabase.auth.getSession()
 
-  // Handle protected routes
+  // Get session
   const { data: { session } } = await supabase.auth.getSession()
   const isLoggedIn = !!session?.user
+
+  // Get pathname
   const pathname = request.nextUrl.pathname
 
-  // Check if the route is a chat route or root path
-  const isChatRoute = pathname === '/chat' || pathname.startsWith('/chat/')
-  const isRootPath = pathname === '/'
-  const isOnRegister = pathname === '/register'
-  const isOnLogin = pathname === '/login'
-
-  // Redirect authenticated users away from auth pages
-  if (isLoggedIn && (isOnLogin || isOnRegister)) {
-    return NextResponse.redirect(new URL('/chat', request.url))
-  }
-
-  // Allow access to auth pages for non-authenticated users
-  if (isOnRegister || isOnLogin) {
-    return response
-  }
-
-  // Handle chat routes and root path - require authentication
-  if (isChatRoute || isRootPath) {
-    if (!isLoggedIn) {
-      // Store the intended destination for post-login redirect
-      const redirectUrl = new URL('/login', request.url)
-      redirectUrl.searchParams.set('redirect', pathname === '/' ? '/chat' : pathname)
-      return NextResponse.redirect(redirectUrl)
-    }
-    if (isRootPath) {
+  // Allow public routes
+  if (pathname === '/login' || pathname === '/register') {
+    if (isLoggedIn) {
       return NextResponse.redirect(new URL('/chat', request.url))
     }
     return response
+  }
+
+  // Protect chat routes
+  if (pathname.startsWith('/chat') || pathname === '/') {
+    if (!isLoggedIn) {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+    if (pathname === '/') {
+      return NextResponse.redirect(new URL('/chat', request.url))
+    }
   }
 
   return response
@@ -97,6 +68,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    '/',
     '/chat',
     '/chat/:path*',
     '/login',

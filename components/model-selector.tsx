@@ -1,6 +1,6 @@
 'use client';
 
-import { startTransition, useMemo, useOptimistic, useState } from 'react';
+import { startTransition, useMemo, useOptimistic, useState, useEffect } from 'react';
 
 import { saveChatModelAsCookie } from '@/app/chat/actions';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,12 @@ export function ModelSelector({
   const [open, setOpen] = useState(false);
   const [optimisticModelId, setOptimisticModelId] =
     useOptimistic(selectedModelId);
+
+  useEffect(() => {
+    startTransition(() => {
+      setOptimisticModelId(selectedModelId);
+    });
+  }, [selectedModelId]);
 
   const selectedChatModel = useMemo(
     () => chatModels.find((chatModel) => chatModel.id === optimisticModelId),

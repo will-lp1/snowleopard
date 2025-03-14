@@ -34,7 +34,7 @@ export default function LoginPage() {
       }
 
       setIsSuccessful(true);
-      router.push('/');
+      router.push('/chat');
       router.refresh();
     } catch (err) {
       toast({
