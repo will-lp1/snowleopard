@@ -5,6 +5,7 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 
 import Script from 'next/script';
 import { createClient } from '@/utils/supabase/server';
+import { initialArtifactData } from '@/hooks/use-artifact';
 
 export const experimental_ppr = true;
 
@@ -26,8 +27,11 @@ export default async function Layout({
         strategy="beforeInteractive"
       />
       <SidebarProvider defaultOpen={!isCollapsed}>
-        <AppSidebar user={session?.user} />
-        <SidebarInset>{children}</SidebarInset>
+        <div className="flex flex-row h-dvh w-full">
+          <AppSidebar user={session?.user} />
+          {/* Main content area without SidebarInset */}
+          {children}
+        </div>
       </SidebarProvider>
     </>
   );

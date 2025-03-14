@@ -8,6 +8,8 @@ import { getChatById, getMessagesByChatId } from '@/lib/db/queries';
 import { convertToUIMessages } from '@/lib/utils';
 import { DataStreamHandler } from '@/components/data-stream-handler';
 import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
+import { AlwaysVisibleArtifact } from '@/components/always-visible-artifact';
+import { ResizablePanel } from '@/components/resizable-panel';
 
 // Type guard for message role
 function isValidRole(role: string): role is Message['role'] {
@@ -58,31 +60,29 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
 
     const cookieStore = await cookies();
     const chatModelFromCookie = cookieStore.get('chat-model');
-
-    if (!chatModelFromCookie) {
-      return (
-        <>
-          <Chat
-            id={chat.id}
-            initialMessages={uiMessages}
-            selectedChatModel={DEFAULT_CHAT_MODEL}
-            selectedVisibilityType={chat.visibility}
-            isReadonly={session?.user?.id !== chat.userId}
-          />
-          <DataStreamHandler id={id} />
-        </>
-      );
-    }
+    
+    const chatModel = chatModelFromCookie ? chatModelFromCookie.value : DEFAULT_CHAT_MODEL;
+    const isReadonly = session?.user?.id !== chat.userId;
 
     return (
       <>
-        <Chat
-          id={chat.id}
-          initialMessages={uiMessages}
-          selectedChatModel={chatModelFromCookie.value}
-          selectedVisibilityType={chat.visibility}
-          isReadonly={session?.user?.id !== chat.userId}
-        />
+        <div className="flex flex-row h-dvh w-full">
+          {/* Center panel - Artifact (always visible) */}
+          <div className="flex-1 border-r dark:border-zinc-700 border-border">
+            <AlwaysVisibleArtifact chatId={id} />
+          </div>
+          
+          {/* Resizable Chat Panel */}
+          <ResizablePanel defaultSize={400} minSize={300} maxSize={600}>
+            <Chat
+              id={chat.id}
+              initialMessages={uiMessages}
+              selectedChatModel={chatModel}
+              selectedVisibilityType={chat.visibility}
+              isReadonly={isReadonly}
+            />
+          </ResizablePanel>
+        </div>
         <DataStreamHandler id={id} />
       </>
     );
