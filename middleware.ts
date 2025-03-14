@@ -60,26 +60,46 @@ export async function middleware(request: NextRequest) {
   // Handle protected routes
   const { data: { session } } = await supabase.auth.getSession()
   const isLoggedIn = !!session?.user
-  const isOnChat = request.nextUrl.pathname === '/chat/[id]'
-  const isOnRegister = request.nextUrl.pathname === '/register'
-  const isOnLogin = request.nextUrl.pathname === '/login'
+  const pathname = request.nextUrl.pathname
 
+  // Check if the route is a chat route or root path
+  const isChatRoute = pathname === '/chat' || pathname.startsWith('/chat/')
+  const isRootPath = pathname === '/'
+  const isOnRegister = pathname === '/register'
+  const isOnLogin = pathname === '/login'
+
+  // Redirect authenticated users away from auth pages
   if (isLoggedIn && (isOnLogin || isOnRegister)) {
-    return NextResponse.redirect(new URL('/', request.url))
+    return NextResponse.redirect(new URL('/chat', request.url))
   }
 
+  // Allow access to auth pages for non-authenticated users
   if (isOnRegister || isOnLogin) {
     return response
   }
 
-  if (isOnChat) {
-    if (isLoggedIn) return response
-    return NextResponse.redirect(new URL('/login', request.url))
+  // Handle chat routes and root path - require authentication
+  if (isChatRoute || isRootPath) {
+    if (!isLoggedIn) {
+      // Store the intended destination for post-login redirect
+      const redirectUrl = new URL('/login', request.url)
+      redirectUrl.searchParams.set('redirect', pathname === '/' ? '/chat' : pathname)
+      return NextResponse.redirect(redirectUrl)
+    }
+    if (isRootPath) {
+      return NextResponse.redirect(new URL('/chat', request.url))
+    }
+    return response
   }
 
   return response
 }
 
 export const config = {
-  matcher: ['/chat/[id]', '/login', '/register']
+  matcher: [
+    '/chat',
+    '/chat/:path*',
+    '/login',
+    '/register'
+  ]
 }

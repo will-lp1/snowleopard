@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { toast } from '@/components/toast';
@@ -10,6 +10,7 @@ import { SubmitButton } from '@/components/submit-button';
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [isSuccessful, setIsSuccessful] = useState(false);
   const supabase = createClient();
@@ -34,7 +35,8 @@ export default function LoginPage() {
       }
 
       setIsSuccessful(true);
-      router.push('/');
+      const redirectTo = searchParams.get('redirect') || '/chat';
+      router.push(redirectTo);
       router.refresh();
     } catch (err) {
       toast({

@@ -3,7 +3,9 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { Crimson_Text } from 'next/font/google'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { createClient } from '@/utils/supabase/client'
+import { useRouter } from 'next/navigation'
 
 const crimson = Crimson_Text({
   weight: ['400', '700'],
@@ -13,6 +15,27 @@ const crimson = Crimson_Text({
 
 export default function Home() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const router = useRouter()
+  const supabase = createClient()
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user) {
+        router.push('/chat')
+      }
+    }
+    checkAuth()
+  }, [router, supabase.auth])
+
+  const handleBeginClick = async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.user) {
+      router.push('/chat')
+    } else {
+      router.push('/login?redirect=/chat')
+    }
+  }
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-white">
@@ -21,12 +44,12 @@ export default function Home() {
         <h1 className="text-lg font-normal text-gray-800">
           cursorforwriting
         </h1>
-        <Link 
-          href="/chat"
+        <button 
+          onClick={handleBeginClick}
           className="px-6 py-2 rounded-full bg-white border border-gray-200 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:bg-gray-50 transition-colors text-sm"
         >
           Begin
-        </Link>
+        </button>
       </header>
 
       {/* Main Content */}
@@ -121,7 +144,7 @@ export default function Home() {
           {/* CTA Buttons */}
           <div className="flex gap-3 justify-center mt-8">
             <Link 
-              href="/chat"
+              href="/login"
               className="group px-6 py-2 rounded-full bg-white border border-gray-200 shadow-sm hover:bg-gray-50 transition-all duration-200 text-sm flex items-center hover:border-gray-300"
             >
               Begin <span className="inline-block ml-1 text-xs transition-transform group-hover:translate-x-0.5">›</span>
