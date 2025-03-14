@@ -187,7 +187,7 @@ export function AlwaysVisibleArtifact({ chatId }: { chatId: string }) {
   return (
     <div className="flex flex-col h-dvh bg-background">
       {/* Header with document info or actions */}
-      <div className="p-2 flex flex-row justify-between items-center border-b dark:border-zinc-700 border-border">
+      <div className="py-6 px-8 flex flex-row justify-between items-center border-b border-border h-[45px]">
         <div className="flex flex-row gap-4 items-center">
           <FileText className="h-5 w-5 text-muted-foreground" />
           <div className="flex flex-col">
