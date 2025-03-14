@@ -57,15 +57,27 @@ export async function POST(request: Request) {
   }: { content: string; title: string; kind: ArtifactKind } =
     await request.json();
 
-  const document = await saveDocument({
-    id,
-    content,
-    title,
-    kind,
-    userId: session.user.id,
-  });
+  try {
+    const document = await saveDocument({
+      id,
+      content,
+      title,
+      kind,
+      userId: session.user.id,
+    });
 
-  return Response.json(document, { status: 200 });
+    // Return a minimal response if document save was successful
+    return Response.json({
+      success: true,
+      message: 'Document saved successfully'
+    }, { status: 200 });
+  } catch (error) {
+    console.error('Error saving document:', error);
+    return Response.json({ 
+      success: false,
+      message: 'Failed to save document'
+    }, { status: 500 });
+  }
 }
 
 export async function PATCH(request: Request) {

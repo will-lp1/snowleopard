@@ -5,6 +5,8 @@ import { Dispatch, memo, SetStateAction, useState } from 'react';
 import { ArtifactActionContext } from './create-artifact';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { Loader2 } from 'lucide-react';
+import { useDebouncedSave } from '@/hooks/use-debounced-save';
 
 interface ArtifactActionsProps {
   artifact: UIArtifact;
@@ -26,6 +28,7 @@ function PureArtifactActions({
   setMetadata,
 }: ArtifactActionsProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const { isSaving, pendingSave } = useDebouncedSave();
 
   const artifactDefinition = artifactDefinitions.find(
     (definition) => definition.kind === artifact.kind,
@@ -46,7 +49,23 @@ function PureArtifactActions({
   };
 
   return (
-    <div className="flex flex-row gap-1">
+    <div className="flex flex-row gap-1 items-center">
+      {/* Saving indicator */}
+      {isCurrentVersion && (
+        <div className="mr-2 text-xs text-muted-foreground flex items-center gap-2">
+          {isSaving ? (
+            <>
+              <Loader2 size={12} className="animate-spin" />
+              <span>Saving...</span>
+            </>
+          ) : pendingSave ? (
+            <span>Unsaved changes</span>
+          ) : (
+            <span>All changes saved</span>
+          )}
+        </div>
+      )}
+
       {artifactDefinition.actions.map((action) => (
         <Tooltip key={action.description}>
           <TooltipTrigger asChild>

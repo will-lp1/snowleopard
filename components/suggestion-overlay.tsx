@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState, useRef } from 'react';
-import { X, Check, ChevronDown } from 'lucide-react';
+import { X, Check, ChevronDown, GripVertical } from 'lucide-react';
 import { useArtifact } from '@/hooks/use-artifact';
 import { DiffView } from '@/components/diffview';
 import { toast } from 'sonner';
@@ -44,9 +44,11 @@ export default function SuggestionOverlay({
   onAcceptSuggestion,
   position = { x: 100, y: 100 },
 }: SuggestionOverlayProps) {
+  const [currentPosition, setCurrentPosition] = useState(position);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [originalContent, setOriginalContent] = useState<string | null>(null);
   const [suggestion, setSuggestion] = useState<string>('');
@@ -55,6 +57,64 @@ export default function SuggestionOverlay({
   const overlayRef = useRef<HTMLDivElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const { artifact, setArtifact, metadata, setMetadata } = useArtifact();
+
+  // Update current position when initial position prop changes
+  useEffect(() => {
+    setCurrentPosition(position);
+  }, [position]);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    // Only allow dragging from the header
+    if (!(e.target as HTMLElement).closest('.drag-handle')) return;
+
+    e.preventDefault();
+    setIsDragging(true);
+    
+    const rect = overlayRef.current?.getBoundingClientRect();
+    if (rect) {
+      setDragOffset({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      });
+    }
+  }, []);
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isDragging) return;
+
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const overlayWidth = overlayRef.current?.offsetWidth || 0;
+    const overlayHeight = overlayRef.current?.offsetHeight || 0;
+
+    // Calculate new position
+    let newX = e.clientX - dragOffset.x;
+    let newY = e.clientY - dragOffset.y;
+
+    // Constrain to viewport bounds with padding
+    const padding = 10;
+    newX = Math.max(padding, Math.min(viewportWidth - overlayWidth - padding, newX));
+    newY = Math.max(padding, Math.min(viewportHeight - overlayHeight - padding, newY));
+
+    setCurrentPosition({ x: newX, y: newY });
+  }, [isDragging, dragOffset]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  // Add and remove mouse move and up listeners
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, handleMouseMove, handleMouseUp]);
 
   // Reset state when the overlay opens
   useEffect(() => {
@@ -96,8 +156,8 @@ export default function SuggestionOverlay({
       const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
 
-      let adjustedX = position.x;
-      let adjustedY = position.y;
+      let adjustedX = currentPosition.x;
+      let adjustedY = currentPosition.y;
 
       // Adjust horizontal position if needed
       if (rect.right > viewportWidth) {
@@ -110,12 +170,12 @@ export default function SuggestionOverlay({
       }
 
       // Update position if adjustments were made
-      if (adjustedX !== position.x || adjustedY !== position.y) {
+      if (adjustedX !== currentPosition.x || adjustedY !== currentPosition.y) {
         overlay.style.left = `${adjustedX}px`;
         overlay.style.top = `${adjustedY}px`;
       }
     }
-  }, [isOpen, position]);
+  }, [isOpen, currentPosition]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Escape') {
@@ -230,81 +290,54 @@ export default function SuggestionOverlay({
     }
   }, [documentId, selectedText]);
 
-  const handleAcceptSuggestion = async (suggestionText: string) => {
-    if (!documentId || !artifact.content) {
-      toast.error("No document is currently open");
-      return;
-    }
+  const handleAcceptSuggestion = useCallback(async (suggestedText: string) => {
+    if (!artifact.documentId || !originalContent) return;
 
-    setIsSaving(true);
-    try {
-      // Update the content with the suggestion
-      let updatedContent = artifact.content;
-      if (selectedText) {
-        updatedContent = updatedContent.replace(selectedText, suggestionText);
-      } else {
-        updatedContent = suggestionText;
-      }
+    // Update the content in the artifact
+    const updatedContent = artifact.content.replace(originalContent, suggestedText);
+    
+    // Update local state
+    setArtifact(prev => ({
+      ...prev,
+      content: updatedContent,
+    }));
 
-      // Save the document
-      const response = await fetch(`/api/document?id=${documentId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          content: updatedContent,
-          title: artifact.title,
-          kind: artifact.kind,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save document');
-      }
-
-      // Update local state
-      setArtifact(prev => ({
+    // Update metadata to mark suggestion as resolved
+    if (metadata?.suggestions) {
+      setMetadata((prev: SuggestionMetadata) => ({
         ...prev,
-        content: updatedContent
+        suggestions: prev.suggestions?.map(s => 
+          s.originalText === originalContent ? { ...s, isResolved: true } : s
+        ) || [],
       }));
-
-      // Update metadata to mark suggestion as resolved if it exists
-      if (metadata?.suggestions) {
-        setMetadata((prev: SuggestionMetadata) => ({
-          ...prev,
-          suggestions: prev.suggestions?.map(s => 
-            s.originalText === selectedText ? { ...s, isResolved: true } : s
-          ) || []
-        }));
-      }
-
-      toast.success('Changes saved successfully');
-      onAcceptSuggestion(suggestionText);
-      onClose();
-    } catch (err) {
-      console.error('Error saving document:', err);
-      toast.error('Failed to save changes');
-    } finally {
-      setIsSaving(false);
     }
-  };
+
+    toast.success('Changes applied');
+    onClose();
+  }, [artifact, originalContent, setArtifact, metadata, setMetadata, onClose]);
 
   if (!isOpen) return null;
 
   return (
     <div
       ref={overlayRef}
-      className="fixed z-50 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 w-[400px] overflow-hidden"
+      className={cn(
+        "fixed z-50 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 w-[400px] overflow-hidden select-none",
+        isDragging && "pointer-events-none"
+      )}
       style={{
-        top: `${position.y}px`,
-        left: `${position.x}px`,
+        top: `${currentPosition.y}px`,
+        left: `${currentPosition.x}px`,
       }}
+      onMouseDown={handleMouseDown}
     >
       <div className="px-3 py-2 space-y-2">
         {/* Header with close button */}
-        <div className="flex justify-between items-center">
-          <h3 className="text-sm font-medium">Suggestion</h3>
+        <div className="flex justify-between items-center drag-handle cursor-move">
+          <div className="flex items-center gap-2">
+            <GripVertical size={14} className="text-muted-foreground" />
+            <h3 className="text-sm font-medium">Suggestion</h3>
+          </div>
           <button 
             onClick={onClose} 
             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" 
@@ -377,23 +410,16 @@ export default function SuggestionOverlay({
               <button
                 onClick={onClose}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:text-red-500"
-                disabled={isSaving}
               >
                 <X size={13} strokeWidth={2.5} />
                 <span className="text-xs">Reject</span>
               </button>
               <button
                 onClick={() => handleAcceptSuggestion(suggestion)}
-                disabled={isSaving}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
-                  isSaving 
-                    ? "text-muted-foreground opacity-50 cursor-not-allowed" 
-                    : "text-muted-foreground hover:text-green-500"
-                )}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:text-green-500"
               >
                 <Check size={13} strokeWidth={2.5} />
-                <span className="text-xs">{isSaving ? 'Saving...' : 'Accept'}</span>
+                <span className="text-xs">Accept</span>
               </button>
             </div>
           </div>

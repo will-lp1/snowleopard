@@ -4,7 +4,8 @@ import { exampleSetup } from 'prosemirror-example-setup';
 import { inputRules } from 'prosemirror-inputrules';
 import { EditorState } from 'prosemirror-state';
 import { DecorationSet, EditorView } from 'prosemirror-view';
-import React, { memo, useEffect, useRef } from 'react';
+import React, { memo, useEffect, useRef, useCallback } from 'react';
+import { useDebouncedSave } from '@/hooks/use-debounced-save';
 
 import type { Suggestion } from '@/lib/db/schema';
 import {
@@ -42,6 +43,28 @@ function PureEditor({
 }: EditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<EditorView | null>(null);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const { saveDocument, setPendingSave } = useDebouncedSave();
+
+  const handleSave = useCallback((updatedContent: string, debounce: boolean) => {
+    // Update UI optimistically
+    onSaveContent(updatedContent, debounce);
+    setPendingSave(true);
+
+    // Clear any existing save timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Set up new save timeout
+    if (debounce) {
+      saveTimeoutRef.current = setTimeout(() => {
+        saveDocument(updatedContent);
+      }, 5000); // 5 second debounce
+    } else {
+      saveDocument(updatedContent);
+    }
+  }, [onSaveContent, saveDocument, setPendingSave]);
 
   useEffect(() => {
     if (containerRef.current && !editorRef.current) {
@@ -69,13 +92,14 @@ function PureEditor({
     }
 
     return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
       if (editorRef.current) {
         editorRef.current.destroy();
         editorRef.current = null;
       }
     };
-    // NOTE: we only want to run this effect once
-    // eslint-disable-next-line
   }, []);
 
   useEffect(() => {
@@ -85,12 +109,12 @@ function PureEditor({
           handleTransaction({
             transaction,
             editorRef,
-            onSaveContent,
+            onSaveContent: handleSave,
           });
         },
       });
     }
-  }, [onSaveContent]);
+  }, [handleSave]);
 
   useEffect(() => {
     if (editorRef.current && content) {
