@@ -17,7 +17,12 @@ export interface HighlightedTextProps {
 interface SuggestionMetadata {
   originalContent?: string;
   pendingSuggestion?: string;
-  suggestions?: any[];
+  suggestions?: Array<{
+    originalText: string;
+    suggestedText: string;
+    isResolved: boolean;
+    [key: string]: any;
+  }>;
   [key: string]: any;
 }
 
@@ -41,6 +46,7 @@ export default function SuggestionOverlay({
 }: SuggestionOverlayProps) {
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [originalContent, setOriginalContent] = useState<string | null>(null);
   const [suggestion, setSuggestion] = useState<string>('');
@@ -48,7 +54,7 @@ export default function SuggestionOverlay({
   const inputRef = useRef<HTMLInputElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
-  const { metadata, setMetadata } = useArtifact();
+  const { artifact, setArtifact, metadata, setMetadata } = useArtifact();
 
   // Reset state when the overlay opens
   useEffect(() => {
@@ -224,6 +230,66 @@ export default function SuggestionOverlay({
     }
   }, [documentId, selectedText]);
 
+  const handleAcceptSuggestion = async (suggestionText: string) => {
+    if (!documentId || !artifact.content) {
+      toast.error("No document is currently open");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // Update the content with the suggestion
+      let updatedContent = artifact.content;
+      if (selectedText) {
+        updatedContent = updatedContent.replace(selectedText, suggestionText);
+      } else {
+        updatedContent = suggestionText;
+      }
+
+      // Save the document
+      const response = await fetch(`/api/document?id=${documentId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: updatedContent,
+          title: artifact.title,
+          kind: artifact.kind,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save document');
+      }
+
+      // Update local state
+      setArtifact(prev => ({
+        ...prev,
+        content: updatedContent
+      }));
+
+      // Update metadata to mark suggestion as resolved if it exists
+      if (metadata?.suggestions) {
+        setMetadata((prev: SuggestionMetadata) => ({
+          ...prev,
+          suggestions: prev.suggestions?.map(s => 
+            s.originalText === selectedText ? { ...s, isResolved: true } : s
+          ) || []
+        }));
+      }
+
+      toast.success('Changes saved successfully');
+      onAcceptSuggestion(suggestionText);
+      onClose();
+    } catch (err) {
+      console.error('Error saving document:', err);
+      toast.error('Failed to save changes');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -311,19 +377,23 @@ export default function SuggestionOverlay({
               <button
                 onClick={onClose}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:text-red-500"
+                disabled={isSaving}
               >
                 <X size={13} strokeWidth={2.5} />
                 <span className="text-xs">Reject</span>
               </button>
               <button
-                onClick={() => {
-                  onAcceptSuggestion(suggestion);
-                  onClose();
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:text-green-500"
+                onClick={() => handleAcceptSuggestion(suggestion)}
+                disabled={isSaving}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
+                  isSaving 
+                    ? "text-muted-foreground opacity-50 cursor-not-allowed" 
+                    : "text-muted-foreground hover:text-green-500"
+                )}
               >
                 <Check size={13} strokeWidth={2.5} />
-                <span className="text-xs">Accept</span>
+                <span className="text-xs">{isSaving ? 'Saving...' : 'Accept'}</span>
               </button>
             </div>
           </div>
