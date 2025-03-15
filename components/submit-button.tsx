@@ -2,6 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Check } from 'lucide-react';
+import { LoaderIcon } from './icons';
 
 interface SubmitButtonProps {
   isSuccessful: boolean;
@@ -17,11 +18,14 @@ export function SubmitButton({ isSuccessful, children }: SubmitButtonProps) {
     >
       {isSuccessful ? (
         <>
-          <Check className="mr-2 h-4 w-4" />
+          <Check className="mr-2 size-4" />
           Done
         </>
       ) : (
-        children
+        <>
+          <LoaderIcon size={16} />
+          {children}
+        </>
       )}
     </Button>
   );

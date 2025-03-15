@@ -157,19 +157,19 @@ export function AlwaysVisibleArtifact({ chatId }: { chatId: string }) {
     (definition) => definition.kind === artifact.kind,
   );
   
-  if (!artifactDefinition) {
-    return <div>No artifact definition found!</div>;
-  }
-  
   // Initialize artifact if needed
   useEffect(() => {
-    if (artifact.documentId !== 'init' && artifactDefinition.initialize) {
+    if (artifact.documentId !== 'init' && artifactDefinition?.initialize) {
       artifactDefinition.initialize({
         documentId: artifact.documentId,
         setMetadata,
       });
     }
   }, [artifact.documentId, artifactDefinition, setMetadata]);
+  
+  if (!artifactDefinition) {
+    return <div>No artifact definition found!</div>;
+  }
   
   // These are dummy functions to satisfy the Toolbar props
   const dummyAppend: UseChatHelpers['append'] = async () => { return ''; };
@@ -189,14 +189,14 @@ export function AlwaysVisibleArtifact({ chatId }: { chatId: string }) {
       {/* Header with document info or actions */}
       <div className="flex flex-row justify-between items-center border-b border-border px-3 h-[45px]">
         <div className="flex flex-row gap-4 items-center">
-          <FileText className="h-5 w-5 text-muted-foreground" />
+          <FileText className="size-5 text-muted-foreground" />
           <div className="flex flex-col">
             <div className="font-medium">{artifact.title}</div>
             
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground h-4">
               {isContentDirty ? (
                 <>
-                  <svg className="animate-spin h-3 w-3 text-muted-foreground" viewBox="0 0 24 24">
+                  <svg className="animate-spin size-3 text-muted-foreground" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
@@ -235,7 +235,7 @@ export function AlwaysVisibleArtifact({ chatId }: { chatId: string }) {
       <div className="dark:bg-muted bg-background h-full overflow-y-auto !max-w-full items-center">
         {isDocumentsFetching && !artifact.content ? (
           <div className="flex justify-center items-center h-full">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            <Loader2 className="size-8 animate-spin text-primary" />
           </div>
         ) : showEmptyState ? (
           <div className="flex flex-col items-center justify-center h-full">
@@ -245,7 +245,7 @@ export function AlwaysVisibleArtifact({ chatId }: { chatId: string }) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <Type className="h-12 w-12 text-primary" />
+              <Type className="size-12 text-primary" />
               
               <h2 className="text-2xl font-medium text-foreground">
                 Create & Edit Documents
@@ -262,10 +262,10 @@ export function AlwaysVisibleArtifact({ chatId }: { chatId: string }) {
                   onClick={createNewDocument}
                 >
                   <div className="flex items-center">
-                    <Type className="h-4 w-4 mr-2 text-primary" />
+                    <Type className="size-4 mr-2 text-primary" />
                     <span>Create a blank document</span>
                   </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                  <ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
                 </Button>
                 
                 <Button 
@@ -277,10 +277,10 @@ export function AlwaysVisibleArtifact({ chatId }: { chatId: string }) {
                   }}
                 >
                   <div className="flex items-center">
-                    <Sparkles className="h-4 w-4 mr-2 text-primary" />
+                    <Sparkles className="size-4 mr-2 text-primary" />
                     <span>Ask AI to write something</span>
                   </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                  <ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
                 </Button>
               </div>
             </motion.div>
