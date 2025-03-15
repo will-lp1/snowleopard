@@ -1,11 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Dispatch, SetStateAction } from 'react';
 import { useWindowSize } from 'usehooks-ts';
 import useSWR from 'swr';
 import { formatDistance } from 'date-fns';
 import { Loader2, FileText, Type, Sparkles, ChevronRight } from 'lucide-react';
-import { Dispatch, SetStateAction } from 'react';
 import { Message } from 'ai';
 import { UseChatHelpers } from '@ai-sdk/react';
 
@@ -161,13 +160,11 @@ export function AlwaysVisibleArtifact({ chatId }: { chatId: string }) {
   
   // Initialize artifact when needed
   useEffect(() => {
-    if (artifact.documentId !== 'init') {
-      if (artifactDefinition.initialize) {
-        artifactDefinition.initialize({
-          documentId: artifact.documentId,
-          setMetadata,
-        });
-      }
+    if (artifact.documentId !== 'init' && artifactDefinition.initialize) {
+      artifactDefinition.initialize({
+        documentId: artifact.documentId,
+        setMetadata,
+      });
     }
   }, [artifact.documentId, artifactDefinition, setMetadata]);
   
