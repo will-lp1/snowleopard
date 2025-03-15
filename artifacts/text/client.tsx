@@ -100,12 +100,24 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
     isLoading,
     metadata,
     setMetadata,
+    latestContent,
   }) => {
     if (isLoading) {
       return <DocumentSkeleton />;
     }
 
     if (mode === 'diff') {
+      if (latestContent !== undefined) {
+        return (
+          <div className="flex flex-col py-4 md:p-12 px-4">
+            <div className="mb-4 text-sm font-medium text-muted-foreground">
+              Comparing version {currentVersionIndex + 1} with current version
+            </div>
+            <DiffView oldContent={content} newContent={latestContent} />
+          </div>
+        );
+      }
+      
       const oldContent = getDocumentContentById(currentVersionIndex - 1);
       const newContent = getDocumentContentById(currentVersionIndex);
 

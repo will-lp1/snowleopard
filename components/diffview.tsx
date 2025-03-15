@@ -27,11 +27,11 @@ const diffSchema = new Schema({
         switch (mark.attrs.type) {
           case DiffType.Inserted:
             className =
-              'bg-green-100 text-green-700 dark:bg-green-500/70 dark:text-green-300';
+              'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 px-1 py-0.5 rounded-sm border-l-2 border-green-500';
             break;
           case DiffType.Deleted:
             className =
-              'bg-red-100 line-through text-red-600 dark:bg-red-500/70 dark:text-red-300';
+              'bg-red-100 line-through text-red-700 dark:bg-red-900/40 dark:text-red-300 px-1 py-0.5 rounded-sm border-l-2 border-red-500';
             break;
           default:
             className = '';
@@ -96,5 +96,19 @@ export const DiffView = ({ oldContent, newContent }: DiffEditorProps) => {
     };
   }, [oldContent, newContent]);
 
-  return <div className="diff-editor" ref={editorRef} />;
+  return (
+    <div className="diff-container p-4 bg-white dark:bg-zinc-900 rounded-md border border-zinc-200 dark:border-zinc-800 shadow-sm">
+      <div className="mb-3 flex items-center gap-3 text-sm text-muted-foreground">
+        <div className="flex items-center gap-1">
+          <span className="inline-block w-3 h-3 bg-red-500/20 border border-red-500 rounded-sm"></span>
+          <span>Removed</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="inline-block w-3 h-3 bg-green-500/20 border border-green-500 rounded-sm"></span>
+          <span>Added</span>
+        </div>
+      </div>
+      <div className="diff-editor prose dark:prose-invert max-w-none" ref={editorRef} />
+    </div>
+  );
 };

@@ -440,7 +440,7 @@ function PureArtifact({
               />
             </div>
 
-            <div className="dark:bg-muted bg-background h-full overflow-y-scroll !max-w-full items-center">
+            <div className="dark:bg-muted bg-background h-full overflow-y-scroll !max-w-full items-center relative">
               <artifactDefinition.content
                 title={artifact.title}
                 content={
@@ -448,7 +448,7 @@ function PureArtifact({
                     ? artifact.content
                     : getDocumentContentById(currentVersionIndex)
                 }
-                mode={mode}
+                mode={isCurrentVersion ? mode : 'diff'}
                 status={artifact.status}
                 currentVersionIndex={currentVersionIndex}
                 suggestions={[]}
@@ -459,6 +459,7 @@ function PureArtifact({
                 isLoading={isDocumentsFetching && !artifact.content}
                 metadata={metadata}
                 setMetadata={setMetadata}
+                latestContent={!isCurrentVersion ? documents?.at(-1)?.content || '' : undefined}
               />
 
               <AnimatePresence>
@@ -474,6 +475,8 @@ function PureArtifact({
                   />
                 )}
               </AnimatePresence>
+              
+              {!isCurrentVersion && <div className="h-20 md:h-16" />}
             </div>
 
             <AnimatePresence>

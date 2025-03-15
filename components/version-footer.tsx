@@ -32,25 +32,43 @@ export const VersionFooter = ({
   const { mutate } = useSWRConfig();
   const [isMutating, setIsMutating] = useState(false);
 
-  if (!documents) return;
+  if (!documents) return null;
+
+  // Calculate the version number and total versions
+  const currentVersion = currentVersionIndex + 1;
+  const totalVersions = documents.length;
+  
+  // Calculate percentage for progress bar
+  const versionPercentage = Math.max(1, Math.min(100, (currentVersion / totalVersions) * 100));
 
   return (
     <motion.div
-      className="absolute flex flex-col gap-4 lg:flex-row bottom-0 bg-background p-4 w-full border-t z-50 justify-between"
-      initial={{ y: isMobile ? 200 : 77 }}
+      className="absolute flex flex-col gap-3 md:flex-row bottom-0 left-0 right-0 bg-background/95 backdrop-blur-sm p-4 border-t z-50 justify-between shadow-md"
+      initial={{ y: 100 }}
       animate={{ y: 0 }}
-      exit={{ y: isMobile ? 200 : 77 }}
-      transition={{ type: 'spring', stiffness: 140, damping: 20 }}
+      exit={{ y: 100 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
     >
-      <div>
-        <div>You are viewing a previous version</div>
-        <div className="text-muted-foreground text-sm">
-          Restore this version to make edits
+      <div className="flex flex-col">
+        <div className="flex items-center gap-2">
+          <div className="text-sm font-medium">Comparing version {currentVersion} with current version</div>
+          <div className="text-xs px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+            {currentVersion} of {totalVersions}
+          </div>
+        </div>
+        
+        {/* Version timeline bar */}
+        <div className="mt-2 w-full md:w-64 h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
+          <div 
+            className="h-full bg-primary rounded-full" 
+            style={{ width: `${versionPercentage}%` }}
+          />
         </div>
       </div>
 
-      <div className="flex flex-row gap-4">
+      <div className="flex flex-row gap-2 md:gap-3 self-end md:self-auto">
         <Button
+          size={isMobile ? "sm" : "default"}
           disabled={isMutating}
           onClick={async () => {
             setIsMutating(true);
@@ -85,15 +103,17 @@ export const VersionFooter = ({
               },
             );
           }}
+          className="gap-2 items-center"
         >
-          <div>Restore this version</div>
+          <span>Restore this version</span>
           {isMutating && (
             <div className="animate-spin">
-              <LoaderIcon />
+              <LoaderIcon size={14} />
             </div>
           )}
         </Button>
         <Button
+          size={isMobile ? "sm" : "default"}
           variant="outline"
           onClick={() => {
             handleVersionChange('latest');
