@@ -14,6 +14,7 @@ export function useDebouncedSave(debounceMs: number = 2000) {
     
     // Update local content immediately
     contentRef.current = content;
+    setIsSaving(true);
     
     // Clear any existing timer
     if (debounceTimerRef.current) {
@@ -24,7 +25,6 @@ export function useDebouncedSave(debounceMs: number = 2000) {
     debounceTimerRef.current = setTimeout(async () => {
       // Only save if content has changed since last save
       if (contentRef.current !== lastSavedRef.current) {
-        setIsSaving(true);
         try {
           const response = await fetch(`/api/document?id=${artifact.documentId}`, {
             method: 'POST',
@@ -46,6 +46,8 @@ export function useDebouncedSave(debounceMs: number = 2000) {
         } finally {
           setIsSaving(false);
         }
+      } else {
+        setIsSaving(false);
       }
     }, debounceMs);
     
