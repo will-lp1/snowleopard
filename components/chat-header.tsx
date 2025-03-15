@@ -43,7 +43,7 @@ function PureChatHeader({
             size="sm"
             className="h-8 px-2"
             onClick={() => {
-              router.push('/');
+              router.push('/chat');
               router.refresh();
             }}
           >
