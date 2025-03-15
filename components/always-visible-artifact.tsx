@@ -71,7 +71,9 @@ export function AlwaysVisibleArtifact({ chatId }: { chatId: string }) {
   
   // Auto-fetch documents when status changes
   useEffect(() => {
-    mutateDocuments();
+    if (artifact.documentId !== 'init') {
+      mutateDocuments();
+    }
   }, [artifact.status, mutateDocuments]);
   
   // Save content to the server when it changes
@@ -159,15 +161,13 @@ export function AlwaysVisibleArtifact({ chatId }: { chatId: string }) {
     return <div>No artifact definition found!</div>;
   }
   
-  // Initialize artifact when needed
+  // Initialize artifact if needed
   useEffect(() => {
-    if (artifact.documentId !== 'init') {
-      if (artifactDefinition.initialize) {
-        artifactDefinition.initialize({
-          documentId: artifact.documentId,
-          setMetadata,
-        });
-      }
+    if (artifact.documentId !== 'init' && artifactDefinition.initialize) {
+      artifactDefinition.initialize({
+        documentId: artifact.documentId,
+        setMetadata,
+      });
     }
   }, [artifact.documentId, artifactDefinition, setMetadata]);
   
