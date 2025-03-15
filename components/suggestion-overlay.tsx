@@ -316,6 +316,14 @@ export default function SuggestionOverlay({
     onClose();
   }, [artifact, originalContent, setArtifact, metadata, setMetadata, onClose]);
 
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      await handleSubmitPrompt(inputValue);
+    },
+    [handleSubmitPrompt, inputValue],
+  );
+
   if (!isOpen) return null;
 
   return (

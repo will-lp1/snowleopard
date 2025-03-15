@@ -74,7 +74,7 @@ export function AlwaysVisibleArtifact({ chatId }: { chatId: string }) {
     if (artifact.documentId !== 'init') {
       mutateDocuments();
     }
-  }, [artifact.status, mutateDocuments]);
+  }, [artifact.documentId, artifact.status, mutateDocuments]);
   
   // Save content to the server when it changes
   const saveContent = async (updatedContent: string, debounce: boolean) => {
