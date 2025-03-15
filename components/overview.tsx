@@ -13,13 +13,9 @@ export const Overview = () => {
       transition={{ delay: 0.3 }}
     >
       <div className="rounded-xl p-6 flex flex-col gap-8 leading-relaxed text-center max-w-xl bg-card/50 border border-border/40 shadow-sm">
-        <div className="flex flex-row justify-center gap-8 items-center">
-          <FileText size={28} className="text-primary/80" />
-          <PenLine size={28} className="text-primary/80" />
-          <MessageSquare size={28} className="text-primary/80" />
-        </div>
+
         
-        <h2 className="text-xl font-medium">Welcome to Cursor for Writing</h2>
+        <h2 className="text-xl font-medium">Welcome to Snow Leopard</h2>
         
         <p className="text-muted-foreground">
           A modern, artifact-centered writing tool designed to enhance your creative process. 

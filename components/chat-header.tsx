@@ -82,7 +82,7 @@ function PureChatHeader({
           target="_blank"
           rel="noopener noreferrer"
         >
-          <Image src="/images/github-white.svg" alt="Github" width={16} height={16} className="mr-2" />
+          <Image src="/github-white.svg" alt="Github" width={16} height={16} className="mr-2" />
           <span className="text-sm">GitHub</span>
         </Link>
       </Button>

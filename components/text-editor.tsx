@@ -4,7 +4,7 @@ import { exampleSetup } from 'prosemirror-example-setup';
 import { inputRules } from 'prosemirror-inputrules';
 import { EditorState } from 'prosemirror-state';
 import { DecorationSet, EditorView } from 'prosemirror-view';
-import React, { memo, useEffect, useRef, useCallback } from 'react';
+import React, { memo, useEffect, useRef } from 'react';
 import { useDebouncedSave } from '@/hooks/use-debounced-save';
 
 import type { Suggestion } from '@/lib/db/schema';
@@ -43,28 +43,7 @@ function PureEditor({
 }: EditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<EditorView | null>(null);
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const { saveDocument, setPendingSave } = useDebouncedSave();
-
-  const handleSave = useCallback((updatedContent: string, debounce: boolean) => {
-    // Update UI optimistically
-    onSaveContent(updatedContent, debounce);
-    setPendingSave(true);
-
-    // Clear any existing save timeout
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-
-    // Set up new save timeout
-    if (debounce) {
-      saveTimeoutRef.current = setTimeout(() => {
-        saveDocument(updatedContent);
-      }, 5000); // 5 second debounce
-    } else {
-      saveDocument(updatedContent);
-    }
-  }, [onSaveContent, saveDocument, setPendingSave]);
+  const { saveDocument } = useDebouncedSave(2000); // 2 second debounce
 
   useEffect(() => {
     if (containerRef.current && !editorRef.current) {
@@ -92,9 +71,6 @@ function PureEditor({
     }
 
     return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
       if (editorRef.current) {
         editorRef.current.destroy();
         editorRef.current = null;
@@ -106,15 +82,26 @@ function PureEditor({
     if (editorRef.current) {
       editorRef.current.setProps({
         dispatchTransaction: (transaction) => {
-          handleTransaction({
-            transaction,
-            editorRef,
-            onSaveContent: handleSave,
-          });
+          if (!editorRef.current) return;
+
+          // Apply the transaction to get the new state
+          const newState = editorRef.current.state.apply(transaction);
+          
+          // Update the editor with the new state
+          editorRef.current.updateState(newState);
+          
+          // Only trigger save if this isn't a 'no-save' transaction
+          if (!transaction.getMeta('no-save')) {
+            const content = buildContentFromDocument(newState.doc);
+            // Update local state immediately
+            onSaveContent(content, true);
+            // Debounce the actual save
+            saveDocument(content);
+          }
         },
       });
     }
-  }, [handleSave]);
+  }, [onSaveContent, saveDocument]);
 
   useEffect(() => {
     if (editorRef.current && content) {
@@ -124,28 +111,28 @@ function PureEditor({
 
       if (status === 'streaming') {
         const newDocument = buildDocumentFromContent(content);
-
-        const transaction = editorRef.current.state.tr.replaceWith(
-          0,
-          editorRef.current.state.doc.content.size,
-          newDocument.content,
-        );
-
-        transaction.setMeta('no-save', true);
+        const transaction = editorRef.current.state.tr
+          .replaceWith(
+            0,
+            editorRef.current.state.doc.content.size,
+            newDocument.content,
+          )
+          .setMeta('no-save', true);
+        
         editorRef.current.dispatch(transaction);
         return;
       }
 
       if (currentContent !== content) {
         const newDocument = buildDocumentFromContent(content);
-
-        const transaction = editorRef.current.state.tr.replaceWith(
-          0,
-          editorRef.current.state.doc.content.size,
-          newDocument.content,
-        );
-
-        transaction.setMeta('no-save', true);
+        const transaction = editorRef.current.state.tr
+          .replaceWith(
+            0,
+            editorRef.current.state.doc.content.size,
+            newDocument.content,
+          )
+          .setMeta('no-save', true);
+        
         editorRef.current.dispatch(transaction);
       }
     }

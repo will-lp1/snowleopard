@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState, Dispatch, SetStateAction } from 'react';
+import { useEffect, useState } from 'react';
 import { useWindowSize } from 'usehooks-ts';
 import useSWR from 'swr';
 import { formatDistance } from 'date-fns';
 import { Loader2, FileText, Type, Sparkles, ChevronRight } from 'lucide-react';
+import { Dispatch, SetStateAction } from 'react';
 import { Message } from 'ai';
 import { UseChatHelpers } from '@ai-sdk/react';
 
@@ -160,11 +161,13 @@ export function AlwaysVisibleArtifact({ chatId }: { chatId: string }) {
   
   // Initialize artifact when needed
   useEffect(() => {
-    if (artifact.documentId !== 'init' && artifactDefinition.initialize) {
-      artifactDefinition.initialize({
-        documentId: artifact.documentId,
-        setMetadata,
-      });
+    if (artifact.documentId !== 'init') {
+      if (artifactDefinition.initialize) {
+        artifactDefinition.initialize({
+          documentId: artifact.documentId,
+          setMetadata,
+        });
+      }
     }
   }, [artifact.documentId, artifactDefinition, setMetadata]);
   
@@ -190,27 +193,29 @@ export function AlwaysVisibleArtifact({ chatId }: { chatId: string }) {
           <div className="flex flex-col">
             <div className="font-medium">{artifact.title}</div>
             
-            {isContentDirty ? (
-              <div className="text-sm text-muted-foreground">
-                Saving changes...
-              </div>
-            ) : document ? (
-              <div className="text-xs text-muted-foreground">
-                {`Updated ${formatDistance(
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground h-4">
+              {isContentDirty ? (
+                <>
+                  <svg className="animate-spin h-3 w-3 text-muted-foreground" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  <span>Saving</span>
+                </>
+              ) : document ? (
+                `Updated ${formatDistance(
                   new Date(document.createdAt),
                   new Date(),
                   {
                     addSuffix: true,
                   },
-                )}`}
-              </div>
-            ) : !showEmptyState ? (
-              <div className="w-32 h-3 mt-1 bg-muted-foreground/20 rounded-md animate-pulse" />
-            ) : (
-              <div className="text-xs text-muted-foreground">
-                New document ready for your ideas
-              </div>
-            )}
+                )}`
+              ) : !showEmptyState ? (
+                <div className="w-32 h-3 bg-muted-foreground/20 rounded-md animate-pulse" />
+              ) : (
+                <span>New document ready for your ideas</span>
+              )}
+            </div>
           </div>
         </div>
         

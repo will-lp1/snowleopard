@@ -409,23 +409,27 @@ function PureArtifact({
                 <div className="flex flex-col">
                   <div className="font-medium">{artifact.title}</div>
 
-                  {isContentDirty ? (
-                    <div className="text-sm text-muted-foreground">
-                      Saving changes...
-                    </div>
-                  ) : document ? (
-                    <div className="text-sm text-muted-foreground">
-                      {`Updated ${formatDistance(
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground h-4">
+                    {isContentDirty ? (
+                      <>
+                        <svg className="animate-spin h-3 w-3 text-muted-foreground" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        <span>Saving</span>
+                      </>
+                    ) : document ? (
+                      `Updated ${formatDistance(
                         new Date(document.createdAt),
                         new Date(),
                         {
                           addSuffix: true,
                         },
-                      )}`}
-                    </div>
-                  ) : (
-                    <div className="w-32 h-3 mt-2 bg-muted-foreground/20 rounded-md animate-pulse" />
-                  )}
+                      )}`
+                    ) : (
+                      <div className="w-32 h-3 bg-muted-foreground/20 rounded-md animate-pulse" />
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -440,7 +444,7 @@ function PureArtifact({
               />
             </div>
 
-            <div className="dark:bg-muted bg-background h-full overflow-y-scroll !max-w-full items-center relative">
+            <div className="dark:bg-muted bg-background h-full overflow-y-scroll !max-w-full items-center">
               <artifactDefinition.content
                 title={artifact.title}
                 content={
@@ -448,7 +452,7 @@ function PureArtifact({
                     ? artifact.content
                     : getDocumentContentById(currentVersionIndex)
                 }
-                mode={isCurrentVersion ? mode : 'diff'}
+                mode={mode}
                 status={artifact.status}
                 currentVersionIndex={currentVersionIndex}
                 suggestions={[]}
@@ -459,7 +463,6 @@ function PureArtifact({
                 isLoading={isDocumentsFetching && !artifact.content}
                 metadata={metadata}
                 setMetadata={setMetadata}
-                latestContent={!isCurrentVersion ? documents?.at(-1)?.content || '' : undefined}
               />
 
               <AnimatePresence>
@@ -475,8 +478,6 @@ function PureArtifact({
                   />
                 )}
               </AnimatePresence>
-              
-              {!isCurrentVersion && <div className="h-20 md:h-16" />}
             </div>
 
             <AnimatePresence>
