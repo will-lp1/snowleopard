@@ -86,10 +86,13 @@ function PureArtifact({
     isLoading: isDocumentsFetching,
     mutate: mutateDocuments,
   } = useSWR<Array<Document>>(
-    artifact.documentId !== 'init' && artifact.status !== 'streaming'
-      ? `/api/document?id=${artifact.documentId}`
-      : null,
-    fetcher,
+    `/api/document?id=${artifact.documentId}`,
+    async (url: string) => {
+      if (artifact.documentId === 'init' || artifact.status === 'streaming') {
+        return null;
+      }
+      return fetcher(url);
+    }
   );
 
   const [mode, setMode] = useState<'edit' | 'diff'>('edit');
