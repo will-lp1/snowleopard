@@ -142,7 +142,7 @@ function PureEditor({
     if (editorRef.current?.state.doc && content) {
       const projectedSuggestions = projectWithPositions(
         editorRef.current.state.doc,
-        suggestions,
+        suggestions.filter(suggestion => !suggestion.isResolved)
       ).filter(
         (suggestion) => suggestion.selectionStart && suggestion.selectionEnd,
       );

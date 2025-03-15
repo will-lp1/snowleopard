@@ -307,7 +307,9 @@ export default function SuggestionOverlay({
       setMetadata((prev: SuggestionMetadata) => ({
         ...prev,
         suggestions: prev.suggestions?.map(s => 
-          s.originalText === originalContent ? { ...s, isResolved: true } : s
+          s.originalText === originalContent 
+            ? { ...s, isResolved: true, suggestedText } 
+            : s
         ) || [],
       }));
     }

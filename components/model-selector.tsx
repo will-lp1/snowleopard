@@ -27,7 +27,9 @@ export function ModelSelector({
 
   useEffect(() => {
     if (selectedModelId) {
-      setOptimisticModelId(selectedModelId);
+      startTransition(() => {
+        setOptimisticModelId(selectedModelId);
+      });
     }
   }, [selectedModelId, setOptimisticModelId]);
 
