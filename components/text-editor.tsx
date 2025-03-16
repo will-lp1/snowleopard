@@ -2,9 +2,9 @@
 
 import { exampleSetup } from 'prosemirror-example-setup';
 import { inputRules } from 'prosemirror-inputrules';
-import { EditorState } from 'prosemirror-state';
+import { EditorState, Transaction } from 'prosemirror-state';
 import { DecorationSet, EditorView } from 'prosemirror-view';
-import React, { memo, useEffect, useRef } from 'react';
+import React, { memo, useEffect, useRef, useCallback } from 'react';
 import { useDebouncedSave } from '@/hooks/use-debounced-save';
 
 import type { Suggestion } from '@/lib/db/schema';
@@ -51,8 +51,7 @@ function PureEditor({
   const editorInitializedRef = useRef<boolean>(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pendingChangesRef = useRef<boolean>(false);
-  const lastSaveAttemptRef = useRef<number>(Date.now());
-  const consecutiveErrorsRef = useRef<number>(0);
+  const isSavingRef = useRef<boolean>(false);
 
   // Initialize editor
   useEffect(() => {
@@ -123,8 +122,8 @@ function PureEditor({
           // Update the editor with the new state
           editorRef.current.updateState(newState);
           
-          // Only trigger save if this isn't a 'no-save' transaction
-          if (!transaction.getMeta('no-save')) {
+          // Only trigger save if this isn't a 'no-save' transaction and we're not already saving
+          if (!transaction.getMeta('no-save') && !isSavingRef.current) {
             const updatedContent = buildContentFromDocument(newState.doc);
             
             // Skip if content is essentially the same
@@ -135,83 +134,54 @@ function PureEditor({
               return;
             }
             
-            // Set pending changes flag
-            pendingChangesRef.current = true;
-            
             // Update reference for future comparisons
             lastContentRef.current = updatedContent;
             
-            // Call parent component's onSaveContent to update UI immediately
-            onSaveContent(updatedContent, true);
-            
-            // Debounce the actual save to the server
-            if (documentId && documentId !== 'init') {
-              try {
-                // Check if we're hitting rate limits
-                const now = Date.now();
-                const timeSinceLastSave = now - lastSaveAttemptRef.current;
-                
-                // If we've had consecutive errors, increase the delay
-                const baseDelay = Math.min(500 * Math.pow(2, consecutiveErrorsRef.current), 10000);
-                const minTimeBetweenSaves = Math.max(500, baseDelay);
-                
-                console.log(`[Editor] Save metrics - Time since last save: ${timeSinceLastSave}ms, Consecutive errors: ${consecutiveErrorsRef.current}, Current delay: ${baseDelay}ms`);
-                
-                // Clear existing timeout
-                if (saveTimeoutRef.current) {
-                  clearTimeout(saveTimeoutRef.current);
-                  console.log('[Editor] Cleared existing save timeout');
-                }
-                
-                // Create a new timeout for saving
-                saveTimeoutRef.current = setTimeout(() => {
-                  console.log(`[Editor] Initiating save for document ID: ${documentId} (${updatedContent.length} chars)`);
-                  lastSaveAttemptRef.current = Date.now();
-                  
-                  debouncedSave(updatedContent, documentId)
-                    .then(() => {
-                      console.log('[Editor] Save completed successfully');
-                      consecutiveErrorsRef.current = 0;
-                      pendingChangesRef.current = false;
-                    })
-                    .catch((error) => {
-                      console.error('[Editor] Save failed:', error);
-                      consecutiveErrorsRef.current++;
-                      // Trigger another save attempt with exponential backoff
-                      if (consecutiveErrorsRef.current < 5) {
-                        console.log(`[Editor] Scheduling retry with ${baseDelay}ms delay`);
-                        setTimeout(() => {
-                          onSaveContent(updatedContent, true);
-                        }, baseDelay);
-                      } else {
-                        console.error('[Editor] Too many consecutive errors, stopping retry attempts');
-                      }
-                    });
-                  
-                  saveTimeoutRef.current = null;
-                }, Math.max(0, minTimeBetweenSaves - timeSinceLastSave));
-                
-                console.log(`[Editor] Scheduled save with ${Math.max(0, minTimeBetweenSaves - timeSinceLastSave)}ms delay`);
-              } catch (error) {
-                console.error('[Editor] Error in save scheduling:', error);
-              }
-            } else {
-              console.log(`[Editor] Not saving - invalid document ID: ${documentId}`);
+            // Clear existing timeout
+            if (saveTimeoutRef.current) {
+              clearTimeout(saveTimeoutRef.current);
+              console.log('[Editor] Cleared existing save timeout');
             }
+            
+            // Create a new timeout for saving
+            saveTimeoutRef.current = setTimeout(() => {
+              if (!isSavingRef.current) {
+                console.log(`[Editor] Initiating save for document ID: ${documentId} (${updatedContent.length} chars)`);
+                isSavingRef.current = true;
+                onSaveContent(updatedContent, true);
+                
+                // Reset saving state after a timeout in case the save callback fails
+                setTimeout(() => {
+                  isSavingRef.current = false;
+                }, 5000); // Reset after 5 seconds if no response
+              }
+              saveTimeoutRef.current = null;
+            }, 1000); // 1 second debounce
           }
         },
       });
     }
     
     return () => {
-      // Clean up any pending operations when the component unmounts
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = null;
       }
-      console.log('[Editor] Cleaning up pending operations');
+      isSavingRef.current = false;
     };
-  }, [onSaveContent, debouncedSave, documentId]);
+  }, [onSaveContent, documentId]);
+
+  // Reset saving state when content changes from parent
+  useEffect(() => {
+    if (content !== editorRef.current?.state.doc.toString()) {
+      isSavingRef.current = false;
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+      console.log('[Editor] Content updated from parent, resetting save state');
+    }
+  }, [content]);
 
   // Handle content updates from parent - only run when editor is already initialized
   useEffect(() => {
@@ -225,36 +195,19 @@ function PureEditor({
         return;
       }
 
-      if (status === 'streaming') {
-        const newDocument = buildDocumentFromContent(content);
-        const transaction = editorRef.current.state.tr
-          .replaceWith(
-            0,
-            editorRef.current.state.doc.content.size,
-            newDocument.content,
-          )
-          .setMeta('no-save', true);
-        
-        editorRef.current.dispatch(transaction);
-        lastContentRef.current = content;
-        return;
-      }
-
-      if (currentContent !== content) {
-        const newDocument = buildDocumentFromContent(content);
-        const transaction = editorRef.current.state.tr
-          .replaceWith(
-            0,
-            editorRef.current.state.doc.content.size,
-            newDocument.content,
-          )
-          .setMeta('no-save', true);
-        
-        editorRef.current.dispatch(transaction);
-        lastContentRef.current = content;
-      }
+      const newDocument = buildDocumentFromContent(content);
+      const transaction = editorRef.current.state.tr
+        .replaceWith(
+          0,
+          editorRef.current.state.doc.content.size,
+          newDocument.content,
+        )
+        .setMeta('no-save', true);
+      
+      editorRef.current.dispatch(transaction);
+      lastContentRef.current = content;
     }
-  }, [content, status]);
+  }, [content]);
 
   useEffect(() => {
     if (editorRef.current?.state.doc && content) {
@@ -278,6 +231,43 @@ function PureEditor({
       editorRef.current.dispatch(transaction);
     }
   }, [suggestions, content, onSuggestionResolve]);
+
+  const handleDocumentChange = useCallback((tr: Transaction) => {
+    // Skip save for certain transaction types
+    if (tr.getMeta('no-save') || tr.getMeta('loading')) {
+      return;
+    }
+
+    // Only trigger save if there are actual content changes
+    if (!tr.docChanged) {
+      return;
+    }
+
+    const newContent = editorRef.current?.state.doc.toString() || '';
+    console.log('[Editor] Document changed, scheduling save');
+    
+    // Clear any existing save timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Schedule a new save with debounce
+    saveTimeoutRef.current = setTimeout(() => {
+      if (onSaveContent && typeof onSaveContent === 'function') {
+        console.log('[Editor] Executing debounced save');
+        onSaveContent(newContent, true);
+      }
+    }, 1000); // 1 second debounce
+  }, [onSaveContent]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div className="relative prose dark:prose-invert" ref={containerRef}>
