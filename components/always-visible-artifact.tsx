@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useWindowSize } from 'usehooks-ts';
 import useSWR from 'swr';
 import { formatDistance } from 'date-fns';
@@ -18,10 +18,12 @@ import { VersionFooter } from './version-footer';
 import { Toolbar } from './toolbar';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Button } from './ui/button';
+import { useDebouncedSave } from '@/hooks/use-debounced-save';
 
 export function AlwaysVisibleArtifact({ chatId }: { chatId: string }) {
   const { artifact, setArtifact, metadata, setMetadata } = useArtifact();
   const { width: windowWidth } = useWindowSize();
+  const { debouncedSave, saveImmediately, isSaving } = useDebouncedSave(2500);
   
   const {
     data: documents,
@@ -37,6 +39,9 @@ export function AlwaysVisibleArtifact({ chatId }: { chatId: string }) {
   const [currentVersionIndex, setCurrentVersionIndex] = useState(-1);
   const [isToolbarVisible, setIsToolbarVisible] = useState(false);
   const [isContentDirty, setIsContentDirty] = useState(false);
+  
+  // Create a ref to track the last saved content across renders
+  const lastSavedContentRef = useRef<string>('');
   
   // Set default values if artifact isn't yet initialized
   useEffect(() => {
@@ -65,6 +70,11 @@ export function AlwaysVisibleArtifact({ chatId }: { chatId: string }) {
           content: mostRecentDocument.content ?? '',
           title: mostRecentDocument.title,
         }));
+
+        // Update the last saved content
+        if (mostRecentDocument.content) {
+          lastSavedContentRef.current = mostRecentDocument.content;
+        }
       }
     }
   }, [documents, setArtifact]);
@@ -78,43 +88,59 @@ export function AlwaysVisibleArtifact({ chatId }: { chatId: string }) {
   
   // Save content to the server when it changes
   const saveContent = async (updatedContent: string, debounce: boolean) => {
+    // Mark as dirty to show saving indicator immediately
+    setIsContentDirty(true);
+
     if (artifact.documentId === 'init' || !document) {
       // Create new document if it doesn't exist yet
-      const response = await fetch(`/api/document`, {
-        method: 'POST',
-        body: JSON.stringify({
-          title: artifact.title || 'New Document',
-          content: updatedContent,
-          kind: artifact.kind,
-        }),
-      });
-      
-      const data = await response.json();
-      if (data.id) {
-        setArtifact(curr => ({
-          ...curr,
-          documentId: data.id,
-        }));
-        mutateDocuments();
+      try {
+        const response = await fetch(`/api/document`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            title: artifact.title || 'New Document',
+            content: updatedContent,
+            kind: artifact.kind,
+          }),
+          cache: 'no-cache',
+          credentials: 'same-origin',
+        });
+        
+        const data = await response.json();
+        if (data.id) {
+          setArtifact(curr => ({
+            ...curr,
+            documentId: data.id,
+            content: updatedContent
+          }));
+          mutateDocuments();
+        }
+      } catch (error) {
+        console.error('Error creating document:', error);
+      } finally {
+        setIsContentDirty(false);
       }
       return;
     }
     
     if (document && updatedContent !== document.content) {
-      setIsContentDirty(true);
+      // Update local state immediately for responsiveness
+      setArtifact(curr => ({
+        ...curr,
+        content: updatedContent
+      }));
       
-      // Save immediately (we're not using debounce in this simplified version)
-      await fetch(`/api/document?id=${artifact.documentId}`, {
-        method: 'POST',
-        body: JSON.stringify({
-          title: artifact.title,
-          content: updatedContent,
-          kind: artifact.kind,
-        }),
-      });
-      
-      setIsContentDirty(false);
-      mutateDocuments();
+      // Use the debounced save for normal updates
+      if (debounce) {
+        debouncedSave(updatedContent, artifact.documentId, artifact.title, artifact.kind);
+      } else {
+        // Or save immediately for critical updates
+        await saveImmediately(updatedContent, artifact.documentId, artifact.title, artifact.kind);
+        mutateDocuments();
+        setIsContentDirty(false);
+      }
     }
   };
   
@@ -194,7 +220,7 @@ export function AlwaysVisibleArtifact({ chatId }: { chatId: string }) {
             <div className="font-medium">{artifact.title}</div>
             
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground h-4">
-              {isContentDirty ? (
+              {isSaving || isContentDirty ? (
                 <>
                   <svg className="animate-spin size-3 text-muted-foreground" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
@@ -305,6 +331,7 @@ export function AlwaysVisibleArtifact({ chatId }: { chatId: string }) {
               isLoading={isDocumentsFetching && !artifact.content}
               metadata={metadata}
               setMetadata={setMetadata}
+              documentId={artifact.documentId}
             />
             
             <AnimatePresence>

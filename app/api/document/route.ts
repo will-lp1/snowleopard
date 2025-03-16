@@ -8,9 +8,9 @@ import {
 
 export async function GET(request: Request) {
   const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session?.user) {
+  if (!user) {
     return new Response('Unauthorized', { status: 401 });
   }
 
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
     return new Response('Not Found', { status: 404 });
   }
 
-  if (document.userId !== session.user.id) {
+  if (document.userId !== user.id) {
     return new Response('Unauthorized', { status: 401 });
   }
 
@@ -37,9 +37,9 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session?.user?.id) {
+  if (!user?.id) {
     return new Response('Unauthorized', { status: 401 });
   }
 
@@ -63,16 +63,14 @@ export async function POST(request: Request) {
       content,
       title,
       kind,
-      userId: session.user.id,
+      userId: user.id,
     });
 
-    // Return a minimal response if document save was successful
     return Response.json({
       success: true,
       message: 'Document saved successfully'
     }, { status: 200 });
   } catch (error) {
-    console.error('Error saving document:', error);
     return Response.json({ 
       success: false,
       message: 'Failed to save document'
@@ -82,9 +80,9 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session?.user) {
+  if (!user) {
     return new Response('Unauthorized', { status: 401 });
   }
 
@@ -97,10 +95,10 @@ export async function PATCH(request: Request) {
     return new Response('Missing id', { status: 400 });
   }
 
-  const documents = await getDocumentsById({ id });
+  const documents = await getDocumentsById({ id }); 
   const [document] = documents;
 
-  if (document.userId !== session.user.id) {
+  if (document.userId !== user.id) {
     return new Response('Unauthorized', { status: 401 });
   }
 

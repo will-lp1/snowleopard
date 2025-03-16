@@ -177,6 +177,26 @@ export default function SuggestionOverlay({
     }
   }, [isOpen, currentPosition]);
 
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      onClose();
+    } else if (e.key === 'Enter' && isOpen && inputValue && !isGenerating) {
+      handleSubmitPrompt(inputValue);
+    }
+  }, [isOpen, onClose, inputValue, isGenerating]);
+
+  useEffect(() => {
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    } else {
+      window.removeEventListener('keydown', handleKeyDown);
+    }
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, handleKeyDown]);
+
   const handleSubmitPrompt = useCallback(async (prompt: string) => {
     if (!documentId) {
       toast.error("No document is currently open");
@@ -270,26 +290,6 @@ export default function SuggestionOverlay({
     }
   }, [documentId, selectedText]);
 
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      onClose();
-    } else if (e.key === 'Enter' && isOpen && inputValue && !isGenerating) {
-      handleSubmitPrompt(inputValue);
-    }
-  }, [isOpen, onClose, inputValue, isGenerating, handleSubmitPrompt]);
-
-  useEffect(() => {
-    if (isOpen) {
-      window.addEventListener('keydown', handleKeyDown);
-    } else {
-      window.removeEventListener('keydown', handleKeyDown);
-    }
-    
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isOpen, handleKeyDown]);
-
   const handleAcceptSuggestion = useCallback(async (suggestedText: string) => {
     if (!artifact.documentId || !originalContent) return;
 
@@ -307,9 +307,7 @@ export default function SuggestionOverlay({
       setMetadata((prev: SuggestionMetadata) => ({
         ...prev,
         suggestions: prev.suggestions?.map(s => 
-          s.originalText === originalContent 
-            ? { ...s, isResolved: true, suggestedText } 
-            : s
+          s.originalText === originalContent ? { ...s, isResolved: true } : s
         ) || [],
       }));
     }

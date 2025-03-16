@@ -46,6 +46,9 @@ interface ArtifactContent<M = any> {
   isLoading: boolean;
   metadata: M;
   setMetadata: Dispatch<SetStateAction<M>>;
+  documentId: string;
+  saveState?: 'idle' | 'saving' | 'error';
+  lastSaveError?: string | null;
 }
 
 interface InitializeParameters<M = any> {
@@ -56,7 +59,7 @@ interface InitializeParameters<M = any> {
 type ArtifactConfig<T extends string, M = any> = {
   kind: T;
   description: string;
-  content: ComponentType<ArtifactContent<M>>;
+  content: ComponentType<ArtifactContent<M> & { documentId: string }>;
   actions: Array<ArtifactAction<M>>;
   toolbar: ArtifactToolbarItem[];
   initialize?: (parameters: InitializeParameters<M>) => void;
@@ -70,7 +73,7 @@ type ArtifactConfig<T extends string, M = any> = {
 export class Artifact<T extends string, M = any> {
   readonly kind: T;
   readonly description: string;
-  readonly content: ComponentType<ArtifactContent<M>>;
+  readonly content: ComponentType<ArtifactContent<M> & { documentId: string }>;
   readonly actions: Array<ArtifactAction<M>>;
   readonly toolbar: ArtifactToolbarItem[];
   readonly initialize?: (parameters: InitializeParameters) => void;

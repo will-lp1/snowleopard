@@ -8,6 +8,7 @@ import {
   useCallback,
   useEffect,
   useState,
+  useRef,
 } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 import { useDebounceCallback, useWindowSize } from 'usehooks-ts';
@@ -46,6 +47,27 @@ export interface UIArtifact {
     width: number;
     height: number;
   };
+  saveState?: 'idle' | 'saving' | 'error';
+  lastSaveError?: string | null;
+}
+
+interface ArtifactContent<M = any> {
+  title: string;
+  content: string;
+  mode: 'edit' | 'diff';
+  isCurrentVersion: boolean;
+  currentVersionIndex: number;
+  status: 'streaming' | 'idle';
+  suggestions: Array<Suggestion>;
+  onSaveContent: (updatedContent: string, debounce: boolean) => void;
+  isInline: boolean;
+  getDocumentContentById: (index: number) => string;
+  isLoading: boolean;
+  metadata: M;
+  setMetadata: Dispatch<SetStateAction<M>>;
+  documentId: string;
+  saveState?: 'idle' | 'saving' | 'error';
+  lastSaveError?: string | null;
 }
 
 function PureArtifact({
@@ -172,20 +194,67 @@ function PureArtifact({
     2000,
   );
 
-  const saveContent = useCallback(
-    (updatedContent: string, debounce: boolean) => {
-      if (document && updatedContent !== document.content) {
-        setIsContentDirty(true);
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'error'>('idle');
+  const [lastSaveError, setLastSaveError] = useState<string | null>(null);
+  const lastSaveAttemptRef = useRef<number>(Date.now());
+  const consecutiveErrorsRef = useRef<number>(0);
 
-        if (debounce) {
-          debouncedHandleContentChange(updatedContent);
-        } else {
-          handleContentChange(updatedContent);
-        }
+  const saveContent = useCallback(async (content: string, isDebounced = false) => {
+    if (!artifact?.documentId) return;
+    
+    try {
+      const now = Date.now();
+      const timeSinceLastSave = now - lastSaveAttemptRef.current;
+      
+      // If we're hitting rate limits, delay the save
+      if (timeSinceLastSave < 1000) {
+        console.log('[Artifact] Rate limit protection - delaying save');
+        setTimeout(() => saveContent(content, isDebounced), 1000 - timeSinceLastSave);
+        return;
       }
-    },
-    [document, debouncedHandleContentChange, handleContentChange],
-  );
+      
+      lastSaveAttemptRef.current = now;
+      console.log('[Artifact] Initiating save for document:', artifact.documentId);
+      setSaveState('saving');
+      setLastSaveError(null);
+      setIsContentDirty(true);
+
+      const response = await fetch(`/api/documents/${artifact.documentId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to save document');
+      }
+
+      console.log('[Artifact] Save completed successfully');
+      setSaveState('idle');
+      setIsContentDirty(false);
+      consecutiveErrorsRef.current = 0;
+      
+      // Refresh the documents list
+      mutateDocuments();
+    } catch (error) {
+      console.error('[Artifact] Save failed:', error);
+      setSaveState('error');
+      setIsContentDirty(false);
+      setLastSaveError(error instanceof Error ? error.message : 'Unknown error occurred');
+      
+      consecutiveErrorsRef.current++;
+      
+      // If this is a rate limit error, schedule a retry with exponential backoff
+      if (error instanceof Error && error.message.toLowerCase().includes('rate limit')) {
+        const backoffDelay = Math.min(1000 * Math.pow(2, consecutiveErrorsRef.current), 30000);
+        console.log(`[Artifact] Rate limit hit, retrying in ${backoffDelay}ms`);
+        setTimeout(() => saveContent(content, isDebounced), backoffDelay);
+      }
+    }
+  }, [artifact?.documentId, mutateDocuments]);
 
   function getDocumentContentById(index: number) {
     if (!documents) return '';
@@ -250,6 +319,41 @@ function PureArtifact({
       }
     }
   }, [artifact.documentId, artifactDefinition, setMetadata]);
+
+  // Update the status display in the UI
+  const getSaveStatusDisplay = () => {
+    if (saveState === 'saving' || isContentDirty) {
+      return (
+        <>
+          <svg className="animate-spin size-3 text-muted-foreground" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          <span>Saving</span>
+        </>
+      );
+    }
+    
+    if (saveState === 'error') {
+      return (
+        <span className="text-destructive">
+          Save failed: {lastSaveError || 'Unknown error'}
+        </span>
+      );
+    }
+    
+    return document ? (
+      `Updated ${formatDistance(
+        new Date(document.createdAt),
+        new Date(),
+        {
+          addSuffix: true,
+        },
+      )}`
+    ) : (
+      <div className="w-32 h-3 bg-muted-foreground/20 rounded-md animate-pulse" />
+    );
+  };
 
   return (
     <AnimatePresence>
@@ -413,25 +517,7 @@ function PureArtifact({
                   <div className="font-medium">{artifact.title}</div>
 
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground h-4">
-                    {isContentDirty ? (
-                      <>
-                        <svg className="animate-spin size-3 text-muted-foreground" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                        </svg>
-                        <span>Saving</span>
-                      </>
-                    ) : document ? (
-                      `Updated ${formatDistance(
-                        new Date(document.createdAt),
-                        new Date(),
-                        {
-                          addSuffix: true,
-                        },
-                      )}`
-                    ) : (
-                      <div className="w-32 h-3 bg-muted-foreground/20 rounded-md animate-pulse" />
-                    )}
+                    {getSaveStatusDisplay()}
                   </div>
                 </div>
               </div>
@@ -466,6 +552,9 @@ function PureArtifact({
                 isLoading={isDocumentsFetching && !artifact.content}
                 metadata={metadata}
                 setMetadata={setMetadata}
+                documentId={artifact.documentId}
+                saveState={saveState}
+                lastSaveError={lastSaveError}
               />
 
               <AnimatePresence>
