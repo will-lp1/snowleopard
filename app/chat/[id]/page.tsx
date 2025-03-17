@@ -8,6 +8,8 @@ import { getChatById, getMessagesByChatId } from '@/lib/db/queries';
 import { convertToUIMessages } from '@/lib/utils';
 import { DataStreamHandler } from '@/components/data-stream-handler';
 import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
+import { AlwaysVisibleArtifact } from '@/components/always-visible-artifact';
+import { ResizablePanel } from '@/components/resizable-panel';
 
 // Type guard for message role
 function isValidRole(role: string): role is Message['role'] {
@@ -58,33 +60,34 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
 
     const cookieStore = await cookies();
     const chatModelFromCookie = cookieStore.get('chat-model');
+    
+    const chatModel = chatModelFromCookie ? chatModelFromCookie.value : DEFAULT_CHAT_MODEL;
+    const isReadonly = session?.user?.id !== chat.userId;
 
-    if (!chatModelFromCookie) {
-      return (
-        <>
+    return (
+      <div className="flex flex-row h-full w-full">
+        {/* Center panel - Artifact (always visible) */}
+        <div className="flex-1 min-w-0 border-r border-border transition-all duration-200 ease-in-out">
+          <AlwaysVisibleArtifact chatId={id} />
+        </div>
+        
+        {/* Right panel - Chat */}
+        <ResizablePanel 
+          defaultSize={400} 
+          minSize={320} 
+          maxSize={600}
+          className="border-l border-border transition-all duration-200"
+        >
           <Chat
             id={chat.id}
             initialMessages={uiMessages}
-            selectedChatModel={DEFAULT_CHAT_MODEL}
+            selectedChatModel={chatModel}
             selectedVisibilityType={chat.visibility}
-            isReadonly={session?.user?.id !== chat.userId}
+            isReadonly={isReadonly}
           />
-          <DataStreamHandler id={id} />
-        </>
-      );
-    }
-
-    return (
-      <>
-        <Chat
-          id={chat.id}
-          initialMessages={uiMessages}
-          selectedChatModel={chatModelFromCookie.value}
-          selectedVisibilityType={chat.visibility}
-          isReadonly={session?.user?.id !== chat.userId}
-        />
+        </ResizablePanel>
         <DataStreamHandler id={id} />
-      </>
+      </div>
     );
   } catch (error) {
     if (error && typeof error === 'object' && '$$typeof' in error) {

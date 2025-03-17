@@ -17,6 +17,8 @@ import { Suggestion } from '@/lib/db/schema';
 import { toast } from 'sonner';
 import { getSuggestions } from '../actions';
 import { Button } from '@/components/ui/button';
+import { useEffect, useState } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface TextArtifactMetadata {
   suggestions: Array<Suggestion>;
@@ -28,6 +30,7 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
   kind: 'text',
   description: 'Useful for text content, like drafting essays and emails.',
   initialize: async ({ documentId, setMetadata }) => {
+    console.log('Initializing text artifact with doc ID:', documentId);
     const suggestions = await getSuggestions({ documentId });
 
     setMetadata({
@@ -100,9 +103,28 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
     isLoading,
     metadata,
     setMetadata,
+    documentId,
   }) => {
+    const [diffHighlights, setDiffHighlights] = useState<any>();
+
+    useEffect(() => {
+      if (mode === 'diff' && !isCurrentVersion) {
+        // We would calculate diff highlights here, but it's not implemented
+      }
+    }, [mode, currentVersionIndex, isCurrentVersion, content, getDocumentContentById]);
+
     if (isLoading) {
-      return <DocumentSkeleton />;
+      return (
+        <div className="px-8 py-10 max-w-4xl mx-auto">
+          <Skeleton className="h-6 w-2/3 mb-4" />
+          <Skeleton className="h-4 w-full mb-2" />
+          <Skeleton className="h-4 w-full mb-2" />
+          <Skeleton className="h-4 w-3/4 mb-6" />
+          <Skeleton className="h-4 w-full mb-2" />
+          <Skeleton className="h-4 w-full mb-2" />
+          <Skeleton className="h-4 w-5/6" />
+        </div>
+      );
     }
 
     if (mode === 'diff') {
@@ -139,25 +161,26 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
     };
 
     return (
-      <>
-        <div className="flex flex-row py-8 md:p-20 px-4">
+      <div className="px-8 py-10 max-w-4xl mx-auto">
+        {isCurrentVersion && mode === 'edit' ? (
           <Editor
             content={content}
-            suggestions={metadata ? metadata.suggestions.filter(s => !s.isResolved) : []}
+            onSaveContent={onSaveContent}
+            status={status}
             isCurrentVersion={isCurrentVersion}
             currentVersionIndex={currentVersionIndex}
-            status={status}
-            onSaveContent={onSaveContent}
+            suggestions={metadata ? metadata.suggestions.filter(s => !s.isResolved) : []}
             onSuggestionResolve={handleSuggestionResolve}
+            documentId={documentId}
           />
-
-          {metadata &&
-          metadata.suggestions &&
-          metadata.suggestions.some(s => !s.isResolved) ? (
-            <div className="md:hidden h-dvh w-12 shrink-0" />
-          ) : null}
-        </div>
-      </>
+        ) : (
+          <div className="prose dark:prose-invert">
+            {content.split('\n').map((line, index) => (
+              <div key={index}>{line || <br />}</div>
+            ))}
+          </div>
+        )}
+      </div>
     );
   },
   actions: [

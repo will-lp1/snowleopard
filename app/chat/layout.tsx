@@ -1,10 +1,11 @@
 import { cookies } from 'next/headers';
 
 import { AppSidebar } from '@/components/app-sidebar';
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
+import { SidebarInset, SidebarProvider, SidebarRail } from '@/components/ui/sidebar';
 
 import Script from 'next/script';
 import { createClient } from '@/utils/supabase/server';
+import { initialArtifactData } from '@/hooks/use-artifact';
 
 export const experimental_ppr = true;
 
@@ -26,8 +27,18 @@ export default async function Layout({
         strategy="beforeInteractive"
       />
       <SidebarProvider defaultOpen={!isCollapsed}>
-        <AppSidebar user={session?.user} />
-        <SidebarInset>{children}</SidebarInset>
+        <div className="flex flex-row h-dvh w-full bg-background">
+          {/* Left Sidebar */}
+          <div className="relative">
+            <AppSidebar user={session?.user} />
+            <SidebarRail className="bg-background/80 backdrop-blur-sm" />
+          </div>
+          
+          {/* Main content area */}
+          <div className="flex-1 flex flex-row">
+            {children}
+          </div>
+        </div>
       </SidebarProvider>
     </>
   );

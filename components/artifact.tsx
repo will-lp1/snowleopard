@@ -8,6 +8,7 @@ import {
   useCallback,
   useEffect,
   useState,
+  useRef,
 } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 import { useDebounceCallback, useWindowSize } from 'usehooks-ts';
@@ -46,6 +47,27 @@ export interface UIArtifact {
     width: number;
     height: number;
   };
+  saveState?: 'idle' | 'saving' | 'error';
+  lastSaveError?: string | null;
+}
+
+interface ArtifactContent<M = any> {
+  title: string;
+  content: string;
+  mode: 'edit' | 'diff';
+  isCurrentVersion: boolean;
+  currentVersionIndex: number;
+  status: 'streaming' | 'idle';
+  suggestions: Array<Suggestion>;
+  onSaveContent: (updatedContent: string, debounce: boolean) => void;
+  isInline: boolean;
+  getDocumentContentById: (index: number) => string;
+  isLoading: boolean;
+  metadata: M;
+  setMetadata: Dispatch<SetStateAction<M>>;
+  documentId: string;
+  saveState?: 'idle' | 'saving' | 'error';
+  lastSaveError?: string | null;
 }
 
 function PureArtifact({
@@ -86,10 +108,13 @@ function PureArtifact({
     isLoading: isDocumentsFetching,
     mutate: mutateDocuments,
   } = useSWR<Array<Document>>(
-    artifact.documentId !== 'init' && artifact.status !== 'streaming'
-      ? `/api/document?id=${artifact.documentId}`
-      : null,
-    fetcher,
+    `/api/document?id=${artifact.documentId}`,
+    async (url: string) => {
+      if (artifact.documentId === 'init' || artifact.status === 'streaming') {
+        return null;
+      }
+      return fetcher(url);
+    }
   );
 
   const [mode, setMode] = useState<'edit' | 'diff'>('edit');
@@ -169,20 +194,86 @@ function PureArtifact({
     2000,
   );
 
-  const saveContent = useCallback(
-    (updatedContent: string, debounce: boolean) => {
-      if (document && updatedContent !== document.content) {
-        setIsContentDirty(true);
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'error'>('idle');
+  const [lastSaveError, setLastSaveError] = useState<string | null>(null);
+  const lastSaveAttemptRef = useRef<number>(Date.now());
+  const consecutiveErrorsRef = useRef<number>(0);
 
-        if (debounce) {
-          debouncedHandleContentChange(updatedContent);
-        } else {
-          handleContentChange(updatedContent);
-        }
+  const saveContent = useCallback(async (content: string, isDebounced = false) => {
+    if (!artifact?.documentId) return;
+    
+    try {
+      const now = Date.now();
+      const timeSinceLastSave = now - lastSaveAttemptRef.current;
+      
+      // If we're hitting rate limits, delay the save
+      if (timeSinceLastSave < 1000) {
+        console.log('[Artifact] Rate limit protection - delaying save');
+        setTimeout(() => saveContent(content, isDebounced), 1000 - timeSinceLastSave);
+        return;
       }
-    },
-    [document, debouncedHandleContentChange, handleContentChange],
-  );
+      
+      // If we're already saving, don't start another save
+      if (saveState === 'saving') {
+        console.log('[Artifact] Save already in progress, skipping');
+        return;
+      }
+      
+      lastSaveAttemptRef.current = now;
+      console.log('[Artifact] Initiating save for document:', artifact.documentId);
+      setSaveState('saving');
+      setLastSaveError(null);
+
+      // Use the correct API endpoint with the document ID in the query string
+      const response = await fetch(`/api/document?id=${artifact.documentId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: artifact.title,
+          content: content,
+          kind: artifact.kind,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Failed to parse error response' }));
+        throw new Error(errorData.message || `Failed to save document: ${response.status}`);
+      }
+
+      const savedDoc = await response.json();
+      console.log('[Artifact] Save completed successfully');
+      setSaveState('idle');
+      setIsContentDirty(false);
+      consecutiveErrorsRef.current = 0;
+      
+      // Update the document state with the saved version
+      setDocument(savedDoc);
+      
+      // Refresh the documents list
+      await mutateDocuments();
+    } catch (error) {
+      console.error('[Artifact] Save failed:', error);
+      setSaveState('error');
+      setIsContentDirty(false);
+      setLastSaveError(error instanceof Error ? error.message : 'Unknown error occurred');
+      
+      consecutiveErrorsRef.current++;
+      
+      // If this is a rate limit error or a network error, schedule a retry with exponential backoff
+      if (error instanceof Error && 
+          (error.message.toLowerCase().includes('rate limit') || 
+           error.message.toLowerCase().includes('failed to fetch'))) {
+        const backoffDelay = Math.min(1000 * Math.pow(2, consecutiveErrorsRef.current), 30000);
+        console.log(`[Artifact] Error occurred, retrying in ${backoffDelay}ms`);
+        setTimeout(() => saveContent(content, isDebounced), backoffDelay);
+      } else {
+        // For other types of errors, show a toast notification
+        toast.error('Failed to save document. Please try again.');
+      }
+    }
+  }, [artifact?.documentId, artifact?.title, artifact?.kind, mutateDocuments, saveState, setDocument]);
 
   function getDocumentContentById(index: number) {
     if (!documents) return '';
@@ -247,6 +338,49 @@ function PureArtifact({
       }
     }
   }, [artifact.documentId, artifactDefinition, setMetadata]);
+
+  // Update the status display in the UI
+  const getSaveStatusDisplay = () => {
+    if (saveState === 'saving') {
+      return (
+        <>
+          <svg className="animate-spin size-3 text-muted-foreground" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          <span>Saving{consecutiveErrorsRef.current > 0 ? ` (Retry ${consecutiveErrorsRef.current})` : ''}</span>
+        </>
+      );
+    }
+    
+    if (saveState === 'error') {
+      return (
+        <span className="text-destructive" title={lastSaveError || undefined}>
+          Save failed - Click to retry
+        </span>
+      );
+    }
+    
+    return document ? (
+      `Last saved ${formatDistance(
+        new Date(document.createdAt),
+        new Date(),
+        {
+          addSuffix: true,
+        },
+      )}`
+    ) : (
+      <div className="w-32 h-3 bg-muted-foreground/20 rounded-md animate-pulse" />
+    );
+  };
+
+  // Add click handler for error state to allow manual retry
+  const handleStatusClick = useCallback(() => {
+    if (saveState === 'error' && artifact?.content) {
+      console.log('[Artifact] Manual retry triggered');
+      saveContent(artifact.content, false);
+    }
+  }, [saveState, artifact?.content, saveContent]);
 
   return (
     <AnimatePresence>
@@ -409,23 +543,12 @@ function PureArtifact({
                 <div className="flex flex-col">
                   <div className="font-medium">{artifact.title}</div>
 
-                  {isContentDirty ? (
-                    <div className="text-sm text-muted-foreground">
-                      Saving changes...
-                    </div>
-                  ) : document ? (
-                    <div className="text-sm text-muted-foreground">
-                      {`Updated ${formatDistance(
-                        new Date(document.createdAt),
-                        new Date(),
-                        {
-                          addSuffix: true,
-                        },
-                      )}`}
-                    </div>
-                  ) : (
-                    <div className="w-32 h-3 mt-2 bg-muted-foreground/20 rounded-md animate-pulse" />
-                  )}
+                  <div 
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground h-4 cursor-pointer" 
+                    onClick={handleStatusClick}
+                  >
+                    {getSaveStatusDisplay()}
+                  </div>
                 </div>
               </div>
 
@@ -459,6 +582,9 @@ function PureArtifact({
                 isLoading={isDocumentsFetching && !artifact.content}
                 metadata={metadata}
                 setMetadata={setMetadata}
+                documentId={artifact.documentId}
+                saveState={saveState}
+                lastSaveError={lastSaveError}
               />
 
               <AnimatePresence>

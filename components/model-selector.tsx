@@ -26,10 +26,12 @@ export function ModelSelector({
     useOptimistic(selectedModelId);
 
   useEffect(() => {
-    startTransition(() => {
-      setOptimisticModelId(selectedModelId);
-    });
-  }, [selectedModelId]);
+    if (selectedModelId) {
+      startTransition(() => {
+        setOptimisticModelId(selectedModelId);
+      });
+    }
+  }, [selectedModelId, setOptimisticModelId]);
 
   const selectedChatModel = useMemo(
     () => chatModels.find((chatModel) => chatModel.id === optimisticModelId),
