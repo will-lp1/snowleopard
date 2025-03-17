@@ -240,6 +240,7 @@ const DocumentContent = ({ document }: { document: Document }) => {
         onSaveContent={() => {}}
         suggestions={[]}
         onSuggestionResolve={() => {}}
+        documentId={document.id}
       />
     </div>
   );
