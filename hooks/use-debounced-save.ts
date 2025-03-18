@@ -59,18 +59,18 @@ export function useDebouncedSave(delay: number = 2000) {
             console.log(`Saving document ${documentId} (${pendingContentRef.current.length} chars)`);
             saveInProgressRef.current = true;
             
-            // The actual save operation
-            const response = await fetch(`/api/document?id=${documentId}`, {
+            // The actual save operation - fixed to include id in request body
+            const response = await fetch(`/api/document`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json'
               },
               body: JSON.stringify({
+                id: documentId,
                 content: pendingContentRef.current,
                 title: title || 'Untitled Document',
                 kind: kind || 'text',
               }),
-              // Ensure we wait for completion
               cache: 'no-cache',
               credentials: 'same-origin',
             });
@@ -117,25 +117,25 @@ export function useDebouncedSave(delay: number = 2000) {
           setIsSaving(true);
           saveInProgressRef.current = true;
           
-          // The actual save operation
-          const response = await fetch(`/api/document?id=${documentId}`, {
+          // The actual save operation - fixed to include id in request body
+          const response = await fetch(`/api/document`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
+              id: documentId,
               content,
               title: title || 'Untitled Document',
               kind: kind || 'text',
             }),
-            // Ensure we wait for completion
             cache: 'no-cache',
             credentials: 'same-origin',
           });
           
           if (!response.ok) {
-            const errorText = await response.text().catch(() => 'Unknown error');
-            throw new Error(`Failed to save document immediately: ${response.status} - ${errorText}`);
+            const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+            throw new Error(`Failed to save document immediately: ${response.status} - ${JSON.stringify(errorData)}`);
           }
           
           console.log(`Document ${documentId} saved immediately and successfully`);

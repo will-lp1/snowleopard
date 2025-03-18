@@ -12,6 +12,7 @@ import {
   saveChat,
   saveMessages,
   saveMessageContent,
+  getDocumentById,
 } from '@/lib/db/queries';
 import {
   generateUUID,
@@ -37,6 +38,55 @@ function adaptSession(supabaseSession: any) {
   };
 }
 
+/**
+ * Creates an enhanced system prompt that includes document content
+ */
+async function createEnhancedSystemPrompt({
+  selectedChatModel, 
+  documentId
+}: { 
+  selectedChatModel: string;
+  documentId?: string | null;
+}) {
+  let basePrompt = systemPrompt({ selectedChatModel });
+  
+  // Log that we're processing document context
+  console.log(`[Chat API] Processing document context, documentId: ${documentId || 'none'}`);
+  
+  // If there's a document ID, fetch the document content
+  if (documentId) {
+    try {
+      const document = await getDocumentById({ id: documentId });
+      
+      if (document) {
+        // Log successful document retrieval
+        console.log(`[Chat API] Found document for context: "${document.title}", content length: ${document.content?.length || 0} chars`);
+        
+        // Add document content to the system prompt
+        const documentContext = `
+CURRENT DOCUMENT CONTEXT:
+Title: ${document.title}
+Content:
+${document.content || '(Empty document)'}
+
+Please reference this document when appropriate in your responses.
+You can suggest changes to this document based on our conversation.
+`;
+        // Append document context to the system prompt
+        basePrompt = `${basePrompt}\n\n${documentContext}`;
+        console.log('[Chat API] Successfully enhanced system prompt with document context');
+      } else {
+        console.warn(`[Chat API] Document not found for ID: ${documentId}`);
+      }
+    } catch (error) {
+      console.error('Error fetching document for context:', error);
+      // Continue with base prompt if document fetching fails
+    }
+  }
+  
+  return basePrompt;
+}
+
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
@@ -55,10 +105,12 @@ export async function POST(request: Request) {
       id,
       messages,
       selectedChatModel,
+      documentId, // Accept documentId to provide document context
     }: {
       id: string;
       messages: Array<Message>;
       selectedChatModel: string;
+      documentId?: string | null;
     } = await request.json();
 
     const userMessage = getMostRecentUserMessage(messages);
@@ -97,27 +149,38 @@ export async function POST(request: Request) {
     });
 
     const adaptedSession = adaptSession(session);
+    
+    // Get enhanced system prompt with document context if available
+    const enhancedSystemPrompt = await createEnhancedSystemPrompt({
+      selectedChatModel,
+      documentId,
+    });
 
     return createDataStreamResponse({
       execute: (dataStream) => {
         const result = streamText({
           model: myProvider.languageModel(selectedChatModel),
-          system: systemPrompt({ selectedChatModel }),
+          system: enhancedSystemPrompt,
           messages,
           maxSteps: 5,
           experimental_activeTools:
             selectedChatModel === 'chat-model-reasoning'
               ? []
               : [
-                  'createDocument',
-                  'updateDocument',
+                  // If we have a document context, prefer updateDocument over createDocument
+                  documentId ? 'updateDocument' : 'createDocument',
                   'requestSuggestions',
                 ],
           experimental_transform: smoothStream({ chunking: 'word' }),
           experimental_generateMessageId: generateUUID,
           tools: {
             createDocument: createDocument({ session: adaptedSession, dataStream }),
-            updateDocument: updateDocument({ session: adaptedSession, dataStream }),
+            updateDocument: updateDocument({ 
+              session: adaptedSession, 
+              dataStream,
+              // Pass the current document ID to make it easier to update
+              documentId: documentId || undefined
+            }),
             requestSuggestions: requestSuggestions({
               session: adaptedSession,
               dataStream,

@@ -4,7 +4,7 @@ import { exampleSetup } from 'prosemirror-example-setup';
 import { inputRules } from 'prosemirror-inputrules';
 import { EditorState, Transaction } from 'prosemirror-state';
 import { DecorationSet, EditorView } from 'prosemirror-view';
-import React, { memo, useEffect, useRef, useCallback } from 'react';
+import React, { memo, useEffect, useRef, useCallback, useState } from 'react';
 
 import type { Suggestion } from '@/lib/db/schema';
 import {
@@ -23,6 +23,7 @@ import {
   suggestionsPluginKey,
 } from '@/lib/editor/suggestions';
 import { inlineSuggestionsPlugin, setDocumentId } from '@/lib/editor/inline-suggestions';
+import { DiffView } from './diffview';
 
 type EditorProps = {
   content: string;
@@ -52,6 +53,13 @@ function PureEditor({
   const editorInitializedRef = useRef<boolean>(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const contentChangedRef = useRef<boolean>(false);
+  const hasShownToastRef = useRef<boolean>(false);
+  
+  // Add state for handling AI updates and diff view
+  const [showDiff, setShowDiff] = useState(false);
+  const [previousContent, setPreviousContent] = useState<string>('');
+  const [aiUpdatedContent, setAiUpdatedContent] = useState<string>('');
+  const aiUpdateInProgressRef = useRef<boolean>(false);
 
   // Initialize editor
   useEffect(() => {
@@ -192,6 +200,28 @@ function PureEditor({
         return;
       }
 
+      // Check if this content update might be from an AI update
+      if (status === 'streaming' || aiUpdateInProgressRef.current) {
+        console.log('[Editor] AI update detected, saving current content for diff view');
+        
+        // Save current content for diff view and mark as AI update in progress
+        if (!aiUpdateInProgressRef.current) {
+          setPreviousContent(currentContent);
+          aiUpdateInProgressRef.current = true;
+        }
+        
+        // Update AI updated content for diff view
+        setAiUpdatedContent(content);
+        
+        // Show diff view when we get content during AI streaming
+        setShowDiff(true);
+      }
+      
+      // If AI updates just completed, keep diff view visible but reset flag
+      if (status !== 'streaming' && aiUpdateInProgressRef.current) {
+        aiUpdateInProgressRef.current = false;
+      }
+
       console.log('[Editor] Updating content from parent');
       const newDocument = buildDocumentFromContent(content);
       const transaction = editorRef.current.state.tr
@@ -205,8 +235,82 @@ function PureEditor({
       editorRef.current.dispatch(transaction);
       lastContentRef.current = content;
       contentChangedRef.current = false; // Reset since we just got new content from parent
+      
+      // Show toast only on first load (not for every content change)
+      if (!hasShownToastRef.current && documentId !== 'init') {
+        hasShownToastRef.current = true;
+        console.log('[Editor] First load of document, showing toast');
+      }
     }
-  }, [content]);
+  }, [content, status]);
+
+  // Handle AI-driven document updates and diff view
+  useEffect(() => {
+    // Function to handle artifactUpdate events from the AI
+    const handleArtifactUpdate = (event: any) => {
+      try {
+        if (event.type === 'artifactUpdate') {
+          const updateData = JSON.parse(event.content);
+          
+          // Handle document update events
+          if (updateData.type === 'documentUpdated' && 
+              updateData.documentId === documentId) {
+            console.log('[Editor] Received document update from AI');
+            
+            // Get current editor content to show diff against
+            if (editorRef.current) {
+              const currentContent = buildContentFromDocument(editorRef.current.state.doc);
+              setPreviousContent(currentContent);
+              setAiUpdatedContent(updateData.newContent || '');
+              
+              // Mark as AI update and show diff view
+              aiUpdateInProgressRef.current = true;
+              setShowDiff(true);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('[Editor] Error handling artifact update:', error);
+      }
+    };
+    
+    // Add listener for AI update events
+    window.addEventListener('artifactUpdate', handleArtifactUpdate);
+    
+    return () => {
+      window.removeEventListener('artifactUpdate', handleArtifactUpdate);
+    };
+  }, [documentId]);
+
+  // Make the AI-updates more visible with improved diff view handling
+  const acceptAiChanges = useCallback(() => {
+    setShowDiff(false);
+    
+    // Apply the AI changes to the editor
+    if (editorRef.current && aiUpdatedContent) {
+      const newDocument = buildDocumentFromContent(aiUpdatedContent);
+      
+      // Create a transaction that replaces the entire document content
+      const transaction = editorRef.current.state.tr
+        .replaceWith(
+          0,
+          editorRef.current.state.doc.content.size,
+          newDocument.content
+        )
+        .setMeta('no-save', true); // Don't trigger additional saves
+      
+      // Dispatch the transaction to update the editor
+      editorRef.current.dispatch(transaction);
+      
+      // Save the content to the server
+      onSaveContent(aiUpdatedContent, false);
+      
+      // Reset AI update state
+      setAiUpdatedContent('');
+      setPreviousContent('');
+      aiUpdateInProgressRef.current = false;
+    }
+  }, [aiUpdatedContent, onSaveContent]);
 
   useEffect(() => {
     if (editorRef.current?.state.doc && content) {
@@ -249,55 +353,86 @@ function PureEditor({
   }, [onSaveContent, saveState]);
 
   return (
-    <div className="relative prose dark:prose-invert" ref={containerRef}>
-      <style jsx global>{`
-        .inline-suggestion {
-          display: inline-block !important;
-          pointer-events: none;
-          user-select: none;
-          opacity: 0.6;
-          color: var(--foreground);
-          background: var(--accent);
-          border-radius: 4px;
-          padding: 1px 4px;
-          margin: 0 2px;
-          font-family: inherit;
-          font-size: inherit;
-          line-height: inherit;
-          transition: opacity 0.15s ease;
-          position: relative;
-          z-index: 100;
-        }
+    <div className="relative prose dark:prose-invert">
+      {/* Show diff view when AI has updated the document */}
+      {showDiff && status !== 'streaming' && (
+        <div className="mb-6 border rounded-md overflow-hidden">
+          <div className="bg-primary/10 p-3 flex justify-between items-center">
+            <h3 className="text-sm font-medium m-0">AI Updated Document</h3>
+            <button 
+              onClick={acceptAiChanges}
+              className="text-xs bg-primary text-primary-foreground px-3 py-1 rounded-md"
+            >
+              Accept Changes
+            </button>
+          </div>
+          <div className="p-4 bg-muted/30">
+            <DiffView oldContent={previousContent} newContent={aiUpdatedContent} />
+          </div>
+        </div>
+      )}
+      
+      <div ref={containerRef}>
+        <style jsx global>{`
+          .inline-suggestion {
+            display: inline-block !important;
+            pointer-events: none;
+            user-select: none;
+            opacity: 0.6;
+            color: var(--foreground);
+            background: var(--accent);
+            border-radius: 4px;
+            padding: 1px 4px;
+            margin: 0 2px;
+            font-family: inherit;
+            font-size: inherit;
+            line-height: inherit;
+            transition: opacity 0.15s ease;
+            position: relative;
+            z-index: 100;
+          }
 
-        .inline-suggestion:hover {
-          opacity: 0.8;
-        }
+          .inline-suggestion:hover {
+            opacity: 0.8;
+          }
 
-        /* Show a subtle indicator that TAB will accept the suggestion */
-        .inline-suggestion::before {
-          content: '⇥';
-          display: inline-block;
-          margin-right: 4px;
-          font-size: 0.8em;
-          opacity: 0.7;
-          color: var(--foreground);
-        }
+          /* Show a subtle indicator that TAB will accept the suggestion */
+          .inline-suggestion::before {
+            content: '⇥';
+            display: inline-block;
+            margin-right: 4px;
+            font-size: 0.8em;
+            opacity: 0.7;
+            color: var(--foreground);
+          }
 
-        /* Ensure suggestion text doesn't wrap */
-        .inline-suggestion span {
-          white-space: pre;
-        }
+          /* Ensure suggestion text doesn't wrap */
+          .inline-suggestion span {
+            white-space: pre;
+          }
 
-        /* Animate suggestion appearance */
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(-2px); }
-          to { opacity: 0.6; transform: translateY(0); }
-        }
+          /* Animate suggestion appearance */
+          @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-2px); }
+            to { opacity: 0.6; transform: translateY(0); }
+          }
 
-        .inline-suggestion {
-          animation: fadeIn 0.2s ease-out;
-        }
-      `}</style>
+          .inline-suggestion {
+            animation: fadeIn 0.2s ease-out;
+          }
+          
+          /* Style diff view */
+          .diff-editor span.bg-green-100 {
+            background-color: rgba(74, 222, 128, 0.2);
+            padding: 2px 0;
+          }
+          
+          .diff-editor span.bg-red-100 {
+            background-color: rgba(248, 113, 113, 0.2);
+            padding: 2px 0;
+          }
+        `}</style>
+      </div>
     </div>
   );
 }

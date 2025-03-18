@@ -123,6 +123,44 @@ export function PureArtifact({
 
   const { open: isSidebarOpen } = useSidebar();
 
+  // Listen for route changes to ensure document state is reset
+  useEffect(() => {
+    const handleRouteChange = () => {
+      const url = window.location.href;
+      if (url.includes('/chat/') && url.includes('?document=')) {
+        // Extract the document ID from the URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const documentId = urlParams.get('document');
+        
+        if (documentId && documentId !== artifact.documentId) {
+          // Reset state for the new document
+          console.log('[Artifact] New document detected from URL:', documentId);
+          setArtifact(curr => ({
+            ...curr,
+            documentId,
+            content: '',
+            status: 'idle'
+          }));
+          setDocument(null);
+          setCurrentVersionIndex(-1);
+          setTimeout(() => {
+            mutateDocuments();
+          }, 100);
+        }
+      }
+    };
+
+    // Run once on mount to handle any initial URL
+    handleRouteChange();
+
+    // Add event listener for popstate (browser back/forward)
+    window.addEventListener('popstate', handleRouteChange);
+    
+    return () => {
+      window.removeEventListener('popstate', handleRouteChange);
+    };
+  }, [artifact.documentId, setArtifact, mutateDocuments]);
+
   useEffect(() => {
     if (documents && documents.length > 0) {
       const mostRecentDocument = documents.at(-1);

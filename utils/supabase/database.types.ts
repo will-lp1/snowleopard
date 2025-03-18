@@ -63,6 +63,7 @@ export interface Database {
           content: string | null
           kind: 'text' | 'code' | 'image' | 'sheet'
           userId: string
+          chatId: string | null
         }
         Insert: {
           id?: string
@@ -71,6 +72,7 @@ export interface Database {
           content?: string | null
           kind?: 'text' | 'code' | 'image' | 'sheet'
           userId: string
+          chatId?: string | null
         }
         Update: {
           id?: string
@@ -79,6 +81,7 @@ export interface Database {
           content?: string | null
           kind?: 'text' | 'code' | 'image' | 'sheet'
           userId?: string
+          chatId?: string | null
         }
       }
       Suggestion: {

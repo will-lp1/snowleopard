@@ -46,9 +46,10 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar';
-import type { Chat } from '@/lib/db/schema';
+import type { Chat, Document } from '@/lib/db/schema';
 import { fetcher } from '@/lib/utils';
 import { useChatVisibility } from '@/hooks/use-chat-visibility';
+import { useArtifact } from '@/hooks/use-artifact';
 
 type GroupedChats = {
   today: Chat[];
@@ -63,21 +64,28 @@ const PureChatItem = ({
   isActive,
   onDelete,
   setOpenMobile,
+  onSelect,
 }: {
   chat: Chat;
   isActive: boolean;
   onDelete: (chatId: string) => void;
   setOpenMobile: (open: boolean) => void;
+  onSelect: (chatId: string) => void;
 }) => {
   const { visibilityType, setVisibilityType } = useChatVisibility({
     chatId: chat.id,
     initialVisibility: chat.visibility,
   });
 
+  const handleChatClick = () => {
+    setOpenMobile(false);
+    onSelect(chat.id);
+  };
+
   return (
     <SidebarMenuItem>
       <SidebarMenuButton asChild isActive={isActive}>
-        <Link href={`/chat/${chat.id}`} onClick={() => setOpenMobile(false)}>
+        <Link href={`/chat/${chat.id}`} onClick={handleChatClick}>
           <span>{chat.title}</span>
         </Link>
       </SidebarMenuButton>
@@ -153,6 +161,9 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
   const { setOpenMobile } = useSidebar();
   const { id } = useParams();
   const pathname = usePathname();
+  const router = useRouter();
+  const { setArtifact } = useArtifact();
+  
   const {
     data: history,
     isLoading,
@@ -167,7 +178,7 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const router = useRouter();
+  
   const handleDelete = async () => {
     const deletePromise = fetch(`/api/chat?id=${deleteId}`, {
       method: 'DELETE',
@@ -190,6 +201,57 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
 
     if (deleteId === id) {
       router.push('/');
+    }
+  };
+  
+  // Handler for when a chat is selected
+  const handleChatSelect = async (chatId: string) => {
+    try {
+      // Fetch documents for this chat
+      const response = await fetch(`/api/document?chatId=${chatId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch documents');
+      }
+      
+      const documents: Document[] = await response.json();
+      
+      // If there are documents associated with this chat
+      if (documents && documents.length > 0) {
+        // Get the most recent document
+        const latestDocument = documents[0]; // They're ordered by createdAt DESC
+        
+        // Update URL to include document
+        router.push(`/chat/${chatId}?document=${latestDocument.id}`);
+        
+        // Reset artifact state with the document's info
+        setArtifact(curr => ({
+          ...curr,
+          documentId: latestDocument.id,
+          title: latestDocument.title,
+          content: latestDocument.content || '',
+          kind: 'text',
+          status: 'idle',
+          isVisible: true,
+        }));
+      } else {
+        // No documents, navigate to chat without document parameter
+        router.push(`/chat/${chatId}`);
+        
+        // Reset artifact to initial state
+        setArtifact(curr => ({
+          ...curr,
+          documentId: 'init', 
+          title: 'New Document',
+          content: '',
+          status: 'idle',
+          kind: 'text' as const,
+          isVisible: true,
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading documents for chat:', error);
+      // Navigate to chat without document in case of error
+      router.push(`/chat/${chatId}`);
     }
   };
 
@@ -305,6 +367,7 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
                               setShowDeleteDialog(true);
                             }}
                             setOpenMobile={setOpenMobile}
+                            onSelect={handleChatSelect}
                           />
                         ))}
                       </>
@@ -325,6 +388,7 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
                               setShowDeleteDialog(true);
                             }}
                             setOpenMobile={setOpenMobile}
+                            onSelect={handleChatSelect}
                           />
                         ))}
                       </>
@@ -345,6 +409,7 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
                               setShowDeleteDialog(true);
                             }}
                             setOpenMobile={setOpenMobile}
+                            onSelect={handleChatSelect}
                           />
                         ))}
                       </>
@@ -365,6 +430,7 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
                               setShowDeleteDialog(true);
                             }}
                             setOpenMobile={setOpenMobile}
+                            onSelect={handleChatSelect}
                           />
                         ))}
                       </>
@@ -385,6 +451,7 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
                               setShowDeleteDialog(true);
                             }}
                             setOpenMobile={setOpenMobile}
+                            onSelect={handleChatSelect}
                           />
                         ))}
                       </>

@@ -302,6 +302,25 @@ export async function getMessageById({ id }: { id: string }): Promise<Message> {
   return data;
 }
 
+/**
+ * Get all documents associated with a specific chat ID
+ */
+export async function getDocumentsByChatId({ chatId }: { chatId: string }): Promise<Document[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('Document')
+    .select()
+    .eq('chatId', chatId)
+    .order('createdAt', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching documents by chat ID:', error);
+    return [];
+  }
+  
+  return data || [];
+}
+
 export async function deleteMessagesByChatIdAfterTimestamp({
   chatId,
   timestamp,

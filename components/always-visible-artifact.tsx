@@ -17,6 +17,7 @@ import { useDebouncedSave } from '@/hooks/use-debounced-save';
 import useSWR from 'swr';
 import { Button } from './ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import { toast } from 'sonner';
 
 export function AlwaysVisibleArtifact({ 
   chatId, 
@@ -28,6 +29,7 @@ export function AlwaysVisibleArtifact({
   const router = useRouter();
   const { artifact, setArtifact, metadata, setMetadata } = useArtifact();
   const { debouncedSave, saveImmediately, isSaving } = useDebouncedSave(2500);
+  const [isCreatingDocument, setIsCreatingDocument] = useState(false);
   
   // Use the provided initialDocumentId if available
   useEffect(() => {
@@ -54,6 +56,7 @@ export function AlwaysVisibleArtifact({
   const [isToolbarVisible, setIsToolbarVisible] = useState(false);
   const [isContentDirty, setIsContentDirty] = useState(false);
   const isDocumentInitialized = useRef(false);
+  const firstLoadCompletedRef = useRef(false);
   
   // Set default values if artifact isn't yet initialized
   useEffect(() => {
@@ -69,20 +72,53 @@ export function AlwaysVisibleArtifact({
     }
   }, [artifact.documentId, setArtifact]);
   
-  // Update document when documents change
+  // Add a useEffect hook to update the document content in chat context when it changes
+  useEffect(() => {
+    // When document content or ID changes, we need to make sure the chat
+    // has the latest document context for the AI model
+    if (artifact.documentId !== 'init' && artifact.content) {
+      // The Chat component automatically picks up the artifact state
+      // and sends it in the chat request body.
+      console.log('[Document] Chat context updated with document:', artifact.documentId);
+    }
+  }, [artifact.documentId, artifact.content]);
+  
+  // Ensure the document loading useEffect properly tracks first load
+  // and only shows toast notification once
   useEffect(() => {
     if (documents && documents.length > 0) {
       const mostRecentDocument = documents.at(-1);
       
       if (mostRecentDocument) {
+        // Set local document state
         setDocument(mostRecentDocument);
         setCurrentVersionIndex(documents.length - 1);
+        
+        // Update artifact state
         setArtifact((currentArtifact) => ({
           ...currentArtifact,
           content: mostRecentDocument.content ?? '',
           title: mostRecentDocument.title,
         }));
+        
+        // Mark document as initialized
         isDocumentInitialized.current = true;
+        
+        // Signal to the chat that we have document content available
+        console.log('[Document] Document loaded and ready:', mostRecentDocument.id);
+        
+        // Only show toast on first successful load, not on subsequent updates
+        if (!firstLoadCompletedRef.current) {
+          // Show success toast indicating document is loaded and available for chat context
+          toast.success(`Document "${mostRecentDocument.title}" loaded and available to AI`, {
+            description: 'The AI can now see this document when you chat',
+            duration: 3000
+          });
+          
+          // Mark first load as completed
+          firstLoadCompletedRef.current = true;
+          console.log('[Document] First load complete, toast shown');
+        }
       }
     }
   }, [documents, setArtifact]);
@@ -96,6 +132,9 @@ export function AlwaysVisibleArtifact({
   
   // Create a new document and associated chat
   const createNewDocument = async () => {
+    setIsCreatingDocument(true);
+    toast.loading('Creating new document...');
+    
     const newChatId = generateUUID();
     const newDocId = generateUUID();
     
@@ -135,10 +174,40 @@ export function AlwaysVisibleArtifact({
         throw new Error('Failed to create new document');
       }
       
+      // Reset artifact state BEFORE navigation
+      setArtifact(curr => ({
+        ...curr,
+        documentId: newDocId,
+        title: 'New Document',
+        kind: 'text',
+        isVisible: true,
+        status: 'idle',
+        content: '',
+      }));
+      
+      // Force state reset
+      setDocument(null);
+      setCurrentVersionIndex(-1);
+      setIsContentDirty(false);
+      isDocumentInitialized.current = false;
+      
       // Navigate to the new chat with the new document
       router.push(`/chat/${newChatId}?document=${newDocId}`);
+      
+      // Force revalidate data after navigation
+      setTimeout(() => {
+        mutateDocuments();
+      }, 100);
+      
+      toast.success('New document created and linked to chat', {
+        description: 'You can now edit this document and ask the AI about it',
+        duration: 5000
+      });
     } catch (error) {
       console.error('Error creating new document:', error);
+      toast.error('Failed to create new document');
+    } finally {
+      setIsCreatingDocument(false);
     }
   };
   
@@ -156,8 +225,11 @@ export function AlwaysVisibleArtifact({
       // Create new document if it doesn't exist yet
       try {
         const docId = generateUUID();
-        const response = await fetch(`/api/document/new`, {
-          method: 'POST',
+        console.log('[Document] Creating new document with ID:', docId);
+        
+        // Use the updated document endpoint
+        const response = await fetch(`/api/document`, {
+          method: 'PUT', // Use PUT for creating new documents
           headers: {
             'Content-Type': 'application/json'
           },
@@ -173,22 +245,35 @@ export function AlwaysVisibleArtifact({
         });
         
         const data = await response.json();
+        
         if (data.id) {
+          console.log('[Document] Successfully created new document:', data.id);
+          
           setArtifact(curr => ({
             ...curr,
             documentId: data.id,
             content: updatedContent
           }));
+          
           isDocumentInitialized.current = true;
           mutateDocuments();
+          
+          // Toast notification for document creation
+          toast.success('Document created and linked to chat', {
+            description: 'Your document is now available to the AI',
+            duration: 3000
+          });
           
           // Update URL to include document ID
           if (chatId) {
             router.push(`/chat/${chatId}?document=${data.id}`);
           }
+        } else {
+          throw new Error('Failed to get document ID from response');
         }
       } catch (error) {
         console.error('Error creating document:', error);
+        toast.error('Failed to create document');
       } finally {
         setIsContentDirty(false);
       }
@@ -295,8 +380,16 @@ export function AlwaysVisibleArtifact({
                 size="icon"
                 className="size-8"
                 onClick={createNewDocument}
+                disabled={isCreatingDocument}
               >
-                <PlusIcon className="size-4" />
+                {isCreatingDocument ? (
+                  <svg className="animate-spin size-4 text-muted-foreground" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                ) : (
+                  <PlusIcon className="size-4" />
+                )}
               </Button>
             </TooltipTrigger>
             <TooltipContent align="end">New Document</TooltipContent>
