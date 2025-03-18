@@ -23,7 +23,7 @@ import {
   suggestionsPluginKey,
 } from '@/lib/editor/suggestions';
 import { inlineSuggestionsPlugin, setDocumentId } from '@/lib/editor/inline-suggestions';
-import { DiffView } from './diffview';
+import { BlockDiffView } from './block-diffview';
 
 type EditorProps = {
   content: string;
@@ -60,6 +60,9 @@ function PureEditor({
   const [previousContent, setPreviousContent] = useState<string>('');
   const [aiUpdatedContent, setAiUpdatedContent] = useState<string>('');
   const aiUpdateInProgressRef = useRef<boolean>(false);
+
+  // Add state for keeping track of text blocks
+  const [processedBlocks, setProcessedBlocks] = useState<Set<string>>(new Set());
 
   // Initialize editor
   useEffect(() => {
@@ -247,26 +250,45 @@ function PureEditor({
   // Handle AI-driven document updates and diff view
   useEffect(() => {
     // Function to handle artifactUpdate events from the AI
-    const handleArtifactUpdate = (event: any) => {
+    const handleArtifactUpdate = (event: Event) => {
       try {
-        if (event.type === 'artifactUpdate') {
-          const updateData = JSON.parse(event.content);
+        // Cast to CustomEvent and get detail
+        const customEvent = event as CustomEvent<{
+          type: string;
+          documentId: string;
+          title: string;
+          previousContent: string;
+          newContent: string;
+        }>;
+        
+        const detail = customEvent.detail;
+        
+        if (!detail) {
+          console.error('[Editor] No detail in artifactUpdate event');
+          return;
+        }
+        
+        console.log('[Editor] Received artifactUpdate event:', detail);
+        
+        // Handle document update events
+        if (detail.type === 'documentUpdated' && 
+            detail.documentId === documentId) {
+          console.log('[Editor] Processing document update for current document');
           
-          // Handle document update events
-          if (updateData.type === 'documentUpdated' && 
-              updateData.documentId === documentId) {
-            console.log('[Editor] Received document update from AI');
+          // Get current editor content to show diff against
+          if (editorRef.current) {
+            const currentContent = buildContentFromDocument(editorRef.current.state.doc);
+            setPreviousContent(currentContent);
+            setAiUpdatedContent(detail.newContent || '');
             
-            // Get current editor content to show diff against
-            if (editorRef.current) {
-              const currentContent = buildContentFromDocument(editorRef.current.state.doc);
-              setPreviousContent(currentContent);
-              setAiUpdatedContent(updateData.newContent || '');
-              
-              // Mark as AI update and show diff view
-              aiUpdateInProgressRef.current = true;
-              setShowDiff(true);
-            }
+            // Mark as AI update and show diff view
+            aiUpdateInProgressRef.current = true;
+            setShowDiff(true);
+            
+            console.log('[Editor] Diff view activated with:', {
+              previousLength: currentContent.length,
+              newLength: (detail.newContent || '').length
+            });
           }
         }
       } catch (error) {
@@ -282,8 +304,58 @@ function PureEditor({
     };
   }, [documentId]);
 
-  // Make the AI-updates more visible with improved diff view handling
-  const acceptAiChanges = useCallback(() => {
+  // Handle accepting a specific block of changes
+  const acceptBlock = useCallback((blockId: string, newText: string) => {
+    if (!editorRef.current || !previousContent) return;
+    
+    console.log('[Editor] Accepting block:', blockId, newText);
+    
+    // Mark this block as processed
+    setProcessedBlocks(prev => {
+      const updated = new Set(prev);
+      updated.add(blockId);
+      return updated;
+    });
+    
+    // Get the current content
+    const currentContent = buildContentFromDocument(editorRef.current.state.doc);
+    
+    // Calculate where to insert the new text
+    // This is a simplified approach - in a real implementation,
+    // you would need to calculate the exact position in the document
+    const oldBlocks = previousContent.split(/\n\s*\n/);
+    const blockIndex = parseInt(blockId.replace('block-', ''), 10);
+    
+    if (isNaN(blockIndex) || blockIndex >= oldBlocks.length) {
+      console.error('[Editor] Invalid block index:', blockId);
+      return;
+    }
+    
+    // Simple replacement approach - find the text in the current content and replace it
+    // Note: This is simplistic and might need improvements for real-world usage
+    const blockToReplace = oldBlocks[blockIndex];
+    if (blockToReplace && currentContent.includes(blockToReplace)) {
+      const updatedContent = currentContent.replace(blockToReplace, newText);
+      
+      // Update the editor
+      const newDocument = buildDocumentFromContent(updatedContent);
+      const transaction = editorRef.current.state.tr
+        .replaceWith(
+          0,
+          editorRef.current.state.doc.content.size,
+          newDocument.content
+        )
+        .setMeta('no-save', true);
+      
+      editorRef.current.dispatch(transaction);
+      
+      // Save the content
+      onSaveContent(updatedContent, false);
+    }
+  }, [previousContent, onSaveContent]);
+  
+  // Accept all changes
+  const acceptAllChanges = useCallback(() => {
     setShowDiff(false);
     
     // Apply the AI changes to the editor
@@ -311,6 +383,16 @@ function PureEditor({
       aiUpdateInProgressRef.current = false;
     }
   }, [aiUpdatedContent, onSaveContent]);
+  
+  // Reject all changes
+  const rejectAllChanges = useCallback(() => {
+    setShowDiff(false);
+    
+    // Reset AI update state without applying changes
+    setAiUpdatedContent('');
+    setPreviousContent('');
+    aiUpdateInProgressRef.current = false;
+  }, []);
 
   useEffect(() => {
     if (editorRef.current?.state.doc && content) {
@@ -354,22 +436,15 @@ function PureEditor({
 
   return (
     <div className="relative prose dark:prose-invert">
-      {/* Show diff view when AI has updated the document */}
-      {showDiff && status !== 'streaming' && (
-        <div className="mb-6 border rounded-md overflow-hidden">
-          <div className="bg-primary/10 p-3 flex justify-between items-center">
-            <h3 className="text-sm font-medium m-0">AI Updated Document</h3>
-            <button 
-              onClick={acceptAiChanges}
-              className="text-xs bg-primary text-primary-foreground px-3 py-1 rounded-md"
-            >
-              Accept Changes
-            </button>
-          </div>
-          <div className="p-4 bg-muted/30">
-            <DiffView oldContent={previousContent} newContent={aiUpdatedContent} />
-          </div>
-        </div>
+      {/* Show block diff view when AI has updated the document */}
+      {showDiff && previousContent && aiUpdatedContent && status !== 'streaming' && (
+        <BlockDiffView
+          oldContent={previousContent}
+          newContent={aiUpdatedContent}
+          onAcceptBlock={acceptBlock}
+          onAcceptAll={acceptAllChanges}
+          onRejectAll={rejectAllChanges}
+        />
       )}
       
       <div ref={containerRef}>

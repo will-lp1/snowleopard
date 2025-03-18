@@ -2,7 +2,7 @@
 
 import type { Attachment, Message } from 'ai';
 import { useChat } from '@ai-sdk/react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 import { ChatHeader } from '@/components/chat-header';
 import { fetcher, generateUUID } from '@/lib/utils';
@@ -29,6 +29,7 @@ export function Chat({
   const { mutate } = useSWRConfig();
   const { artifact } = useArtifact();
   const [documentContextActive, setDocumentContextActive] = useState(false);
+  const hasShownContextToastRef = useRef(false);
 
   // Update document context status when artifact changes
   useEffect(() => {
@@ -80,11 +81,14 @@ export function Chat({
   const wrappedSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
-    // Show toast when document context is active
-    if (documentContextActive) {
+    // Show toast when document context is active, but only once per session
+    if (documentContextActive && !hasShownContextToastRef.current) {
       toast.success(`Using document "${artifact.title}" as context`, {
-        icon: <FileText className="size-4" />
+        icon: <FileText className="size-4" />,
+        id: 'document-context-active', // Use ID to prevent duplicate toasts
+        duration: 3000
       });
+      hasShownContextToastRef.current = true;
     }
     
     handleSubmit();
@@ -99,19 +103,15 @@ export function Chat({
         isReadonly={isReadonly}
       />
 
-      {/* Document context indicator */}
+      {/* Document context subtle indicator */}
       {documentContextActive && (
-        <div className="px-4 py-2 bg-primary/5 border-b flex items-center gap-2">
-          <FileText className="size-4 text-primary" />
-          <span className="text-sm flex-1">
-            Using document: <strong>{artifact.title}</strong>
-            <span className="ml-2 text-xs text-muted-foreground">
-              ({artifact.content.length > 0 ? `${Math.min(artifact.content.length, 9999)} chars` : 'Empty document'})
-            </span>
-          </span>
-          <div className="flex items-center gap-1 text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
-            <span className="size-2 bg-green-500 rounded-full animate-pulse"></span>
-            Document Context Active
+        <div className="flex items-center px-4 py-1 border-b bg-muted/20">
+          <div className="flex items-center text-xs text-muted-foreground">
+            <FileText className="size-3 mr-1 text-primary/70" />
+            <span className="mr-1">Context:</span>
+            <span className="font-medium text-primary/80 truncate max-w-[200px]">{artifact.title}</span>
+            <span className="size-1.5 mx-1.5 bg-green-500 rounded-full"></span>
+            <span className="text-primary/70 text-xs">AI can see this document</span>
           </div>
         </div>
       )}
