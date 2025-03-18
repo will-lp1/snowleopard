@@ -24,7 +24,6 @@ import { useLocalStorage, useWindowSize } from 'usehooks-ts';
 import { sanitizeUIMessages } from '@/lib/utils';
 
 import { ArrowUpIcon, PaperclipIcon, StopIcon } from './icons';
-import { PreviewAttachment } from './preview-attachment';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { SuggestedActions } from './suggested-actions';
@@ -203,29 +202,6 @@ function PureMultimodalInput({
         tabIndex={-1}
       />
 
-      {(attachments.length > 0 || uploadQueue.length > 0) && (
-        <div
-          data-testid="attachments-preview"
-          className="flex flex-row gap-2 overflow-x-scroll items-end"
-        >
-          {attachments.map((attachment) => (
-            <PreviewAttachment key={attachment.url} attachment={attachment} />
-          ))}
-
-          {uploadQueue.map((filename) => (
-            <PreviewAttachment
-              key={filename}
-              attachment={{
-                url: '',
-                name: filename,
-                contentType: '',
-              }}
-              isUploading={true}
-            />
-          ))}
-        </div>
-      )}
-
       <Textarea
         data-testid="multimodal-input"
         ref={textareaRef}
@@ -254,10 +230,6 @@ function PureMultimodalInput({
           }
         }}
       />
-
-      <div className="absolute bottom-0 p-2 w-fit flex flex-row justify-start">
-        <AttachmentsButton fileInputRef={fileInputRef} status={status} />
-      </div>
 
       <div className="absolute bottom-0 right-0 p-2 w-fit flex flex-row justify-end">
         {status === 'submitted' ? (
@@ -292,23 +264,8 @@ function PureAttachmentsButton({
   fileInputRef: React.MutableRefObject<HTMLInputElement | null>;
   status: UseChatHelpers['status'];
 }) {
-  return (
-    <Button
-      data-testid="attachments-button"
-      className="rounded-md rounded-bl-lg p-[7px] h-fit dark:border-zinc-700 hover:dark:bg-zinc-900 hover:bg-zinc-200"
-      onClick={(event) => {
-        event.preventDefault();
-        fileInputRef.current?.click();
-      }}
-      disabled={status !== 'ready'}
-      variant="ghost"
-    >
-      <PaperclipIcon size={14} />
-    </Button>
-  );
+  return;
 }
-
-const AttachmentsButton = memo(PureAttachmentsButton);
 
 function PureStopButton({
   stop,

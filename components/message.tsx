@@ -9,8 +9,6 @@ import { DocumentToolCall, DocumentToolResult } from './document';
 import { PencilEditIcon, SparklesIcon } from './icons';
 import { Markdown } from './markdown';
 import { MessageActions } from './message-actions';
-import { PreviewAttachment } from './preview-attachment';
-import { Weather } from './weather';
 import equal from 'fast-deep-equal';
 import { cn } from '@/lib/utils';
 import { Button } from './ui/button';
@@ -69,20 +67,6 @@ const PurePreviewMessage = ({
           )}
 
           <div className="flex flex-col gap-4 w-full">
-            {message.experimental_attachments && (
-              <div
-                data-testid={`message-attachments`}
-                className="flex flex-row justify-end gap-2"
-              >
-                {message.experimental_attachments.map((attachment) => (
-                  <PreviewAttachment
-                    key={attachment.url}
-                    attachment={attachment}
-                  />
-                ))}
-              </div>
-            )}
-
             {message.reasoning && (
               <MessageReasoning
                 isLoading={isLoading}
@@ -133,7 +117,6 @@ const PurePreviewMessage = ({
             {message.content && mode === 'edit' && (
               <div className="flex flex-row gap-2 items-start">
                 <div className="size-8" />
-
                 <MessageEditor
                   key={message.id}
                   message={message}
@@ -151,15 +134,13 @@ const PurePreviewMessage = ({
 
                   if (state === 'result') {
                     const { result } = toolInvocation;
-
                     return (
                       <div key={toolCallId}>
-                        {toolName === 'getWeather' ? (
-                          <Weather weatherAtLocation={result} />
-                        ) : toolName === 'createDocument' ? (
-                          <DocumentPreview
-                            isReadonly={isReadonly}
+                        {toolName === 'createDocument' ? (
+                          <DocumentToolResult
+                            type="create"
                             result={result}
+                            isReadonly={isReadonly}
                           />
                         ) : toolName === 'updateDocument' ? (
                           <DocumentToolResult
@@ -179,6 +160,7 @@ const PurePreviewMessage = ({
                       </div>
                     );
                   }
+
                   return (
                     <div
                       key={toolCallId}
@@ -186,9 +168,7 @@ const PurePreviewMessage = ({
                         skeleton: ['getWeather'].includes(toolName),
                       })}
                     >
-                      {toolName === 'getWeather' ? (
-                        <Weather />
-                      ) : toolName === 'createDocument' ? (
+                      {toolName === 'createDocument' ? (
                         <DocumentPreview isReadonly={isReadonly} args={args} />
                       ) : toolName === 'updateDocument' ? (
                         <DocumentToolCall

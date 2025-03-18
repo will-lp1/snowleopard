@@ -12,7 +12,8 @@ import { PlusIcon } from './icons';
 import { useSidebar } from './ui/sidebar';
 import { memo } from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
-import { VisibilityType, VisibilitySelector } from './visibility-selector';
+import { VisibilityType } from './visibility-selector';
+import { cn } from '@/lib/utils';
 
 function PureChatHeader({
   chatId,
@@ -29,9 +30,10 @@ function PureChatHeader({
   const { open } = useSidebar();
   const { width: windowWidth } = useWindowSize();
   const isMobile = windowWidth < 768;
+  const isCompact = windowWidth < 1024;
 
   return (
-    <header className="flex sticky top-0 bg-background z-10 border-b border-border items-center px-3 h-[45px] gap-2">
+    <header className="flex sticky top-0 bg-background/80 backdrop-blur-sm z-10 border-b border-border items-center px-3 h-[45px] gap-2 transition-all duration-200">
       {/* Only show sidebar toggle when we're in mobile view */}
       {isMobile && <SidebarToggle />}
 
@@ -39,18 +41,15 @@ function PureChatHeader({
       <Tooltip>
         <TooltipTrigger asChild>
           <Button
-            variant="outline"
-            size="sm"
-            className="h-8 px-2"
+            variant="ghost"
+            size="icon"
+            className="size-8 shrink-0"
             onClick={() => {
               router.push('/chat');
               router.refresh();
             }}
           >
-            <div className="mr-1 flex items-center">
-              <PlusIcon />
-            </div>
-            <span className={isMobile ? "sr-only" : ""}>New Chat</span>
+            <PlusIcon />
           </Button>
         </TooltipTrigger>
         <TooltipContent>New Chat</TooltipContent>
@@ -58,23 +57,22 @@ function PureChatHeader({
 
       {/* Model Selector - Only show if not readonly */}
       {!isReadonly && (
-        <ModelSelector
-          selectedModelId={selectedModelId}
-          className="ml-0"
-        />
+        <div className="transition-all duration-200 min-w-0 flex-shrink">
+          <ModelSelector
+            selectedModelId={selectedModelId}
+            className={cn("ml-0", {
+              'w-[140px] md:px-2 md:h-[34px]': isCompact,
+              'w-[180px] md:px-3 md:h-[34px]': !isCompact
+            })}
+          />
+        </div>
       )}
 
-      {/* Visibility Selector - Only show if not readonly */}
-      {!isReadonly && (
-        <VisibilitySelector
-          chatId={chatId}
-          selectedVisibilityType={selectedVisibilityType}
-        />
-      )}
-
-      {/* GitHub Link on larger screens */}
+      {/* GitHub Link */}
       <Button
-        className="bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-zinc-200 text-zinc-50 dark:text-zinc-900 hidden md:flex py-1.5 px-2 h-8 ml-auto"
+        variant="ghost"
+        size="icon"
+        className="ml-auto size-8"
         asChild
       >
         <Link
@@ -82,8 +80,12 @@ function PureChatHeader({
           target="_blank"
           rel="noopener noreferrer"
         >
-          <Image src="/images/github-white.svg" alt="Github" width={16} height={16} className="mr-2" />
-          <span className="text-sm">GitHub</span>
+          <Image 
+            src="/images/github-white.svg" 
+            alt="Github" 
+            width={16} 
+            height={16}
+          />
         </Link>
       </Button>
     </header>

@@ -239,7 +239,7 @@ export function AlwaysVisibleArtifact({ chatId }: { chatId: string }) {
               ) : !showEmptyState ? (
                 <div className="w-32 h-3 bg-muted-foreground/20 rounded-md animate-pulse" />
               ) : (
-                <span>New document ready for your ideas</span>
+                <span>New document</span>
               )}
             </div>
           </div>
@@ -272,43 +272,12 @@ export function AlwaysVisibleArtifact({ chatId }: { chatId: string }) {
               transition={{ duration: 0.5 }}
             >
               <Type className="size-12 text-primary" />
-              
               <h2 className="text-2xl font-medium text-foreground">
-                Create & Edit Documents
+                Start Writing
               </h2>
-              
               <p className="text-muted-foreground">
-                Start a conversation with the AI to create a document, or create a blank document to get started right away.
+                Begin typing to create your document or use the AI assistant to help you write.
               </p>
-              
-              <div className="w-full space-y-3">
-                <Button 
-                  variant="outline" 
-                  className="w-full flex justify-between items-center group"
-                  onClick={createNewDocument}
-                >
-                  <div className="flex items-center">
-                    <Type className="size-4 mr-2 text-primary" />
-                    <span>Create a blank document</span>
-                  </div>
-                  <ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-                </Button>
-                
-                <Button 
-                  variant="outline" 
-                  className="w-full flex justify-between items-center group"
-                  onClick={() => {
-                    // Will be handled by chat, providing visual feedback
-                    createNewDocument();
-                  }}
-                >
-                  <div className="flex items-center">
-                    <Sparkles className="size-4 mr-2 text-primary" />
-                    <span>Ask AI to write something</span>
-                  </div>
-                  <ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-                </Button>
-              </div>
             </motion.div>
           </div>
         ) : (

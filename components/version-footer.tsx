@@ -25,82 +25,86 @@ export const VersionFooter = ({
   currentVersionIndex,
 }: VersionFooterProps) => {
   const { artifact } = useArtifact();
-
   const { width } = useWindowSize();
   const isMobile = width < 768;
-
   const { mutate } = useSWRConfig();
   const [isMutating, setIsMutating] = useState(false);
 
-  if (!documents) return;
+  if (!documents) return null;
 
   return (
     <motion.div
-      className="absolute flex flex-col gap-4 lg:flex-row bottom-0 bg-background p-4 w-full border-t z-50 justify-between"
-      initial={{ y: isMobile ? 200 : 77 }}
+      className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-sm border-t z-50"
+      initial={{ y: 100 }}
       animate={{ y: 0 }}
-      exit={{ y: isMobile ? 200 : 77 }}
-      transition={{ type: 'spring', stiffness: 140, damping: 20 }}
+      exit={{ y: 100 }}
+      transition={{ type: 'spring', stiffness: 200, damping: 25 }}
     >
-      <div>
-        <div>You are viewing a previous version</div>
-        <div className="text-muted-foreground text-sm">
-          Restore this version to make edits
-        </div>
-      </div>
+      <div className="container max-w-screen-xl mx-auto">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-4">
+          <div className="flex-1 min-w-0">
+            <h3 className="text-sm font-medium">Viewing Previous Version</h3>
+            <p className="text-xs text-muted-foreground mt-0.5 truncate">
+              Restore this version to continue editing
+            </p>
+          </div>
 
-      <div className="flex flex-row gap-4">
-        <Button
-          disabled={isMutating}
-          onClick={async () => {
-            setIsMutating(true);
-
-            mutate(
-              `/api/document?id=${artifact.documentId}`,
-              await fetch(`/api/document?id=${artifact.documentId}`, {
-                method: 'PATCH',
-                body: JSON.stringify({
-                  timestamp: getDocumentTimestampByIndex(
-                    documents,
-                    currentVersionIndex,
-                  ),
-                }),
-              }),
-              {
-                optimisticData: documents
-                  ? [
-                      ...documents.filter((document) =>
-                        isAfter(
-                          new Date(document.createdAt),
-                          new Date(
-                            getDocumentTimestampByIndex(
-                              documents,
-                              currentVersionIndex,
-                            ),
-                          ),
+          <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+            <Button
+              className="w-full md:w-auto"
+              disabled={isMutating}
+              onClick={async () => {
+                setIsMutating(true);
+                try {
+                  await mutate(
+                    `/api/document?id=${artifact.documentId}`,
+                    await fetch(`/api/document?id=${artifact.documentId}`, {
+                      method: 'PATCH',
+                      body: JSON.stringify({
+                        timestamp: getDocumentTimestampByIndex(
+                          documents,
+                          currentVersionIndex,
                         ),
-                      ),
-                    ]
-                  : [],
-              },
-            );
-          }}
-        >
-          <div>Restore this version</div>
-          {isMutating && (
-            <div className="animate-spin">
-              <LoaderIcon />
-            </div>
-          )}
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() => {
-            handleVersionChange('latest');
-          }}
-        >
-          Back to latest version
-        </Button>
+                      }),
+                    }),
+                    {
+                      optimisticData: documents
+                        ? [
+                            ...documents.filter((document) =>
+                              isAfter(
+                                new Date(document.createdAt),
+                                new Date(
+                                  getDocumentTimestampByIndex(
+                                    documents,
+                                    currentVersionIndex,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ]
+                        : [],
+                    },
+                  );
+                } finally {
+                  setIsMutating(false);
+                }
+              }}
+            >
+              <span className="flex items-center gap-2">
+                Restore Version
+                {isMutating && <LoaderIcon size={16} />}
+              </span>
+            </Button>
+            
+            <Button
+              variant="outline"
+              className="w-full md:w-auto"
+              onClick={() => handleVersionChange('latest')}
+            >
+              Back to Latest
+            </Button>
+          </div>
+        </div>
       </div>
     </motion.div>
   );
