@@ -28,6 +28,7 @@ import { UseChatHelpers } from '@ai-sdk/react';
 import { Button } from './ui/button';
 import { CheckIcon } from './icons';
 import { toast } from 'sonner';
+import { useDebouncedSave } from '@/hooks/use-debounced-save';
 
 export const artifactDefinitions = [
   textArtifact,
@@ -102,6 +103,7 @@ function PureArtifact({
   isReadonly: boolean;
 }) {
   const { artifact, setArtifact, metadata, setMetadata } = useArtifact();
+  const { debouncedSave, saveImmediately, isSaving } = useDebouncedSave(2000);
 
   const {
     data: documents,
@@ -198,82 +200,48 @@ function PureArtifact({
   const [lastSaveError, setLastSaveError] = useState<string | null>(null);
   const lastSaveAttemptRef = useRef<number>(Date.now());
   const consecutiveErrorsRef = useRef<number>(0);
+  const isSavingRef = useRef<boolean>(false);
 
   const saveContent = useCallback(async (content: string, isDebounced = false) => {
-    if (!artifact?.documentId) return;
+    if (!artifact?.documentId || artifact.documentId === 'init') return;
+    
+    // Prevent starting a new save if one is already in progress
+    if (isSavingRef.current) {
+      console.log('[Artifact] Save already in progress, skipping');
+      return;
+    }
     
     try {
-      const now = Date.now();
-      const timeSinceLastSave = now - lastSaveAttemptRef.current;
-      
-      // If we're hitting rate limits, delay the save
-      if (timeSinceLastSave < 1000) {
-        console.log('[Artifact] Rate limit protection - delaying save');
-        setTimeout(() => saveContent(content, isDebounced), 1000 - timeSinceLastSave);
-        return;
-      }
-      
-      // If we're already saving, don't start another save
-      if (saveState === 'saving') {
-        console.log('[Artifact] Save already in progress, skipping');
-        return;
-      }
-      
-      lastSaveAttemptRef.current = now;
-      console.log('[Artifact] Initiating save for document:', artifact.documentId);
+      // Set saving state
+      isSavingRef.current = true;
       setSaveState('saving');
       setLastSaveError(null);
-
-      // Use the correct API endpoint with the document ID in the query string
-      const response = await fetch(`/api/document?id=${artifact.documentId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          title: artifact.title,
-          content: content,
-          kind: artifact.kind,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Failed to parse error response' }));
-        throw new Error(errorData.message || `Failed to save document: ${response.status}`);
+      console.log('[Artifact] Initiating save for document:', artifact.documentId);
+      
+      // Use the debounced save hook methods
+      if (isDebounced) {
+        await debouncedSave(content, artifact.documentId, artifact.title, artifact.kind);
+      } else {
+        await saveImmediately(content, artifact.documentId, artifact.title, artifact.kind);
       }
-
-      const savedDoc = await response.json();
-      console.log('[Artifact] Save completed successfully');
+      
+      // Reset state and update UI after successful save
       setSaveState('idle');
-      setIsContentDirty(false);
       consecutiveErrorsRef.current = 0;
       
-      // Update the document state with the saved version
-      setDocument(savedDoc);
-      
-      // Refresh the documents list
+      // Update the document and documents list after successful save
       await mutateDocuments();
     } catch (error) {
       console.error('[Artifact] Save failed:', error);
       setSaveState('error');
-      setIsContentDirty(false);
       setLastSaveError(error instanceof Error ? error.message : 'Unknown error occurred');
-      
       consecutiveErrorsRef.current++;
-      
-      // If this is a rate limit error or a network error, schedule a retry with exponential backoff
-      if (error instanceof Error && 
-          (error.message.toLowerCase().includes('rate limit') || 
-           error.message.toLowerCase().includes('failed to fetch'))) {
-        const backoffDelay = Math.min(1000 * Math.pow(2, consecutiveErrorsRef.current), 30000);
-        console.log(`[Artifact] Error occurred, retrying in ${backoffDelay}ms`);
-        setTimeout(() => saveContent(content, isDebounced), backoffDelay);
-      } else {
-        // For other types of errors, show a toast notification
-        toast.error('Failed to save document. Please try again.');
-      }
+      toast.error('Failed to save document. Please try again.');
+    } finally {
+      // Always reset the saving ref to prevent lockups
+      isSavingRef.current = false;
     }
-  }, [artifact?.documentId, artifact?.title, artifact?.kind, mutateDocuments, saveState, setDocument]);
+  }, [artifact?.documentId, artifact?.title, artifact?.kind, debouncedSave, saveImmediately, mutateDocuments]);
 
   function getDocumentContentById(index: number) {
     if (!documents) return '';
@@ -341,7 +309,7 @@ function PureArtifact({
 
   // Update the status display in the UI
   const getSaveStatusDisplay = () => {
-    if (saveState === 'saving') {
+    if (isSaving || saveState === 'saving') {
       return (
         <>
           <svg className="animate-spin size-3 text-muted-foreground" viewBox="0 0 24 24">
