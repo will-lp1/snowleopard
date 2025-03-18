@@ -15,6 +15,6 @@ export interface ArtifactContent<T extends ArtifactMetadata = ArtifactMetadata> 
   metadata: T;
   setMetadata: (metadata: T) => void;
   documentId: string;
-  saveState?: 'idle' | 'saving' | 'error';
-  lastSaveError?: string | null;
+  saveState: 'idle' | 'saving' | 'error';
+  lastSaveError: string | null;
 } 

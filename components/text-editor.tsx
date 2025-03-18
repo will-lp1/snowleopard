@@ -5,7 +5,6 @@ import { inputRules } from 'prosemirror-inputrules';
 import { EditorState, Transaction } from 'prosemirror-state';
 import { DecorationSet, EditorView } from 'prosemirror-view';
 import React, { memo, useEffect, useRef, useCallback } from 'react';
-import { useDebouncedSave } from '@/hooks/use-debounced-save';
 
 import type { Suggestion } from '@/lib/db/schema';
 import {
@@ -34,6 +33,8 @@ type EditorProps = {
   suggestions: Array<Suggestion>;
   onSuggestionResolve: (suggestionId: string, shouldApply: boolean) => void;
   documentId: string;
+  saveState?: 'idle' | 'saving' | 'error';
+  lastSaveError?: string | null;
 };
 
 function PureEditor({
@@ -43,15 +44,14 @@ function PureEditor({
   status,
   onSuggestionResolve,
   documentId,
-}: EditorProps & { documentId: string }) {
+  saveState,
+}: EditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<EditorView | null>(null);
-  const { debouncedSave, saveImmediately, isSaving } = useDebouncedSave(2500); // 2.5 second debounce
   const lastContentRef = useRef<string>(content);
   const editorInitializedRef = useRef<boolean>(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const pendingChangesRef = useRef<boolean>(false);
-  const isSavingRef = useRef<boolean>(false);
+  const contentChangedRef = useRef<boolean>(false);
 
   // Initialize editor
   useEffect(() => {
@@ -99,89 +99,86 @@ function PureEditor({
         saveTimeoutRef.current = null;
       }
     };
-  }, [documentId]); // Remove content dependency to avoid reinitialization
+  }, [documentId]); // Keep documentId dependency only
 
   // Update document ID whenever it changes
   useEffect(() => {
     if (editorRef.current && documentId) {
-      console.log('Updating document ID:', documentId);
+      console.log('[Editor] Updating document ID:', documentId);
       setDocumentId(editorRef.current, documentId);
     }
   }, [documentId]);
 
+  // Reset content changed flag when saving completes
+  useEffect(() => {
+    if (saveState === 'idle' && contentChangedRef.current) {
+      // The save has completed, we can mark content as not needing saving
+      contentChangedRef.current = false;
+      console.log('[Editor] Save completed, resetting content changed flag');
+    }
+  }, [saveState]);
+
   // Configure transaction handling and save logic
   useEffect(() => {
-    if (editorRef.current) {
-      editorRef.current.setProps({
-        dispatchTransaction: (transaction) => {
-          if (!editorRef.current) return;
+    if (!editorRef.current) return;
 
-          // Apply the transaction to get the new state
-          const newState = editorRef.current.state.apply(transaction);
+    editorRef.current.setProps({
+      dispatchTransaction: (transaction) => {
+        if (!editorRef.current) return;
+
+        // Apply the transaction to get the new state
+        const newState = editorRef.current.state.apply(transaction);
+        
+        // Update the editor with the new state
+        editorRef.current.updateState(newState);
+        
+        // Only trigger save if this is a content-changing transaction and not marked as no-save
+        if (!transaction.getMeta('no-save') && transaction.docChanged) {
+          // Get updated content
+          const updatedContent = buildContentFromDocument(newState.doc);
           
-          // Update the editor with the new state
-          editorRef.current.updateState(newState);
+          // Skip if content is essentially the same
+          if (Math.abs(updatedContent.length - lastContentRef.current.length) < 5 &&
+              (updatedContent === lastContentRef.current || 
+               updatedContent.includes(lastContentRef.current) || 
+               lastContentRef.current.includes(updatedContent))) {
+            return;
+          }
           
-          // Only trigger save if this isn't a 'no-save' transaction and we're not already saving
-          if (!transaction.getMeta('no-save') && !isSavingRef.current) {
-            const updatedContent = buildContentFromDocument(newState.doc);
-            
-            // Skip if content is essentially the same
-            if (Math.abs(updatedContent.length - lastContentRef.current.length) < 5 &&
-                (updatedContent === lastContentRef.current || 
-                 updatedContent.includes(lastContentRef.current) || 
-                 lastContentRef.current.includes(updatedContent))) {
-              return;
-            }
-            
-            // Update reference for future comparisons
-            lastContentRef.current = updatedContent;
-            
-            // Clear existing timeout
-            if (saveTimeoutRef.current) {
-              clearTimeout(saveTimeoutRef.current);
-              console.log('[Editor] Cleared existing save timeout');
-            }
-            
-            // Create a new timeout for saving
+          // Update reference for future comparisons
+          lastContentRef.current = updatedContent;
+          contentChangedRef.current = true;
+          
+          // Clear existing timeout to prevent multiple save attempts
+          if (saveTimeoutRef.current) {
+            clearTimeout(saveTimeoutRef.current);
+            saveTimeoutRef.current = null;
+          }
+          
+          // Only schedule a new save if we're not already in a saving state
+          if (saveState !== 'saving') {
             saveTimeoutRef.current = setTimeout(() => {
-              if (!isSavingRef.current) {
-                console.log(`[Editor] Initiating save for document ID: ${documentId} (${updatedContent.length} chars)`);
-                isSavingRef.current = true;
+              if (contentChangedRef.current) {
+                console.log(`[Editor] Triggering save for document ID: ${documentId}`);
                 onSaveContent(updatedContent, true);
-                
-                // Reset saving state after a timeout in case the save callback fails
-                setTimeout(() => {
-                  isSavingRef.current = false;
-                }, 5000); // Reset after 5 seconds if no response
               }
               saveTimeoutRef.current = null;
             }, 1000); // 1 second debounce
+          } else {
+            console.log('[Editor] Not scheduling save - already saving');
           }
-        },
-      });
-    }
+        }
+      },
+    });
     
     return () => {
+      // Cleanup
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = null;
       }
-      isSavingRef.current = false;
     };
-  }, [onSaveContent, documentId]);
-
-  // Reset saving state when content changes from parent
-  useEffect(() => {
-    if (content !== editorRef.current?.state.doc.toString()) {
-      isSavingRef.current = false;
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-        saveTimeoutRef.current = null;
-      }
-      console.log('[Editor] Content updated from parent, resetting save state');
-    }
-  }, [content]);
+  }, [onSaveContent, documentId, saveState]);
 
   // Handle content updates from parent - only run when editor is already initialized
   useEffect(() => {
@@ -195,6 +192,7 @@ function PureEditor({
         return;
       }
 
+      console.log('[Editor] Updating content from parent');
       const newDocument = buildDocumentFromContent(content);
       const transaction = editorRef.current.state.tr
         .replaceWith(
@@ -206,6 +204,7 @@ function PureEditor({
       
       editorRef.current.dispatch(transaction);
       lastContentRef.current = content;
+      contentChangedRef.current = false; // Reset since we just got new content from parent
     }
   }, [content]);
 
@@ -232,42 +231,22 @@ function PureEditor({
     }
   }, [suggestions, content, onSuggestionResolve]);
 
-  const handleDocumentChange = useCallback((tr: Transaction) => {
-    // Skip save for certain transaction types
-    if (tr.getMeta('no-save') || tr.getMeta('loading')) {
-      return;
-    }
-
-    // Only trigger save if there are actual content changes
-    if (!tr.docChanged) {
-      return;
-    }
-
-    const newContent = editorRef.current?.state.doc.toString() || '';
-    console.log('[Editor] Document changed, scheduling save');
-    
-    // Clear any existing save timeout
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-
-    // Schedule a new save with debounce
-    saveTimeoutRef.current = setTimeout(() => {
-      if (onSaveContent && typeof onSaveContent === 'function') {
-        console.log('[Editor] Executing debounced save');
-        onSaveContent(newContent, true);
-      }
-    }, 1000); // 1 second debounce
-  }, [onSaveContent]);
-
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+      
+      // Only save if there are unsaved changes and we're not already saving
+      if (contentChangedRef.current && editorRef.current && saveState !== 'saving') {
+        const finalContent = buildContentFromDocument(editorRef.current.state.doc);
+        console.log('[Editor] Saving on unmount');
+        onSaveContent(finalContent, false); // immediate save
       }
     };
-  }, []);
+  }, [onSaveContent, saveState]);
 
   return (
     <div className="relative prose dark:prose-invert" ref={containerRef}>
@@ -332,7 +311,8 @@ function areEqual(prevProps: EditorProps, nextProps: EditorProps) {
     prevProps.content === nextProps.content &&
     prevProps.onSaveContent === nextProps.onSaveContent &&
     prevProps.onSuggestionResolve === nextProps.onSuggestionResolve &&
-    prevProps.documentId === nextProps.documentId
+    prevProps.documentId === nextProps.documentId &&
+    prevProps.saveState === nextProps.saveState
   );
 }
 
