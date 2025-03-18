@@ -55,23 +55,6 @@ export interface Database {
           createdAt?: string
         }
       }
-      Vote: {
-        Row: {
-          chatId: string
-          messageId: string
-          isUpvoted: boolean
-        }
-        Insert: {
-          chatId: string
-          messageId: string
-          isUpvoted: boolean
-        }
-        Update: {
-          chatId?: string
-          messageId?: string
-          isUpvoted?: boolean
-        }
-      }
       Document: {
         Row: {
           id: string

@@ -1,29 +1,43 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { useWindowSize } from 'usehooks-ts';
-import useSWR from 'swr';
+import { useRouter } from 'next/navigation';
 import { formatDistance } from 'date-fns';
-import { Loader2, FileText, Type, Sparkles, ChevronRight } from 'lucide-react';
-import { Dispatch, SetStateAction } from 'react';
-import { Message } from 'ai';
-import { UseChatHelpers } from '@ai-sdk/react';
+import { Loader2, FileText, PlusIcon } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
 
 import { Document } from '@/lib/db/schema';
-import { fetcher } from '@/lib/utils';
+import { fetcher, generateUUID } from '@/lib/utils';
 import { useArtifact } from '@/hooks/use-artifact';
-import { artifactDefinitions } from './artifact';
 import { ArtifactActions } from './artifact-actions';
 import { VersionFooter } from './version-footer';
 import { Toolbar } from './toolbar';
-import { AnimatePresence, motion } from 'framer-motion';
-import { Button } from './ui/button';
+import { Editor } from './text-editor';
 import { useDebouncedSave } from '@/hooks/use-debounced-save';
+import useSWR from 'swr';
+import { Button } from './ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
-export function AlwaysVisibleArtifact({ chatId }: { chatId: string }) {
+export function AlwaysVisibleArtifact({ 
+  chatId, 
+  initialDocumentId = 'init'
+}: { 
+  chatId: string;
+  initialDocumentId?: string;
+}) {
+  const router = useRouter();
   const { artifact, setArtifact, metadata, setMetadata } = useArtifact();
-  const { width: windowWidth } = useWindowSize();
   const { debouncedSave, saveImmediately, isSaving } = useDebouncedSave(2500);
+  
+  // Use the provided initialDocumentId if available
+  useEffect(() => {
+    if (initialDocumentId !== 'init' && artifact.documentId === 'init') {
+      setArtifact(curr => ({
+        ...curr,
+        documentId: initialDocumentId
+      }));
+    }
+  }, [initialDocumentId, artifact.documentId, setArtifact]);
   
   const {
     data: documents,
@@ -39,9 +53,7 @@ export function AlwaysVisibleArtifact({ chatId }: { chatId: string }) {
   const [currentVersionIndex, setCurrentVersionIndex] = useState(-1);
   const [isToolbarVisible, setIsToolbarVisible] = useState(false);
   const [isContentDirty, setIsContentDirty] = useState(false);
-  
-  // Create a ref to track the last saved content across renders
-  const lastSavedContentRef = useRef<string>('');
+  const isDocumentInitialized = useRef(false);
   
   // Set default values if artifact isn't yet initialized
   useEffect(() => {
@@ -70,11 +82,7 @@ export function AlwaysVisibleArtifact({ chatId }: { chatId: string }) {
           content: mostRecentDocument.content ?? '',
           title: mostRecentDocument.title,
         }));
-
-        // Update the last saved content
-        if (mostRecentDocument.content) {
-          lastSavedContentRef.current = mostRecentDocument.content;
-        }
+        isDocumentInitialized.current = true;
       }
     }
   }, [documents, setArtifact]);
@@ -86,20 +94,76 @@ export function AlwaysVisibleArtifact({ chatId }: { chatId: string }) {
     }
   }, [artifact.documentId, artifact.status, mutateDocuments]);
   
+  // Create a new document and associated chat
+  const createNewDocument = async () => {
+    const newChatId = generateUUID();
+    const newDocId = generateUUID();
+    
+    try {
+      // First create a new chat
+      const chatResponse = await fetch('/api/chat/new', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          id: newChatId,
+          title: 'New Document',
+        }),
+      });
+      
+      if (!chatResponse.ok) {
+        throw new Error('Failed to create new chat');
+      }
+      
+      // Then create a new document linked to the chat
+      const docResponse = await fetch('/api/document/new', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          id: newDocId,
+          chatId: newChatId,
+          title: 'New Document',
+          content: '',
+          kind: 'text',
+        }),
+      });
+      
+      if (!docResponse.ok) {
+        throw new Error('Failed to create new document');
+      }
+      
+      // Navigate to the new chat with the new document
+      router.push(`/chat/${newChatId}?document=${newDocId}`);
+    } catch (error) {
+      console.error('Error creating new document:', error);
+    }
+  };
+  
   // Save content to the server when it changes
   const saveContent = async (updatedContent: string, debounce: boolean) => {
+    // If content is empty and document isn't initialized yet, don't do anything
+    if (!updatedContent.trim() && !isDocumentInitialized.current) {
+      return;
+    }
+
     // Mark as dirty to show saving indicator immediately
     setIsContentDirty(true);
 
     if (artifact.documentId === 'init' || !document) {
       // Create new document if it doesn't exist yet
       try {
-        const response = await fetch(`/api/document`, {
+        const docId = generateUUID();
+        const response = await fetch(`/api/document/new`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
+            id: docId,
+            chatId: chatId,
             title: artifact.title || 'New Document',
             content: updatedContent,
             kind: artifact.kind,
@@ -115,7 +179,13 @@ export function AlwaysVisibleArtifact({ chatId }: { chatId: string }) {
             documentId: data.id,
             content: updatedContent
           }));
+          isDocumentInitialized.current = true;
           mutateDocuments();
+          
+          // Update URL to include document ID
+          if (chatId) {
+            router.push(`/chat/${chatId}?document=${data.id}`);
+          }
         }
       } catch (error) {
         console.error('Error creating document:', error);
@@ -178,37 +248,8 @@ export function AlwaysVisibleArtifact({ chatId }: { chatId: string }) {
     ? currentVersionIndex === documents.length - 1
     : true;
   
-  // Get the appropriate artifact definition
-  const artifactDefinition = artifactDefinitions.find(
-    (definition) => definition.kind === artifact.kind,
-  );
-  
-  // Initialize artifact if needed
-  useEffect(() => {
-    if (artifact.documentId !== 'init' && artifactDefinition?.initialize) {
-      artifactDefinition.initialize({
-        documentId: artifact.documentId,
-        setMetadata,
-      });
-    }
-  }, [artifact.documentId, artifactDefinition, setMetadata]);
-  
-  if (!artifactDefinition) {
-    return <div>No artifact definition found!</div>;
-  }
-  
-  // These are dummy functions to satisfy the Toolbar props
-  const dummyAppend: UseChatHelpers['append'] = async () => { return ''; };
-  const dummyStop: UseChatHelpers['stop'] = () => {};
-  const dummySetMessages: Dispatch<SetStateAction<Message[]>> = () => {};
-  
   // Check if we should show the empty state
-  const showEmptyState = artifact.documentId === 'init' && !artifact.content;
-  
-  // Function to create a new blank document
-  const createNewDocument = () => {
-    saveContent("Start typing your document here...", false);
-  };
+  const showEmptyState = artifact.documentId === 'init' && !artifact.content && !isContentDirty;
   
   return (
     <div className="flex flex-col h-dvh bg-background">
@@ -239,23 +280,40 @@ export function AlwaysVisibleArtifact({ chatId }: { chatId: string }) {
               ) : !showEmptyState ? (
                 <div className="w-32 h-3 bg-muted-foreground/20 rounded-md animate-pulse" />
               ) : (
-                <span>New document</span>
+                <span>Start typing to create document</span>
               )}
             </div>
           </div>
         </div>
         
-        {!showEmptyState && (
-          <ArtifactActions
-            artifact={artifact}
-            currentVersionIndex={currentVersionIndex}
-            handleVersionChange={handleVersionChange}
-            isCurrentVersion={isCurrentVersion}
-            mode={mode}
-            metadata={metadata}
-            setMetadata={setMetadata}
-          />
-        )}
+        <div className="flex items-center gap-2">
+          {/* New Document Button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8"
+                onClick={createNewDocument}
+              >
+                <PlusIcon className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent align="end">New Document</TooltipContent>
+          </Tooltip>
+          
+          {!showEmptyState && (
+            <ArtifactActions
+              artifact={artifact}
+              currentVersionIndex={currentVersionIndex}
+              handleVersionChange={handleVersionChange}
+              isCurrentVersion={isCurrentVersion}
+              mode={mode}
+              metadata={metadata}
+              setMetadata={setMetadata}
+            />
+          )}
+        </div>
       </div>
       
       <div className="dark:bg-muted bg-background h-full overflow-y-auto !max-w-full items-center">
@@ -263,55 +321,31 @@ export function AlwaysVisibleArtifact({ chatId }: { chatId: string }) {
           <div className="flex justify-center items-center h-full">
             <Loader2 className="size-8 animate-spin text-primary" />
           </div>
-        ) : showEmptyState ? (
-          <div className="flex flex-col items-center justify-center h-full">
-            <motion.div 
-              className="max-w-md px-6 py-8 rounded-2xl bg-zinc-50 dark:bg-zinc-900 flex flex-col items-center gap-6 text-center shadow-sm"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <Type className="size-12 text-primary" />
-              <h2 className="text-2xl font-medium text-foreground">
-                Start Writing
-              </h2>
-              <p className="text-muted-foreground">
-                Begin typing to create your document or use the AI assistant to help you write.
-              </p>
-            </motion.div>
-          </div>
         ) : (
           <>
-            <artifactDefinition.content
-              title={artifact.title}
-              content={
-                isCurrentVersion
-                  ? artifact.content
-                  : getDocumentContentById(currentVersionIndex)
-              }
-              mode={mode}
-              status={artifact.status}
-              currentVersionIndex={currentVersionIndex}
-              suggestions={[]}
-              onSaveContent={saveContent}
-              isInline={false}
-              isCurrentVersion={isCurrentVersion}
-              getDocumentContentById={getDocumentContentById}
-              isLoading={isDocumentsFetching && !artifact.content}
-              metadata={metadata}
-              setMetadata={setMetadata}
-              documentId={artifact.documentId}
-            />
+            <div className="px-8 py-6 mx-auto max-w-3xl">
+              <Editor
+                content={isCurrentVersion ? artifact.content : getDocumentContentById(currentVersionIndex)}
+                onSaveContent={saveContent}
+                status={artifact.status}
+                isCurrentVersion={isCurrentVersion}
+                currentVersionIndex={currentVersionIndex}
+                suggestions={[]}
+                onSuggestionResolve={() => {}}
+                documentId={artifact.documentId}
+                saveState={isContentDirty ? 'saving' : 'idle'}
+              />
+            </div>
             
             <AnimatePresence>
               {isCurrentVersion && (
                 <Toolbar
                   isToolbarVisible={isToolbarVisible}
                   setIsToolbarVisible={setIsToolbarVisible}
-                  append={dummyAppend}
+                  append={() => Promise.resolve('')}
                   status="ready"
-                  stop={dummyStop}
-                  setMessages={dummySetMessages}
+                  stop={() => {}}
+                  setMessages={() => {}}
                   artifactKind={artifact.kind}
                 />
               )}

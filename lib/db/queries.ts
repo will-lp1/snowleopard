@@ -9,7 +9,6 @@ type Chat = Tables['Chat']['Row'];
 type Message = Tables['Message']['Row'];
 type Document = Tables['Document']['Row'];
 type Suggestion = Tables['Suggestion']['Row'];
-type Vote = Tables['Vote']['Row'];
 
 interface MessageContent {
   type: 'text' | 'tool_call' | 'tool_result';
@@ -163,52 +162,38 @@ export async function getMessagesByChatId({ id }: { id: string }) {
   });
 }
 
-export async function voteMessage({
-  chatId,
-  messageId,
-  type,
-}: {
-  chatId: string;
-  messageId: string;
-  type: 'up' | 'down';
-}) {
-  const supabase = await createClient();
-  const { data: existingVote, error: fetchError } = await supabase
-    .from('Vote')
-    .select()
-    .eq('messageId', messageId)
-    .single();
+export async function getMessagesByIds(ids: string[]): Promise<Message[]> {
+  if (!ids.length) return [];
 
-  if (fetchError && fetchError.code !== 'PGRST116') throw fetchError;
-
-  if (existingVote) {
-    const { error } = await supabase
-      .from('Vote')
-      .update({ isUpvoted: type === 'up' })
-      .eq('messageId', messageId)
-      .eq('chatId', chatId);
-
-    if (error) throw error;
-  } else {
-    const { error } = await supabase.from('Vote').insert({
-      chatId,
-      messageId,
-      isUpvoted: type === 'up',
-    });
-
-    if (error) throw error;
-  }
-}
-
-export async function getVotesByChatId({ id }: { id: string }): Promise<Vote[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from('Vote')
+    .from('Message')
     .select()
-    .eq('chatId', id);
+    .in('id', ids);
 
   if (error) throw error;
   return data;
+}
+
+export async function getMessageWithContent(message: Message) {
+  const supabase = await createClient();
+  const { data: messageContents, error } = await supabase
+    .from('MessageContent')
+    .select('*')
+    .eq('messageId', message.id)
+    .order('order', { ascending: true });
+
+  if (error) throw error;
+
+  if (messageContents?.length) {
+    return {
+      ...message,
+      content: messageContents,
+    };
+  }
+
+  // If no MessageContent, return original message
+  return message;
 }
 
 export async function saveDocument({

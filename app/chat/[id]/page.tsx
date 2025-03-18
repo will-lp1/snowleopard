@@ -4,7 +4,7 @@ import { type Message } from 'ai';
 
 import { createClient } from '@/utils/supabase/server';
 import { Chat } from '@/components/chat';
-import { getChatById, getMessagesByChatId } from '@/lib/db/queries';
+import { getChatById, getMessagesByChatId, getDocumentById } from '@/lib/db/queries';
 import { convertToUIMessages } from '@/lib/utils';
 import { DataStreamHandler } from '@/components/data-stream-handler';
 import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
@@ -20,10 +20,14 @@ function isValidRole(role: string): role is Message['role'] {
 export const dynamic = 'auto';
 export const dynamicParams = true;
 
-export default async function Page(props: { params: Promise<{ id: string }> }) {
+export default async function Page(props: { 
+  params: Promise<{ id: string }>,
+  searchParams: { document?: string }
+}) {
   try {
     const params = await props.params;
     const { id } = params;
+    const documentId = props.searchParams.document;
     
     // Get chat and handle potential errors
     const chat = await getChatById({ id }).catch(error => {
@@ -58,6 +62,20 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
     // Convert messages using the utility function
     const uiMessages = convertToUIMessages(messagesFromDb);
 
+    // If a document ID is provided, verify it exists and is accessible
+    let initialDocumentId = 'init';
+    if (documentId) {
+      try {
+        const document = await getDocumentById({ id: documentId });
+        if (document && (document.userId === session?.user?.id || chat.visibility === 'public')) {
+          initialDocumentId = documentId;
+        }
+      } catch (error) {
+        console.error('Error fetching document:', error);
+        // Fall back to default 'init' document ID
+      }
+    }
+
     const cookieStore = await cookies();
     const chatModelFromCookie = cookieStore.get('chat-model');
     
@@ -68,7 +86,10 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
       <div className="flex flex-row h-full w-full">
         {/* Center panel - Artifact (always visible) */}
         <div className="flex-1 min-w-0 border-r border-border transition-all duration-200 ease-in-out">
-          <AlwaysVisibleArtifact chatId={id} />
+          <AlwaysVisibleArtifact 
+            chatId={id} 
+            initialDocumentId={initialDocumentId}
+          />
         </div>
         
         {/* Right panel - Chat */}

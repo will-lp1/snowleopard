@@ -1,6 +1,5 @@
 import { PreviewMessage } from './message';
 import { useScrollToBottom } from './use-scroll-to-bottom';
-import { Vote } from '@/lib/db/schema';
 import { Message } from 'ai';
 import { memo } from 'react';
 import equal from 'fast-deep-equal';
@@ -10,7 +9,6 @@ import { UseChatHelpers } from '@ai-sdk/react';
 interface ArtifactMessagesProps {
   chatId: string;
   status: UseChatHelpers['status'];
-  votes: Array<Vote> | undefined;
   messages: Array<Message>;
   setMessages: UseChatHelpers['setMessages'];
   reload: UseChatHelpers['reload'];
@@ -21,7 +19,6 @@ interface ArtifactMessagesProps {
 function PureArtifactMessages({
   chatId,
   status,
-  votes,
   messages,
   setMessages,
   reload,
@@ -33,19 +30,14 @@ function PureArtifactMessages({
   return (
     <div
       ref={messagesContainerRef}
-      className="flex flex-col gap-4 h-full items-center overflow-y-scroll px-4 pt-20"
+      className="flex flex-col pt-4 gap-6 flex-1 overflow-y-auto min-w-0"
     >
       {messages.map((message, index) => (
         <PreviewMessage
-          chatId={chatId}
           key={message.id}
+          chatId={chatId}
           message={message}
-          isLoading={status === 'streaming' && index === messages.length - 1}
-          vote={
-            votes
-              ? votes.find((vote) => vote.messageId === message.id)
-              : undefined
-          }
+          isLoading={status === 'streaming' && messages.length - 1 === index}
           setMessages={setMessages}
           reload={reload}
           isReadonly={isReadonly}
@@ -64,17 +56,10 @@ function areEqual(
   prevProps: ArtifactMessagesProps,
   nextProps: ArtifactMessagesProps,
 ) {
-  if (
-    prevProps.artifactStatus === 'streaming' &&
-    nextProps.artifactStatus === 'streaming'
-  )
-    return true;
-
   if (prevProps.status !== nextProps.status) return false;
-  if (prevProps.status && nextProps.status) return false;
   if (prevProps.messages.length !== nextProps.messages.length) return false;
-  if (!equal(prevProps.votes, nextProps.votes)) return false;
-
+  if (!equal(prevProps.messages, nextProps.messages)) return false;
+  if (prevProps.artifactStatus !== nextProps.artifactStatus) return false;
   return true;
 }
 
