@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDistance } from 'date-fns';
-import { Loader2, FileText, PlusIcon } from 'lucide-react';
+import { Loader2, FileText, PlusIcon, MessageSquareIcon, PencilIcon, CheckIcon, XIcon } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 
 import { Document } from '@/lib/db/schema';
@@ -14,10 +14,19 @@ import { VersionFooter } from './version-footer';
 import { Toolbar } from './toolbar';
 import { Editor } from './text-editor';
 import { useDebouncedSave } from '@/hooks/use-debounced-save';
+import { useDocumentUtils } from '@/hooks/use-document-utils';
 import useSWR from 'swr';
 import { Button } from './ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { toast } from 'sonner';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from './ui/input';
 
 export function AlwaysVisibleArtifact({ 
   chatId, 
@@ -29,17 +38,17 @@ export function AlwaysVisibleArtifact({
   const router = useRouter();
   const { artifact, setArtifact, metadata, setMetadata } = useArtifact();
   const { debouncedSave, saveImmediately, isSaving } = useDebouncedSave(2500);
-  const [isCreatingDocument, setIsCreatingDocument] = useState(false);
+  const { 
+    createNewDocument, 
+    isCreatingDocument,
+    renameDocument, 
+    isRenamingDocument,
+    createNewChatForDocument
+  } = useDocumentUtils();
   
-  // Use the provided initialDocumentId if available
-  useEffect(() => {
-    if (initialDocumentId !== 'init' && artifact.documentId === 'init') {
-      setArtifact(curr => ({
-        ...curr,
-        documentId: initialDocumentId
-      }));
-    }
-  }, [initialDocumentId, artifact.documentId, setArtifact]);
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const titleInputRef = useRef<HTMLInputElement>(null);
   
   const {
     data: documents,
@@ -71,6 +80,70 @@ export function AlwaysVisibleArtifact({
       }));
     }
   }, [artifact.documentId, setArtifact]);
+  
+  // Use the provided initialDocumentId if available and update when it changes
+  useEffect(() => {
+    if (initialDocumentId && initialDocumentId !== 'init' && artifact.documentId !== initialDocumentId) {
+      console.log('[Document] Updating document ID from props:', initialDocumentId);
+      setArtifact(curr => ({
+        ...curr,
+        documentId: initialDocumentId,
+        content: '', // Reset content to ensure we load fresh from the server
+        status: 'idle'
+      }));
+      
+      // Reset document state
+      setDocument(null);
+      setCurrentVersionIndex(-1);
+      firstLoadCompletedRef.current = false;
+      isDocumentInitialized.current = false;
+      
+      // Force reload of documents with the new ID
+      setTimeout(() => {
+        mutateDocuments();
+      }, 100);
+    }
+  }, [initialDocumentId, artifact.documentId, setArtifact, mutateDocuments]);
+  
+  // Listen for route changes to ensure document ID is synchronized with URL
+  useEffect(() => {
+    // Initial check for document ID in URL
+    const syncDocumentIdWithUrl = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const documentIdFromUrl = urlParams.get('document');
+      
+      if (documentIdFromUrl && documentIdFromUrl !== artifact.documentId) {
+        console.log('[Document] Detected document ID in URL:', documentIdFromUrl);
+        setArtifact(curr => ({
+          ...curr,
+          documentId: documentIdFromUrl,
+          content: '', // Reset content to ensure we load fresh from the server
+          status: 'idle'
+        }));
+        
+        // Reset document state
+        setDocument(null);
+        setCurrentVersionIndex(-1);
+        firstLoadCompletedRef.current = false;
+        isDocumentInitialized.current = false;
+        
+        // Force reload of documents with the new ID
+        setTimeout(() => {
+          mutateDocuments();
+        }, 100);
+      }
+    };
+    
+    // Run once on mount and whenever the URL changes
+    syncDocumentIdWithUrl();
+    
+    // Add event listener for browser navigation
+    window.addEventListener('popstate', syncDocumentIdWithUrl);
+    
+    return () => {
+      window.removeEventListener('popstate', syncDocumentIdWithUrl);
+    };
+  }, [router, artifact.documentId, setArtifact, mutateDocuments]);
   
   // Add a useEffect hook to update the document content in chat context when it changes
   useEffect(() => {
@@ -134,85 +207,33 @@ export function AlwaysVisibleArtifact({
     }
   }, [artifact.documentId, artifact.status, mutateDocuments]);
   
-  // Create a new document and associated chat
-  const createNewDocument = async () => {
-    setIsCreatingDocument(true);
-    toast.loading('Creating new document...');
-    
-    const newChatId = generateUUID();
-    const newDocId = generateUUID();
-    
-    try {
-      // First create a new chat
-      const chatResponse = await fetch('/api/chat/new', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          id: newChatId,
-          title: 'New Document',
-        }),
-      });
-      
-      if (!chatResponse.ok) {
-        throw new Error('Failed to create new chat');
-      }
-      
-      // Then create a new document linked to the chat
-      const docResponse = await fetch('/api/document/new', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          id: newDocId,
-          chatId: newChatId,
-          title: 'New Document',
-          content: '',
-          kind: 'text',
-        }),
-      });
-      
-      if (!docResponse.ok) {
-        throw new Error('Failed to create new document');
-      }
-      
-      // Reset artifact state BEFORE navigation
-      setArtifact(curr => ({
-        ...curr,
-        documentId: newDocId,
-        title: 'New Document',
-        kind: 'text',
-        isVisible: true,
-        status: 'idle',
-        content: '',
-      }));
-      
-      // Force state reset
-      setDocument(null);
-      setCurrentVersionIndex(-1);
-      setIsContentDirty(false);
-      isDocumentInitialized.current = false;
-      
-      // Navigate to the new chat with the new document
-      router.push(`/chat/${newChatId}?document=${newDocId}`);
-      
-      // Force revalidate data after navigation
-      setTimeout(() => {
-        mutateDocuments();
-      }, 100);
-      
-      toast.success('New document created and linked to chat', {
-        description: 'You can now edit this document and ask the AI about it',
-        duration: 5000
-      });
-    } catch (error) {
-      console.error('Error creating new document:', error);
-      toast.error('Failed to create new document');
-    } finally {
-      setIsCreatingDocument(false);
+  // Function to handle starting document title edit
+  const handleEditTitle = () => {
+    setNewTitle(artifact.title);
+    setEditingTitle(true);
+    // Focus the input after rendering
+    setTimeout(() => {
+      titleInputRef.current?.focus();
+    }, 50);
+  };
+  
+  // Function to handle saving the document title
+  const handleSaveTitle = async () => {
+    if (newTitle.trim() !== artifact.title) {
+      await renameDocument(newTitle);
     }
+    setEditingTitle(false);
+  };
+  
+  // Function to handle canceling title edit
+  const handleCancelEditTitle = () => {
+    setEditingTitle(false);
+    setNewTitle(artifact.title);
+  };
+  
+  // Function to create a new chat for this document
+  const handleNewChatForDocument = async () => {
+    await createNewChatForDocument();
   };
   
   // Save content to the server when it changes
@@ -348,8 +369,63 @@ export function AlwaysVisibleArtifact({
       <div className="flex flex-row justify-between items-center border-b border-border px-3 h-[45px]">
         <div className="flex flex-row gap-4 items-center">
           <FileText className="size-5 text-muted-foreground" />
+          
           <div className="flex flex-col">
-            <div className="font-medium">{artifact.title}</div>
+            {editingTitle ? (
+              <div className="flex items-center gap-1">
+                <Input
+                  ref={titleInputRef}
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  className="h-7 py-1 font-medium"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSaveTitle();
+                    if (e.key === 'Escape') handleCancelEditTitle();
+                  }}
+                />
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-6 w-6" 
+                  onClick={handleSaveTitle}
+                  disabled={isRenamingDocument}
+                >
+                  {isRenamingDocument ? (
+                    <svg className="animate-spin size-3" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                  ) : (
+                    <CheckIcon className="size-3" />
+                  )}
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-6 w-6" 
+                  onClick={handleCancelEditTitle}
+                >
+                  <XIcon className="size-3" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <div 
+                  className="font-medium cursor-pointer hover:underline" 
+                  onClick={handleEditTitle}
+                >
+                  {artifact.title}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5"
+                  onClick={handleEditTitle}
+                >
+                  <PencilIcon className="size-3" />
+                </Button>
+              </div>
+            )}
             
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground h-4">
               {isSaving || isContentDirty ? (
@@ -378,6 +454,30 @@ export function AlwaysVisibleArtifact({
         </div>
         
         <div className="flex items-center gap-2">
+          {/* Document Actions Menu */}
+          {!showEmptyState && artifact.documentId !== 'init' && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8"
+                >
+                  <MessageSquareIcon className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleNewChatForDocument}>
+                  Create New Chat with this Document
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleEditTitle}>
+                  Rename Document
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          
           {/* New Document Button */}
           <Tooltip>
             <TooltipTrigger asChild>

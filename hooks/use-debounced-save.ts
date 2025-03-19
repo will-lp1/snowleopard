@@ -170,7 +170,7 @@ export function useDebouncedSave(delay: number = 2000) {
       pendingContentRef.current = null;
       setIsSaving(false);
     }
-  }, []);
+  }, [setIsSaving]);
 
   return {
     debouncedSave,
