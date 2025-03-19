@@ -20,16 +20,11 @@ function isValidRole(role: string): role is Message['role'] {
 export const dynamic = 'auto';
 export const dynamicParams = true;
 
-export default async function Page({ 
-  params,
-  searchParams,
-}: { 
-  params: { id: string },
-  searchParams: { document?: string }
-}) {
+// Use a more flexible typing to work around Next.js type issues
+export default async function Page(props: any) {
   try {
-    const { id } = params;
-    const documentId = searchParams.document;
+    const id = props.params.id;
+    const documentId = props.searchParams?.document;
     
     // Get chat and handle potential errors
     const chat = await getChatById({ id }).catch(error => {
