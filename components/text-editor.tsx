@@ -27,6 +27,10 @@ import {
 import { inlineSuggestionsPlugin, setDocumentId } from '@/lib/editor/inline-suggestions';
 import { DiffView } from './diffview';
 
+// Import Plugin for placeholder
+import { Plugin } from 'prosemirror-state';
+import { Decoration } from 'prosemirror-view';
+
 // Add types for section-based diffs
 interface DiffSection {
   id: string;
@@ -47,6 +51,27 @@ type EditorProps = {
   saveState?: 'idle' | 'saving' | 'error';
   lastSaveError?: string | null;
 };
+
+// Create a plugin for placeholder text
+function placeholderPlugin(text: string) {
+  return new Plugin({
+    props: {
+      decorations(state) {
+        const { doc } = state;
+        const empty = doc.childCount === 1 && doc.firstChild!.isTextblock && doc.firstChild!.content.size === 0;
+        
+        if (!empty) return null;
+        
+        const decoration = Decoration.node(0, doc.firstChild!.nodeSize, { 
+          class: "editor-placeholder",
+          "data-placeholder": text
+        });
+        
+        return DecorationSet.create(doc, [decoration]);
+      }
+    }
+  });
+}
 
 function PureEditor({
   content,
@@ -166,6 +191,7 @@ function PureEditor({
           }),
           suggestionsPlugin,
           inlineSuggestionsPlugin,
+          placeholderPlugin('Start typing here...'),
         ],
       });
 
@@ -648,6 +674,19 @@ function PureEditor({
           .diff-editor span.bg-red-100 {
             background-color: rgba(248, 113, 113, 0.2);
             padding: 2px 0;
+          }
+          
+          /* Placeholder styles */
+          .editor-placeholder {
+            position: relative;
+          }
+          
+          .editor-placeholder::before {
+            content: attr(data-placeholder);
+            color: var(--muted-foreground);
+            position: absolute;
+            pointer-events: none;
+            opacity: 0.6;
           }
         `}</style>
       </div>
