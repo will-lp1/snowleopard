@@ -2,7 +2,7 @@
 
 import type { Attachment, Message } from 'ai';
 import { useChat } from '@ai-sdk/react';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 import { ChatHeader } from '@/components/chat-header';
 import { fetcher, generateUUID } from '@/lib/utils';
@@ -12,6 +12,7 @@ import { VisibilityType } from './visibility-selector';
 import { toast } from 'sonner';
 import { useArtifact } from '@/hooks/use-artifact';
 import { FileText } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export function Chat({
   id,
@@ -29,7 +30,6 @@ export function Chat({
   const { mutate } = useSWRConfig();
   const { artifact } = useArtifact();
   const [documentContextActive, setDocumentContextActive] = useState(false);
-  const hasShownContextToastRef = useRef(false);
 
   // Update document context status when artifact changes
   useEffect(() => {
@@ -81,14 +81,13 @@ export function Chat({
   const wrappedSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
-    // Show toast when document context is active, but only once per session
-    if (documentContextActive && !hasShownContextToastRef.current) {
-      toast.success(`Using document "${artifact.title}" as context`, {
+    // Show toast only on first message in a session with document context
+    if (documentContextActive && messages.length === initialMessages.length) {
+      toast.success(`Using document context: ${artifact.title}`, {
         icon: <FileText className="size-4" />,
-        id: 'document-context-active', // Use ID to prevent duplicate toasts
-        duration: 3000
+        duration: 3000,
+        id: `doc-context-${artifact.documentId}` // Prevent duplicate toasts
       });
-      hasShownContextToastRef.current = true;
     }
     
     handleSubmit();
@@ -103,15 +102,16 @@ export function Chat({
         isReadonly={isReadonly}
       />
 
-      {/* Document context subtle indicator */}
+      {/* Simplified Document context indicator */}
       {documentContextActive && (
-        <div className="flex items-center px-4 py-1 border-b bg-muted/20">
-          <div className="flex items-center text-xs text-muted-foreground">
-            <FileText className="size-3 mr-1 text-primary/70" />
-            <span className="mr-1">Context:</span>
-            <span className="font-medium text-primary/80 truncate max-w-[200px]">{artifact.title}</span>
-            <span className="size-1.5 mx-1.5 bg-green-500 rounded-full"></span>
-            <span className="text-primary/70 text-xs">AI can see this document</span>
+        <div className="px-3 py-1.5 flex items-center gap-1.5 text-xs text-muted-foreground border-b bg-muted/20">
+          <FileText className="size-3.5 text-primary" />
+          <span className="flex-1 truncate">
+            Using <span className="font-medium text-primary">{artifact.title}</span>
+          </span>
+          <div className="flex items-center gap-1">
+            <span className="size-1.5 bg-green-500 rounded-full"></span>
+            <span className="text-primary text-[10px] font-medium uppercase tracking-wide">Active</span>
           </div>
         </div>
       )}

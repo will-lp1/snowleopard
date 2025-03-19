@@ -5,6 +5,8 @@ import { inputRules } from 'prosemirror-inputrules';
 import { EditorState, Transaction } from 'prosemirror-state';
 import { DecorationSet, EditorView } from 'prosemirror-view';
 import React, { memo, useEffect, useRef, useCallback, useState } from 'react';
+import { Check, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 import type { Suggestion } from '@/lib/db/schema';
 import {
@@ -23,7 +25,15 @@ import {
   suggestionsPluginKey,
 } from '@/lib/editor/suggestions';
 import { inlineSuggestionsPlugin, setDocumentId } from '@/lib/editor/inline-suggestions';
-import { BlockDiffView } from './block-diffview';
+import { DiffView } from './diffview';
+
+// Add types for section-based diffs
+interface DiffSection {
+  id: string;
+  oldContent: string;
+  newContent: string;
+  isExpanded?: boolean;
+}
 
 type EditorProps = {
   content: string;
@@ -59,10 +69,81 @@ function PureEditor({
   const [showDiff, setShowDiff] = useState(false);
   const [previousContent, setPreviousContent] = useState<string>('');
   const [aiUpdatedContent, setAiUpdatedContent] = useState<string>('');
+  // Add state for section-by-section diffs
+  const [diffSections, setDiffSections] = useState<DiffSection[]>([]);
   const aiUpdateInProgressRef = useRef<boolean>(false);
 
-  // Add state for keeping track of text blocks
-  const [processedBlocks, setProcessedBlocks] = useState<Set<string>>(new Set());
+  // New function to create diff sections from old and new content
+  const generateDiffSections = useCallback((oldText: string, newText: string) => {
+    // Guard against null/undefined inputs
+    if (!oldText || !newText) {
+      console.log('[Editor] Cannot generate diff sections - missing content');
+      return;
+    }
+    
+    // Simple algorithm to split by paragraphs (can be improved for more granular diffs)
+    const oldParagraphs = oldText.split(/\n\n+/);
+    const newParagraphs = newText.split(/\n\n+/);
+    
+    // Create diff sections where paragraphs are different
+    const sections: DiffSection[] = [];
+    
+    // Use a simple LCS-based approach to find changed sections
+    let i = 0, j = 0;
+    
+    while (i < oldParagraphs.length || j < newParagraphs.length) {
+      // Make sure both i and j are within bounds before comparing
+      if (i < oldParagraphs.length && j < newParagraphs.length && 
+          oldParagraphs[i]?.trim() === newParagraphs[j]?.trim()) {
+        // No difference - just skip identical paragraphs
+        i++;
+        j++;
+        continue;
+      }
+      
+      // Try to find the next matching paragraph
+      let nextMatch = -1;
+      let searchLimit = Math.min(5, oldParagraphs.length - i); // Only look ahead a few paragraphs
+      
+      for (let k = 1; k <= searchLimit; k++) {
+        // Add bounds checking for both arrays
+        if (i + k < oldParagraphs.length && j < newParagraphs.length && 
+            oldParagraphs[i + k]?.trim() === newParagraphs[j]?.trim()) {
+          nextMatch = k;
+          break;
+        }
+      }
+      
+      if (nextMatch > 0) {
+        // Found a match ahead - the paragraphs in between were removed
+        sections.push({
+          id: `diff-${sections.length}`,
+          oldContent: oldParagraphs.slice(i, i + nextMatch).join('\n\n') || '',
+          newContent: '',
+          isExpanded: true
+        });
+        i += nextMatch;
+      } else {
+        // No match found ahead - this is a new paragraph
+        sections.push({
+          id: `diff-${sections.length}`,
+          oldContent: i < oldParagraphs.length ? oldParagraphs[i] || '' : '',
+          newContent: j < newParagraphs.length ? newParagraphs[j] || '' : '',
+          isExpanded: true
+        });
+        i++;
+        j++;
+      }
+    }
+    
+    // Filter out sections where old and new are identical
+    const filteredSections = sections.filter(section => 
+      section.oldContent?.trim() !== section.newContent?.trim()
+    );
+    
+    console.log('[Editor] Generated diff sections:', filteredSections.length);
+    setDiffSections(filteredSections);
+  }, []);
 
   // Initialize editor
   useEffect(() => {
@@ -216,6 +297,11 @@ function PureEditor({
         // Update AI updated content for diff view
         setAiUpdatedContent(content);
         
+        // Generate diff sections from the old and new content
+        if (previousContent && content) {
+          generateDiffSections(previousContent, content);
+        }
+        
         // Show diff view when we get content during AI streaming
         setShowDiff(true);
       }
@@ -249,95 +335,80 @@ function PureEditor({
 
   // Handle AI-driven document updates and diff view
   useEffect(() => {
-    // Function to handle artifactUpdate events from the AI
-    const handleArtifactUpdate = (event: Event) => {
+    // Function to handle artifactUpdate data events
+    // These come from the stream, not browser events
+    const handleStreamArtifactUpdate = (e: CustomEvent) => {
       try {
-        // Cast to CustomEvent and get detail
-        const customEvent = event as CustomEvent<{
-          type: string;
-          documentId: string;
-          title: string;
-          previousContent: string;
-          newContent: string;
-        }>;
-        
-        const detail = customEvent.detail;
-        
-        if (!detail) {
-          console.error('[Editor] No detail in artifactUpdate event');
-          return;
-        }
-        
-        console.log('[Editor] Received artifactUpdate event:', detail);
-        
-        // Handle document update events
-        if (detail.type === 'documentUpdated' && 
-            detail.documentId === documentId) {
-          console.log('[Editor] Processing document update for current document');
+        const data = e.detail;
+        if (data.type === 'artifactUpdate') {
+          // Parse the data from the stream
+          const updateData = JSON.parse(data.content);
           
-          // Get current editor content to show diff against
-          if (editorRef.current) {
-            const currentContent = buildContentFromDocument(editorRef.current.state.doc);
-            setPreviousContent(currentContent);
-            setAiUpdatedContent(detail.newContent || '');
+          console.log('[Editor] Received artifactUpdate data from stream:', updateData);
+          
+          // Check if this update is for our document
+          if (updateData.type === 'documentUpdated' && 
+              updateData.documentId === documentId) {
+              
+            console.log('[Editor] Processing document update for current document');
             
-            // Mark as AI update and show diff view
-            aiUpdateInProgressRef.current = true;
-            setShowDiff(true);
-            
-            console.log('[Editor] Diff view activated with:', {
-              previousLength: currentContent.length,
-              newLength: (detail.newContent || '').length
-            });
+            // Get current editor content to show diff against
+            if (editorRef.current) {
+              const currentContent = buildContentFromDocument(editorRef.current.state.doc);
+              setPreviousContent(currentContent);
+              setAiUpdatedContent(updateData.newContent || '');
+              
+              // Generate diff sections from the old and new content
+              generateDiffSections(currentContent, updateData.newContent || '');
+              
+              // Mark as AI update and show diff view
+              aiUpdateInProgressRef.current = true;
+              setShowDiff(true);
+              
+              // Dispatch a browser event for other components that might need this info
+              if (typeof window !== 'undefined') {
+                try {
+                  const event = new CustomEvent('artifactUpdate', {
+                    detail: updateData
+                  });
+                  window.dispatchEvent(event);
+                } catch (error) {
+                  console.error('[Editor] Error dispatching browser event:', error);
+                }
+              }
+              
+              console.log('[Editor] Diff view activated for updates');
+            }
           }
         }
       } catch (error) {
-        console.error('[Editor] Error handling artifact update:', error);
+        console.error('[Editor] Error handling artifact update data:', error);
       }
     };
     
-    // Add listener for AI update events
-    window.addEventListener('artifactUpdate', handleArtifactUpdate);
+    // Add this function to handle data from the stream with proper typing
+    window.addEventListener('editor:stream-data', handleStreamArtifactUpdate as EventListener);
     
     return () => {
-      window.removeEventListener('artifactUpdate', handleArtifactUpdate);
+      window.removeEventListener('editor:stream-data', handleStreamArtifactUpdate as EventListener);
     };
-  }, [documentId]);
+  }, [documentId, generateDiffSections]);
 
-  // Handle accepting a specific block of changes
-  const acceptBlock = useCallback((blockId: string, newText: string) => {
-    if (!editorRef.current || !previousContent) return;
+  // Accept a single diff section
+  const acceptDiffSection = useCallback((sectionId: string) => {
+    if (!editorRef.current) return;
     
-    console.log('[Editor] Accepting block:', blockId, newText);
+    const section = diffSections.find(s => s.id === sectionId);
+    if (!section || !section.oldContent || !section.newContent) return;
     
-    // Mark this block as processed
-    setProcessedBlocks(prev => {
-      const updated = new Set(prev);
-      updated.add(blockId);
-      return updated;
-    });
-    
-    // Get the current content
-    const currentContent = buildContentFromDocument(editorRef.current.state.doc);
-    
-    // Calculate where to insert the new text
-    // This is a simplified approach - in a real implementation,
-    // you would need to calculate the exact position in the document
-    const oldBlocks = previousContent.split(/\n\s*\n/);
-    const blockIndex = parseInt(blockId.replace('block-', ''), 10);
-    
-    if (isNaN(blockIndex) || blockIndex >= oldBlocks.length) {
-      console.error('[Editor] Invalid block index:', blockId);
-      return;
-    }
-    
-    // Simple replacement approach - find the text in the current content and replace it
-    // Note: This is simplistic and might need improvements for real-world usage
-    const blockToReplace = oldBlocks[blockIndex];
-    if (blockToReplace && currentContent.includes(blockToReplace)) {
-      const updatedContent = currentContent.replace(blockToReplace, newText);
+    try {
+      // Get the current editor content
+      const currentContent = buildContentFromDocument(editorRef.current.state.doc);
       
-      // Update the editor
+      // Replace the old content with the new content
+      const updatedContent = currentContent.replace(section.oldContent, section.newContent);
+      
+      // Apply the changes to the editor
       const newDocument = buildDocumentFromContent(updatedContent);
       const transaction = editorRef.current.state.tr
         .replaceWith(
@@ -351,14 +422,36 @@ function PureEditor({
       
       // Save the content
       onSaveContent(updatedContent, false);
+      
+      // Remove this section from the list
+      setDiffSections(prev => prev.filter(s => s.id !== sectionId));
+      
+      // Close diff view if no more sections
+      if (diffSections.length <= 1) {
+        setShowDiff(false);
+        setAiUpdatedContent('');
+        setPreviousContent('');
+        aiUpdateInProgressRef.current = false;
+      }
+    } catch (error) {
+      console.error('[Editor] Error applying diff section:', error);
     }
-  }, [previousContent, onSaveContent]);
-  
-  // Accept all changes
-  const acceptAllChanges = useCallback(() => {
+  }, [diffSections, onSaveContent]);
+
+  // Toggle section expansion
+  const toggleSectionExpansion = useCallback((sectionId: string) => {
+    setDiffSections(prev => prev.map(section => 
+      section.id === sectionId 
+        ? { ...section, isExpanded: !section.isExpanded } 
+        : section
+    ));
+  }, []);
+
+  // Make the AI-updates more visible with improved diff view handling
+  const acceptAiChanges = useCallback(() => {
     setShowDiff(false);
     
-    // Apply the AI changes to the editor
+    // Apply all the AI changes to the editor
     if (editorRef.current && aiUpdatedContent) {
       const newDocument = buildDocumentFromContent(aiUpdatedContent);
       
@@ -380,19 +473,10 @@ function PureEditor({
       // Reset AI update state
       setAiUpdatedContent('');
       setPreviousContent('');
+      setDiffSections([]);
       aiUpdateInProgressRef.current = false;
     }
   }, [aiUpdatedContent, onSaveContent]);
-  
-  // Reject all changes
-  const rejectAllChanges = useCallback(() => {
-    setShowDiff(false);
-    
-    // Reset AI update state without applying changes
-    setAiUpdatedContent('');
-    setPreviousContent('');
-    aiUpdateInProgressRef.current = false;
-  }, []);
 
   useEffect(() => {
     if (editorRef.current?.state.doc && content) {
@@ -436,15 +520,74 @@ function PureEditor({
 
   return (
     <div className="relative prose dark:prose-invert">
-      {/* Show block diff view when AI has updated the document */}
-      {showDiff && previousContent && aiUpdatedContent && status !== 'streaming' && (
-        <BlockDiffView
-          oldContent={previousContent}
-          newContent={aiUpdatedContent}
-          onAcceptBlock={acceptBlock}
-          onAcceptAll={acceptAllChanges}
-          onRejectAll={rejectAllChanges}
-        />
+      {/* Show section-by-section diff view when AI has updated the document */}
+      {showDiff && status !== 'streaming' && diffSections.length > 0 && (
+        <div className="mb-6 border rounded-md overflow-hidden">
+          <div className="bg-primary/10 p-3 flex justify-between items-center">
+            <h3 className="text-sm font-medium m-0">AI Updates</h3>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setDiffSections([])}
+                className="text-xs text-destructive hover:bg-destructive/10 px-2 py-1 rounded-md flex items-center gap-1"
+              >
+                <X size={12} strokeWidth={2.5} />
+                <span>Reject All</span>
+              </button>
+              <button 
+                onClick={acceptAiChanges}
+                className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded-md flex items-center gap-1"
+              >
+                <Check size={12} strokeWidth={2.5} />
+                <span>Accept All</span>
+              </button>
+            </div>
+          </div>
+          
+          <div className="divide-y">
+            {diffSections.map((section) => (
+              <div key={section.id} className="bg-muted/30">
+                <div 
+                  className="px-3 py-2 flex justify-between items-center cursor-pointer hover:bg-muted/50"
+                  onClick={() => toggleSectionExpansion(section.id)}
+                >
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Change {section.id.split('-')[1]}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {section.isExpanded ? 
+                      <ChevronUp size={14} className="text-muted-foreground" /> : 
+                      <ChevronDown size={14} className="text-muted-foreground" />
+                    }
+                  </div>
+                </div>
+                
+                {section.isExpanded && (
+                  <div className="p-3 border-t">
+                    <div className="mb-2">
+                      <DiffView oldContent={section.oldContent} newContent={section.newContent} />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => setDiffSections(prev => prev.filter(s => s.id !== section.id))}
+                        className="flex items-center gap-1 px-2 py-1 text-xs rounded-md transition-colors text-muted-foreground hover:text-destructive"
+                      >
+                        <X size={12} strokeWidth={2.5} />
+                        <span>Skip</span>
+                      </button>
+                      <button
+                        onClick={() => acceptDiffSection(section.id)}
+                        className="flex items-center gap-1 px-2 py-1 text-xs rounded-md transition-colors text-muted-foreground hover:text-green-500"
+                      >
+                        <Check size={12} strokeWidth={2.5} />
+                        <span>Apply</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
       )}
       
       <div ref={containerRef}>

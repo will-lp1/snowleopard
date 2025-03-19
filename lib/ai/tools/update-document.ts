@@ -110,35 +110,22 @@ export const updateDocument = ({ session, dataStream, documentId: defaultDocumen
           console.log(`[AI Tool] Document updated successfully: ${documentId}`);
           
           // Signal that the update is complete with metadata to trigger diff view
+          // This data will be captured by the Editor component and used to show section diffs
           dataStream.writeData({ 
             type: 'artifactUpdate', 
             content: JSON.stringify({
               type: 'documentUpdated',
               documentId: documentId,
               title: document.title,
-              previousContent: document.content,
+              previousContent: document.content || '',
               newContent: result.content // Use the content from the result
             })
           });
           
-          // Emit an event to notify client-side components
-          if (typeof window !== 'undefined') {
-            try {
-              const event = new CustomEvent('artifactUpdate', {
-                detail: {
-                  type: 'documentUpdated',
-                  documentId: documentId,
-                  title: document.title,
-                  previousContent: document.content,
-                  newContent: result.content
-                }
-              });
-              window.dispatchEvent(event);
-              console.log('[AI Tool] Dispatched artifactUpdate event to window');
-            } catch (error) {
-              console.error('[AI Tool] Error dispatching event:', error);
-            }
-          }
+          // NOTE: The client-side window event dispatch happens in the browser
+          // when this response is processed, not here in the server context.
+          // The text-editor.tsx component listens for the artifactUpdate event data
+          // in the stream and will display the section-by-section diff view.
           
           dataStream.writeData({ 
             type: 'finish', 

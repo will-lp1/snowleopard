@@ -23,7 +23,6 @@ import {
 import { generateTitleFromUserMessage } from '@/app/chat/actions';
 import { createDocument } from '@/lib/ai/tools/create-document';
 import { updateDocument } from '@/lib/ai/tools/update-document';
-import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
 import { isProductionEnvironment } from '@/lib/constants';
 import { NextResponse } from 'next/server';
 import { myProvider } from '@/lib/ai/providers';
@@ -169,7 +168,6 @@ export async function POST(request: Request) {
               : [
                   // If we have a document context, prefer updateDocument over createDocument
                   documentId ? 'updateDocument' : 'createDocument',
-                  'requestSuggestions',
                 ],
           experimental_transform: smoothStream({ chunking: 'word' }),
           experimental_generateMessageId: generateUUID,
@@ -180,10 +178,6 @@ export async function POST(request: Request) {
               dataStream,
               // Pass the current document ID to make it easier to update
               documentId: documentId || undefined
-            }),
-            requestSuggestions: requestSuggestions({
-              session: adaptedSession,
-              dataStream,
             }),
           },
           onFinish: async ({ response, reasoning }) => {

@@ -106,7 +106,7 @@ function PureChatHeader({
 
       {/* GitHub Link */}
       <Button
-        variant="default"
+        variant="ghost"
         size="icon"
         className="ml-auto size-8"
         asChild
