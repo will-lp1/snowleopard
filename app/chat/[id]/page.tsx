@@ -20,14 +20,16 @@ function isValidRole(role: string): role is Message['role'] {
 export const dynamic = 'auto';
 export const dynamicParams = true;
 
-export default async function Page(props: { 
-  params: Promise<{ id: string }>,
+export default async function Page({ 
+  params,
+  searchParams,
+}: { 
+  params: { id: string },
   searchParams: { document?: string }
 }) {
   try {
-    const params = await props.params;
     const { id } = params;
-    const documentId = props.searchParams.document;
+    const documentId = searchParams.document;
     
     // Get chat and handle potential errors
     const chat = await getChatById({ id }).catch(error => {
