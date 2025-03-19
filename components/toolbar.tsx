@@ -361,7 +361,7 @@ const PureToolbar = ({
   };
 
   useEffect(() => {
-    if (status === 'idle') {
+    if (status === 'ready') {
       setIsToolbarVisible(true);
     }
   }, [status, setIsToolbarVisible]);
