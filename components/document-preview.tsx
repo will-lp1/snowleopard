@@ -19,8 +19,7 @@ import { DocumentToolCall, DocumentToolResult } from './document';
 import { CodeEditor } from './code-editor';
 import { useArtifact } from '@/hooks/use-artifact';
 import equal from 'fast-deep-equal';
-import { SpreadsheetEditor } from './sheet-editor';
-import { ImageEditor } from './image-editor';
+
 
 interface DocumentPreviewProps {
   isReadonly: boolean;
@@ -92,6 +91,7 @@ export function DocumentPreview({
           kind: artifact.kind,
           content: artifact.content,
           id: artifact.documentId,
+          chatId: null,
           createdAt: new Date().toISOString(),
           userId: 'noop',
         }
