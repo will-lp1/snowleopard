@@ -157,6 +157,20 @@ export async function POST(request: Request) {
 
     return createDataStreamResponse({
       execute: (dataStream) => {
+        // Validate document ID before passing to tools
+        let validatedDocumentId: string | undefined = undefined;
+        
+        if (documentId) {
+          // Basic UUID validation
+          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          if (uuidRegex.test(documentId)) {
+            validatedDocumentId = documentId;
+            console.log(`[Chat API] Validated document ID for tools: ${validatedDocumentId}`);
+          } else {
+            console.warn(`[Chat API] Invalid document ID format, not passing to tools: ${documentId}`);
+          }
+        }
+        
         const result = streamText({
           model: myProvider.languageModel(selectedChatModel),
           system: enhancedSystemPrompt,
@@ -167,7 +181,7 @@ export async function POST(request: Request) {
               ? []
               : [
                   // If we have a document context, prefer updateDocument over createDocument
-                  documentId ? 'updateDocument' : 'createDocument',
+                  validatedDocumentId ? 'updateDocument' : 'createDocument',
                 ],
           experimental_transform: smoothStream({ chunking: 'word' }),
           experimental_generateMessageId: generateUUID,
@@ -176,8 +190,8 @@ export async function POST(request: Request) {
             updateDocument: updateDocument({ 
               session: adaptedSession, 
               dataStream,
-              // Pass the current document ID to make it easier to update
-              documentId: documentId || undefined
+              // Pass the validated document ID to make it easier to update
+              documentId: validatedDocumentId
             }),
           },
           onFinish: async ({ response, reasoning }) => {

@@ -36,7 +36,12 @@ export function DocumentPreview({
 
   const { data: documents, isLoading: isDocumentsFetching } = useSWR<
     Array<Document>
-  >(result ? `/api/document?id=${result.id}` : null, fetcher);
+  >(
+    result && result.id && result.id !== 'undefined' && result.id !== 'null'
+      ? `/api/document?id=${result.id}`
+      : null,
+    fetcher
+  );
 
   const previewDocument = useMemo(() => documents?.[0], [documents]);
   const hitboxRef = useRef<HTMLDivElement>(null);
@@ -44,7 +49,11 @@ export function DocumentPreview({
   useEffect(() => {
     const boundingBox = hitboxRef.current?.getBoundingClientRect();
 
-    if (artifact.documentId && boundingBox) {
+    if (artifact.documentId && 
+        artifact.documentId !== 'init' && 
+        artifact.documentId !== 'undefined' && 
+        artifact.documentId !== 'null' && 
+        boundingBox) {
       setArtifact((artifact) => ({
         ...artifact,
         boundingBox: {

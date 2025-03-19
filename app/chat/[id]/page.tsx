@@ -68,7 +68,8 @@ export default async function Page(props: any) {
           initialDocumentId = documentId;
         }
       } catch (error) {
-        console.error('Error fetching document:', error);
+        console.error('Error fetching document:', error instanceof Error ? error.message : error);
+        console.warn(`[Page] Failed to load document ID ${documentId}, falling back to default`);
         // Fall back to default 'init' document ID
       }
     }

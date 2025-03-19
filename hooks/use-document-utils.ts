@@ -14,7 +14,7 @@ import useSWR from 'swr';
 export function useDocumentUtils() {
   const router = useRouter();
   const { setArtifact, artifact } = useArtifact();
-  const { setOpenMobile } = useSidebar();
+  const { setOpenMobile, openMobile } = useSidebar();
   const [isCreatingChat, setIsCreatingChat] = useState(false);
   const [isCreatingDocument, setIsCreatingDocument] = useState(false);
   const [isRenamingDocument, setIsRenamingDocument] = useState(false);
@@ -53,79 +53,104 @@ export function useDocumentUtils() {
   };
 
   /**
-   * Creates a new document and associated chat, then navigates to it
+   * Creates a new document and navigates to it
    */
   const createNewDocument = async () => {
     if (isCreatingDocument) return;
+    
     setIsCreatingDocument(true);
     
-    toast.loading('Creating new document...');
-    
-    const newChatId = generateUUID();
-    const newDocId = generateUUID();
-    
     try {
-      // First create a new chat
-      const chatResponse = await fetch('/api/chat/new', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          id: newChatId,
-          title: 'New Document',
-        }),
+      // Generate random IDs for the new chat and document
+      const newChatId = generateUUID();
+      const newDocId = generateUUID();
+      
+      console.log('[Document] Creating new document:', {
+        chatId: newChatId,
+        documentId: newDocId
       });
       
-      if (!chatResponse.ok) {
-        throw new Error('Failed to create new chat');
-      }
-      
-      // Then create a new document linked to the chat
-      const docResponse = await fetch('/api/document/new', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          id: newDocId,
-          chatId: newChatId,
-          title: 'New Document',
-          content: '',
-          kind: 'text',
-        }),
-      });
-      
-      if (!docResponse.ok) {
-        throw new Error('Failed to create new document');
-      }
-      
-      // Reset artifact state BEFORE navigation
-      setArtifact({
+      // Set artifact state first for immediate feedback
+      setArtifact(curr => ({
+        ...curr,
         documentId: newDocId,
-        title: 'New Document',
-        kind: 'text',
-        isVisible: true,
-        status: 'idle',
+        title: 'Document',
         content: '',
-        boundingBox: { top: 0, left: 0, width: 0, height: 0 } // Default bounding box
-      });
+        status: 'idle',
+        kind: 'text',
+        isVisible: true
+      }));
       
-      // Close mobile sidebar if open
-      setOpenMobile(false);
+      // Close mobile sidebar if it's open
+      if (openMobile) {
+        setOpenMobile(false);
+      }
       
-      // Navigate to the new chat with the new document
+      // Start navigation early for better perceived performance
       router.push(`/chat/${newChatId}?document=${newDocId}`);
       
-      toast.success('New document created', {
-        description: 'Document has been linked to a new chat',
-        duration: 3000
-      });
-    } catch (error) {
-      console.error('Error creating new document:', error);
-      toast.error('Failed to create new document');
+      try {
+        // Create a new chat
+        const chatResponse = await fetch('/api/chat/new', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            id: newChatId,
+            title: 'New Document Chat',
+          }),
+        });
+        
+        if (!chatResponse.ok) {
+          const chatErrorData = await chatResponse.json().catch(() => ({ error: 'Unknown error' }));
+          console.error('[Document] Failed to create chat:', chatResponse.status, chatErrorData);
+          throw new Error(`Failed to create chat: ${chatResponse.status} ${chatErrorData.error || ''}`);
+        }
+        
+        // Create a new document
+        const docResponse = await fetch('/api/document', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            id: newDocId,
+            chatId: newChatId,
+            title: 'Document',
+            content: '',
+            kind: 'text',
+          }),
+        });
+        
+        if (!docResponse.ok) {
+          const docErrorData = await docResponse.json().catch(() => ({ error: 'Unknown error' }));
+          console.error('[Document] Failed to create document:', docResponse.status, docErrorData);
+          throw new Error(`Failed to create document: ${docResponse.status} ${docErrorData.error || ''}`);
+        }
+        
+        toast.success('Document created', { 
+          id: 'document-created',
+          duration: 2000 
+        });
+        
+      } catch (error) {
+        console.error('[Document] Error creating document:', error);
+        
+        // Try to recover - navigate to regular chat if document creation fails
+        toast.error('Failed to create document', {
+          description: error instanceof Error ? error.message : String(error),
+          duration: 5000
+        });
+        
+        // Navigate to the regular chat if we failed to create document
+        router.push(`/chat/${newChatId}`);
+      }
     } finally {
-      setIsCreatingDocument(false);
+      // Always cleanup to enable future document creation
+      setTimeout(() => {
+        setIsCreatingDocument(false);
+      }, 1000);
     }
   };
 
@@ -185,11 +210,17 @@ export function useDocumentUtils() {
     if (isCreatingChat || !artifact.documentId || artifact.documentId === 'init') return;
     
     setIsCreatingChat(true);
-    toast.loading('Creating new chat for this document...');
+    const toastId = `creating-chat-for-doc-${artifact.documentId}`;
+    toast.loading('Creating new chat for this document...', { id: toastId });
     
     const newChatId = generateUUID();
+    const documentId = artifact.documentId;
     
     try {
+      // Navigate early for better perceived performance 
+      const urlWithParams = `/chat/${newChatId}?document=${documentId}`;
+      router.push(urlWithParams);
+      
       // Create a new chat
       const chatResponse = await fetch('/api/chat/new', {
         method: 'POST',
@@ -213,7 +244,7 @@ export function useDocumentUtils() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          id: artifact.documentId,
+          id: documentId,
           chatId: newChatId,
           title: artifact.title,
           content: artifact.content,
@@ -225,16 +256,14 @@ export function useDocumentUtils() {
         throw new Error('Failed to update document with new chat');
       }
       
-      // Navigate to the new chat with the existing document
-      router.push(`/chat/${newChatId}?document=${artifact.documentId}`);
-      
       toast.success('New chat created', {
+        id: toastId,
         description: 'Document has been linked to a new chat',
         duration: 3000
       });
     } catch (error) {
       console.error('Error creating new chat for document:', error);
-      toast.error('Failed to create new chat');
+      toast.error('Failed to create new chat', { id: toastId });
     } finally {
       setIsCreatingChat(false);
     }

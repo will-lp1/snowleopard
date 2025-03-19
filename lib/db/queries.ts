@@ -236,16 +236,51 @@ export async function getDocumentsById({ id }: { id: string }): Promise<Document
 
 export async function getDocumentById({ id }: { id: string }): Promise<Document> {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('Document')
-    .select()
-    .eq('id', id)
-    .order('createdAt', { ascending: false })
-    .limit(1)
-    .single();
 
-  if (error) throw error;
-  return data;
+  try {
+    // Validate document ID with strict format checking
+    if (!id) {
+      console.warn(`[DB Query] Empty document ID provided`);
+      throw new Error(`Invalid document ID: empty`);
+    }
+    
+    if (id === 'undefined' || id === 'null' || id === 'init' || 
+        id === 'current document' || id === 'current document ID' ||
+        id.includes('current')) {
+      console.warn(`[DB Query] Invalid document ID provided: ${id}`);
+      throw new Error(`Invalid document ID: ${id}`);
+    }
+    
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      console.warn(`[DB Query] Document ID is not a valid UUID format: ${id}`);
+      throw new Error(`Invalid document ID format: ${id}`);
+    }
+    
+    const { data, error } = await supabase
+      .from('Document')
+      .select()
+      .eq('id', id)
+      .order('createdAt', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error) {
+      console.error(`[DB Query] Error fetching document with ID ${id}:`, error);
+      throw new Error(`Database error: ${error.message}`);
+    }
+    
+    if (!data) {
+      console.warn(`[DB Query] No document found with ID: ${id}`);
+      throw new Error(`Document not found: ${id}`);
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('[DB Query] getDocumentById error:', error instanceof Error ? error.message : error);
+    throw error; // Re-throw to handle in the calling code
+  }
 }
 
 export async function deleteDocumentsByIdAfterTimestamp({

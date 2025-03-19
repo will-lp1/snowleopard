@@ -361,25 +361,27 @@ const PureToolbar = ({
   };
 
   useEffect(() => {
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (status === 'streaming') {
-      setIsToolbarVisible(false);
+    if (status === 'idle') {
+      setIsToolbarVisible(true);
     }
   }, [status, setIsToolbarVisible]);
 
+  // Default to 'text' artifactKind if none is provided
+  const safeArtifactKind = artifactKind || 'text';
+  
   const artifactDefinition = artifactDefinitions.find(
-    (definition) => definition.kind === artifactKind,
+    (definition) => definition.kind === safeArtifactKind,
   );
 
   if (!artifactDefinition) {
-    throw new Error('Artifact definition not found!');
+    console.error(`Artifact definition not found for kind: ${safeArtifactKind}`);
+    // Fallback to using the text artifact definition which should always be available
+    const textDefinition = artifactDefinitions.find(d => d.kind === 'text');
+    if (!textDefinition) {
+      // Only throw if we can't even find the text definition
+      throw new Error('Text artifact definition not found! This is a critical error.');
+    }
+    return null; // Return null instead of throwing to prevent UI crashes
   }
 
   const toolsByArtifactKind = artifactDefinition.toolbar;

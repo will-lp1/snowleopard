@@ -50,15 +50,17 @@ export function useArtifact() {
 
   const setArtifact = useCallback(
     (updaterFn: UIArtifact | ((currentArtifact: UIArtifact) => UIArtifact)) => {
-      setLocalArtifact((currentArtifact) => {
-        const artifactToUpdate = currentArtifact || initialArtifactData;
-
-        if (typeof updaterFn === 'function') {
-          return updaterFn(artifactToUpdate);
-        }
-
-        return updaterFn;
-      });
+      setTimeout(() => {
+        setLocalArtifact((currentArtifact) => {
+          const artifactToUpdate = currentArtifact || initialArtifactData;
+  
+          if (typeof updaterFn === 'function') {
+            return updaterFn(artifactToUpdate);
+          }
+  
+          return updaterFn;
+        });
+      }, 0);
     },
     [setLocalArtifact],
   );

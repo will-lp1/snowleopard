@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized', documents: [] }, { status: 401 });
     }
     
     // Extract query parameters
@@ -19,24 +19,41 @@ export async function GET(request: NextRequest) {
     
     console.log('[Document API] GET request received:', { id, chatId });
     
+    // Validate ID to prevent "undefined" string being used
+    if (id === 'undefined' || id === 'null' || id === 'init') {
+      console.warn('[Document API] Invalid document ID detected:', id);
+      return NextResponse.json({ error: 'Invalid document ID', documents: [] }, { status: 400 });
+    }
+    
     // Handle fetching by documentId
     if (id) {
       const documents = await getDocumentsById({ id });
       return NextResponse.json(documents);
     } 
-    // Handle fetching by chatId
+    // Handle fetching by chatId - optimize by returning most recent document first
     else if (chatId) {
       console.log(`[Document API] Fetching documents for chatId: ${chatId}`);
-      const documents = await getDocumentsByChatId({ chatId });
-      return NextResponse.json(documents);
+      try {
+        const documents = await getDocumentsByChatId({ chatId });
+        
+        // Sort documents by creation date (newest first)
+        const sortedDocuments = documents.sort((a, b) => {
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+        
+        return NextResponse.json(sortedDocuments);
+      } catch (error) {
+        console.error(`[Document API] Error fetching documents for chatId ${chatId}:`, error);
+        return NextResponse.json({ error: 'Failed to fetch documents by chat ID', documents: [] }, { status: 500 });
+      }
     } 
     // No valid parameters provided
     else {
-      return NextResponse.json({ error: 'Missing required parameters: id or chatId' }, { status: 400 });
+      return NextResponse.json({ error: 'Missing required parameters: id or chatId', documents: [] }, { status: 400 });
     }
   } catch (error) {
     console.error('[Document API] GET error:', error);
-    return NextResponse.json({ error: 'Failed to fetch documents' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch documents', documents: [] }, { status: 500 });
   }
 }
 
@@ -46,6 +63,7 @@ export async function POST(request: NextRequest) {
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session?.user?.id) {
+      console.warn('[Document API] POST request unauthorized - no session');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
@@ -59,31 +77,65 @@ export async function POST(request: NextRequest) {
       chatId: chatId || 'none'
     });
     
-    if (!id) {
-      return NextResponse.json({ error: 'Missing document id' }, { status: 400 });
+    // Validate ID format to prevent errors
+    if (!id || id === 'undefined' || id === 'null' || id === 'init') {
+      console.error('[Document API] Invalid document ID:', id);
+      return NextResponse.json({ error: 'Invalid document ID' }, { status: 400 });
     }
     
-    // Create document directly in Supabase to include chatId
-    const { error } = await supabase
-      .from('Document')
-      .insert({
-        id,
-        title: title || 'Untitled Document',
-        content: content || '',
-        kind: kind || 'text',
-        chatId: chatId || null,
-        userId: session.user.id,
-        createdAt: new Date().toISOString(),
-      });
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      console.error(`[Document API] Invalid document ID format: ${id}`);
+      return NextResponse.json({ 
+        error: `Invalid document ID format. Must be a valid UUID.` 
+      }, { status: 400 });
+    }
+
+    try {
+      // If chatId is provided, we need to ensure it's properly linked
+      if (chatId) {
+        // First, check if this document already exists
+        const { data: existingDocuments } = await supabase
+          .from('Document')
+          .select('id, chatId')
+          .eq('id', id)
+          .order('createdAt', { ascending: false })
+          .limit(1);
+          
+        // If document exists but with a different chatId, we need to create a new version
+        if (existingDocuments && existingDocuments.length > 0) {
+          console.log(`[Document API] Updating document ${id} with new chat: ${chatId}`);
+        }
+      }
       
-    if (error) {
-      console.error('[Document API] Database error:', error);
-      return NextResponse.json({ error: 'Failed to save document' }, { status: 500 });
+      // Create document directly in Supabase to include chatId
+      const { error, data } = await supabase
+        .from('Document')
+        .insert({
+          id,
+          title: title || 'Document',
+          content: content || '',
+          kind: kind || 'text',
+          chatId: chatId || null,
+          userId: session.user.id,
+          createdAt: new Date().toISOString(),
+        })
+        .select('id, title, content, kind, chatId, createdAt')
+        .single();
+          
+      if (error) {
+        console.error('[Document API] Database error:', error);
+        return NextResponse.json({ error: 'Failed to save document' }, { status: 500 });
+      }
+      
+      console.log(`[Document API] Document saved successfully: ${id}, linked to chat: ${chatId || 'none'}`);
+      
+      return NextResponse.json(data);
+    } catch (dbError) {
+      console.error('[Document API] Database operation error:', dbError);
+      return NextResponse.json({ error: 'Database operation failed' }, { status: 500 });
     }
-    
-    console.log(`[Document API] Document saved successfully: ${id}, linked to chat: ${chatId || 'none'}`);
-    
-    return NextResponse.json({ id });
   } catch (error) {
     console.error('[Document API] POST error:', error);
     return NextResponse.json({ error: 'Failed to save document' }, { status: 500 });
@@ -97,11 +149,22 @@ export async function PUT(request: NextRequest) {
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session?.user?.id) {
+      console.warn('[Document API] PUT request unauthorized - no session');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const { title, content, kind, chatId } = await request.json();
-    const id = generateUUID();
+    const { id: providedId, title, content, kind, chatId } = await request.json();
+    // Generate a UUID if none provided, otherwise use the provided one
+    const id = providedId || generateUUID();
+    
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      console.error(`[Document API] Invalid document ID format: ${id}`);
+      return NextResponse.json({ 
+        error: `Invalid document ID format. Must be a valid UUID.` 
+      }, { status: 400 });
+    }
     
     console.log('[Document API] Creating new document:', { 
       id, 
@@ -111,37 +174,42 @@ export async function PUT(request: NextRequest) {
       chatId: chatId || 'none'
     });
     
-    // Create document directly in Supabase to include chatId
-    const { error } = await supabase
-      .from('Document')
-      .insert({
-        id,
-        title: title || 'Untitled Document',
-        content: content || '',
-        kind: kind || 'text',
-        chatId: chatId || null,
-        userId: session.user.id,
-        createdAt: new Date().toISOString(),
-      });
+    try {
+      // Create document directly in Supabase to include chatId
+      const { error, data } = await supabase
+        .from('Document')
+        .insert({
+          id,
+          title: title || 'Document',
+          content: content || '',
+          kind: kind || 'text',
+          chatId: chatId || null,
+          userId: session.user.id,
+          createdAt: new Date().toISOString(),
+        })
+        .select('id, title, content, kind, chatId, createdAt, userId')
+        .single();
+        
+      if (error) {
+        console.error('[Document API] Database error during creation:', error);
+        return NextResponse.json({ 
+          error: `Failed to create document: ${error.message || 'Database error'}`
+        }, { status: 500 });
+      }
       
-    if (error) {
-      console.error('[Document API] Database error:', error);
-      return NextResponse.json({ error: 'Failed to create document' }, { status: 500 });
+      console.log(`[Document API] New document created: ${id}, linked to chat: ${chatId || 'none'}`);
+      
+      return NextResponse.json(data);
+    } catch (dbError) {
+      console.error('[Document API] Database operation error:', dbError);
+      return NextResponse.json({ 
+        error: `Database operation failed: ${dbError instanceof Error ? dbError.message : String(dbError)}`
+      }, { status: 500 });
     }
-    
-    console.log(`[Document API] New document created: ${id}, linked to chat: ${chatId || 'none'}`);
-    
-    return NextResponse.json({ 
-      id,
-      title: title || 'Untitled Document',
-      content: content || '',
-      kind: kind || 'text',
-      chatId: chatId || null,
-      userId: session.user.id,
-      createdAt: new Date().toISOString()
-    });
   } catch (error) {
     console.error('[Document API] PUT error:', error);
-    return NextResponse.json({ error: 'Failed to create document' }, { status: 500 });
+    return NextResponse.json({ 
+      error: `Failed to create document: ${error instanceof Error ? error.message : String(error)}`
+    }, { status: 500 });
   }
 }
