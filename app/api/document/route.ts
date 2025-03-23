@@ -93,8 +93,30 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      // If chatId is provided, we need to ensure it's properly linked
+      // Verify chatId exists if provided
+      let finalChatId = null;
       if (chatId) {
+        try {
+          // Check if the chat exists
+          const { data: chatData, error: chatError } = await supabase
+            .from('Chat')
+            .select('id')
+            .eq('id', chatId)
+            .single();
+            
+          if (chatData && !chatError) {
+            finalChatId = chatId;
+            console.log(`[Document API] Verified chat exists: ${chatId}`);
+          } else {
+            console.warn(`[Document API] Chat with ID ${chatId} not found, updating document without chat link`);
+          }
+        } catch (chatCheckError) {
+          console.warn(`[Document API] Error checking chat existence: ${chatId}`, chatCheckError);
+        }
+      }
+      
+      // If chatId is provided and valid, check if document exists
+      if (finalChatId) {
         // First, check if this document already exists
         const { data: existingDocuments } = await supabase
           .from('Document')
@@ -105,7 +127,7 @@ export async function POST(request: NextRequest) {
           
         // If document exists but with a different chatId, we need to create a new version
         if (existingDocuments && existingDocuments.length > 0) {
-          console.log(`[Document API] Updating document ${id} with new chat: ${chatId}`);
+          console.log(`[Document API] Updating document ${id} with new chat: ${finalChatId}`);
         }
       }
       
@@ -117,7 +139,7 @@ export async function POST(request: NextRequest) {
           title: title || 'Document',
           content: content || '',
           kind: kind || 'text',
-          chatId: chatId || null,
+          chatId: finalChatId,
           userId: session.user.id,
           createdAt: new Date().toISOString(),
         })
@@ -129,7 +151,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Failed to save document' }, { status: 500 });
       }
       
-      console.log(`[Document API] Document saved successfully: ${id}, linked to chat: ${chatId || 'none'}`);
+      console.log(`[Document API] Document saved successfully: ${id}, linked to chat: ${finalChatId || 'none'}`);
       
       return NextResponse.json(data);
     } catch (dbError) {
@@ -166,12 +188,34 @@ export async function PUT(request: NextRequest) {
       }, { status: 400 });
     }
     
+    // Verify chatId exists if provided
+    let finalChatId = null;
+    if (chatId) {
+      try {
+        // Check if the chat exists
+        const { data: chatData, error: chatError } = await supabase
+          .from('Chat')
+          .select('id')
+          .eq('id', chatId)
+          .single();
+          
+        if (chatData && !chatError) {
+          finalChatId = chatId;
+          console.log(`[Document API] Verified chat exists: ${chatId}`);
+        } else {
+          console.warn(`[Document API] Chat with ID ${chatId} not found, creating document without chat link`);
+        }
+      } catch (chatCheckError) {
+        console.warn(`[Document API] Error checking chat existence: ${chatId}`, chatCheckError);
+      }
+    }
+    
     console.log('[Document API] Creating new document:', { 
       id, 
       title, 
       contentLength: content?.length || 0,
       kind,
-      chatId: chatId || 'none'
+      chatId: finalChatId || 'none'
     });
     
     try {
@@ -183,7 +227,7 @@ export async function PUT(request: NextRequest) {
           title: title || 'Document',
           content: content || '',
           kind: kind || 'text',
-          chatId: chatId || null,
+          chatId: finalChatId, // Use verified chatId or null
           userId: session.user.id,
           createdAt: new Date().toISOString(),
         })
@@ -197,7 +241,7 @@ export async function PUT(request: NextRequest) {
         }, { status: 500 });
       }
       
-      console.log(`[Document API] New document created: ${id}, linked to chat: ${chatId || 'none'}`);
+      console.log(`[Document API] New document created: ${id}, linked to chat: ${finalChatId || 'none'}`);
       
       return NextResponse.json(data);
     } catch (dbError) {

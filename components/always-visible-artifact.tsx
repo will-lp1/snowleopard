@@ -100,9 +100,14 @@ export function AlwaysVisibleArtifact({
       const docId = generateUUID();
       console.log('[Document] Creating new default document for chat with ID:', docId);
       
+      let docResponse: Response;
+      let success = false;
+      let data: any = null;
+      
+      // First attempt with chatId
       try {
-        // Use the document endpoint
-        const docResponse = await fetch(`/api/document`, {
+        console.log('[Document] Attempting to create document with chatId:', chatId);
+        docResponse = await fetch(`/api/document`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json'
@@ -116,50 +121,87 @@ export function AlwaysVisibleArtifact({
           }),
         });
         
-        if (!docResponse.ok) {
+        if (docResponse.ok) {
+          data = await docResponse.json();
+          success = true;
+        } else {
           const errorData = await docResponse.json().catch(() => ({ error: 'Unknown error' }));
-          console.error('[Document] Server returned error:', docResponse.status, errorData);
-          throw new Error(`Failed to create document: ${docResponse.status} ${errorData.error || ''}`);
+          console.warn('[Document] Failed to create document with chatId, trying without:', errorData);
         }
-        
-        const data = await docResponse.json();
-        console.log('[Document] Successfully created document, received data:', !!data);
-        
-        // Update artifact state
-        setArtifact(curr => ({
-          ...curr,
-          documentId: data.id,
-          title: 'Document',
-          status: 'idle',
-          kind: 'text',
-        }));
-        
-        // Update URL with document ID
-        const currentUrl = new URL(window.location.href);
-        currentUrl.searchParams.set('document', data.id);
-        window.history.replaceState({}, '', currentUrl.toString());
-        
-        isDocumentInitialized.current = true;
-      } catch (createError) {
-        console.error('[Document] Failed to create document:', createError);
-        
-        // Fallback: Create a local-only document as recovery
-        console.log('[Document] Using fallback local document');
-        setArtifact(curr => ({
-          ...curr,
-          documentId: docId, // Use the generated ID anyway
-          title: 'Document (Unsaved)',
-          status: 'idle',
-          kind: 'text',
-          content: ''
-        }));
+      } catch (initialError) {
+        console.error('[Document] Error in first document creation attempt:', initialError);
       }
       
-    } catch (error) {
-      console.error('[Document] Error ensuring document for chat:', error);
-      toast.error('Failed to create document', {
-        description: 'Please try again or report this issue',
-        duration: 5000
+      // If first attempt failed, try without chatId
+      if (!success) {
+        try {
+          console.log('[Document] Creating document without chatId');
+          docResponse = await fetch(`/api/document`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              id: docId,
+              title: 'Document',
+              content: '',
+              kind: 'text',
+            }),
+          });
+          
+          if (docResponse.ok) {
+            data = await docResponse.json();
+            success = true;
+          } else {
+            const errorData = await docResponse.json().catch(() => ({ error: 'Unknown error' }));
+            console.error('[Document] All attempts to create document failed:', errorData);
+            throw new Error(`Failed to create document: ${docResponse.status} ${errorData.error || ''}`);
+          }
+        } catch (fallbackError) {
+          console.error('[Document] Fallback document creation failed:', fallbackError);
+          throw fallbackError; // Re-throw to be caught by outer catch
+        }
+      }
+      
+      console.log('[Document] Successfully created document, received data:', !!data);
+      
+      // Update artifact state
+      setArtifact(curr => ({
+        ...curr,
+        documentId: data.id,
+        title: 'Document',
+        status: 'idle',
+        kind: 'text',
+      }));
+      
+      // Update URL with document ID
+      const currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.set('document', data.id);
+      window.history.replaceState({}, '', currentUrl.toString());
+      
+      isDocumentInitialized.current = true;
+    } catch (createError) {
+      console.error('[Document] Failed to create document:', createError);
+      
+      // Fallback: Create a local-only document as recovery
+      console.log('[Document] Using fallback local document');
+      const tempDocId = generateUUID();
+      setArtifact(curr => ({
+        ...curr,
+        documentId: tempDocId, // Use the generated ID
+        title: 'Document (Unsaved)',
+        status: 'idle',
+        kind: 'text',
+        content: ''
+      }));
+      
+      // Mark as initialized to avoid repeated attempts
+      isDocumentInitialized.current = true;
+      
+      // Show minimal error toast
+      toast.error('Document will be saved when connection improves', {
+        duration: 3000,
+        id: 'doc-offline-mode'
       });
     }
   };
@@ -463,22 +505,66 @@ export function AlwaysVisibleArtifact({
           content: updatedContent
         }));
         
-        // Use the updated document endpoint
-        const response = await fetch(`/api/document`, {
-          method: 'PUT', // Use PUT for creating new documents
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            id: docId,
-            chatId: chatId,
-            title: artifact.title || 'Document',
-            content: updatedContent,
-            kind: artifact.kind,
-          }),
-          cache: 'no-cache',
-          credentials: 'same-origin',
-        });
+        // First attempt with chatId
+        let response: Response;
+        let data: any = null;
+        let success = false;
+        
+        // Try with chatId first
+        if (chatId) {
+          console.log('[Document] Attempting to create document with chatId:', chatId);
+          response = await fetch(`/api/document`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              id: docId,
+              chatId: chatId,
+              title: artifact.title || 'Document',
+              content: updatedContent,
+              kind: artifact.kind,
+            }),
+            cache: 'no-cache',
+            credentials: 'same-origin',
+          });
+          
+          if (response.ok) {
+            data = await response.json();
+            success = true;
+          } else {
+            const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+            console.warn('[Document] Failed to create document with chatId, trying without:', errorData);
+          }
+        }
+        
+        // If first attempt failed or no chatId, try without it
+        if (!success) {
+          console.log('[Document] Creating document without chatId');
+          response = await fetch(`/api/document`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              id: docId,
+              title: artifact.title || 'Document',
+              content: updatedContent,
+              kind: artifact.kind,
+            }),
+            cache: 'no-cache',
+            credentials: 'same-origin',
+          });
+          
+          if (response.ok) {
+            data = await response.json();
+            success = true;
+          } else {
+            const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+            console.error('[Document] All attempts to create document failed:', errorData);
+            throw new Error(`Failed to create document: ${response.status} ${errorData.error || ''}`);
+          }
+        }
         
         // Check if this save request is still active
         if (activeSaveRequestRef.current !== currentSaveId) {
@@ -486,9 +572,7 @@ export function AlwaysVisibleArtifact({
           return;
         }
         
-        const data = await response.json();
-        
-        if (data.id) {
+        if (data?.id) {
           console.log('[Document] Successfully created new document:', data.id);
           
           isDocumentInitialized.current = true;
@@ -515,12 +599,22 @@ export function AlwaysVisibleArtifact({
         console.error('Error creating document:', error);
         toast.error('Failed to create document');
         
-        // Reset document state on error
-        if (chatId) {
-          setTimeout(() => {
+        // Create a temporary local document so user doesn't lose their work
+        const tempDocId = generateUUID();
+        setArtifact(curr => ({
+          ...curr,
+          documentId: tempDocId,
+          title: 'Document (Unsaved)',
+          content: updatedContent,
+        }));
+        
+        // Try recovery after a delay
+        setTimeout(() => {
+          if (chatId) {
+            console.log('[Document] Attempting recovery after document creation failure');
             createDefaultDocumentForChat(chatId);
-          }, 1000);
-        }
+          }
+        }, 2000);
       } finally {
         setIsContentDirty(false);
         documentUpdateInProgressRef.current = false;
