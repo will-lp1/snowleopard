@@ -14,12 +14,24 @@ import { chatModels } from '@/lib/ai/models';
 import { cn } from '@/lib/utils';
 
 import { CheckCircleFillIcon, ChevronDownIcon } from './icons';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 export function ModelSelector({
   selectedModelId,
   className,
+  minimal = false,
 }: {
   selectedModelId: string;
+  className?: string;
+  minimal?: boolean;
 } & React.ComponentProps<typeof Button>) {
   const [open, setOpen] = useState(false);
   const [optimisticModelId, setOptimisticModelId] =
@@ -52,7 +64,7 @@ export function ModelSelector({
           variant="outline"
           className="md:px-2 md:h-[34px]"
         >
-          {selectedChatModel?.name}
+          {minimal ? selectedModelId.split('-')[0] : selectedChatModel?.name}
           <ChevronDownIcon />
         </Button>
       </DropdownMenuTrigger>

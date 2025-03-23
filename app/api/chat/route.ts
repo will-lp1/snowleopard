@@ -12,6 +12,7 @@ import {
   saveChat,
   saveMessages,
   saveMessageContent,
+  getDocumentById,
 } from '@/lib/db/queries';
 import {
   generateUUID,
@@ -22,7 +23,6 @@ import {
 import { generateTitleFromUserMessage } from '@/app/chat/actions';
 import { createDocument } from '@/lib/ai/tools/create-document';
 import { updateDocument } from '@/lib/ai/tools/update-document';
-import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
 import { isProductionEnvironment } from '@/lib/constants';
 import { NextResponse } from 'next/server';
 import { myProvider } from '@/lib/ai/providers';
@@ -35,6 +35,55 @@ function adaptSession(supabaseSession: any) {
     ...supabaseSession,
     expires: new Date(supabaseSession.expires_in ?? 0).toISOString(),
   };
+}
+
+/**
+ * Creates an enhanced system prompt that includes document content
+ */
+async function createEnhancedSystemPrompt({
+  selectedChatModel, 
+  documentId
+}: { 
+  selectedChatModel: string;
+  documentId?: string | null;
+}) {
+  let basePrompt = systemPrompt({ selectedChatModel });
+  
+  // Log that we're processing document context
+  console.log(`[Chat API] Processing document context, documentId: ${documentId || 'none'}`);
+  
+  // If there's a document ID, fetch the document content
+  if (documentId) {
+    try {
+      const document = await getDocumentById({ id: documentId });
+      
+      if (document) {
+        // Log successful document retrieval
+        console.log(`[Chat API] Found document for context: "${document.title}", content length: ${document.content?.length || 0} chars`);
+        
+        // Add document content to the system prompt
+        const documentContext = `
+CURRENT DOCUMENT CONTEXT:
+Title: ${document.title}
+Content:
+${document.content || '(Empty document)'}
+
+Please reference this document when appropriate in your responses.
+You can suggest changes to this document based on our conversation.
+`;
+        // Append document context to the system prompt
+        basePrompt = `${basePrompt}\n\n${documentContext}`;
+        console.log('[Chat API] Successfully enhanced system prompt with document context');
+      } else {
+        console.warn(`[Chat API] Document not found for ID: ${documentId}`);
+      }
+    } catch (error) {
+      console.error('Error fetching document for context:', error);
+      // Continue with base prompt if document fetching fails
+    }
+  }
+  
+  return basePrompt;
 }
 
 export async function POST(request: Request) {
@@ -55,10 +104,12 @@ export async function POST(request: Request) {
       id,
       messages,
       selectedChatModel,
+      documentId, // Accept documentId to provide document context
     }: {
       id: string;
       messages: Array<Message>;
       selectedChatModel: string;
+      documentId?: string | null;
     } = await request.json();
 
     const userMessage = getMostRecentUserMessage(messages);
@@ -97,30 +148,50 @@ export async function POST(request: Request) {
     });
 
     const adaptedSession = adaptSession(session);
+    
+    // Get enhanced system prompt with document context if available
+    const enhancedSystemPrompt = await createEnhancedSystemPrompt({
+      selectedChatModel,
+      documentId,
+    });
 
     return createDataStreamResponse({
       execute: (dataStream) => {
+        // Validate document ID before passing to tools
+        let validatedDocumentId: string | undefined = undefined;
+        
+        if (documentId) {
+          // Basic UUID validation
+          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          if (uuidRegex.test(documentId)) {
+            validatedDocumentId = documentId;
+            console.log(`[Chat API] Validated document ID for tools: ${validatedDocumentId}`);
+          } else {
+            console.warn(`[Chat API] Invalid document ID format, not passing to tools: ${documentId}`);
+          }
+        }
+        
         const result = streamText({
           model: myProvider.languageModel(selectedChatModel),
-          system: systemPrompt({ selectedChatModel }),
+          system: enhancedSystemPrompt,
           messages,
           maxSteps: 5,
           experimental_activeTools:
             selectedChatModel === 'chat-model-reasoning'
               ? []
               : [
-                  'createDocument',
-                  'updateDocument',
-                  'requestSuggestions',
+                  // If we have a document context, prefer updateDocument over createDocument
+                  validatedDocumentId ? 'updateDocument' : 'createDocument',
                 ],
           experimental_transform: smoothStream({ chunking: 'word' }),
           experimental_generateMessageId: generateUUID,
           tools: {
             createDocument: createDocument({ session: adaptedSession, dataStream }),
-            updateDocument: updateDocument({ session: adaptedSession, dataStream }),
-            requestSuggestions: requestSuggestions({
-              session: adaptedSession,
+            updateDocument: updateDocument({ 
+              session: adaptedSession, 
               dataStream,
+              // Pass the validated document ID to make it easier to update
+              documentId: validatedDocumentId
             }),
           },
           onFinish: async ({ response, reasoning }) => {

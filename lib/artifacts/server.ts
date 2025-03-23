@@ -38,7 +38,7 @@ export interface UpdateDocumentCallbackProps {
 export interface DocumentHandler<T = ArtifactKind> {
   kind: T;
   onCreateDocument: (args: CreateDocumentCallbackProps) => Promise<void>;
-  onUpdateDocument: (args: UpdateDocumentCallbackProps) => Promise<void>;
+  onUpdateDocument: (args: UpdateDocumentCallbackProps) => Promise<{ content: string }>;
 }
 
 export function createDocumentHandler<T extends ArtifactKind>(config: {
@@ -86,7 +86,8 @@ export function createDocumentHandler<T extends ArtifactKind>(config: {
         });
       }
 
-      return;
+      // Return the updated content so it can be used by the update-document tool
+      return { content: draftContent };
     },
   };
 }

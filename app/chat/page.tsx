@@ -23,7 +23,7 @@ export default async function Page() {
         </div>
         
         {/* Resizable Chat Panel */}
-        <ResizablePanel defaultSize={400} minSize={300} maxSize={600}>
+        <ResizablePanel defaultSize={400} minSize={300} maxSize={600} side="right">
           <Chat
             key={id}
             id={id}

@@ -12,7 +12,7 @@ import {
 } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 import { useDebounceCallback, useWindowSize } from 'usehooks-ts';
-import type { Document, Vote, Suggestion } from '@/lib/db/schema';
+import type { Document, Suggestion } from '@/lib/db/schema';
 import { fetcher } from '@/lib/utils';
 import { MultimodalInput } from './multimodal-input';
 import { Toolbar } from './toolbar';
@@ -29,6 +29,9 @@ import { Button } from './ui/button';
 import { CheckIcon } from './icons';
 import { toast } from 'sonner';
 import { useDebouncedSave } from '@/hooks/use-debounced-save';
+import { Input } from './ui/input';
+import { useDocumentUtils } from '@/hooks/use-document-utils';
+import { Pencil as PencilIcon, X as XIcon } from 'lucide-react';
 
 export const artifactDefinitions = [
   textArtifact,
@@ -71,7 +74,7 @@ interface ArtifactContent<M = any> {
   lastSaveError?: string | null;
 }
 
-function PureArtifact({
+export function PureArtifact({
   chatId,
   input,
   setInput,
@@ -84,7 +87,6 @@ function PureArtifact({
   messages,
   setMessages,
   reload,
-  votes,
   isReadonly,
 }: {
   chatId: string;
@@ -96,7 +98,6 @@ function PureArtifact({
   setAttachments: Dispatch<SetStateAction<Array<Attachment>>>;
   messages: Array<Message>;
   setMessages: Dispatch<SetStateAction<Array<Message>>>;
-  votes: Array<Vote> | undefined;
   append: UseChatHelpers['append'];
   handleSubmit: UseChatHelpers['handleSubmit'];
   reload: UseChatHelpers['reload'];
@@ -104,6 +105,11 @@ function PureArtifact({
 }) {
   const { artifact, setArtifact, metadata, setMetadata } = useArtifact();
   const { debouncedSave, saveImmediately, isSaving } = useDebouncedSave(2000);
+  const { renameDocument, isRenamingDocument } = useDocumentUtils();
+  
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const titleInputRef = useRef<HTMLInputElement>(null);
 
   const {
     data: documents,
@@ -112,7 +118,10 @@ function PureArtifact({
   } = useSWR<Array<Document>>(
     `/api/document?id=${artifact.documentId}`,
     async (url: string) => {
-      if (artifact.documentId === 'init' || artifact.status === 'streaming') {
+      if (artifact.documentId === 'init' || 
+          artifact.documentId === 'undefined' || 
+          artifact.documentId === 'null' || 
+          artifact.status === 'streaming') {
         return null;
       }
       return fetcher(url);
@@ -124,6 +133,49 @@ function PureArtifact({
   const [currentVersionIndex, setCurrentVersionIndex] = useState(-1);
 
   const { open: isSidebarOpen } = useSidebar();
+
+  // Listen for route changes to ensure document state is reset
+  useEffect(() => {
+    const handleRouteChange = () => {
+      const url = window.location.href;
+      if (url.includes('/chat/') && url.includes('?document=')) {
+        // Extract the document ID from the URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const documentId = urlParams.get('document');
+        
+        if (documentId && 
+            documentId !== 'undefined' && 
+            documentId !== 'null' && 
+            documentId !== artifact.documentId) {
+          // Reset state for the new document
+          console.log('[Artifact] New document detected from URL:', documentId);
+          setArtifact(curr => ({
+            ...curr,
+            documentId,
+            content: '',
+            status: 'idle'
+          }));
+          
+          // Use setTimeout to avoid React scheduling errors
+          setTimeout(() => {
+            setDocument(null);
+            setCurrentVersionIndex(-1);
+            mutateDocuments();
+          }, 0);
+        }
+      }
+    };
+
+    // Run once on mount to handle any initial URL
+    handleRouteChange();
+
+    // Add event listener for popstate (browser back/forward)
+    window.addEventListener('popstate', handleRouteChange);
+    
+    return () => {
+      window.removeEventListener('popstate', handleRouteChange);
+    };
+  }, [artifact.documentId, setArtifact, mutateDocuments]);
 
   useEffect(() => {
     if (documents && documents.length > 0) {
@@ -141,8 +193,13 @@ function PureArtifact({
   }, [documents, setArtifact]);
 
   useEffect(() => {
-    mutateDocuments();
-  }, [artifact.status, mutateDocuments]);
+    if (artifact.documentId && 
+        artifact.documentId !== 'init' && 
+        artifact.documentId !== 'undefined' && 
+        artifact.documentId !== 'null') {
+      mutateDocuments();
+    }
+  }, [artifact.status, mutateDocuments, artifact.documentId]);
 
   const { mutate } = useSWRConfig();
   const [isContentDirty, setIsContentDirty] = useState(false);
@@ -342,6 +399,30 @@ function PureArtifact({
     );
   };
 
+  // Function to handle starting document title edit
+  const handleEditTitle = () => {
+    setNewTitle(artifact.title);
+    setEditingTitle(true);
+    // Focus the input after rendering
+    setTimeout(() => {
+      titleInputRef.current?.focus();
+    }, 50);
+  };
+  
+  // Function to handle saving the document title
+  const handleSaveTitle = async () => {
+    if (newTitle.trim() !== artifact.title) {
+      await renameDocument(newTitle);
+    }
+    setEditingTitle(false);
+  };
+  
+  // Function to handle canceling title edit
+  const handleCancelEditTitle = () => {
+    setEditingTitle(false);
+    setNewTitle(artifact.title);
+  };
+
   // Add click handler for error state to allow manual retry
   const handleStatusClick = useCallback(() => {
     if (saveState === 'error' && artifact?.content) {
@@ -412,7 +493,6 @@ function PureArtifact({
                 <ArtifactMessages
                   chatId={chatId}
                   status={status}
-                  votes={votes}
                   messages={messages}
                   setMessages={setMessages}
                   reload={reload}
@@ -509,7 +589,61 @@ function PureArtifact({
                 <ArtifactCloseButton />
 
                 <div className="flex flex-col">
-                  <div className="font-medium">{artifact.title}</div>
+                  {editingTitle ? (
+                    <div className="flex items-center gap-1">
+                      <Input
+                        ref={titleInputRef}
+                        value={newTitle}
+                        onChange={(e) => setNewTitle(e.target.value)}
+                        className="h-7 py-1 font-medium"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveTitle();
+                          if (e.key === 'Escape') handleCancelEditTitle();
+                        }}
+                      />
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6" 
+                        onClick={handleSaveTitle}
+                        disabled={isRenamingDocument}
+                      >
+                        {isRenamingDocument ? (
+                          <svg className="animate-spin size-3" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                          </svg>
+                        ) : (
+                          <CheckIcon />
+                        )}
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6" 
+                        onClick={handleCancelEditTitle}
+                      >
+                        <XIcon size={12} />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="font-medium cursor-pointer hover:underline" 
+                        onClick={handleEditTitle}
+                      >
+                        {artifact.title}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5"
+                        onClick={handleEditTitle}
+                      >
+                        <PencilIcon size={12} />
+                      </Button>
+                    </div>
+                  )}
 
                   <div 
                     className="flex items-center gap-1.5 text-xs text-muted-foreground h-4 cursor-pointer" 
@@ -588,7 +722,6 @@ function PureArtifact({
 
 export const Artifact = memo(PureArtifact, (prevProps, nextProps) => {
   if (prevProps.status !== nextProps.status) return false;
-  if (!equal(prevProps.votes, nextProps.votes)) return false;
   if (prevProps.input !== nextProps.input) return false;
   if (!equal(prevProps.messages, nextProps.messages.length)) return false;
 

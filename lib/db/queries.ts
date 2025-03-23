@@ -9,7 +9,6 @@ type Chat = Tables['Chat']['Row'];
 type Message = Tables['Message']['Row'];
 type Document = Tables['Document']['Row'];
 type Suggestion = Tables['Suggestion']['Row'];
-type Vote = Tables['Vote']['Row'];
 
 interface MessageContent {
   type: 'text' | 'tool_call' | 'tool_result';
@@ -163,52 +162,38 @@ export async function getMessagesByChatId({ id }: { id: string }) {
   });
 }
 
-export async function voteMessage({
-  chatId,
-  messageId,
-  type,
-}: {
-  chatId: string;
-  messageId: string;
-  type: 'up' | 'down';
-}) {
-  const supabase = await createClient();
-  const { data: existingVote, error: fetchError } = await supabase
-    .from('Vote')
-    .select()
-    .eq('messageId', messageId)
-    .single();
+export async function getMessagesByIds(ids: string[]): Promise<Message[]> {
+  if (!ids.length) return [];
 
-  if (fetchError && fetchError.code !== 'PGRST116') throw fetchError;
-
-  if (existingVote) {
-    const { error } = await supabase
-      .from('Vote')
-      .update({ isUpvoted: type === 'up' })
-      .eq('messageId', messageId)
-      .eq('chatId', chatId);
-
-    if (error) throw error;
-  } else {
-    const { error } = await supabase.from('Vote').insert({
-      chatId,
-      messageId,
-      isUpvoted: type === 'up',
-    });
-
-    if (error) throw error;
-  }
-}
-
-export async function getVotesByChatId({ id }: { id: string }): Promise<Vote[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from('Vote')
+    .from('Message')
     .select()
-    .eq('chatId', id);
+    .in('id', ids);
 
   if (error) throw error;
   return data;
+}
+
+export async function getMessageWithContent(message: Message) {
+  const supabase = await createClient();
+  const { data: messageContents, error } = await supabase
+    .from('MessageContent')
+    .select('*')
+    .eq('messageId', message.id)
+    .order('order', { ascending: true });
+
+  if (error) throw error;
+
+  if (messageContents?.length) {
+    return {
+      ...message,
+      content: messageContents,
+    };
+  }
+
+  // If no MessageContent, return original message
+  return message;
 }
 
 export async function saveDocument({
@@ -251,16 +236,51 @@ export async function getDocumentsById({ id }: { id: string }): Promise<Document
 
 export async function getDocumentById({ id }: { id: string }): Promise<Document> {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('Document')
-    .select()
-    .eq('id', id)
-    .order('createdAt', { ascending: false })
-    .limit(1)
-    .single();
 
-  if (error) throw error;
-  return data;
+  try {
+    // Validate document ID with strict format checking
+    if (!id) {
+      console.warn(`[DB Query] Empty document ID provided`);
+      throw new Error(`Invalid document ID: empty`);
+    }
+    
+    if (id === 'undefined' || id === 'null' || id === 'init' || 
+        id === 'current document' || id === 'current document ID' ||
+        id.includes('current')) {
+      console.warn(`[DB Query] Invalid document ID provided: ${id}`);
+      throw new Error(`Invalid document ID: ${id}`);
+    }
+    
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      console.warn(`[DB Query] Document ID is not a valid UUID format: ${id}`);
+      throw new Error(`Invalid document ID format: ${id}`);
+    }
+    
+    const { data, error } = await supabase
+      .from('Document')
+      .select()
+      .eq('id', id)
+      .order('createdAt', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error) {
+      console.error(`[DB Query] Error fetching document with ID ${id}:`, error);
+      throw new Error(`Database error: ${error.message}`);
+    }
+    
+    if (!data) {
+      console.warn(`[DB Query] No document found with ID: ${id}`);
+      throw new Error(`Document not found: ${id}`);
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('[DB Query] getDocumentById error:', error instanceof Error ? error.message : error);
+    throw error; // Re-throw to handle in the calling code
+  }
 }
 
 export async function deleteDocumentsByIdAfterTimestamp({
@@ -315,6 +335,25 @@ export async function getMessageById({ id }: { id: string }): Promise<Message> {
 
   if (error) throw error;
   return data;
+}
+
+/**
+ * Get all documents associated with a specific chat ID
+ */
+export async function getDocumentsByChatId({ chatId }: { chatId: string }): Promise<Document[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('Document')
+    .select()
+    .eq('chatId', chatId)
+    .order('createdAt', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching documents by chat ID:', error);
+    return [];
+  }
+  
+  return data || [];
 }
 
 export async function deleteMessagesByChatIdAfterTimestamp({

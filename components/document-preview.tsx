@@ -19,8 +19,7 @@ import { DocumentToolCall, DocumentToolResult } from './document';
 import { CodeEditor } from './code-editor';
 import { useArtifact } from '@/hooks/use-artifact';
 import equal from 'fast-deep-equal';
-import { SpreadsheetEditor } from './sheet-editor';
-import { ImageEditor } from './image-editor';
+
 
 interface DocumentPreviewProps {
   isReadonly: boolean;
@@ -37,7 +36,12 @@ export function DocumentPreview({
 
   const { data: documents, isLoading: isDocumentsFetching } = useSWR<
     Array<Document>
-  >(result ? `/api/document?id=${result.id}` : null, fetcher);
+  >(
+    result && result.id && result.id !== 'undefined' && result.id !== 'null'
+      ? `/api/document?id=${result.id}`
+      : null,
+    fetcher
+  );
 
   const previewDocument = useMemo(() => documents?.[0], [documents]);
   const hitboxRef = useRef<HTMLDivElement>(null);
@@ -45,7 +49,11 @@ export function DocumentPreview({
   useEffect(() => {
     const boundingBox = hitboxRef.current?.getBoundingClientRect();
 
-    if (artifact.documentId && boundingBox) {
+    if (artifact.documentId && 
+        artifact.documentId !== 'init' && 
+        artifact.documentId !== 'undefined' && 
+        artifact.documentId !== 'null' && 
+        boundingBox) {
       setArtifact((artifact) => ({
         ...artifact,
         boundingBox: {
@@ -92,6 +100,7 @@ export function DocumentPreview({
           kind: artifact.kind,
           content: artifact.content,
           id: artifact.documentId,
+          chatId: null,
           createdAt: new Date().toISOString(),
           userId: 'noop',
         }

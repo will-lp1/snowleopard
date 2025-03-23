@@ -2,15 +2,13 @@ import { Message } from 'ai';
 import { PreviewMessage, ThinkingMessage } from './message';
 import { useScrollToBottom } from './use-scroll-to-bottom';
 import { Overview } from './overview';
-import { memo } from 'react';
-import { Vote } from '@/lib/db/schema';
+import { memo, useState, useEffect } from 'react';
 import equal from 'fast-deep-equal';
 import { UseChatHelpers } from '@ai-sdk/react';
 
 interface MessagesProps {
   chatId: string;
   status: UseChatHelpers['status'];
-  votes: Array<Vote> | undefined;
   messages: Array<Message>;
   setMessages: UseChatHelpers['setMessages'];
   reload: UseChatHelpers['reload'];
@@ -21,7 +19,6 @@ interface MessagesProps {
 function PureMessages({
   chatId,
   status,
-  votes,
   messages,
   setMessages,
   reload,
@@ -29,6 +26,55 @@ function PureMessages({
 }: MessagesProps) {
   const [messagesContainerRef, messagesEndRef] =
     useScrollToBottom<HTMLDivElement>();
+
+  // Add effect to process message content for artifact update events
+  useEffect(() => {
+    if (messages.length === 0) return;
+    
+    // Check the last message for tool data
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage.role === 'assistant') {
+      try {
+        // Parse the message content to look for tool data
+        let content;
+        
+        if (typeof lastMessage.content === 'string') {
+          try {
+            content = JSON.parse(lastMessage.content);
+          } catch (e) {
+            // Not valid JSON, skip processing
+            return;
+          }
+        } else {
+          content = lastMessage.content;
+        }
+        
+        if (content && Array.isArray(content) && content.length > 0) {
+          // Scan for artifactUpdate data in the message
+          content.forEach(item => {
+            if (item && typeof item === 'object' && item.type === 'artifactUpdate') {
+              console.log('[Messages] Found artifactUpdate data in message, dispatching to editor');
+              
+              // Dispatch the data to the editor
+              if (typeof window !== 'undefined') {
+                try {
+                  const event = new CustomEvent('editor:stream-data', {
+                    detail: item
+                  });
+                  window.dispatchEvent(event);
+                } catch (err) {
+                  console.error('[Messages] Error dispatching editor event:', err);
+                }
+              }
+            }
+          });
+        }
+      } catch (error) {
+        // Not JSON or doesn't have the expected structure, which is fine
+        console.log('[Messages] Non-critical error parsing message content:', error);
+      }
+    }
+  }, [messages]);
 
   return (
     <div
@@ -43,11 +89,6 @@ function PureMessages({
           chatId={chatId}
           message={message}
           isLoading={status === 'streaming' && messages.length - 1 === index}
-          vote={
-            votes
-              ? votes.find((vote) => vote.messageId === message.id)
-              : undefined
-          }
           setMessages={setMessages}
           reload={reload}
           isReadonly={isReadonly}
@@ -73,7 +114,5 @@ export const Messages = memo(PureMessages, (prevProps, nextProps) => {
   if (prevProps.status && nextProps.status) return false;
   if (prevProps.messages.length !== nextProps.messages.length) return false;
   if (!equal(prevProps.messages, nextProps.messages)) return false;
-  if (!equal(prevProps.votes, nextProps.votes)) return false;
-
   return true;
 });

@@ -40,14 +40,6 @@ export class ChatPage {
     await response.finished();
   }
 
-  async isVoteComplete() {
-    const response = await this.page.waitForResponse((response) =>
-      response.url().includes('/api/vote'),
-    );
-
-    await response.finished();
-  }
-
   async hasChatIdInUrl() {
     await expect(this.page).toHaveURL(
       /^http:\/\/localhost:3000\/chat\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
@@ -108,26 +100,14 @@ export class ChatPage {
   }
 
   async getRecentAssistantMessage() {
-    const messageElements = await this.page
-      .getByTestId('message-assistant')
-      .all();
+    const messageElements = await this.page.getByTestId('message-assistant').all();
     const lastMessageElement = messageElements[messageElements.length - 1];
 
-    const content = await lastMessageElement
-      .getByTestId('message-content')
-      .innerText()
-      .catch(() => null);
+    const content = await lastMessageElement.innerText();
 
     const reasoningElement = await lastMessageElement
       .getByTestId('message-reasoning')
-      .isVisible()
-      .then(async (visible) =>
-        visible
-          ? await lastMessageElement
-              .getByTestId('message-reasoning')
-              .innerText()
-          : null,
-      )
+      .innerText()
       .catch(() => null);
 
     return {
@@ -138,12 +118,6 @@ export class ChatPage {
         await lastMessageElement
           .getByTestId('message-reasoning-toggle')
           .click();
-      },
-      async upvote() {
-        await lastMessageElement.getByTestId('message-upvote').click();
-      },
-      async downvote() {
-        await lastMessageElement.getByTestId('message-downvote').click();
       },
     };
   }

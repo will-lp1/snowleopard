@@ -55,23 +55,6 @@ export interface Database {
           createdAt?: string
         }
       }
-      Vote: {
-        Row: {
-          chatId: string
-          messageId: string
-          isUpvoted: boolean
-        }
-        Insert: {
-          chatId: string
-          messageId: string
-          isUpvoted: boolean
-        }
-        Update: {
-          chatId?: string
-          messageId?: string
-          isUpvoted?: boolean
-        }
-      }
       Document: {
         Row: {
           id: string
@@ -80,6 +63,7 @@ export interface Database {
           content: string | null
           kind: 'text' | 'code' | 'image' | 'sheet'
           userId: string
+          chatId: string | null
         }
         Insert: {
           id?: string
@@ -88,6 +72,7 @@ export interface Database {
           content?: string | null
           kind?: 'text' | 'code' | 'image' | 'sheet'
           userId: string
+          chatId?: string | null
         }
         Update: {
           id?: string
@@ -96,6 +81,7 @@ export interface Database {
           content?: string | null
           kind?: 'text' | 'code' | 'image' | 'sheet'
           userId?: string
+          chatId?: string | null
         }
       }
       Suggestion: {

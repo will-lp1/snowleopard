@@ -45,26 +45,6 @@ export const message = pgTable('Message', {
 
 export type Message = InferSelectModel<typeof message>;
 
-export const vote = pgTable(
-  'Vote',
-  {
-    chatId: uuid('chatId')
-      .notNull()
-      .references(() => chat.id),
-    messageId: uuid('messageId')
-      .notNull()
-      .references(() => message.id),
-    isUpvoted: boolean('isUpvoted').notNull(),
-  },
-  (table) => {
-    return {
-      pk: primaryKey({ columns: [table.chatId, table.messageId] }),
-    };
-  },
-);
-
-export type Vote = InferSelectModel<typeof vote>;
-
 export const document = pgTable(
   'Document',
   {
@@ -78,6 +58,8 @@ export const document = pgTable(
     userId: uuid('userId')
       .notNull()
       .references(() => user.id),
+    chatId: uuid('chatId')
+      .references(() => chat.id),
   },
   (table) => {
     return {

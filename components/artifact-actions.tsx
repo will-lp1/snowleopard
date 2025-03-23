@@ -5,7 +5,7 @@ import { Dispatch, memo, SetStateAction, useState } from 'react';
 import { ArtifactActionContext } from './create-artifact';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Copy as CopyIcon } from 'lucide-react';
 import { useDebouncedSave } from '@/hooks/use-debounced-save';
 
 interface ArtifactActionsProps {
@@ -34,8 +34,56 @@ function PureArtifactActions({
     (definition) => definition.kind === artifact.kind,
   );
 
+  // Handle case when artifact definition is not found
   if (!artifactDefinition) {
-    throw new Error('Artifact definition not found!');
+    // Fallback actions for when definition is not found
+    const fallbackActions = [
+      {
+        description: 'Copy to clipboard',
+        icon: <CopyIcon size={16} />,
+        onClick: () => {
+          navigator.clipboard.writeText(artifact.content);
+          toast.success('Copied to clipboard!');
+        }
+      }
+    ];
+    
+    const actionContext: ArtifactActionContext = {
+      content: artifact.content,
+      handleVersionChange,
+      currentVersionIndex,
+      isCurrentVersion,
+      mode,
+      metadata,
+      setMetadata,
+    };
+    
+    return (
+      <div className="flex flex-row gap-1 items-center">
+        {/* Saving indicator */}
+        {isCurrentVersion && isSaving && (
+          <div className="mr-2 text-xs text-muted-foreground flex items-center gap-2">
+            <Loader2 size={12} className="animate-spin" />
+            <span>Saving...</span>
+          </div>
+        )}
+        
+        {fallbackActions.map((action) => (
+          <Tooltip key={action.description}>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                className="h-fit dark:hover:bg-zinc-700 p-2"
+                onClick={() => action.onClick()}
+              >
+                {action.icon}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{action.description}</TooltipContent>
+          </Tooltip>
+        ))}
+      </div>
+    );
   }
 
   const actionContext: ArtifactActionContext = {

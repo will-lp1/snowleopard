@@ -7,7 +7,7 @@ import type { User } from '@supabase/auth-helpers-nextjs';
 import { memo, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import useSWR from 'swr';
-
+import { cn } from '@/lib/utils';
 import {
   CheckCircleFillIcon,
   GlobeIcon,
@@ -46,9 +46,12 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar';
-import type { Chat } from '@/lib/db/schema';
+import type { Chat, Document } from '@/lib/db/schema';
 import { fetcher } from '@/lib/utils';
 import { useChatVisibility } from '@/hooks/use-chat-visibility';
+import { useArtifact } from '@/hooks/use-artifact';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 
 type GroupedChats = {
   today: Chat[];
@@ -63,89 +66,128 @@ const PureChatItem = ({
   isActive,
   onDelete,
   setOpenMobile,
+  onSelect,
+  isSelectionMode,
+  isSelected,
+  onToggleSelect,
 }: {
   chat: Chat;
   isActive: boolean;
   onDelete: (chatId: string) => void;
   setOpenMobile: (open: boolean) => void;
+  onSelect: (chatId: string) => void;
+  isSelectionMode: boolean;
+  isSelected: boolean;
+  onToggleSelect: (chatId: string, isSelected: boolean) => void;
 }) => {
   const { visibilityType, setVisibilityType } = useChatVisibility({
     chatId: chat.id,
     initialVisibility: chat.visibility,
   });
 
+  const handleChatClick = () => {
+    if (isSelectionMode) {
+      onToggleSelect(chat.id, !isSelected);
+      return;
+    }
+    setOpenMobile(false);
+    onSelect(chat.id);
+  };
+
   return (
     <SidebarMenuItem>
-      <SidebarMenuButton asChild isActive={isActive}>
-        <Link href={`/chat/${chat.id}`} onClick={() => setOpenMobile(false)}>
-          <span>{chat.title}</span>
-        </Link>
-      </SidebarMenuButton>
-
-      <DropdownMenu modal={true}>
-        <DropdownMenuTrigger asChild>
-          <SidebarMenuAction
-            className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground mr-0.5"
-            showOnHover={!isActive}
+      <div className="flex items-center w-full">
+        {isSelectionMode && (
+          <div className="pl-2 pr-1">
+            <Checkbox
+              checked={isSelected}
+              onCheckedChange={(checked) => onToggleSelect(chat.id, !!checked)}
+              aria-label={`Select ${chat.title}`}
+            />
+          </div>
+        )}
+        <SidebarMenuButton 
+          asChild 
+          isActive={isActive}
+          className={cn(isSelectionMode && "flex-1")}
+        >
+          <Link 
+            href={isSelectionMode ? "#" : `/chat/${chat.id}`} 
+            onClick={handleChatClick}
           >
-            <MoreHorizontalIcon />
-            <span className="sr-only">More</span>
-          </SidebarMenuAction>
-        </DropdownMenuTrigger>
+            <span>{chat.title}</span>
+          </Link>
+        </SidebarMenuButton>
+      </div>
 
-        <DropdownMenuContent side="bottom" align="end">
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="cursor-pointer">
-              <ShareIcon />
-              <span>Share</span>
-            </DropdownMenuSubTrigger>
-            <DropdownMenuPortal>
-              <DropdownMenuSubContent>
-                <DropdownMenuItem
-                  className="cursor-pointer flex-row justify-between"
-                  onClick={() => {
-                    setVisibilityType('private');
-                  }}
-                >
-                  <div className="flex flex-row gap-2 items-center">
-                    <LockIcon size={12} />
-                    <span>Private</span>
-                  </div>
-                  {visibilityType === 'private' ? (
-                    <CheckCircleFillIcon />
-                  ) : null}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="cursor-pointer flex-row justify-between"
-                  onClick={() => {
-                    setVisibilityType('public');
-                  }}
-                >
-                  <div className="flex flex-row gap-2 items-center">
-                    <GlobeIcon />
-                    <span>Public</span>
-                  </div>
-                  {visibilityType === 'public' ? <CheckCircleFillIcon /> : null}
-                </DropdownMenuItem>
-              </DropdownMenuSubContent>
-            </DropdownMenuPortal>
-          </DropdownMenuSub>
+      {!isSelectionMode && (
+        <DropdownMenu modal={true}>
+          <DropdownMenuTrigger asChild>
+            <SidebarMenuAction
+              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground mr-0.5"
+              showOnHover={!isActive}
+            >
+              <MoreHorizontalIcon />
+              <span className="sr-only">More</span>
+            </SidebarMenuAction>
+          </DropdownMenuTrigger>
 
-          <DropdownMenuItem
-            className="cursor-pointer text-destructive focus:bg-destructive/15 focus:text-destructive dark:text-red-500"
-            onSelect={() => onDelete(chat.id)}
-          >
-            <TrashIcon />
-            <span>Delete</span>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+          <DropdownMenuContent side="bottom" align="end">
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="cursor-pointer">
+                <ShareIcon />
+                <span>Share</span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuPortal>
+                <DropdownMenuSubContent>
+                  <DropdownMenuItem
+                    className="cursor-pointer flex-row justify-between"
+                    onClick={() => {
+                      setVisibilityType('private');
+                    }}
+                  >
+                    <div className="flex flex-row gap-2 items-center">
+                      <LockIcon size={12} />
+                      <span>Private</span>
+                    </div>
+                    {visibilityType === 'private' ? (
+                      <CheckCircleFillIcon />
+                    ) : null}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="cursor-pointer flex-row justify-between"
+                    onClick={() => {
+                      setVisibilityType('public');
+                    }}
+                  >
+                    <div className="flex flex-row gap-2 items-center">
+                      <GlobeIcon />
+                      <span>Public</span>
+                    </div>
+                    {visibilityType === 'public' ? <CheckCircleFillIcon /> : null}
+                  </DropdownMenuItem>
+                </DropdownMenuSubContent>
+              </DropdownMenuPortal>
+            </DropdownMenuSub>
+
+            <DropdownMenuItem
+              className="cursor-pointer text-destructive focus:bg-destructive/15 focus:text-destructive dark:text-red-500"
+              onSelect={() => onDelete(chat.id)}
+            >
+              <TrashIcon />
+              <span>Delete</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
     </SidebarMenuItem>
   );
 };
 
 export const ChatItem = memo(PureChatItem, (prevProps, nextProps) => {
   if (prevProps.isActive !== nextProps.isActive) return false;
+  if (prevProps.isSelectionMode !== nextProps.isSelectionMode) return false;
+  if (prevProps.isSelected !== nextProps.isSelected) return false;
   return true;
 });
 
@@ -153,6 +195,9 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
   const { setOpenMobile } = useSidebar();
   const { id } = useParams();
   const pathname = usePathname();
+  const router = useRouter();
+  const { setArtifact } = useArtifact();
+  
   const {
     data: history,
     isLoading,
@@ -167,7 +212,39 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const router = useRouter();
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedChats, setSelectedChats] = useState<Set<string>>(new Set());
+  const [showMultiDeleteDialog, setShowMultiDeleteDialog] = useState(false);
+  
+  const handleToggleSelectionMode = () => {
+    setIsSelectionMode(!isSelectionMode);
+    setSelectedChats(new Set());
+  };
+  
+  const handleToggleSelect = (chatId: string, isSelected: boolean) => {
+    setSelectedChats(prev => {
+      const newSet = new Set(prev);
+      if (isSelected) {
+        newSet.add(chatId);
+      } else {
+        newSet.delete(chatId);
+      }
+      return newSet;
+    });
+  };
+  
+  const handleSelectAll = () => {
+    if (history) {
+      if (selectedChats.size === history.length) {
+        // Deselect all
+        setSelectedChats(new Set());
+      } else {
+        // Select all
+        setSelectedChats(new Set(history.map(chat => chat.id)));
+      }
+    }
+  };
+  
   const handleDelete = async () => {
     const deletePromise = fetch(`/api/chat?id=${deleteId}`, {
       method: 'DELETE',
@@ -178,7 +255,7 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
       success: () => {
         mutate((history) => {
           if (history) {
-            return history.filter((h) => h.id !== id);
+            return history.filter((h) => h.id !== deleteId);
           }
         });
         return 'Chat deleted successfully';
@@ -190,6 +267,91 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
 
     if (deleteId === id) {
       router.push('/');
+    }
+  };
+  
+  const handleDeleteMultiple = async () => {
+    const selectedChatIds = Array.from(selectedChats);
+    
+    // Create an array of delete promises
+    const deletePromises = selectedChatIds.map(chatId => 
+      fetch(`/api/chat?id=${chatId}`, {
+        method: 'DELETE',
+      })
+    );
+    
+    toast.promise(Promise.all(deletePromises), {
+      loading: `Deleting ${selectedChatIds.length} chats...`,
+      success: () => {
+        mutate((history) => {
+          if (history) {
+            return history.filter(h => !selectedChats.has(h.id));
+          }
+        });
+        setSelectedChats(new Set());
+        setIsSelectionMode(false);
+        
+        // If current chat is deleted, redirect to homepage
+        if (id && typeof id === 'string' && selectedChats.has(id)) {
+          router.push('/');
+        }
+        
+        return `${selectedChatIds.length} chats deleted successfully`;
+      },
+      error: 'Failed to delete chats',
+    });
+    
+    setShowMultiDeleteDialog(false);
+  };
+  
+  // Handler for when a chat is selected
+  const handleChatSelect = async (chatId: string) => {
+    try {
+      // Fetch documents for this chat
+      const response = await fetch(`/api/document?chatId=${chatId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch documents');
+      }
+      
+      const documents: Document[] = await response.json();
+      
+      // If there are documents associated with this chat
+      if (documents && documents.length > 0) {
+        // Get the most recent document
+        const latestDocument = documents[0]; // They're ordered by createdAt DESC
+        
+        // Update URL to include document
+        router.push(`/chat/${chatId}?document=${latestDocument.id}`);
+        
+        // Reset artifact state with the document's info
+        setArtifact(curr => ({
+          ...curr,
+          documentId: latestDocument.id,
+          title: latestDocument.title,
+          content: latestDocument.content || '',
+          kind: 'text',
+          status: 'idle',
+          isVisible: true,
+        }));
+      } else {
+        // No documents, navigate to chat without document parameter
+        router.push(`/chat/${chatId}`);
+        
+        // Reset artifact to initial state
+        setArtifact(curr => ({
+          ...curr,
+          documentId: 'init', 
+          title: 'New Document',
+          content: '',
+          status: 'idle',
+          kind: 'text' as const,
+          isVisible: true,
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading documents for chat:', error);
+      // Navigate to chat without document in case of error
+      router.push(`/chat/${chatId}`);
     }
   };
 
@@ -281,6 +443,58 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
 
   return (
     <>
+      {user && history && history.length > 0 && (
+        <div className="flex items-center justify-between px-2 py-1 mb-2">
+          <div className="flex items-center gap-2">
+            {isSelectionMode ? (
+              <>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={handleSelectAll}
+                  className="h-7 text-xs"
+                >
+                  {selectedChats.size === history.length ? 'Deselect All' : 'Select All'}
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  size="sm" 
+                  onClick={() => {
+                    if (selectedChats.size > 0) {
+                      setShowMultiDeleteDialog(true);
+                    }
+                  }}
+                  disabled={selectedChats.size === 0}
+                  className="h-7 text-xs"
+                >
+                  Delete ({selectedChats.size})
+                </Button>
+              </>
+            ) : (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleToggleSelectionMode}
+                className="h-7 text-xs"
+              >
+                Select
+              </Button>
+            )}
+          </div>
+          
+          {isSelectionMode && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleToggleSelectionMode}
+              className="h-7 text-xs"
+            >
+              Cancel
+            </Button>
+          )}
+        </div>
+      )}
+    
       <SidebarGroup>
         <SidebarGroupContent>
           <SidebarMenu>
@@ -305,6 +519,10 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
                               setShowDeleteDialog(true);
                             }}
                             setOpenMobile={setOpenMobile}
+                            onSelect={handleChatSelect}
+                            isSelectionMode={isSelectionMode}
+                            isSelected={selectedChats.has(chat.id)}
+                            onToggleSelect={handleToggleSelect}
                           />
                         ))}
                       </>
@@ -325,6 +543,10 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
                               setShowDeleteDialog(true);
                             }}
                             setOpenMobile={setOpenMobile}
+                            onSelect={handleChatSelect}
+                            isSelectionMode={isSelectionMode}
+                            isSelected={selectedChats.has(chat.id)}
+                            onToggleSelect={handleToggleSelect}
                           />
                         ))}
                       </>
@@ -345,6 +567,10 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
                               setShowDeleteDialog(true);
                             }}
                             setOpenMobile={setOpenMobile}
+                            onSelect={handleChatSelect}
+                            isSelectionMode={isSelectionMode}
+                            isSelected={selectedChats.has(chat.id)}
+                            onToggleSelect={handleToggleSelect}
                           />
                         ))}
                       </>
@@ -365,6 +591,10 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
                               setShowDeleteDialog(true);
                             }}
                             setOpenMobile={setOpenMobile}
+                            onSelect={handleChatSelect}
+                            isSelectionMode={isSelectionMode}
+                            isSelected={selectedChats.has(chat.id)}
+                            onToggleSelect={handleToggleSelect}
                           />
                         ))}
                       </>
@@ -385,6 +615,10 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
                               setShowDeleteDialog(true);
                             }}
                             setOpenMobile={setOpenMobile}
+                            onSelect={handleChatSelect}
+                            isSelectionMode={isSelectionMode}
+                            isSelected={selectedChats.has(chat.id)}
+                            onToggleSelect={handleToggleSelect}
                           />
                         ))}
                       </>
@@ -408,6 +642,27 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete}>
               Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      <AlertDialog open={showMultiDeleteDialog} onOpenChange={setShowMultiDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedChats.size} chats?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the selected
+              chats and remove them from our servers.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteMultiple}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Delete {selectedChats.size} chats
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

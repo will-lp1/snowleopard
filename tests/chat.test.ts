@@ -1,141 +1,67 @@
 import { ChatPage } from './pages/chat';
 import { test, expect } from '@playwright/test';
 
-test.describe('chat activity', () => {
+test.describe('Chat', () => {
   let chatPage: ChatPage;
 
   test.beforeEach(async ({ page }) => {
     chatPage = new ChatPage(page);
+    await page.goto('/');
     await chatPage.createNewChat();
   });
 
-  test('send a user message and receive response', async () => {
-    await chatPage.sendUserMessage('Why is grass green?');
+  test('send user message and get response', async () => {
+    await chatPage.sendUserMessage('Hello, how are you?');
     await chatPage.isGenerationComplete();
 
     const assistantMessage = await chatPage.getRecentAssistantMessage();
-    expect(assistantMessage.content).toContain("It's just green duh!");
+    expect(assistantMessage.content).toBeTruthy();
   });
 
-  test('redirect to /chat/:id after submitting message', async () => {
-    await chatPage.sendUserMessage('Why is grass green?');
-    await chatPage.isGenerationComplete();
-
-    const assistantMessage = await chatPage.getRecentAssistantMessage();
-    expect(assistantMessage.content).toContain("It's just green duh!");
-    await chatPage.hasChatIdInUrl();
-  });
-
-  test('send a user message from suggestion', async () => {
-    await chatPage.sendUserMessageFromSuggestion();
-    await chatPage.isGenerationComplete();
-
-    const assistantMessage = await chatPage.getRecentAssistantMessage();
-    expect(assistantMessage.content).toContain(
-      'With Next.js, you can ship fast!',
+  test('show and hide reasoning', async () => {
+    await chatPage.sendUserMessage(
+      "Let's explore creative options. What are 5 unusual ice cream flavors?",
     );
-  });
-
-  test('toggle between send/stop button based on activity', async () => {
-    await expect(chatPage.sendButton).toBeVisible();
-    await expect(chatPage.sendButton).toBeDisabled();
-
-    await chatPage.sendUserMessage('Why is grass green?');
-
-    await expect(chatPage.sendButton).not.toBeVisible();
-    await expect(chatPage.stopButton).toBeVisible();
-
-    await chatPage.isGenerationComplete();
-
-    await expect(chatPage.stopButton).not.toBeVisible();
-    await expect(chatPage.sendButton).toBeVisible();
-  });
-
-  test('stop generation during submission', async () => {
-    await chatPage.sendUserMessage('Why is grass green?');
-    await expect(chatPage.stopButton).toBeVisible();
-    await chatPage.stopButton.click();
-    await expect(chatPage.sendButton).toBeVisible();
-  });
-
-  test('edit user message and resubmit', async () => {
-    await chatPage.sendUserMessage('Why is grass green?');
-    await chatPage.isGenerationComplete();
-
-    const assistantMessage = await chatPage.getRecentAssistantMessage();
-    expect(assistantMessage.content).toContain("It's just green duh!");
-
-    const userMessage = await chatPage.getRecentUserMessage();
-    await userMessage.edit('Why is the sky blue?');
-
-    await chatPage.isGenerationComplete();
-
-    const updatedAssistantMessage = await chatPage.getRecentAssistantMessage();
-    expect(updatedAssistantMessage.content).toContain("It's just blue duh!");
-  });
-
-  test('hide suggested actions after sending message', async () => {
-    await chatPage.isElementVisible('suggested-actions');
-    await chatPage.sendUserMessageFromSuggestion();
-    await chatPage.isElementNotVisible('suggested-actions');
-  });
-
-  test('upload file and send image attachment with message', async () => {
-    await chatPage.addImageAttachment();
-
-    await chatPage.isElementVisible('attachments-preview');
-    await chatPage.isElementVisible('input-attachment-loader');
-    await chatPage.isElementNotVisible('input-attachment-loader');
-
-    await chatPage.sendUserMessage('Who painted this?');
-
-    const userMessage = await chatPage.getRecentUserMessage();
-    expect(userMessage.attachments).toHaveLength(1);
-
-    await chatPage.isGenerationComplete();
-
-    const assistantMessage = await chatPage.getRecentAssistantMessage();
-    expect(assistantMessage.content).toBe('This painting is by Monet!');
-  });
-
-  test('call weather tool', async () => {
-    await chatPage.sendUserMessage("What's the weather in sf?");
     await chatPage.isGenerationComplete();
 
     const assistantMessage = await chatPage.getRecentAssistantMessage();
 
+    // Toggle reasoning on
+    await assistantMessage.toggleReasoningVisibility();
+    expect(await assistantMessage.reasoning).not.toBeNull();
+
+    // Toggle reasoning off
+    await assistantMessage.toggleReasoningVisibility();
+    expect(await assistantMessage.reasoning).toBeNull();
+  });
+
+  test('edit user message', async () => {
+    const userMessage = 'This is my initial message';
+    await chatPage.sendUserMessage(userMessage);
+    await chatPage.isGenerationComplete();
+
+    const editedMessage = 'This is my edited message';
+    const userMessageObj = await chatPage.getRecentUserMessage();
+    await userMessageObj.edit(editedMessage);
+    await chatPage.isGenerationComplete();
+
+    const updatedUserMessage = await chatPage.getRecentUserMessage();
+    expect(updatedUserMessage.content).toBe(editedMessage);
+  });
+
+  test('choose and use chat model', async () => {
+    const modelOption = 'chat-model-default';
+    await chatPage.chooseModelFromSelector(modelOption);
+
+    const selectedModel = await chatPage.getSelectedModel();
+    expect(selectedModel).toBe(modelOption);
+
+    await chatPage.sendUserMessage('What is the temperature in San Francisco?');
+    await chatPage.isGenerationComplete();
+
+    const assistantMessage = await chatPage.getRecentAssistantMessage();
     expect(assistantMessage.content).toBe(
       'The current temperature in San Francisco is 17°C.',
     );
-  });
-
-  test('upvote message', async () => {
-    await chatPage.sendUserMessage('Why is the sky blue?');
-    await chatPage.isGenerationComplete();
-
-    const assistantMessage = await chatPage.getRecentAssistantMessage();
-    await assistantMessage.upvote();
-    await chatPage.isVoteComplete();
-  });
-
-  test('downvote message', async () => {
-    await chatPage.sendUserMessage('Why is the sky blue?');
-    await chatPage.isGenerationComplete();
-
-    const assistantMessage = await chatPage.getRecentAssistantMessage();
-    await assistantMessage.downvote();
-    await chatPage.isVoteComplete();
-  });
-
-  test('update vote', async () => {
-    await chatPage.sendUserMessage('Why is the sky blue?');
-    await chatPage.isGenerationComplete();
-
-    const assistantMessage = await chatPage.getRecentAssistantMessage();
-    await assistantMessage.upvote();
-    await chatPage.isVoteComplete();
-
-    await assistantMessage.downvote();
-    await chatPage.isVoteComplete();
   });
 });

@@ -1,3 +1,18 @@
+# Snow Leopard
+
+An AI-powered writing assistant with document editing capabilities and chatbot integration.
+
+## Snow Leopard Features
+
+- **Integrated Document Editing**: Edit and create documents directly within the chat interface
+- **Document Renaming**: Edit document titles and manage document properties easily
+- **Version History**: Track and review document changes over time
+- **Context-Aware AI**: The AI assistant understands your document's content and can help you improve it
+- **Seamless Chat Integration**: Create new chats linked to existing documents for collaborative sessions
+- **Unified Interface**: Consistent document creation and management across the application
+- **Real-time Collaboration**: Seamless integration between document editing and AI assistance
+- **Easy Document Creation**: Create new documents with a single click from anywhere in the app
+
 <a href="https://chat.vercel.ai/">
   <img alt="Next.js 14 and App Router-ready AI chatbot." src="app/(chat)/opengraph-image.png">
   <h1 align="center">Next.js AI Chatbot</h1>
