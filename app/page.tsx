@@ -13,8 +13,7 @@ const crimson = Crimson_Text({
   display: 'swap',
 })
 
-// Name the component to prevent @page.tsx flash
-export function Page() {
+export default function Home() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const router = useRouter()
   const supabase = createClient()
@@ -164,9 +163,6 @@ export function Page() {
     </div>
   )
 }
-
-// Default export uses the named component
-export default Page
 
 // Add this to your globals.css
 /* 
