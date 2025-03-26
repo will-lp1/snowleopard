@@ -7,8 +7,8 @@ import { DataStreamHandler } from '@/components/data-stream-handler';
 import { AlwaysVisibleArtifact } from '@/components/always-visible-artifact';
 import { ResizablePanel } from '@/components/resizable-panel';
 
-// Named export to prevent "@page.tsx" flash during transitions
-export async function ChatPage() {
+// Default export as required by Next.js app router
+export default async function Page() {
   const id = generateUUID();
 
   const cookieStore = await cookies();
@@ -39,6 +39,3 @@ export async function ChatPage() {
     </>
   );
 }
-
-// Default export uses the named component
-export default ChatPage;
