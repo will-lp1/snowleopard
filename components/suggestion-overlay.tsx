@@ -293,7 +293,112 @@ export default function SuggestionOverlay({
   const handleAcceptSuggestion = useCallback(async (suggestedText: string) => {
     if (!artifact.documentId || !originalContent) return;
 
-    // Update the content in the artifact
+    // Try to apply to ProseMirror editor if available
+    try {
+      // Define interface for Vue-enhanced elements 
+      interface VueElement extends Element {
+        __vue__?: {
+          $refs?: {
+            editor?: {
+              view?: any;
+            };
+          };
+        };
+      }
+
+      // Get the ProseMirror view instance
+      const editorView = (document.querySelector('.ProseMirror') as VueElement)?.__vue__?.$refs?.editor?.view;
+      
+      if (editorView) {
+        const { state, dispatch } = editorView;
+        const { tr } = state;
+        
+        // Search for original content in document
+        const docText = state.doc.textContent;
+        let startPos = docText.indexOf(originalContent);
+        
+        if (startPos !== -1) {
+          // Find exact position in document structure
+          const endPos = startPos + originalContent.length;
+          
+          // Search for closest textNode containing the original content
+          let foundNode = false;
+          let nodeStartPos = 0;
+          let nodeEndPos = 0;
+          
+          state.doc.descendants((node: any, pos: number) => {
+            if (foundNode) return false;
+            
+            if (node.isText && node.text?.includes(originalContent)) {
+              nodeStartPos = pos;
+              nodeEndPos = pos + node.nodeSize;
+              foundNode = true;
+              return false;
+            }
+            
+            if (node.textContent.includes(originalContent)) {
+              // Check if this is a formatted node like a list item
+              const isListItem = node.type.name === 'listItem' || 
+                                node.type.name === 'bulletList' || 
+                                node.type.name === 'orderedList';
+              
+              if (isListItem) {
+                // For list items, handle specially
+                nodeStartPos = pos;
+                nodeEndPos = pos + node.nodeSize;
+                foundNode = true;
+                return false;
+              }
+            }
+            
+            return true;
+          });
+          
+          if (foundNode) {
+            // For list items and other formatting, try to preserve structure
+            const $start = state.doc.resolve(nodeStartPos);
+            const $end = state.doc.resolve(nodeEndPos);
+            const isListItem = $start.parent.type.name === 'listItem' || 
+                              $start.node().type.name === 'listItem' ||
+                              $start.parent.type.name === 'bulletList' ||
+                              $start.parent.type.name === 'orderedList';
+            
+            if (isListItem) {
+              // For list items, create proper structure
+              const schema = state.schema;
+              const paragraphType = schema.nodes.paragraph;
+              const listItemType = schema.nodes.listItem;
+              
+              // Create content with preserved formatting
+              const paragraph = paragraphType.create(
+                null,
+                schema.text(suggestedText)
+              );
+              
+              const listItem = listItemType.create(
+                $start.parent.attrs,
+                paragraph
+              );
+              
+              tr.replaceWith(nodeStartPos, nodeEndPos, listItem);
+            } else {
+              // For regular text, simple replacement
+              tr.replaceWith(nodeStartPos, nodeEndPos, state.schema.text(suggestedText));
+            }
+            
+            dispatch(tr);
+            toast.success('Changes applied');
+            onClose();
+            return;
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error applying to ProseMirror:', err);
+      // Fall back to direct content replacement
+    }
+
+    // Fallback: Update the content in the artifact directly
     const updatedContent = artifact.content.replace(originalContent, suggestedText);
     
     // Update local state

@@ -107,15 +107,11 @@ export const inlineSuggestionsPlugin = new Plugin<InlineSuggestionState>({
         if (pluginState.currentSuggestion) {
           event.preventDefault();
           
-          // Insert the suggestion at cursor position
-          const { tr } = view.state;
-          const pos = view.state.selection.from;
-          tr.insertText(pluginState.currentSuggestion);
+          // Use the new helper function to insert formatted content
+          insertFormattedContent(view, pluginState.currentSuggestion);
           
           // Clear the suggestion
-          tr.setMeta(inlineSuggestionsKey, { type: 'clear' });
-          
-          view.dispatch(tr);
+          view.dispatch(view.state.tr.setMeta(inlineSuggestionsKey, { type: 'clear' }));
           return true;
         }
       }
@@ -246,15 +242,20 @@ async function requestInlineSuggestion(view: EditorView, documentId: string): Pr
     const $pos = state.selection.$from;
     const node = $pos.node();
     
-    if (!node || node.type.name !== 'paragraph') {
+    if (!node) {
       return;
     }
 
-    // Get context before cursor (within the current paragraph)
-    const contextBefore = node.textBetween(0, $pos.parentOffset);
+    // Get node type and attributes for context
+    const nodeType = node.type.name;
+    const nodeAttrs = node.attrs;
+    const parentNodeType = $pos.parent.type.name;
+
+    // Get context before cursor (within the current block)
+    const contextBefore = node.textBetween(0, $pos.parentOffset, '\n', '  ');
     
     // Get some context after cursor for better predictions
-    const contextAfter = node.textBetween($pos.parentOffset, node.content.size);
+    const contextAfter = node.textBetween($pos.parentOffset, node.content.size, '\n', '  ');
 
     const response = await fetch('/api/inline-suggestion', {
       method: 'POST',
@@ -265,7 +266,10 @@ async function requestInlineSuggestion(view: EditorView, documentId: string): Pr
         documentId,
         currentContent: contextBefore,
         contextAfter,
-        nodeType: node.type.name
+        nodeType,
+        nodeAttrs,
+        parentNodeType,
+        isListItem: nodeType === 'listItem' || parentNodeType === 'bulletList' || parentNodeType === 'orderedList'
       }),
       signal: abortController.signal
     });
@@ -336,14 +340,30 @@ function updateSuggestionDisplay(view: EditorView, suggestion: string) {
   if (!suggestion.trim()) return;
 
   const state = view.state;
-  const pos = state.selection.from;
+  const $pos = state.selection.$from;
+  const pos = $pos.pos;
   
   // Create inline decoration for suggestion
   const decoration = Decoration.widget(pos, () => {
     const span = document.createElement('span');
     span.className = 'inline-suggestion';
     span.setAttribute('aria-label', 'Press Tab to accept suggestion');
-    span.textContent = suggestion;
+    
+    // Handle list items and other formatted content
+    const isListItem = $pos.parent.type.name === 'listItem' || 
+                      $pos.node().type.name === 'listItem' ||
+                      $pos.parent.type.name === 'bulletList' ||
+                      $pos.parent.type.name === 'orderedList';
+    
+    // Format suggestion based on context
+    if (isListItem) {
+      // For list items, ensure proper indentation and bullet point handling
+      const lines = suggestion.split('\n');
+      span.textContent = lines.map(line => line.trim()).join('\n  ');
+    } else {
+      span.textContent = suggestion;
+    }
+    
     return span;
   }, {
     side: 1,
@@ -356,4 +376,79 @@ function updateSuggestionDisplay(view: EditorView, suggestion: string) {
     decorations: DecorationSet.create(state.doc, [decoration]),
     suggestion
   }));
+}
+
+// Add helper function to handle formatted content insertion
+function insertFormattedContent(view: EditorView, suggestion: string) {
+  const state = view.state;
+  const { tr } = state;
+  const $pos = state.selection.$from;
+  const node = $pos.node();
+  
+  if (!node) return;
+
+  const isListItem = node.type.name === 'listItem' || 
+                    $pos.parent.type.name === 'listItem' ||
+                    $pos.parent.type.name === 'bulletList' ||
+                    $pos.parent.type.name === 'orderedList';
+
+  if (isListItem) {
+    // Handle list item insertion with proper node structure
+    const schema = state.schema;
+    const listItemType = schema.nodes.listItem;
+    const paragraphType = schema.nodes.paragraph;
+    const bulletListType = schema.nodes.bulletList;
+    const orderedListType = schema.nodes.orderedList;
+    
+    // Determine if we're in a bullet list or ordered list
+    const parentNode = $pos.parent;
+    const isOrderedList = parentNode.type.name === 'orderedList' || 
+                          (parentNode.type.name === 'listItem' && 
+                           $pos.depth > 1 && $pos.node($pos.depth - 1).type.name === 'orderedList');
+    
+    // Get parent attributes to maintain consistency
+    const parentAttrs = parentNode.attrs || {};
+    
+    const lines = suggestion.split('\n');
+    
+    if (lines.length === 1) {
+      // For single line, just insert the text at cursor position
+      const startPos = $pos.pos;
+      const endPos = startPos + node.textContent.length - $pos.parentOffset;
+      tr.insertText(suggestion, startPos);
+    } else {
+      // For multiple lines, create proper list item structure
+      const listItems = lines.map(line => {
+        // Create paragraph for the list item content
+        const paragraph = paragraphType.create(
+          null,
+          schema.text(line.trim())
+        );
+        
+        // Create list item with the paragraph as content
+        return listItemType.create(
+          parentAttrs,
+          paragraph
+        );
+      });
+      
+      // Create the list container with appropriate type
+      const listNode = isOrderedList ? 
+        orderedListType.create(null, listItems) : 
+        bulletListType.create(null, listItems);
+      
+      // Find position to insert
+      const depth = $pos.depth;
+      const startPos = $pos.start(depth);
+      const endPos = $pos.end(depth);
+      
+      // Replace the current list item(s) with our new list structure
+      tr.replaceWith(startPos, endPos, listNode);
+    }
+  } else {
+    // For regular text, simply insert at cursor position
+    tr.insertText(suggestion, $pos.pos);
+  }
+  
+  view.dispatch(tr);
 } 

@@ -5,6 +5,17 @@ import SuggestionOverlay from './suggestion-overlay';
 import { useArtifact } from '@/hooks/use-artifact';
 import { toast } from 'sonner';
 
+// Define interface for Vue-enhanced elements
+interface VueElement extends Element {
+  __vue__?: {
+    $refs?: {
+      editor?: {
+        view?: any;
+      };
+    };
+  };
+}
+
 interface SuggestionOverlayContextType {
   openSuggestionOverlay: (options: {
     position?: { x: number; y: number };
@@ -47,23 +58,50 @@ export function SuggestionOverlayProvider({ children }: { children: ReactNode })
       return;
     }
 
-    // If we have selected text, we replace that portion
-    // Otherwise replace the entire content
-    if (selectedText) {
-      const newContent = artifact.content.replace(selectedText, suggestion);
-      setArtifact({
-        ...artifact,
-        content: newContent
-      });
-      toast.success("Suggestion applied");
-    } else {
-      setArtifact({
-        ...artifact,
-        content: suggestion
-      });
-      toast.success("Document updated with suggestion");
+    // Get the ProseMirror view instance
+    const editorView = (document.querySelector('.ProseMirror') as VueElement)?.__vue__?.$refs?.editor?.view;
+    if (!editorView) {
+      toast.error("Could not find editor instance");
+      return;
     }
-  }, [artifact, selectedText, setArtifact]);
+
+    const { state, dispatch } = editorView;
+    const { tr } = state;
+    
+    try {
+      if (selectedText) {
+        // Find the exact position of the selected text in the document
+        const docText = state.doc.textContent;
+        const startPos = docText.indexOf(selectedText);
+        
+        if (startPos !== -1) {
+          const endPos = startPos + selectedText.length;
+          const $start = state.doc.resolve(startPos);
+          const $end = state.doc.resolve(endPos);
+          
+          // Create a text selection
+          tr.replaceWith($start.pos, $end.pos, state.schema.text(suggestion));
+          dispatch(tr);
+          toast.success("Suggestion applied");
+        } else {
+          toast.error("Could not locate selected text");
+        }
+      } else {
+        // Replace entire node content while preserving formatting
+        const node = tr.selection.$from.node();
+        if (node) {
+          const pos = tr.selection.$from.start();
+          const end = tr.selection.$from.end();
+          tr.replaceWith(pos, end, state.schema.text(suggestion));
+          dispatch(tr);
+          toast.success("Document updated with suggestion");
+        }
+      }
+    } catch (error) {
+      console.error('Error applying suggestion:', error);
+      toast.error("Failed to apply suggestion");
+    }
+  }, [artifact, selectedText]);
 
   // Setup global keyboard shortcut for cmd+k
   useEffect(() => {
