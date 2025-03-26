@@ -15,6 +15,7 @@ import {
   MoreHorizontalIcon,
   ShareIcon,
   TrashIcon,
+  FileIcon,
 } from '@/components/icons';
 import {
   AlertDialog,
@@ -50,6 +51,7 @@ import type { Chat, Document } from '@/lib/db/schema';
 import { fetcher } from '@/lib/utils';
 import { useChatVisibility } from '@/hooks/use-chat-visibility';
 import { useArtifact } from '@/hooks/use-artifact';
+import { ArtifactKind } from '@/components/artifact';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 
@@ -85,6 +87,13 @@ const PureChatItem = ({
     initialVisibility: chat.visibility,
   });
 
+  // Fetch documents linked to this chat
+  const { data: linkedDocuments } = useSWR<Document[]>(
+    `/api/document?chatId=${chat.id}`,
+    fetcher,
+    { revalidateOnFocus: false }
+  );
+
   const handleChatClick = () => {
     if (isSelectionMode) {
       onToggleSelect(chat.id, !isSelected);
@@ -93,6 +102,11 @@ const PureChatItem = ({
     setOpenMobile(false);
     onSelect(chat.id);
   };
+
+  // Get the latest document if any
+  const latestDocument = linkedDocuments && linkedDocuments.length > 0
+    ? linkedDocuments[0]
+    : null;
 
   return (
     <SidebarMenuItem>
@@ -112,10 +126,17 @@ const PureChatItem = ({
           className={cn(isSelectionMode && "flex-1")}
         >
           <Link 
-            href={isSelectionMode ? "#" : `/chat/${chat.id}`} 
+            href={isSelectionMode ? "#" : `/chat/${chat.id}${latestDocument ? `?document=${latestDocument.id}` : ''}`} 
             onClick={handleChatClick}
           >
-            <span>{chat.title}</span>
+            <div className="flex flex-col w-full">
+              <span className="truncate">{chat.title}</span>
+              {latestDocument && (
+                <span className="truncate text-xs text-muted-foreground">
+                  {latestDocument.title}
+                </span>
+              )}
+            </div>
           </Link>
         </SidebarMenuButton>
       </div>
@@ -317,8 +338,13 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
       
       // If there are documents associated with this chat
       if (documents && documents.length > 0) {
+        // Sort by creation date descending to get latest document
+        documents.sort((a, b) => 
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        
         // Get the most recent document
-        const latestDocument = documents[0]; // They're ordered by createdAt DESC
+        const latestDocument = documents[0];
         
         // Update URL to include document
         router.push(`/chat/${chatId}?document=${latestDocument.id}`);
@@ -329,9 +355,10 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
           documentId: latestDocument.id,
           title: latestDocument.title,
           content: latestDocument.content || '',
-          kind: 'text',
+          kind: (latestDocument.kind as ArtifactKind) || 'text',
           status: 'idle',
           isVisible: true,
+          boundingBox: curr.boundingBox // maintain the current bounding box
         }));
       } else {
         // No documents, navigate to chat without document parameter
@@ -344,14 +371,29 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
           title: 'New Document',
           content: '',
           status: 'idle',
-          kind: 'text' as const,
+          kind: 'text' as ArtifactKind,
           isVisible: true,
+          boundingBox: curr.boundingBox // maintain the current bounding box
         }));
       }
     } catch (error) {
       console.error('Error loading documents for chat:', error);
       // Navigate to chat without document in case of error
       router.push(`/chat/${chatId}`);
+      
+      // Also reset artifact to initial state
+      setArtifact(curr => ({
+        ...curr,
+        documentId: 'init',
+        title: 'New Document',
+        content: '',
+        status: 'idle',
+        kind: 'text' as ArtifactKind,
+        isVisible: true,
+        boundingBox: curr.boundingBox // maintain the current bounding box
+      }));
+      
+      toast.error('Failed to load documents');
     }
   };
 
@@ -360,7 +402,7 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
       <SidebarGroup>
         <SidebarGroupContent>
           <div className="px-2 text-zinc-500 w-full flex flex-row justify-center items-center text-sm gap-2">
-            Login to save and revisit previous chats!
+            Login to see your chat history
           </div>
         </SidebarGroupContent>
       </SidebarGroup>
@@ -371,7 +413,7 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
     return (
       <SidebarGroup>
         <div className="px-2 py-1 text-xs text-sidebar-foreground/50">
-          Today
+          Loading...
         </div>
         <SidebarGroupContent>
           <div className="flex flex-col">
@@ -401,7 +443,7 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
       <SidebarGroup>
         <SidebarGroupContent>
           <div className="px-2 text-zinc-500 w-full flex flex-row justify-center items-center text-sm gap-2">
-            Your conversations will appear here once you start chatting!
+            You don't have any chats yet
           </div>
         </SidebarGroupContent>
       </SidebarGroup>

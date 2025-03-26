@@ -97,6 +97,9 @@ function PureEditor({
   // Add state for section-by-section diffs
   const [diffSections, setDiffSections] = useState<DiffSection[]>([]);
   const aiUpdateInProgressRef = useRef<boolean>(false);
+  
+  // Check if we're in a placeholder document state
+  const isPlaceholderDocument = documentId === 'init';
 
   // New function to create diff sections from old and new content
   const generateDiffSections = useCallback((oldText: string, newText: string) => {
@@ -170,10 +173,15 @@ function PureEditor({
     setDiffSections(filteredSections);
   }, []);
 
-  // Initialize editor
+  // Initialize editor with appropriate placeholder text
   useEffect(() => {
     if (containerRef.current && !editorRef.current) {
       console.log('[Editor] Initializing editor with document ID:', documentId);
+      
+      // Set appropriate placeholder text based on document state
+      const placeholderText = isPlaceholderDocument 
+        ? 'Start typing to create a document, or name your document first...'
+        : 'Start typing here...';
       
       const state = EditorState.create({
         doc: buildDocumentFromContent(content),
@@ -191,7 +199,7 @@ function PureEditor({
           }),
           suggestionsPlugin,
           inlineSuggestionsPlugin,
-          placeholderPlugin('Start typing here...'),
+          placeholderPlugin(placeholderText),
         ],
       });
 
@@ -217,7 +225,7 @@ function PureEditor({
         saveTimeoutRef.current = null;
       }
     };
-  }, [documentId]); // Keep documentId dependency only
+  }, [documentId, isPlaceholderDocument, content]); // Added isPlaceholderDocument dependency
 
   // Update document ID whenever it changes
   useEffect(() => {
@@ -236,7 +244,7 @@ function PureEditor({
     }
   }, [saveState]);
 
-  // Configure transaction handling and save logic
+  // Configure transaction handling and save logic - modify to handle placeholder docs specially
   useEffect(() => {
     if (!editorRef.current) return;
 
@@ -273,8 +281,13 @@ function PureEditor({
             saveTimeoutRef.current = null;
           }
           
-          // Only schedule a new save if we're not already in a saving state
-          if (saveState !== 'saving') {
+          // Only schedule a new save if:
+          // 1. We're not already saving
+          // 2. And either we have a real document OR we have content for a new one
+          const shouldTrySave = saveState !== 'saving' && 
+                              (documentId !== 'init' || updatedContent.trim().length > 0);
+          
+          if (shouldTrySave) {
             saveTimeoutRef.current = setTimeout(() => {
               if (contentChangedRef.current) {
                 console.log(`[Editor] Triggering save for document ID: ${documentId}`);
@@ -283,7 +296,8 @@ function PureEditor({
               saveTimeoutRef.current = null;
             }, 1000); // 1 second debounce
           } else {
-            console.log('[Editor] Not scheduling save - already saving');
+            console.log('[Editor] Not scheduling save - ' + 
+              (saveState === 'saving' ? 'already saving' : 'no document to save yet'));
           }
         }
       },
@@ -296,7 +310,7 @@ function PureEditor({
         saveTimeoutRef.current = null;
       }
     };
-  }, [onSaveContent, documentId, saveState]);
+  }, [onSaveContent, documentId, saveState, isPlaceholderDocument]);
 
   // Handle content updates from parent - only run when editor is already initialized
   useEffect(() => {

@@ -105,43 +105,72 @@ export function PureArtifact({
 }) {
   const { artifact, setArtifact, metadata, setMetadata } = useArtifact();
   const { debouncedSave, saveImmediately, isSaving } = useDebouncedSave(2000);
-  const { renameDocument, isRenamingDocument } = useDocumentUtils();
+  const { renameDocument, isRenamingDocument, createDocument } = useDocumentUtils();
   
   const [editingTitle, setEditingTitle] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const documentFetchAttempts = useRef(0);
+  const MAX_FETCH_ATTEMPTS = 3;
 
   const {
     data: documents,
     isLoading: isDocumentsFetching,
     mutate: mutateDocuments,
+    error: documentsError
   } = useSWR<Array<Document>>(
     `/api/document?id=${artifact.documentId}`,
     async (url: string) => {
-      if (artifact.documentId === 'init' || 
+      if (!artifact.documentId || 
+          artifact.documentId === 'init' || 
           artifact.documentId === 'undefined' || 
           artifact.documentId === 'null' || 
           artifact.status === 'streaming') {
         return null;
       }
-      return fetcher(url);
+      
+      try {
+        const result = await fetcher(url);
+        documentFetchAttempts.current = 0; // Reset on success
+        return result;
+      } catch (error) {
+        // Implement exponential backoff for retries
+        if (documentFetchAttempts.current < MAX_FETCH_ATTEMPTS) {
+          documentFetchAttempts.current += 1;
+          console.warn(`[Artifact] Document fetch attempt ${documentFetchAttempts.current} failed, retrying...`);
+          setTimeout(() => mutateDocuments(), 1000 * Math.pow(2, documentFetchAttempts.current));
+        }
+        console.error('[Artifact] Failed to fetch document:', error);
+        return null;
+      }
     }
   );
 
   const [mode, setMode] = useState<'edit' | 'diff'>('edit');
   const [document, setDocument] = useState<Document | null>(null);
   const [currentVersionIndex, setCurrentVersionIndex] = useState(-1);
+  const [isCreatingNewDocument, setIsCreatingNewDocument] = useState(false);
 
   const { open: isSidebarOpen } = useSidebar();
+
+  // Create a new document - use the consolidated createDocument function
+  const createNewDocument = useCallback(async () => {
+    // Use the centralized document creation function
+    return await createDocument({
+      title: 'Untitled Document',
+      content: '',
+      kind: 'text',
+      chatId: chatId || null,
+      navigateAfterCreate: true
+    });
+  }, [chatId, createDocument]);
 
   // Listen for route changes to ensure document state is reset
   useEffect(() => {
     const handleRouteChange = () => {
-      const url = window.location.href;
-      if (url.includes('/chat/') && url.includes('?document=')) {
-        // Extract the document ID from the URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const documentId = urlParams.get('document');
+      const url = new URL(window.location.href);
+      if (url.pathname.includes('/chat/')) {
+        const documentId = url.searchParams.get('document');
         
         if (documentId && 
             documentId !== 'undefined' && 
@@ -162,6 +191,20 @@ export function PureArtifact({
             setCurrentVersionIndex(-1);
             mutateDocuments();
           }, 0);
+        } else if (!documentId && artifact.documentId !== 'init') {
+          // No document in URL, reset to initial state
+          console.log('[Artifact] No document in URL, resetting to initial state');
+          setArtifact(curr => ({
+            ...curr,
+            documentId: 'init',
+            title: 'New Document',
+            content: '',
+            status: 'idle',
+            kind: 'text' as const
+          }));
+          
+          setDocument(null);
+          setCurrentVersionIndex(-1);
         }
       }
     };
@@ -177,6 +220,7 @@ export function PureArtifact({
     };
   }, [artifact.documentId, setArtifact, mutateDocuments]);
 
+  // Update document state when documents are loaded
   useEffect(() => {
     if (documents && documents.length > 0) {
       const mostRecentDocument = documents.at(-1);
@@ -184,14 +228,23 @@ export function PureArtifact({
       if (mostRecentDocument) {
         setDocument(mostRecentDocument);
         setCurrentVersionIndex(documents.length - 1);
-        setArtifact((currentArtifact) => ({
-          ...currentArtifact,
-          content: mostRecentDocument.content ?? '',
-        }));
+        
+        // Only update content if not currently editing (to prevent overwriting user changes)
+        if (artifact.status !== 'streaming') {
+          setArtifact((currentArtifact) => ({
+            ...currentArtifact,
+            title: mostRecentDocument.title || currentArtifact.title,
+            content: mostRecentDocument.content || '',
+          }));
+        }
       }
+    } else if (documentsError) {
+      console.error('[Artifact] Error loading documents:', documentsError);
+      toast.error('Failed to load document');
     }
-  }, [documents, setArtifact]);
+  }, [documents, setArtifact, documentsError, artifact.status]);
 
+  // Reload documents when artifact status changes or document ID changes
   useEffect(() => {
     if (artifact.documentId && 
         artifact.documentId !== 'init' && 
@@ -206,7 +259,7 @@ export function PureArtifact({
 
   const handleContentChange = useCallback(
     (updatedContent: string) => {
-      if (!artifact) return;
+      if (!artifact || !artifact.documentId || artifact.documentId === 'init') return;
 
       mutate<Array<Document>>(
         `/api/document?id=${artifact.documentId}`,
@@ -215,30 +268,41 @@ export function PureArtifact({
 
           const currentDocument = currentDocuments.at(-1);
 
-          if (!currentDocument || !currentDocument.content) {
+          if (!currentDocument) {
             setIsContentDirty(false);
             return currentDocuments;
           }
 
           if (currentDocument.content !== updatedContent) {
-            await fetch(`/api/document?id=${artifact.documentId}`, {
-              method: 'POST',
-              body: JSON.stringify({
-                title: artifact.title,
+            try {
+              const response = await fetch(`/api/document?id=${artifact.documentId}`, {
+                method: 'POST',
+                body: JSON.stringify({
+                  title: artifact.title,
+                  content: updatedContent,
+                  kind: artifact.kind,
+                }),
+              });
+              
+              if (!response.ok) {
+                throw new Error('Failed to update document content');
+              }
+
+              setIsContentDirty(false);
+
+              const newDocument = {
+                ...currentDocument,
                 content: updatedContent,
-                kind: artifact.kind,
-              }),
-            });
+                createdAt: new Date().toISOString(),
+              };
 
-            setIsContentDirty(false);
-
-            const newDocument = {
-              ...currentDocument,
-              content: updatedContent,
-              createdAt: new Date().toISOString(),
-            };
-
-            return [...currentDocuments, newDocument];
+              return [...currentDocuments, newDocument];
+            } catch (error) {
+              console.error('[Artifact] Failed to update document content:', error);
+              // Keep the content dirty flag to trigger retry
+              setIsContentDirty(true);
+              return currentDocuments;
+            }
           }
           return currentDocuments;
         },
@@ -260,7 +324,20 @@ export function PureArtifact({
   const isSavingRef = useRef<boolean>(false);
 
   const saveContent = useCallback(async (content: string, isDebounced = false) => {
-    if (!artifact?.documentId || artifact.documentId === 'init') return;
+    if (!artifact?.documentId || artifact.documentId === 'init') {
+      // If we don't have a document yet but have content, create a new document
+      if (content && content.trim() !== '') {
+        await createDocument({
+          title: 'Untitled Document',
+          content: content,
+          kind: 'text',
+          chatId: chatId || null,
+          navigateAfterCreate: true
+        });
+        return;
+      }
+      return;
+    }
     
     // Prevent starting a new save if one is already in progress
     if (isSavingRef.current) {
@@ -298,7 +375,7 @@ export function PureArtifact({
       // Always reset the saving ref to prevent lockups
       isSavingRef.current = false;
     }
-  }, [artifact?.documentId, artifact?.title, artifact?.kind, debouncedSave, saveImmediately, mutateDocuments]);
+  }, [artifact?.documentId, artifact?.title, artifact?.kind, debouncedSave, saveImmediately, mutateDocuments, createDocument, chatId]);
 
   function getDocumentContentById(index: number) {
     if (!documents) return '';
@@ -306,7 +383,12 @@ export function PureArtifact({
     return documents[index].content ?? '';
   }
 
-  const handleVersionChange = (type: 'next' | 'prev' | 'toggle' | 'latest') => {
+  const handleVersionChange = (type: 'next' | 'prev' | 'toggle' | 'latest' | 'new') => {
+    if (type === 'new') {
+      createNewDocument();
+      return;
+    }
+    
     if (!documents) return;
 
     if (type === 'latest') {
@@ -386,6 +468,10 @@ export function PureArtifact({
       );
     }
     
+    if (artifact.documentId === 'init') {
+      return "Start typing to create";
+    }
+    
     return document ? (
       `Last saved ${formatDistance(
         new Date(document.createdAt),
@@ -411,9 +497,27 @@ export function PureArtifact({
   
   // Function to handle saving the document title
   const handleSaveTitle = async () => {
-    if (newTitle.trim() !== artifact.title) {
-      await renameDocument(newTitle);
+    if (!newTitle.trim()) {
+      toast.error('Please enter a document title');
+      return;
     }
+    
+    // If we're on init document, create a new one with this title
+    if (artifact.documentId === 'init') {
+      await createDocument({
+        title: newTitle,
+        content: artifact.content,
+        kind: artifact.kind,
+        chatId: chatId,
+        navigateAfterCreate: true
+      });
+    } else {
+      // Otherwise rename existing document
+      if (newTitle.trim() !== artifact.title) {
+        await renameDocument(newTitle);
+      }
+    }
+    
     setEditingTitle(false);
   };
   
@@ -428,8 +532,10 @@ export function PureArtifact({
     if (saveState === 'error' && artifact?.content) {
       console.log('[Artifact] Manual retry triggered');
       saveContent(artifact.content, false);
+    } else if (artifact.documentId === 'init') {
+      createNewDocument();
     }
-  }, [saveState, artifact?.content, saveContent]);
+  }, [saveState, artifact?.content, saveContent, createNewDocument, artifact.documentId]);
 
   return (
     <AnimatePresence>

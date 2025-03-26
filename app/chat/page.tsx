@@ -7,7 +7,8 @@ import { DataStreamHandler } from '@/components/data-stream-handler';
 import { AlwaysVisibleArtifact } from '@/components/always-visible-artifact';
 import { ResizablePanel } from '@/components/resizable-panel';
 
-export default async function Page() {
+// Named export to prevent "@page.tsx" flash during transitions
+export async function ChatPage() {
   const id = generateUUID();
 
   const cookieStore = await cookies();
@@ -38,3 +39,6 @@ export default async function Page() {
     </>
   );
 }
+
+// Default export uses the named component
+export default ChatPage;

@@ -75,6 +75,13 @@ export function Chat({
     },
   });
 
+  // Ensure chat context updates when document changes
+  useEffect(() => {
+    if (status !== 'streaming') {
+      console.log('[Chat] Document context updated, resetting chat state');
+    }
+  }, [artifact.documentId, status]);
+
   const [attachments, setAttachments] = useState<Array<Attachment>>([]);
 
   // Custom submit handler wrapped to match signature

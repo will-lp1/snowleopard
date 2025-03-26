@@ -2,7 +2,7 @@
 
 import { isAfter } from 'date-fns';
 import { motion } from 'framer-motion';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSWRConfig } from 'swr';
 import { useWindowSize } from 'usehooks-ts';
 
@@ -30,7 +30,17 @@ export const VersionFooter = ({
   const { mutate } = useSWRConfig();
   const [isMutating, setIsMutating] = useState(false);
 
-  if (!documents) return null;
+  // Check to ensure we're not showing the footer unnecessarily
+  const shouldShowFooter = () => {
+    if (!documents || documents.length <= 1) return false;
+    
+    // Only show if viewing a document and we're not on the latest version
+    return artifact.documentId !== 'init' && 
+           currentVersionIndex >= 0 && 
+           currentVersionIndex < documents.length - 1;
+  };
+
+  if (!shouldShowFooter()) return null;
 
   return (
     <motion.div
@@ -62,7 +72,7 @@ export const VersionFooter = ({
                       method: 'PATCH',
                       body: JSON.stringify({
                         timestamp: getDocumentTimestampByIndex(
-                          documents,
+                          documents as Document[],
                           currentVersionIndex,
                         ),
                       }),
@@ -75,7 +85,7 @@ export const VersionFooter = ({
                                 new Date(document.createdAt),
                                 new Date(
                                   getDocumentTimestampByIndex(
-                                    documents,
+                                    documents as Document[],
                                     currentVersionIndex,
                                   ),
                                 ),

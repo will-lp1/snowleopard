@@ -43,7 +43,9 @@ export function AlwaysVisibleArtifact({
     isCreatingDocument,
     renameDocument, 
     isRenamingDocument,
-    createNewChatForDocument
+    createNewChatForDocument,
+    prepareNewDocument,
+    createDocument
   } = useDocumentUtils();
   
   const [editingTitle, setEditingTitle] = useState(false);
@@ -51,160 +53,16 @@ export function AlwaysVisibleArtifact({
   const titleInputRef = useRef<HTMLInputElement>(null);
   const isInitialLoadDone = useRef(false);
   
-  // Ensure each chat has a document by checking chat ID
+  // Instead of auto-creating, just prepare a document UI state
   useEffect(() => {
     if (chatId && initialDocumentId === 'init' && !isInitialLoadDone.current) {
-      console.log('[Document] Chat has no associated document, creating one');
+      console.log('[Document] Chat has no associated document, preparing UI');
       isInitialLoadDone.current = true;
       
-      // Create a default document for this chat
-      setTimeout(() => {
-        createDefaultDocumentForChat(chatId);
-      }, 0);
+      // Instead of creating, just prepare the document UI
+      prepareNewDocument();
     }
-  }, [chatId, initialDocumentId]);
-  
-  // Create default document for a chat without an explicit request
-  const createDefaultDocumentForChat = async (chatId: string) => {
-    if (!chatId) return;
-    
-    try {
-      // Check if chat already has a document
-      const response = await fetch(`/api/document?chatId=${chatId}`);
-      const documents = await response.json();
-      
-      if (Array.isArray(documents) && documents.length > 0) {
-        // Chat already has a document, use it
-        const docId = documents[0].id;
-        console.log('[Document] Found existing document for chat:', docId);
-        
-        // Update URL with document ID
-        const currentUrl = new URL(window.location.href);
-        currentUrl.searchParams.set('document', docId);
-        window.history.replaceState({}, '', currentUrl.toString());
-        
-        // Update artifact state
-        setArtifact(curr => ({
-          ...curr,
-          documentId: docId,
-          title: documents[0].title || 'Document',
-          content: documents[0].content || '',
-          status: 'idle',
-          kind: documents[0].kind || 'text',
-        }));
-        
-        return;
-      }
-      
-      // Create new document since none exists
-      const docId = generateUUID();
-      console.log('[Document] Creating new default document for chat with ID:', docId);
-      
-      let docResponse: Response;
-      let success = false;
-      let data: any = null;
-      
-      // First attempt with chatId
-      try {
-        console.log('[Document] Attempting to create document with chatId:', chatId);
-        docResponse = await fetch(`/api/document`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            id: docId,
-            chatId: chatId,
-            title: 'Document',
-            content: '',
-            kind: 'text',
-          }),
-        });
-        
-        if (docResponse.ok) {
-          data = await docResponse.json();
-          success = true;
-        } else {
-          const errorData = await docResponse.json().catch(() => ({ error: 'Unknown error' }));
-          console.warn('[Document] Failed to create document with chatId, trying without:', errorData);
-        }
-      } catch (initialError) {
-        console.error('[Document] Error in first document creation attempt:', initialError);
-      }
-      
-      // If first attempt failed, try without chatId
-      if (!success) {
-        try {
-          console.log('[Document] Creating document without chatId');
-          docResponse = await fetch(`/api/document`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              id: docId,
-              title: 'Document',
-              content: '',
-              kind: 'text',
-            }),
-          });
-          
-          if (docResponse.ok) {
-            data = await docResponse.json();
-            success = true;
-          } else {
-            const errorData = await docResponse.json().catch(() => ({ error: 'Unknown error' }));
-            console.error('[Document] All attempts to create document failed:', errorData);
-            throw new Error(`Failed to create document: ${docResponse.status} ${errorData.error || ''}`);
-          }
-        } catch (fallbackError) {
-          console.error('[Document] Fallback document creation failed:', fallbackError);
-          throw fallbackError; // Re-throw to be caught by outer catch
-        }
-      }
-      
-      console.log('[Document] Successfully created document, received data:', !!data);
-      
-      // Update artifact state
-      setArtifact(curr => ({
-        ...curr,
-        documentId: data.id,
-        title: 'Document',
-        status: 'idle',
-        kind: 'text',
-      }));
-      
-      // Update URL with document ID
-      const currentUrl = new URL(window.location.href);
-      currentUrl.searchParams.set('document', data.id);
-      window.history.replaceState({}, '', currentUrl.toString());
-      
-      isDocumentInitialized.current = true;
-    } catch (createError) {
-      console.error('[Document] Failed to create document:', createError);
-      
-      // Fallback: Create a local-only document as recovery
-      console.log('[Document] Using fallback local document');
-      const tempDocId = generateUUID();
-      setArtifact(curr => ({
-        ...curr,
-        documentId: tempDocId, // Use the generated ID
-        title: 'Document (Unsaved)',
-        status: 'idle',
-        kind: 'text',
-        content: ''
-      }));
-      
-      // Mark as initialized to avoid repeated attempts
-      isDocumentInitialized.current = true;
-      
-      // Show minimal error toast
-      toast.error('Document will be saved when connection improves', {
-        duration: 3000,
-        id: 'doc-offline-mode'
-      });
-    }
-  };
+  }, [chatId, initialDocumentId, prepareNewDocument]);
   
   const {
     data: documents,
@@ -439,9 +297,28 @@ export function AlwaysVisibleArtifact({
   
   // Function to handle saving the document title
   const handleSaveTitle = async () => {
-    if (newTitle.trim() !== artifact.title) {
-      await renameDocument(newTitle);
+    if (!newTitle.trim()) {
+      toast.error('Please enter a document title');
+      return;
     }
+    
+    // If we're on init document, this is a new document creation
+    if (artifact.documentId === 'init') {
+      // Create new document with the provided title
+      await createDocument({
+        title: newTitle,
+        content: artifact.content,
+        kind: artifact.kind,
+        chatId: chatId,
+        navigateAfterCreate: true
+      });
+    } else {
+      // Otherwise, just rename the existing document
+      if (newTitle.trim() !== artifact.title) {
+        await renameDocument(newTitle);
+      }
+    }
+    
     setEditingTitle(false);
   };
   
@@ -456,14 +333,41 @@ export function AlwaysVisibleArtifact({
     await createNewChatForDocument();
   };
   
-  // Save content to the server when it changes
+  // Save content to the server when it changes - modified to create document only when needed
   const saveContent = async (updatedContent: string, debounce: boolean) => {
-    // If content is empty and document isn't initialized yet, create document immediately
-    if (!updatedContent.trim() && !isDocumentInitialized.current) {
-      if (chatId) {
-        createDefaultDocumentForChat(chatId);
-      }
+    // Don't do anything if content is empty and we're using a placeholder document
+    if (!updatedContent.trim() && artifact.documentId === 'init') {
+      console.log('[Document] No content to save for placeholder document');
       return;
+    }
+    
+    // If we're still on 'init' document but have content, create a real document
+    if (artifact.documentId === 'init' && updatedContent.trim()) {
+      try {
+        console.log('[Document] Creating new document from content edit');
+        const docId = await createDocument({
+          title: artifact.title !== 'Untitled Document' ? artifact.title : 'Untitled Document',
+          content: updatedContent,
+          kind: artifact.kind,
+          chatId: chatId,
+          navigateAfterCreate: true
+        });
+        
+        if (docId) {
+          console.log('[Document] Successfully created new document from content:', docId);
+          // The createDocument function already updates artifact state and navigates
+          return;
+        } else {
+          throw new Error('Failed to create document');
+        }
+      } catch (error) {
+        console.error('[Document] Error creating document from content:', error);
+        toast.error('Failed to save document', {
+          description: 'Please try again or rename the document first',
+          duration: 3000
+        });
+        return;
+      }
     }
     
     // If an update is already in progress, don't start another one
@@ -474,7 +378,7 @@ export function AlwaysVisibleArtifact({
     }
 
     // Avoid redundant state updates
-    if (artifact.content === updatedContent && isDocumentInitialized.current) {
+    if (artifact.content === updatedContent && artifact.documentId !== 'init') {
       console.log('[Document] Content unchanged, skipping save');
       return;
     }
@@ -485,150 +389,7 @@ export function AlwaysVisibleArtifact({
     const currentSaveId = generateUUID();
     activeSaveRequestRef.current = currentSaveId;
 
-    if (artifact.documentId === 'init' || !document) {
-      // Check if we're already in the process of creating a document
-      if (isCreatingDocument) {
-        console.log('[Document] Document creation already in progress, skipping');
-        documentUpdateInProgressRef.current = false;
-        return;
-      }
-
-      // Create new document if it doesn't exist yet
-      try {
-        const docId = generateUUID();
-        console.log('[Document] Creating new document with ID:', docId);
-        
-        // Update local state immediately for better UX
-        setArtifact(curr => ({
-          ...curr,
-          documentId: docId,
-          content: updatedContent
-        }));
-        
-        // First attempt with chatId
-        let response: Response;
-        let data: any = null;
-        let success = false;
-        
-        // Try with chatId first
-        if (chatId) {
-          console.log('[Document] Attempting to create document with chatId:', chatId);
-          response = await fetch(`/api/document`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              id: docId,
-              chatId: chatId,
-              title: artifact.title || 'Document',
-              content: updatedContent,
-              kind: artifact.kind,
-            }),
-            cache: 'no-cache',
-            credentials: 'same-origin',
-          });
-          
-          if (response.ok) {
-            data = await response.json();
-            success = true;
-          } else {
-            const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-            console.warn('[Document] Failed to create document with chatId, trying without:', errorData);
-          }
-        }
-        
-        // If first attempt failed or no chatId, try without it
-        if (!success) {
-          console.log('[Document] Creating document without chatId');
-          response = await fetch(`/api/document`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              id: docId,
-              title: artifact.title || 'Document',
-              content: updatedContent,
-              kind: artifact.kind,
-            }),
-            cache: 'no-cache',
-            credentials: 'same-origin',
-          });
-          
-          if (response.ok) {
-            data = await response.json();
-            success = true;
-          } else {
-            const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-            console.error('[Document] All attempts to create document failed:', errorData);
-            throw new Error(`Failed to create document: ${response.status} ${errorData.error || ''}`);
-          }
-        }
-        
-        // Check if this save request is still active
-        if (activeSaveRequestRef.current !== currentSaveId) {
-          console.log('[Document] Save request superseded by newer request');
-          return;
-        }
-        
-        if (data?.id) {
-          console.log('[Document] Successfully created new document:', data.id);
-          
-          isDocumentInitialized.current = true;
-          mutateDocuments();
-          
-          // Minimal toast notification for document creation - only show if not auto-created
-          if (updatedContent.trim().length > 0) {
-            toast.success('Document created', {
-              id: `doc-created-${data.id}`, // Prevent duplicate toasts
-              duration: 2000
-            });
-          }
-          
-          // Update URL to include document ID
-          if (chatId) {
-            const currentUrl = new URL(window.location.href);
-            currentUrl.searchParams.set('document', data.id);
-            window.history.replaceState({}, '', currentUrl.toString());
-          }
-        } else {
-          throw new Error('Failed to get document ID from response');
-        }
-      } catch (error) {
-        console.error('Error creating document:', error);
-        toast.error('Failed to create document');
-        
-        // Create a temporary local document so user doesn't lose their work
-        const tempDocId = generateUUID();
-        setArtifact(curr => ({
-          ...curr,
-          documentId: tempDocId,
-          title: 'Document (Unsaved)',
-          content: updatedContent,
-        }));
-        
-        // Try recovery after a delay
-        setTimeout(() => {
-          if (chatId) {
-            console.log('[Document] Attempting recovery after document creation failure');
-            createDefaultDocumentForChat(chatId);
-          }
-        }, 2000);
-      } finally {
-        setIsContentDirty(false);
-        documentUpdateInProgressRef.current = false;
-        
-        // Process any pending updates that came in while this save was in progress
-        if (lastContentUpdateRef.current && lastContentUpdateRef.current !== updatedContent) {
-          const pendingContent = lastContentUpdateRef.current;
-          lastContentUpdateRef.current = '';
-          setTimeout(() => saveContent(pendingContent, true), 100);
-        }
-      }
-      return;
-    }
-    
+    // For real documents, proceed with the usual save logic
     if (document && updatedContent !== document.content) {
       // Update local state immediately for responsiveness
       setArtifact(curr => ({
@@ -676,7 +437,12 @@ export function AlwaysVisibleArtifact({
     return documents[index].content ?? '';
   }
   
-  const handleVersionChange = (type: 'next' | 'prev' | 'toggle' | 'latest') => {
+  const handleVersionChange = (type: 'next' | 'prev' | 'toggle' | 'latest' | 'new') => {
+    if (type === 'new') {
+      createNewDocument();
+      return;
+    }
+    
     if (!documents) return;
     
     if (type === 'latest') {
@@ -707,7 +473,7 @@ export function AlwaysVisibleArtifact({
     : true;
   
   // Check if we should show the empty state
-  const showEmptyState = artifact.documentId === 'init' && !artifact.content && !isContentDirty;
+  const showEmptyState = artifact.documentId === 'init' && !artifact.content;
   
   return (
     <div className="flex flex-col h-dvh bg-background">
@@ -734,15 +500,15 @@ export function AlwaysVisibleArtifact({
                   size="icon" 
                   className="h-6 w-6" 
                   onClick={handleSaveTitle}
-                  disabled={isRenamingDocument}
+                  disabled={isRenamingDocument || !newTitle.trim()}
                 >
                   {isRenamingDocument ? (
-                    <svg className="animate-spin size-3" viewBox="0 0 24 24">
+                    <svg className="animate-spin size-4" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
                   ) : (
-                    <CheckIcon className="size-3" />
+                    <CheckIcon className="size-4" />
                   )}
                 </Button>
                 <Button 
@@ -790,10 +556,10 @@ export function AlwaysVisibleArtifact({
                     addSuffix: true,
                   },
                 )}`
-              ) : !showEmptyState ? (
-                <div className="w-32 h-3 bg-muted-foreground/20 rounded-md animate-pulse" />
+              ) : showEmptyState ? (
+                <span>Start typing or name your document</span>
               ) : (
-                <span>Start typing to create document</span>
+                <div className="w-32 h-3 bg-muted-foreground/20 rounded-md animate-pulse" />
               )}
             </div>
           </div>
@@ -823,29 +589,6 @@ export function AlwaysVisibleArtifact({
               </DropdownMenuContent>
             </DropdownMenu>
           )}
-          
-          {/* New Document Button */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-8"
-                onClick={createNewDocument}
-                disabled={isCreatingDocument}
-              >
-                {isCreatingDocument ? (
-                  <svg className="animate-spin size-4 text-muted-foreground" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                ) : (
-                  <PlusIcon className="size-4" />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent align="end">New Document</TooltipContent>
-          </Tooltip>
           
           {!showEmptyState && (
             <ArtifactActions
