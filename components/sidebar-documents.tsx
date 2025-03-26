@@ -7,7 +7,7 @@ import type { User } from '@supabase/auth-helpers-nextjs';
 import { memo, useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import useSWR from 'swr';
-import { cn } from '@/lib/utils';
+import { cn, fetcher } from '@/lib/utils';
 import {
   CheckCircleFillIcon,
   FileIcon,
@@ -42,7 +42,6 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import type { Document } from '@/lib/db/schema';
-import { fetcher } from '@/lib/utils';
 import { useArtifact } from '@/hooks/use-artifact';
 import { ArtifactKind } from '@/components/artifact';
 import { useDocumentUtils } from '@/hooks/use-document-utils';
@@ -441,7 +440,7 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
       <SidebarGroup>
         <SidebarGroupContent>
           <div className="px-2 text-zinc-500 w-full flex flex-row justify-center items-center text-sm gap-2">
-            You don't have any documents yet
+            You don&apos;t have any documents yet
           </div>
         </SidebarGroupContent>
       </SidebarGroup>
@@ -508,7 +507,7 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
             <Button 
               variant="ghost" 
               size="icon" 
-              className="h-5 w-5" 
+              className="size-5" 
               onClick={(e) => {
                 e.stopPropagation();
                 createNewDocument();
@@ -613,7 +612,7 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
                       <>
                         {filteredDocuments.length === 0 ? (
                           <div className="px-2 text-zinc-500 text-sm text-center py-4">
-                            No documents found matching "{searchTerm}"
+                            No documents found matching &quot;{searchTerm}&quot;
                           </div>
                         ) : (
                           filteredDocuments.map((doc) => (

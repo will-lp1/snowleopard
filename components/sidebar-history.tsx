@@ -7,7 +7,7 @@ import type { User } from '@supabase/auth-helpers-nextjs';
 import { memo, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import useSWR from 'swr';
-import { cn } from '@/lib/utils';
+import { cn, fetcher } from '@/lib/utils';
 import {
   CheckCircleFillIcon,
   GlobeIcon,
@@ -48,7 +48,6 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import type { Chat, Document } from '@/lib/db/schema';
-import { fetcher } from '@/lib/utils';
 import { useChatVisibility } from '@/hooks/use-chat-visibility';
 import { useArtifact } from '@/hooks/use-artifact';
 import { ArtifactKind } from '@/components/artifact';
@@ -443,7 +442,7 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
       <SidebarGroup>
         <SidebarGroupContent>
           <div className="px-2 text-zinc-500 w-full flex flex-row justify-center items-center text-sm gap-2">
-            You don't have any chats yet
+            You don&apos;t have any chats yet
           </div>
         </SidebarGroupContent>
       </SidebarGroup>
