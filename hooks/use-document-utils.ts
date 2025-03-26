@@ -6,18 +6,18 @@ import { useArtifact } from './use-artifact';
 import { toast } from 'sonner';
 import { generateUUID } from '@/lib/utils';
 import { useSidebar } from '@/components/ui/sidebar';
-import useSWR, { useSWRConfig } from 'swr';
+import useSWR, { useSWRConfig, mutate as globalMutate } from 'swr';
 import { ArtifactKind } from '@/components/artifact';
 
 // Make SWR mutate available globally to enable cross-component refreshing
 if (typeof window !== 'undefined') {
-  const setupGlobalMutate = () => {
-    const { mutate } = useSWRConfig();
-    (window as any).__SWR_MUTATE_FN = mutate;
-  };
-  
-  // Set up in next tick to ensure SWR is initialized
-  setTimeout(setupGlobalMutate, 0);
+  // Use the global mutate function directly instead of hooks
+  (window as any).__SWR_MUTATE_FN = globalMutate;
+}
+
+// Add a cache for document content to improve rapid switching
+if (typeof window !== 'undefined') {
+  (window as any).__DOCUMENT_CACHE = new Map();
 }
 
 /**
@@ -451,7 +451,7 @@ export function useDocumentUtils() {
         throw new Error('Failed to delete document');
       }
       
-      // If the deleted document is the current one, reset artifact
+      // If the deleted document is the current one, reset artifact and navigate
       if (documentId === artifact.documentId) {
         setArtifact(curr => ({
           ...curr,
@@ -469,6 +469,7 @@ export function useDocumentUtils() {
           router.push('/');
         }
       }
+      // Don't navigate if we're not deleting the current document
       
       toast.success('Document deleted');
       return true;
@@ -498,7 +499,40 @@ export function useDocumentUtils() {
         return null;
       }
       
+      // Track request to handle potential race conditions
+      const requestTimestamp = Date.now();
+      (window as any).__LAST_DOCUMENT_REQUEST = requestTimestamp;
+      
+      // Check cache first for immediate content display
+      const documentCache = (window as any).__DOCUMENT_CACHE;
+      if (documentCache && documentCache.has(documentId)) {
+        const cachedDoc = documentCache.get(documentId);
+        console.log('[DocumentUtils] Using cached document:', documentId);
+        
+        // Update artifact content from cache immediately for faster display
+        setArtifact(curr => ({
+          ...curr,
+          documentId: cachedDoc.id,
+          title: cachedDoc.title,
+          content: cachedDoc.content || '',
+          kind: cachedDoc.kind as ArtifactKind,
+          status: 'streaming' // Set to streaming to show we're still loading fresh content
+        }));
+      } else {
+        // No cache - set loading state
+        setArtifact(curr => ({
+          ...curr,
+          status: 'streaming' // Use streaming status to indicate loading
+        }));
+      }
+      
       const response = await fetch(`/api/document?id=${documentId}`);
+      
+      // Check if this is still the latest request before continuing
+      if ((window as any).__LAST_DOCUMENT_REQUEST !== requestTimestamp) {
+        console.log('[DocumentUtils] Aborting stale document load:', documentId);
+        return null; // Don't process older requests
+      }
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
@@ -521,7 +555,18 @@ export function useDocumentUtils() {
       const document = documents[documents.length - 1]; // Get the latest version
       console.log('[DocumentUtils] Document loaded successfully:', document.id);
       
-      // Update artifact state
+      // Check again if this is still the latest request
+      if ((window as any).__LAST_DOCUMENT_REQUEST !== requestTimestamp) {
+        console.log('[DocumentUtils] Discarding stale document content:', documentId);
+        return null;
+      }
+      
+      // Update cache for future rapid switching
+      if (documentCache && document) {
+        documentCache.set(documentId, document);
+      }
+      
+      // Update artifact state before navigation to ensure content is available
       setArtifact(curr => ({
         ...curr,
         documentId: document.id,
@@ -532,7 +577,8 @@ export function useDocumentUtils() {
         isVisible: true,
       }));
       
-      // Navigate if requested
+      // Use a small delay to ensure state updates are processed before navigation
+      // This prevents the race condition causing empty content
       if (options.navigateAfterLoad !== false) {
         const chatId = options.chatId || document.chatId;
         const targetUrl = chatId 
@@ -540,13 +586,24 @@ export function useDocumentUtils() {
           : `/chat?document=${document.id}`;
           
         console.log('[DocumentUtils] Navigating to:', targetUrl);
-        router.push(targetUrl);
+        
+        // Small delay to ensure state updates are processed before navigation
+        setTimeout(() => {
+          router.push(targetUrl);
+        }, 50);
       }
       
       return document;
     } catch (error) {
       console.error('[DocumentUtils] Error loading document:', error);
       toast.error('Failed to load document');
+      
+      // Reset loading state on error
+      setArtifact(curr => ({
+        ...curr,
+        status: 'idle'
+      }));
+      
       return null;
     }
   }, [router, setArtifact]);

@@ -178,12 +178,31 @@ export function PureArtifact({
             documentId !== artifact.documentId) {
           // Reset state for the new document
           console.log('[Artifact] New document detected from URL:', documentId);
-          setArtifact(curr => ({
-            ...curr,
-            documentId,
-            content: '',
-            status: 'idle'
-          }));
+          
+          // Check document cache before resetting content
+          const documentCache = (window as any).__DOCUMENT_CACHE;
+          if (documentCache && documentCache.has(documentId)) {
+            const cachedDoc = documentCache.get(documentId);
+            console.log('[Artifact] Using cached document from route change:', documentId);
+            
+            // Use cached data for immediate display
+            setArtifact(curr => ({
+              ...curr,
+              documentId,
+              title: cachedDoc.title,
+              content: cachedDoc.content || '',
+              kind: cachedDoc.kind as ArtifactKind,
+              status: 'idle'
+            }));
+          } else {
+            // No cache - standard reset
+            setArtifact(curr => ({
+              ...curr,
+              documentId,
+              content: '',
+              status: 'idle'
+            }));
+          }
           
           // Use setTimeout to avoid React scheduling errors
           setTimeout(() => {
@@ -222,27 +241,56 @@ export function PureArtifact({
 
   // Update document state when documents are loaded
   useEffect(() => {
-    if (documents && documents.length > 0) {
-      const mostRecentDocument = documents.at(-1);
-
-      if (mostRecentDocument) {
-        setDocument(mostRecentDocument);
-        setCurrentVersionIndex(documents.length - 1);
-        
-        // Only update content if not currently editing (to prevent overwriting user changes)
-        if (artifact.status !== 'streaming') {
-          setArtifact((currentArtifact) => ({
-            ...currentArtifact,
-            title: mostRecentDocument.title || currentArtifact.title,
-            content: mostRecentDocument.content || '',
-          }));
-        }
+    if (!documents || documents.length === 0) {
+      if (documentsError) {
+        console.error('[Artifact] Error loading documents:', documentsError);
+        toast.error('Failed to load document');
       }
-    } else if (documentsError) {
-      console.error('[Artifact] Error loading documents:', documentsError);
-      toast.error('Failed to load document');
+      return;
     }
-  }, [documents, setArtifact, documentsError, artifact.status]);
+    
+    const mostRecentDocument = documents.at(-1);
+    if (!mostRecentDocument) return;
+    
+    // Track this update to avoid race conditions
+    const updateId = Date.now();
+    (window as any).__DOCUMENT_UPDATE_ID = updateId;
+    
+    // Always update document reference and version index
+    setDocument(mostRecentDocument);
+    setCurrentVersionIndex(documents.length - 1);
+    
+    // Update document cache for quick access
+    if (typeof window !== 'undefined' && (window as any).__DOCUMENT_CACHE) {
+      (window as any).__DOCUMENT_CACHE.set(mostRecentDocument.id, mostRecentDocument);
+    }
+    
+    // Delay content update slightly to avoid React batching issues
+    setTimeout(() => {
+      // Check if this is still the latest update
+      if ((window as any).__DOCUMENT_UPDATE_ID !== updateId) {
+        console.log('[Artifact] Skipping stale document update');
+        return;
+      }
+      
+      // Carefully update content to prevent flicker during rapid switching
+      // Only update in these conditions:
+      // 1. Content is empty but document has content
+      // 2. Status is 'streaming' (loading)
+      // 3. Content is different and we're not streaming (normal update)
+      if (!artifact.content || 
+          artifact.status === 'streaming' || 
+          (mostRecentDocument.content && mostRecentDocument.content !== artifact.content)) {
+        console.log('[Artifact] Updating content from document:', mostRecentDocument.id);
+        setArtifact((currentArtifact) => ({
+          ...currentArtifact,
+          title: mostRecentDocument.title || currentArtifact.title,
+          content: mostRecentDocument.content || '',
+          status: 'idle', // Ensure we reset to idle state
+        }));
+      }
+    }, 10);
+  }, [documents, setArtifact, documentsError, artifact.status, artifact.content]);
 
   // Reload documents when artifact status changes or document ID changes
   useEffect(() => {
@@ -250,7 +298,12 @@ export function PureArtifact({
         artifact.documentId !== 'init' && 
         artifact.documentId !== 'undefined' && 
         artifact.documentId !== 'null') {
-      mutateDocuments();
+      // Use a throttled mutation to prevent too many requests during navigation
+      const timeoutId = setTimeout(() => {
+        mutateDocuments();
+      }, 50);
+      
+      return () => clearTimeout(timeoutId);
     }
   }, [artifact.status, mutateDocuments, artifact.documentId]);
 

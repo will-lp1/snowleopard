@@ -78,14 +78,31 @@ const PureDocumentItem = ({
   isSelected: boolean;
   onToggleSelect: (documentId: string, isSelected: boolean) => void;
 }) => {
-  const handleDocumentClick = () => {
+  const handleDocumentClick = useCallback((e: React.MouseEvent) => {
+    // When clicking on a document that's already active, don't trigger navigation
+    // This prevents unnecessary re-renders and flickering during rapid clicking
+    if (isActive && !isSelectionMode) {
+      e.preventDefault();
+      return;
+    }
+    
     if (isSelectionMode) {
       onToggleSelect(document.id, !isSelected);
       return;
     }
+    
+    // Mark this document as being selected to handle race conditions
+    if (typeof window !== 'undefined') {
+      (window as any).__LAST_SELECTED_DOCUMENT = document.id;
+      // Update cache if available
+      if ((window as any).__DOCUMENT_CACHE) {
+        (window as any).__DOCUMENT_CACHE.set(document.id, document);
+      }
+    }
+    
     setOpenMobile(false);
     onSelect(document.id);
-  };
+  }, [document, isActive, isSelectionMode, isSelected, onToggleSelect, setOpenMobile, onSelect]);
 
   const router = useRouter();
 
@@ -112,7 +129,7 @@ const PureDocumentItem = ({
           className={cn(isSelectionMode && "flex-1")}
         >
           <Link 
-            href={isSelectionMode ? "#" : `/document/${document.id}`}
+            href={isSelectionMode ? "#" : `/chat?document=${document.id}`}
             onClick={handleDocumentClick}
           >
             <span className="truncate">{document.title}</span>
@@ -236,9 +253,15 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
   const handleDelete = async () => {
     if (!deleteId) return;
     
+    // Get current document ID from URL
+    const url = new URL(window.location.href);
+    const currentDocumentId = url.searchParams.get('document');
+    const isCurrentDocument = currentDocumentId === deleteId;
+    
     // Use deleteDocument from document utils hook
     const success = await deleteDocument(deleteId, {
-      redirectUrl: chatId ? `/chat/${chatId}` : '/'
+      // Only provide redirectUrl if we're deleting the current document
+      redirectUrl: isCurrentDocument ? (chatId ? `/chat/${chatId}` : '/') : ''
     });
     
     if (success) {
@@ -321,15 +344,29 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
       }
       
       // Show loading indicator for better UX
-      toast.loading('Loading document...', { id: `loading-doc-${documentId}` });
+      const toastId = `loading-doc-${documentId}`;
+      toast.loading('Loading document...', { id: toastId });
       
-      await loadDocument(documentId, { 
+      // Track current loading request to prevent race conditions
+      const loadingTimestamp = Date.now();
+      (window as any).__CURRENT_DOCUMENT_LOADING = loadingTimestamp;
+      
+      const document = await loadDocument(documentId, { 
         navigateAfterLoad: true,
         // Don't specify chatId here - let loadDocument determine the appropriate chat
       });
       
-      // Success message
-      toast.success('Document loaded', { id: `loading-doc-${documentId}` });
+      // Only show success if this is still the most recent request
+      if ((window as any).__CURRENT_DOCUMENT_LOADING === loadingTimestamp) {
+        if (document) {
+          toast.success('Document loaded', { id: toastId });
+        } else {
+          toast.error('Failed to load document', { id: toastId });
+        }
+      } else {
+        // If a newer request came in, dismiss this toast
+        toast.dismiss(toastId);
+      }
     } catch (error) {
       console.error('[SidebarDocuments] Error loading document:', error);
       toast.error('Failed to load document');
