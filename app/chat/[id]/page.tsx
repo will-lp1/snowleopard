@@ -20,8 +20,8 @@ function isValidRole(role: string): role is Message['role'] {
 export const dynamic = 'auto';
 export const dynamicParams = true;
 
-// Named export to prevent "@page.tsx" flash during transitions
-export async function ChatIdPage(props: any) {
+// Default export as required by Next.js app router
+export default async function Page(props: any) {
   try {
     // Use props.params and props.searchParams correctly
     const { params, searchParams } = props;
@@ -118,6 +118,3 @@ export async function ChatIdPage(props: any) {
     return notFound();
   }
 }
-
-// Default export uses the named component
-export default ChatIdPage;
