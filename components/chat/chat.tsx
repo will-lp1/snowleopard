@@ -8,7 +8,6 @@ import { ChatHeader } from '@/components/chat/chat-header';
 import { fetcher, generateUUID } from '@/lib/utils';
 import { MultimodalInput } from './multimodal-input';
 import { Messages } from './messages';
-import { VisibilityType } from '../visibility-selector';
 import { toast } from 'sonner';
 import { FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -22,7 +21,6 @@ export interface ChatProps {
   id?: string;
   initialMessages: Array<Message>;
   selectedChatModel?: string;
-  selectedVisibilityType: VisibilityType;
   isReadonly?: boolean;
 }
 
@@ -30,7 +28,6 @@ export function Chat({
   id: initialId,
   initialMessages,
   selectedChatModel: initialSelectedChatModel,
-  selectedVisibilityType,
   isReadonly = false,
 }: ChatProps) {
   const { mutate } = useSWRConfig();
@@ -224,7 +221,6 @@ export function Chat({
       <ChatHeader
         chatId={chatId}
         selectedModelId={selectedChatModel}
-        selectedVisibilityType={selectedVisibilityType}
         isReadonly={isReadonly}
       />
 

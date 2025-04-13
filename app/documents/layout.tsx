@@ -61,7 +61,6 @@ export default function DocumentsLayout({ children }: { children: ReactNode }) {
             <Chat
               // id prop is optional, Chat manages its own state
               initialMessages={[]} // Start empty, state is preserved internally
-              selectedVisibilityType="private"
               // isReadonly needs to be determined within Chat component now
             />
           </ResizablePanel>

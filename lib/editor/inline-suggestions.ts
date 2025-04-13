@@ -149,12 +149,12 @@ export const inlineSuggestionsPlugin = new Plugin<InlineSuggestionState>({
           
           // Use the new helper function to insert formatted content
           insertFormattedContent(view, pluginState.currentSuggestion);
-          
           // Mark this as a suggestion application to prevent clearing
+          const tr = view.state.tr;
           tr.setMeta('suggestion-applied', true);
           
           // Clear the suggestion
-          view.dispatch(view.state.tr.setMeta(inlineSuggestionsKey, { type: 'clear' }));
+          view.dispatch(tr.setMeta(inlineSuggestionsKey, { type: 'clear' }));
           return true;
         }
       }
@@ -536,3 +536,7 @@ function updateSuggestionNodePosition(view: EditorView) {
   // Ensure the node is visible
   suggestionNode.style.display = 'inline-block';
 } 
+
+function insertFormattedContent(view: EditorView, currentSuggestion: string) {
+  throw new Error('Function not implemented.');
+}

@@ -13,7 +13,6 @@ import { Button } from '@/components/ui/button';
 import { PlusIcon, ClockRewind, MessageIcon } from '../icons';
 import { useSidebar } from '../ui/sidebar';
 import { memo } from 'react';
-import { VisibilityType } from '../visibility-selector';
 import { cn } from '@/lib/utils';
 import { useDocumentUtils } from '@/hooks/use-document-utils';
 import { fetcher } from '@/lib/utils';
@@ -30,12 +29,10 @@ import {
 function PureChatHeader({
   chatId,
   selectedModelId,
-  selectedVisibilityType,
   isReadonly,
 }: {
   chatId: string;
   selectedModelId: string;
-  selectedVisibilityType: VisibilityType;
   isReadonly: boolean;
 }) {
   const router = useRouter();

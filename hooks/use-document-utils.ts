@@ -1,12 +1,11 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useArtifact } from './use-artifact';
 import { toast } from 'sonner';
 import { generateUUID } from '@/lib/utils';
 import { useSidebar } from '@/components/ui/sidebar';
-import useSWR from 'swr';
 import { ArtifactKind } from '@/components/artifact';
 
 interface CreateDocumentParams {
@@ -34,7 +33,6 @@ export function useDocumentUtils() {
   const router = useRouter();
   const { setArtifact, artifact } = useArtifact();
   const { setOpenMobile, openMobile } = useSidebar();
-  const { mutate } = useSWRConfig();
   const [isCreatingChat, setIsCreatingChat] = useState(false);
   const [isCreatingDocument, setIsCreatingDocument] = useState(false);
   const [isRenamingDocument, setIsRenamingDocument] = useState(false);
@@ -58,7 +56,7 @@ export function useDocumentUtils() {
   /**
    * Creates a new chat and resets the artifact state
    */
-  const handleNewChat = useCallback(() => {
+  const handleNewChat = () => {
     if (isCreatingChat) return;
     setIsCreatingChat(true);
     
@@ -66,7 +64,7 @@ export function useDocumentUtils() {
       // Reset artifact state before navigation
       setArtifact({
         documentId: 'init', // Reset to initial state
-        title: 'Untitled Document',
+        title: 'New Document',
         kind: 'text',
         isVisible: true,
         status: 'idle',
@@ -84,16 +82,14 @@ export function useDocumentUtils() {
       console.error('Error creating new document:', error);
       toast.error('Failed to create new document');
     } finally {
-      setTimeout(() => {
-        setIsCreatingChat(false);
-      }, 500);
+      setIsCreatingChat(false);
     }
-  }, [router, setArtifact, setOpenMobile, isCreatingChat]);
+  };
 
   /**
    * Creates a new document and navigates to it
    */
-  const createNewDocument = useCallback(async () => {
+  const createNewDocument = async () => {
     if (isCreatingDocument) return;
     
     setIsCreatingDocument(true);
@@ -161,14 +157,16 @@ export function useDocumentUtils() {
         setIsCreatingDocument(false);
       }, 1000);
     }
-  }, [router, setArtifact, openMobile, setOpenMobile, isCreatingDocument]);
+  };
 
   /**
    * Renames an existing document
    */
-  const renameDocument = useCallback(async (newTitle: string) => {
-    if (!artifact.documentId || artifact.documentId === 'init') {
-      toast.error('No document to rename');
+  const renameDocument = async (newTitle: string) => {
+    if (isRenamingDocument || !artifact.documentId || artifact.documentId === 'init') return;
+    
+    if (!newTitle.trim()) {
+      toast.error('Document title cannot be empty');
       return;
     }
     
@@ -203,9 +201,6 @@ export function useDocumentUtils() {
           // No content or other fields, so it's detected as a rename operation
         }),
       });
-
-      // Get response data whether successful or not for better error handling
-      const responseData = await response.json().catch(() => null);
       
       if (!response.ok) {
         // If server update fails, revert the title
@@ -242,13 +237,12 @@ export function useDocumentUtils() {
         duration: 2000
       });
     } catch (error) {
-      console.error('[DocumentUtils] Error renaming document:', error);
+      console.error('Error renaming document:', error);
       toast.error('Failed to rename document');
-      return false;
     } finally {
       setIsRenamingDocument(false);
     }
-  }, [artifact.documentId, artifact.title, setArtifact]);
+  };
 
   // Create a new document
   const createDocument = async (params: CreateDocumentParams) => {

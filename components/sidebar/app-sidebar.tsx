@@ -20,7 +20,6 @@ export function AppSidebar({ user }: { user: User | undefined }) {
   const { setOpenMobile } = useSidebar();
   const { width } = useWindowSize();
   const isMobile = width < 768;
-  const [activeTab, setActiveTab] = useState<SidebarTab>('documents');
 
   return (
     <Sidebar className="border-none shadow-none">
@@ -39,35 +38,6 @@ export function AppSidebar({ user }: { user: User | undefined }) {
           </div>
         </SidebarMenu>
       </SidebarHeader>
-      
-      {user && (
-        <div className="px-4 pt-2 pb-2 border-b">
-          <div className="flex gap-2 items-center">
-            <button 
-              onClick={() => setActiveTab('documents')} 
-              className={cn(
-                "flex-1 py-1.5 rounded-md text-sm font-medium transition-colors",
-                activeTab === 'documents' 
-                  ? "bg-primary text-primary-foreground" 
-                  : "hover:bg-primary/10 text-muted-foreground"
-              )}
-            >
-              Documents
-            </button>
-            <button 
-              onClick={() => setActiveTab('chats')} 
-              className={cn(
-                "flex-1 py-1.5 rounded-md text-sm font-medium transition-colors",
-                activeTab === 'chats' 
-                  ? "bg-primary text-primary-foreground" 
-                  : "hover:bg-primary/10 text-muted-foreground"
-              )}
-            >
-              Chats
-            </button>
-          </div>
-        </div>
-      )}
       
       <SidebarContent>
         <div className="px-2">
