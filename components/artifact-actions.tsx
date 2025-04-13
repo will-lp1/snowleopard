@@ -5,9 +5,7 @@ import { Dispatch, memo, SetStateAction, useState } from 'react';
 import { ArtifactActionContext } from './create-artifact';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Loader2, Copy as CopyIcon, Check as CheckIcon, Clipboard as ClipboardIcon, Clock as ClockIcon, Files as FilesIcon, MoreVertical as MoreVerticalIcon, Plus as PlusIcon } from 'lucide-react';
-import { useDebouncedSave } from '@/hooks/use-debounced-save';
-import { useDocumentUtils } from '@/hooks/use-document-utils';
+import { Loader2, Copy as CopyIcon } from 'lucide-react';
 
 interface ArtifactActionsProps {
   artifact: UIArtifact;
@@ -29,11 +27,7 @@ function PureArtifactActions({
   setMetadata,
 }: ArtifactActionsProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const { isSaving } = useDebouncedSave();
-  const { isCreatingDocument } = useDocumentUtils();
-  
-  // Determine if new document button should be disabled
-  const isNewDocButtonDisabled = artifact.status === 'streaming' || isCreatingDocument;
+  const isSaving = artifact.saveState === 'saving';
 
   const artifactDefinition = artifactDefinitions.find(
     (definition) => definition.kind === artifact.kind,

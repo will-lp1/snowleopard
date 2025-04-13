@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { getDocumentById } from '@/lib/db/queries';
 import { documentHandlersByArtifactKind } from '@/lib/artifacts/server';
 import type { Document } from '@/lib/db/schema';
-import { createClient } from '@/utils/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 
 interface UpdateDocumentProps {
   session: Session;

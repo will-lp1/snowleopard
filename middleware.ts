@@ -55,51 +55,64 @@ export async function middleware(request: NextRequest) {
   )
 
   // Refresh session if expired - required for Server Components
-  await supabase.auth.getSession()
+  // No need to await getSession here, we'll get it if needed below
+  // await supabase.auth.getSession() 
 
-  // Handle protected routes
+  // Handle routes
   const { data: { session } } = await supabase.auth.getSession()
   const isLoggedIn = !!session?.user
   const pathname = request.nextUrl.pathname
 
-  // Check if the route is a chat route or root path
-  const isChatRoute = pathname === '/chat' || pathname.startsWith('/chat/')
-  const isRootPath = pathname === '/'
+  // Check if the route is a documents route
+  const isDocumentsRoute = pathname === '/documents' || pathname.startsWith('/documents/')
   const isOnRegister = pathname === '/register'
   const isOnLogin = pathname === '/login'
+  const isRootPath = pathname === '/' // Keep track of root path
 
-  // Redirect authenticated users away from auth pages
+  // Redirect authenticated users away from auth pages or root path
   if (isLoggedIn && (isOnLogin || isOnRegister)) {
-    return NextResponse.redirect(new URL('/chat', request.url))
+    return NextResponse.redirect(new URL('/documents', request.url))
+  }
+  // If logged in and on root, redirect to documents
+  if (isLoggedIn && isRootPath) {
+    return NextResponse.redirect(new URL('/documents', request.url))
   }
 
   // Allow access to auth pages for non-authenticated users
-  if (isOnRegister || isOnLogin) {
+  if (!isLoggedIn && (isOnRegister || isOnLogin)) {
+    return response
+  }
+  
+  // Allow access to root path for everyone
+  if (isRootPath) {
     return response
   }
 
-  // Handle chat routes and root path - require authentication
-  if (isChatRoute || isRootPath) {
+  // Handle documents routes - require authentication, redirect to root if not logged in
+  if (isDocumentsRoute) {
     if (!isLoggedIn) {
-      // Store the intended destination for post-login redirect
-      const redirectUrl = new URL('/login', request.url)
-      redirectUrl.searchParams.set('redirect', pathname === '/' ? '/chat' : pathname)
-      return NextResponse.redirect(redirectUrl)
+      // Redirect unauthenticated users to the landing page instead of login
+      return NextResponse.redirect(new URL('/', request.url))
     }
-    if (isRootPath) {
-      return NextResponse.redirect(new URL('/chat', request.url))
-    }
+    // If logged in, allow access to documents routes
     return response
   }
 
+  // For any other paths not explicitly handled, allow access
   return response
 }
 
 export const config = {
   matcher: [
-    '/chat',
-    '/chat/:path*',
-    '/login',
-    '/register'
-  ]
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - images (static image assets)
+     * - fonts (static font assets)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico|images|fonts).*)',
+  ],
 }

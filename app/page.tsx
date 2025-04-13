@@ -4,8 +4,8 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Crimson_Text } from 'next/font/google'
 import { useState, useEffect } from 'react'
-import { createClient } from '@/utils/supabase/client'
-import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
+import { redirect, useRouter } from 'next/navigation'
 
 const crimson = Crimson_Text({
   weight: ['400', '700'],
@@ -15,38 +15,64 @@ const crimson = Crimson_Text({
 
 export default function Home() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
   const supabase = createClient()
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.user) {
-        router.push('/chat')
+    const checkSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        
+        if (session) {
+          // If user is logged in, redirect to documents
+          router.push('/documents')
+          // No need to set isLoading to false here, as we are navigating away
+        } else {
+          // If user is not logged in, stop loading and show the landing page
+          setIsLoading(false)
+        }
+      } catch (error) {
+        console.error('Error checking session:', error)
+        // Also stop loading on error to prevent infinite spinner
+        setIsLoading(false)
       }
     }
-    checkAuth()
-  }, [router, supabase.auth])
+
+    checkSession()
+    // Removed router and supabase.auth from dependencies as they are stable
+    // If they *can* change in your setup, add them back.
+  }, [supabase.auth, router]) // Keep dependencies if needed
 
   const handleBeginClick = async () => {
     const { data: { session } } = await supabase.auth.getSession()
     if (session?.user) {
-      router.push('/chat')
+      router.push('/documents')
     } else {
-      router.push('/login?redirect=/chat')
+      router.push('/login?redirect=/documents')
     }
   }
 
+  // Don't render content while checking auth
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        {/* Simple loading indicator */}
+        <div className="size-8 border-2 border-gray-300 border-t-gray-800 rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
   return (
-    <div className="relative min-h-screen overflow-hidden bg-white">
+    <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
       {/* Header */}
       <header className="absolute top-0 w-full flex justify-between items-center px-8 py-6 z-10">
-        <h1 className="text-lg font-normal text-gray-800">
+        <h1 className="text-lg font-normal text-foreground/90">
           cursorforwriting
         </h1>
         <button 
           onClick={handleBeginClick}
-          className="px-6 py-2 rounded-full bg-white border border-gray-200 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:bg-gray-50 transition-colors text-sm"
+          className="px-6 py-2 rounded-full bg-card text-card-foreground border border-border shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:bg-muted transition-colors text-sm"
         >
           Begin
         </button>
@@ -80,9 +106,9 @@ export default function Home() {
           {/* Video Preview Button */}
           <button 
             onClick={() => setIsDialogOpen(true)}
-            className="group px-6 py-2 rounded-full bg-white border border-gray-200 shadow-sm hover:bg-gray-50 transition-all duration-200 text-sm flex items-center gap-2 hover:border-gray-300 mx-auto mb-4"
+            className="group px-6 py-2 rounded-full bg-card text-card-foreground border border-border shadow-sm hover:bg-muted transition-all duration-200 text-sm flex items-center gap-2 hover:border-border/80 mx-auto mb-4"
           >
-            <svg className="size-4 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
+            <svg className="size-4 text-muted-foreground" fill="currentColor" viewBox="0 0 24 24">
               <path d="M8 5v14l11-7z" />
             </svg>
             Watch demo
@@ -98,7 +124,7 @@ export default function Home() {
               onClick={() => setIsDialogOpen(false)}
             />
             <div className="fixed inset-0 flex items-center justify-center p-4">
-              <div className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden">
+              <div className="relative w-full max-w-4xl bg-card rounded-2xl shadow-2xl overflow-hidden">
                 {/* Close button */}
                 <button 
                   onClick={() => setIsDialogOpen(false)}
@@ -112,7 +138,7 @@ export default function Home() {
                 {/* Video container with 16:9 aspect ratio */}
                 <div className="relative pt-[56.25%] bg-black">
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <p className="text-white/60 text-sm">Video content will go here</p>
+                    <p className="text-muted-foreground text-sm">Video content will go here</p>
                   </div>
                 </div>
               </div>
@@ -122,20 +148,20 @@ export default function Home() {
           {/* Title Group */}
           <div className="space-y-0">
             <div className="relative">
-              <h2 className={`text-[96px] ${crimson.className} tracking-[-0.02em] leading-[0.8] text-gray-900`}>
+              <h2 className={`text-[96px] ${crimson.className} tracking-[-0.02em] leading-[0.8] text-foreground`}>
                 Tab, Tab, Apply
               </h2>
             </div>
             
             <div className="relative mt-1">
-              <h3 className={`text-[80px] ${crimson.className} tracking-[-0.01em] text-gray-900 font-bold`}>
+              <h3 className={`text-[80px] ${crimson.className} tracking-[-0.01em] text-foreground font-bold`}>
                 Brilliance<span className="animate-blink ml-0.5 font-normal">|</span>
               </h3>
             </div>
           </div>
 
           {/* Tagline */}
-          <p className="text-base text-gray-600 dark:text-gray-400 max-w-md mx-auto font-light">
+          <p className="text-base text-muted-foreground max-w-md mx-auto font-light">
             the most satisfying, intuitive ai writing tool,
             <br />
             and it&apos;s open source
@@ -145,7 +171,7 @@ export default function Home() {
           <div className="flex gap-3 justify-center mt-8">
             <Link 
               href="/login"
-              className="group px-6 py-2 rounded-full bg-white border border-gray-200 shadow-sm hover:bg-gray-50 transition-all duration-200 text-sm flex items-center hover:border-gray-300"
+              className="group px-6 py-2 rounded-full bg-card text-card-foreground border border-border shadow-sm hover:bg-muted transition-all duration-200 text-sm flex items-center hover:border-border/80"
             >
               Begin <span className="inline-block ml-1 text-xs transition-transform group-hover:translate-x-0.5">›</span>
             </Link>
@@ -153,7 +179,7 @@ export default function Home() {
               href="https://github.com/will-lp1/cursorforwriting"
               target="_blank"
               rel="noopener noreferrer"
-              className="group px-6 py-2 rounded-full bg-white border border-gray-200 shadow-sm hover:bg-gray-50 transition-all duration-200 text-sm flex items-center hover:border-gray-300"
+              className="group px-6 py-2 rounded-full bg-card text-card-foreground border border-border shadow-sm hover:bg-muted transition-all duration-200 text-sm flex items-center hover:border-border/80"
             >
               GIT <span className="inline-block ml-1 text-xs transition-transform group-hover:translate-x-0.5">›</span>
             </Link>

@@ -11,16 +11,12 @@ import {
   useRef,
 } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
-import { useDebounceCallback, useWindowSize } from 'usehooks-ts';
+import { useWindowSize } from 'usehooks-ts';
 import type { Document, Suggestion } from '@/lib/db/schema';
 import { fetcher } from '@/lib/utils';
-import { MultimodalInput } from './multimodal-input';
+import { MultimodalInput } from './chat/multimodal-input';
 import { Toolbar } from './toolbar';
-import { VersionFooter } from './version-footer';
 import { ArtifactActions } from './artifact-actions';
-import { ArtifactCloseButton } from './artifact-close-button';
-import { ArtifactMessages } from './artifact-messages';
-import { useSidebar } from './ui/sidebar';
 import { useArtifact } from '@/hooks/use-artifact';
 import { textArtifact } from '@/artifacts/text/client';
 import equal from 'fast-deep-equal';
@@ -28,7 +24,6 @@ import { UseChatHelpers } from '@ai-sdk/react';
 import { Button } from './ui/button';
 import { CheckIcon } from './icons';
 import { toast } from 'sonner';
-import { useDebouncedSave } from '@/hooks/use-debounced-save';
 import { Input } from './ui/input';
 import { useDocumentUtils } from '@/hooks/use-document-utils';
 import { Pencil as PencilIcon, X as XIcon } from 'lucide-react';
@@ -74,6 +69,16 @@ interface ArtifactContent<M = any> {
   lastSaveError?: string | null;
 }
 
+export interface ArtifactActionContext<M = any> {
+  content: string;
+  handleVersionChange: (type: 'next' | 'prev' | 'toggle' | 'latest' | 'new') => void;
+  currentVersionIndex: number;
+  isCurrentVersion: boolean;
+  mode: 'edit' | 'diff';
+  metadata: M;
+  setMetadata: Dispatch<SetStateAction<M>>;
+}
+
 export function PureArtifact({
   chatId,
   input,
@@ -104,15 +109,12 @@ export function PureArtifact({
   isReadonly: boolean;
 }) {
   const { artifact, setArtifact, metadata, setMetadata } = useArtifact();
-  const { debouncedSave, saveImmediately, isSaving } = useDebouncedSave(2000);
   const { renameDocument, isRenamingDocument, createDocument } = useDocumentUtils();
   
   const [editingTitle, setEditingTitle] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const titleInputRef = useRef<HTMLInputElement>(null);
-  const documentFetchAttempts = useRef(0);
-  const MAX_FETCH_ATTEMPTS = 3;
-
+  
   const {
     data: documents,
     isLoading: isDocumentsFetching,
@@ -129,20 +131,8 @@ export function PureArtifact({
         return null;
       }
       
-      try {
-        const result = await fetcher(url);
-        documentFetchAttempts.current = 0; // Reset on success
-        return result;
-      } catch (error) {
-        // Implement exponential backoff for retries
-        if (documentFetchAttempts.current < MAX_FETCH_ATTEMPTS) {
-          documentFetchAttempts.current += 1;
-          console.warn(`[Artifact] Document fetch attempt ${documentFetchAttempts.current} failed, retrying...`);
-          setTimeout(() => mutateDocuments(), 1000 * Math.pow(2, documentFetchAttempts.current));
-        }
-        console.error('[Artifact] Failed to fetch document:', error);
-        return null;
-      }
+      const result = await fetcher(url);
+      return result;
     }
   );
 
@@ -150,8 +140,6 @@ export function PureArtifact({
   const [document, setDocument] = useState<Document | null>(null);
   const [currentVersionIndex, setCurrentVersionIndex] = useState(-1);
   const [isCreatingNewDocument, setIsCreatingNewDocument] = useState(false);
-
-  const { open: isSidebarOpen } = useSidebar();
 
   // Create a new document - use the consolidated createDocument function
   const createNewDocument = useCallback(async () => {
@@ -164,80 +152,6 @@ export function PureArtifact({
       navigateAfterCreate: true
     });
   }, [chatId, createDocument]);
-
-  // Listen for route changes to ensure document state is reset
-  useEffect(() => {
-    const handleRouteChange = () => {
-      const url = new URL(window.location.href);
-      if (url.pathname.includes('/chat/')) {
-        const documentId = url.searchParams.get('document');
-        
-        if (documentId && 
-            documentId !== 'undefined' && 
-            documentId !== 'null' && 
-            documentId !== artifact.documentId) {
-          // Reset state for the new document
-          console.log('[Artifact] New document detected from URL:', documentId);
-          
-          // Check document cache before resetting content
-          const documentCache = (window as any).__DOCUMENT_CACHE;
-          if (documentCache && documentCache.has(documentId)) {
-            const cachedDoc = documentCache.get(documentId);
-            console.log('[Artifact] Using cached document from route change:', documentId);
-            
-            // Use cached data for immediate display
-            setArtifact(curr => ({
-              ...curr,
-              documentId,
-              title: cachedDoc.title,
-              content: cachedDoc.content || '',
-              kind: cachedDoc.kind as ArtifactKind,
-              status: 'idle'
-            }));
-          } else {
-            // No cache - standard reset
-            setArtifact(curr => ({
-              ...curr,
-              documentId,
-              content: '',
-              status: 'idle'
-            }));
-          }
-          
-          // Use setTimeout to avoid React scheduling errors
-          setTimeout(() => {
-            setDocument(null);
-            setCurrentVersionIndex(-1);
-            mutateDocuments();
-          }, 0);
-        } else if (!documentId && artifact.documentId !== 'init') {
-          // No document in URL, reset to initial state
-          console.log('[Artifact] No document in URL, resetting to initial state');
-          setArtifact(curr => ({
-            ...curr,
-            documentId: 'init',
-            title: 'New Document',
-            content: '',
-            status: 'idle',
-            kind: 'text' as const
-          }));
-          
-          setDocument(null);
-          setCurrentVersionIndex(-1);
-        }
-      }
-    };
-
-    // Run once on mount to handle any initial URL
-    handleRouteChange();
-
-    // Add event listener for popstate (browser back/forward)
-    window.addEventListener('popstate', handleRouteChange);
-    
-    return () => {
-      window.removeEventListener('popstate', handleRouteChange);
-    };
-  }, [artifact.documentId, setArtifact, mutateDocuments]);
 
   // Update document state when documents are loaded
   useEffect(() => {
@@ -252,129 +166,30 @@ export function PureArtifact({
     const mostRecentDocument = documents.at(-1);
     if (!mostRecentDocument) return;
     
-    // Track this update to avoid race conditions
-    const updateId = Date.now();
-    (window as any).__DOCUMENT_UPDATE_ID = updateId;
-    
-    // Always update document reference and version index
+    // Update document reference and version index
     setDocument(mostRecentDocument);
     setCurrentVersionIndex(documents.length - 1);
     
-    // Update document cache for quick access
-    if (typeof window !== 'undefined' && (window as any).__DOCUMENT_CACHE) {
-      (window as any).__DOCUMENT_CACHE.set(mostRecentDocument.id, mostRecentDocument);
-    }
-    
-    // Delay content update slightly to avoid React batching issues
-    setTimeout(() => {
-      // Check if this is still the latest update
-      if ((window as any).__DOCUMENT_UPDATE_ID !== updateId) {
-        console.log('[Artifact] Skipping stale document update');
-        return;
-      }
+    // Update artifact with document data if needed
+    if (!artifact.content || 
+        artifact.status === 'streaming' || 
+        (mostRecentDocument.content && mostRecentDocument.content !== artifact.content)) {
       
-      // Carefully update content to prevent flicker during rapid switching
-      // Only update in these conditions:
-      // 1. Content is empty but document has content
-      // 2. Status is 'streaming' (loading)
-      // 3. Content is different and we're not streaming (normal update)
-      if (!artifact.content || 
-          artifact.status === 'streaming' || 
-          (mostRecentDocument.content && mostRecentDocument.content !== artifact.content)) {
-        console.log('[Artifact] Updating content from document:', mostRecentDocument.id);
-        setArtifact((currentArtifact) => ({
-          ...currentArtifact,
-          title: mostRecentDocument.title || currentArtifact.title,
-          content: mostRecentDocument.content || '',
-          status: 'idle', // Ensure we reset to idle state
-        }));
-      }
-    }, 10);
+      setArtifact((currentArtifact) => ({
+        ...currentArtifact,
+        title: mostRecentDocument.title || currentArtifact.title,
+        content: mostRecentDocument.content || '',
+        status: 'idle',
+      }));
+    }
   }, [documents, setArtifact, documentsError, artifact.status, artifact.content]);
-
-  // Reload documents when artifact status changes or document ID changes
-  useEffect(() => {
-    if (artifact.documentId && 
-        artifact.documentId !== 'init' && 
-        artifact.documentId !== 'undefined' && 
-        artifact.documentId !== 'null') {
-      // Use a throttled mutation to prevent too many requests during navigation
-      const timeoutId = setTimeout(() => {
-        mutateDocuments();
-      }, 50);
-      
-      return () => clearTimeout(timeoutId);
-    }
-  }, [artifact.status, mutateDocuments, artifact.documentId]);
 
   const { mutate } = useSWRConfig();
   const [isContentDirty, setIsContentDirty] = useState(false);
 
-  const handleContentChange = useCallback(
-    (updatedContent: string) => {
-      if (!artifact || !artifact.documentId || artifact.documentId === 'init') return;
-
-      mutate<Array<Document>>(
-        `/api/document?id=${artifact.documentId}`,
-        async (currentDocuments) => {
-          if (!currentDocuments) return undefined;
-
-          const currentDocument = currentDocuments.at(-1);
-
-          if (!currentDocument) {
-            setIsContentDirty(false);
-            return currentDocuments;
-          }
-
-          if (currentDocument.content !== updatedContent) {
-            try {
-              const response = await fetch(`/api/document?id=${artifact.documentId}`, {
-                method: 'POST',
-                body: JSON.stringify({
-                  title: artifact.title,
-                  content: updatedContent,
-                  kind: artifact.kind,
-                }),
-              });
-              
-              if (!response.ok) {
-                throw new Error('Failed to update document content');
-              }
-
-              setIsContentDirty(false);
-
-              const newDocument = {
-                ...currentDocument,
-                content: updatedContent,
-                createdAt: new Date().toISOString(),
-              };
-
-              return [...currentDocuments, newDocument];
-            } catch (error) {
-              console.error('[Artifact] Failed to update document content:', error);
-              // Keep the content dirty flag to trigger retry
-              setIsContentDirty(true);
-              return currentDocuments;
-            }
-          }
-          return currentDocuments;
-        },
-        { revalidate: false },
-      );
-    },
-    [artifact, mutate],
-  );
-
-  const debouncedHandleContentChange = useDebounceCallback(
-    handleContentChange,
-    2000,
-  );
-
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'error'>('idle');
   const [lastSaveError, setLastSaveError] = useState<string | null>(null);
-  const lastSaveAttemptRef = useRef<number>(Date.now());
   const consecutiveErrorsRef = useRef<number>(0);
-  const isSavingRef = useRef<boolean>(false);
 
   const saveContent = useCallback(async (content: string, isDebounced = false) => {
     if (!artifact?.documentId || artifact.documentId === 'init') {
@@ -392,24 +207,27 @@ export function PureArtifact({
       return;
     }
     
-    // Prevent starting a new save if one is already in progress
-    if (isSavingRef.current) {
-      console.log('[Artifact] Save already in progress, skipping');
-      return;
-    }
-    
     try {
       // Set saving state
-      isSavingRef.current = true;
       setSaveState('saving');
       setLastSaveError(null);
       console.log('[Artifact] Initiating save for document:', artifact.documentId);
       
-      // Use the debounced save hook methods
-      if (isDebounced) {
-        await debouncedSave(content, artifact.documentId, artifact.title, artifact.kind);
-      } else {
-        await saveImmediately(content, artifact.documentId, artifact.title, artifact.kind);
+      // Direct API call to save content
+      const response = await fetch(`/api/document?id=${artifact.documentId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: artifact.title,
+          content: content,
+          kind: artifact.kind,
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Save failed with status: ${response.status}`);
       }
       
       // Reset state and update UI after successful save
@@ -424,11 +242,8 @@ export function PureArtifact({
       setLastSaveError(error instanceof Error ? error.message : 'Unknown error occurred');
       consecutiveErrorsRef.current++;
       toast.error('Failed to save document. Please try again.');
-    } finally {
-      // Always reset the saving ref to prevent lockups
-      isSavingRef.current = false;
     }
-  }, [artifact?.documentId, artifact?.title, artifact?.kind, debouncedSave, saveImmediately, mutateDocuments, createDocument, chatId]);
+  }, [artifact?.documentId, artifact?.title, artifact?.kind, mutateDocuments, createDocument, chatId]);
 
   function getDocumentContentById(index: number) {
     if (!documents) return '';
@@ -501,14 +316,14 @@ export function PureArtifact({
 
   // Update the status display in the UI
   const getSaveStatusDisplay = () => {
-    if (isSaving || saveState === 'saving') {
+    if (saveState === 'saving') {
       return (
         <>
           <svg className="animate-spin size-3 text-muted-foreground" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
           </svg>
-          <span>Saving{consecutiveErrorsRef.current > 0 ? ` (Retry ${consecutiveErrorsRef.current})` : ''}</span>
+          <span>Saving</span>
         </>
       );
     }
@@ -600,89 +415,8 @@ export function PureArtifact({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0, transition: { duration: 0.2 } }}
         >
-          {!isMobile && (
-            <motion.div
-              className="fixed bg-background h-dvh"
-              initial={{
-                width: isSidebarOpen ? windowWidth - 256 : windowWidth,
-                left: 0,
-              }}
-              animate={{ width: windowWidth - 400, left: 0 }}
-              exit={{
-                width: windowWidth,
-                left: 0,
-                transition: { duration: 0.2 },
-              }}
-            />
-          )}
-
-          {!isMobile && (
-            <motion.div
-              className="relative w-[400px] bg-muted dark:bg-background h-dvh shrink-0 ml-auto"
-              initial={{ opacity: 0, x: 10, scale: 1 }}
-              animate={{
-                opacity: 1,
-                x: 0,
-                scale: 1,
-                transition: {
-                  delay: 0.1,
-                  type: 'spring',
-                  stiffness: 200,
-                  damping: 30,
-                },
-              }}
-              exit={{
-                opacity: 0,
-                x: 20,
-                transition: { duration: 0.2 },
-              }}
-            >
-              <AnimatePresence>
-                {!isCurrentVersion && (
-                  <motion.div
-                    className="left-0 absolute h-dvh w-[400px] top-0 bg-zinc-900/50 z-50"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                  />
-                )}
-              </AnimatePresence>
-
-              <div className="flex flex-col h-full justify-between items-center gap-4">
-                <ArtifactMessages
-                  chatId={chatId}
-                  status={status}
-                  messages={messages}
-                  setMessages={setMessages}
-                  reload={reload}
-                  isReadonly={isReadonly}
-                  artifactStatus={artifact.status}
-                />
-
-                <div className="flex flex-col w-full gap-2 px-4 pb-4">
-                  <form className="flex flex-row gap-2 relative items-end w-full">
-                    <MultimodalInput
-                      chatId={chatId}
-                      input={input}
-                      setInput={setInput}
-                      handleSubmit={handleSubmit}
-                      status={status}
-                      stop={stop}
-                      attachments={attachments}
-                      setAttachments={setAttachments}
-                      messages={messages}
-                      append={append}
-                      className="bg-background dark:bg-muted"
-                      setMessages={setMessages}
-                    />
-                  </form>
-                </div>
-              </div>
-            </motion.div>
-          )}
-
           <motion.div
-            className="fixed dark:bg-muted bg-background h-dvh flex flex-col overflow-y-scroll md:border-r dark:border-zinc-700 border-zinc-200"
+            className="fixed dark:bg-muted bg-background h-dvh flex flex-col overflow-y-scroll md:border-r subtle-border"
             initial={
               isMobile
                 ? {
@@ -724,9 +458,7 @@ export function PureArtifact({
                     x: 0,
                     y: 0,
                     height: windowHeight,
-                    width: windowWidth
-                      ? windowWidth - 400
-                      : 'calc(100dvw-400px)',
+                    width: windowWidth,
                     borderRadius: 0,
                     transition: {
                       delay: 0,
@@ -745,7 +477,36 @@ export function PureArtifact({
           >
             <div className="p-2 flex flex-row justify-between items-start">
               <div className="flex flex-row gap-4 items-start">
-                <ArtifactCloseButton />
+                <Button
+                  data-testid="artifact-close-button"
+                  variant="outline"
+                  className="h-fit p-2 dark:hover:bg-zinc-700"
+                  onClick={() => {
+                    setArtifact((currentArtifact) =>
+                      currentArtifact.status === 'streaming'
+                        ? {
+                            ...currentArtifact,
+                            isVisible: false,
+                          }
+                        : { ...currentArtifact, isVisible: false },
+                    );
+                  }}
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 15 15"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M11.7816 4.03157C12.0062 3.80702 12.0062 3.44295 11.7816 3.2184C11.5571 2.99385 11.193 2.99385 10.9685 3.2184L7.50005 6.68682L4.03164 3.2184C3.80708 2.99385 3.44301 2.99385 3.21846 3.2184C2.99391 3.44295 2.99391 3.80702 3.21846 4.03157L6.68688 7.49999L3.21846 10.9684C2.99391 11.193 2.99391 11.557 3.21846 11.7816C3.44301 12.0061 3.80708 12.0061 4.03164 11.7816L7.50005 8.31316L10.9685 11.7816C11.193 12.0061 11.5571 12.0061 11.7816 11.7816C12.0062 11.557 12.0062 11.193 11.7816 10.9684L8.31322 7.49999L11.7816 4.03157Z"
+                      fill="currentColor"
+                      fillRule="evenodd"
+                      clipRule="evenodd"
+                    ></path>
+                  </svg>
+                </Button>
 
                 <div className="flex flex-col">
                   {editingTitle ? (
@@ -862,16 +623,6 @@ export function PureArtifact({
                 )}
               </AnimatePresence>
             </div>
-
-            <AnimatePresence>
-              {!isCurrentVersion && (
-                <VersionFooter
-                  currentVersionIndex={currentVersionIndex}
-                  documents={documents}
-                  handleVersionChange={handleVersionChange}
-                />
-              )}
-            </AnimatePresence>
           </motion.div>
         </motion.div>
       )}

@@ -1,6 +1,6 @@
 import 'server-only';
-import { createClient } from '@/utils/supabase/server';
-import type { Database } from '@/utils/supabase/database.types';
+import { createClient } from '@/lib/supabase/server';
+import type { Database } from '@/lib/supabase/database.types';
 import type { ArtifactKind } from '@/components/artifact';
 import { cookies } from 'next/headers';
 
@@ -37,10 +37,15 @@ export async function saveChat({
   id,
   userId,
   title,
+  document_context,
 }: {
   id: string;
   userId: string;
   title: string;
+  document_context?: {
+    active?: string;
+    mentioned?: string[];
+  };
 }) {
   const supabase = await createClient();
   const { error } = await supabase.from('Chat').insert({
@@ -48,6 +53,7 @@ export async function saveChat({
     userId,
     title,
     createdAt: new Date().toISOString(),
+    document_context,
   });
 
   if (error) {
@@ -222,18 +228,28 @@ export async function saveDocument({
   if (error) throw error;
 }
 
-export async function getDocumentsById({ id }: { id: string }): Promise<Document[]> {
+/**
+ * Get documents by their IDs, ensuring the user has access
+ */
+export async function getDocumentsById({ ids, userId }: { ids: string[], userId: string }): Promise<Document[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('Document')
     .select()
-    .eq('id', id)
-    .order('createdAt', { ascending: true });
+    .in('id', ids) // Use .in() for multiple IDs
+    .eq('userId', userId); // Ensure user owns the documents
 
-  if (error) throw error;
-  return data;
+  if (error) {
+    console.error('Error fetching documents by IDs:', error);
+    return [];
+  }
+  
+  return data || [];
 }
 
+/**
+ * Get a single document by its ID - useful for specific lookups
+ */
 export async function getDocumentById({ id }: { id: string }): Promise<Document> {
   const supabase = await createClient();
 
@@ -258,25 +274,26 @@ export async function getDocumentById({ id }: { id: string }): Promise<Document>
       throw new Error(`Invalid document ID format: ${id}`);
     }
     
+    // Don't use single(), instead get all documents with this ID and take the most recent one
     const { data, error } = await supabase
       .from('Document')
       .select()
       .eq('id', id)
       .order('createdAt', { ascending: false })
-      .limit(1)
-      .single();
+      .limit(1);
 
     if (error) {
       console.error(`[DB Query] Error fetching document with ID ${id}:`, error);
       throw new Error(`Database error: ${error.message}`);
     }
     
-    if (!data) {
+    if (!data || data.length === 0) {
       console.warn(`[DB Query] No document found with ID: ${id}`);
       throw new Error(`Document not found: ${id}`);
     }
     
-    return data;
+    // Return the most recent document
+    return data[0];
   } catch (error) {
     console.error('[DB Query] getDocumentById error:', error instanceof Error ? error.message : error);
     throw error; // Re-throw to handle in the calling code
@@ -335,25 +352,6 @@ export async function getMessageById({ id }: { id: string }): Promise<Message> {
 
   if (error) throw error;
   return data;
-}
-
-/**
- * Get all documents associated with a specific chat ID
- */
-export async function getDocumentsByChatId({ chatId }: { chatId: string }): Promise<Document[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('Document')
-    .select()
-    .eq('chatId', chatId)
-    .order('createdAt', { ascending: false });
-
-  if (error) {
-    console.error('Error fetching documents by chat ID:', error);
-    return [];
-  }
-  
-  return data || [];
 }
 
 export async function deleteMessagesByChatIdAfterTimestamp({

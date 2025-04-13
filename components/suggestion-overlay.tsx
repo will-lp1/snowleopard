@@ -1,11 +1,12 @@
 "use client"
 
 import { useCallback, useEffect, useState, useRef } from 'react';
-import { X, Check, ChevronDown, GripVertical } from 'lucide-react';
+import { X, Check, ChevronDown, GripVertical, Loader2 } from 'lucide-react';
 import { useArtifact } from '@/hooks/use-artifact';
-import { DiffView } from '@/components/diffview';
+import { DiffView } from '@/components/document/diffview';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useAiOptions } from '@/hooks/ai-options';
 
 export interface HighlightedTextProps {
   text: string;
@@ -52,11 +53,19 @@ export default function SuggestionOverlay({
   const [error, setError] = useState<string | null>(null);
   const [originalContent, setOriginalContent] = useState<string | null>(null);
   const [suggestion, setSuggestion] = useState<string>('');
-  const [isSelectionExpanded, setIsSelectionExpanded] = useState(true);
+  const [isSelectionExpanded, setIsSelectionExpanded] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const { artifact, setArtifact, metadata, setMetadata } = useArtifact();
+  const { customInstructions } = useAiOptions();
+
+  // Function to truncate text to first 5 words
+  const truncateText = (text: string, wordCount = 5) => {
+    const words = text.split(/\s+/);
+    if (words.length <= wordCount) return text;
+    return words.slice(0, wordCount).join(' ') + '...';
+  };
 
   // Update current position when initial position prop changes
   useEffect(() => {
@@ -203,9 +212,16 @@ export default function SuggestionOverlay({
       return;
     }
 
+    // Don't proceed if no text was selected for suggestion context
+    if (!selectedText || selectedText.trim() === '') {
+      toast.warning("Please select text to generate a suggestion for");
+      return;
+    }
+
     setIsGenerating(true);
     setError(null);
     setSuggestion('');
+    setOriginalContent(selectedText); // Keep track of original content
 
     // Close any existing connection
     if (eventSourceRef.current) {
@@ -216,14 +232,20 @@ export default function SuggestionOverlay({
       // Create URL with parameters for EventSource
       const params = new URLSearchParams({
         documentId,
-        description: prompt.trim()
+        description: prompt.trim(),
       });
       
       if (selectedText) {
         params.append('selectedText', selectedText);
       }
       
+      // Only add custom instructions if they exist
+      if (customInstructions) {
+        params.append('customInstructions', customInstructions);
+      }
+      
       const url = `/api/suggestion?${params.toString()}`;
+      console.log('[SuggestionOverlay] Requesting suggestion with options:', { customInstructions: customInstructions ? '(custom)' : '(none)' });
       
       // Create new EventSource connection
       const eventSource = new EventSource(url);
@@ -288,7 +310,7 @@ export default function SuggestionOverlay({
       setError('Failed to connect to suggestion service. Please try again.');
       setIsGenerating(false);
     }
-  }, [documentId, selectedText]);
+  }, [documentId, selectedText, customInstructions]);
 
   const handleAcceptSuggestion = useCallback(async (suggestedText: string) => {
     if (!artifact.documentId || !originalContent) return;
@@ -435,7 +457,7 @@ export default function SuggestionOverlay({
     <div
       ref={overlayRef}
       className={cn(
-        "fixed z-50 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 w-[400px] overflow-hidden select-none",
+        "fixed z-50 bg-background rounded-lg shadow-lg border border-border w-[400px] overflow-hidden select-none",
         isDragging && "pointer-events-none"
       )}
       style={{
@@ -453,7 +475,7 @@ export default function SuggestionOverlay({
           </div>
           <button 
             onClick={onClose} 
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" 
+            className="text-muted-foreground hover:text-foreground transition-colors" 
             aria-label="Close"
           >
             <X size={16} />
@@ -467,7 +489,9 @@ export default function SuggestionOverlay({
               onClick={() => setIsSelectionExpanded(!isSelectionExpanded)}
               className="w-full px-3 py-2 flex items-center justify-between text-sm text-muted-foreground hover:bg-muted/50 transition-colors"
             >
-              <span>Selected Text</span>
+              <span className="truncate">
+                {isSelectionExpanded ? "Selected Text" : truncateText(selectedText)}
+              </span>
               <ChevronDown
                 size={16}
                 className={cn("transition-transform", {
@@ -476,7 +500,7 @@ export default function SuggestionOverlay({
               />
             </button>
             {isSelectionExpanded && (
-              <div className="px-3 py-2 text-sm border-t">
+              <div className="px-3 py-2 text-sm border-t max-h-[150px] overflow-y-auto">
                 {selectedText}
               </div>
             )}
@@ -488,8 +512,8 @@ export default function SuggestionOverlay({
           <input
             ref={inputRef}
             type="text"
-            placeholder="Describe what changes you'd like to make..."
-            className="w-full p-2 rounded-md border border-gray-300 dark:border-gray-700 text-sm bg-transparent outline-none focus:ring-2 ring-blue-500/20"
+            placeholder={selectedText ? "Describe what changes you'd like to make..." : "Select text first..."}
+            className="w-full p-2 rounded-md border border-input text-sm bg-transparent outline-none focus-visible:ring-1 focus-visible:ring-ring"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={(e) => {
@@ -497,44 +521,56 @@ export default function SuggestionOverlay({
                 handleSubmitPrompt(inputValue);
               }
             }}
-            disabled={isGenerating}
+            disabled={isGenerating || !selectedText}
           />
         </div>
         
         {/* Error message */}
         {error && (
-          <div className="p-2 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-md text-xs text-red-600 dark:text-red-400">
+          <div className="p-2 bg-destructive/10 border border-destructive/20 rounded-md text-xs text-destructive">
             {error}
           </div>
         )}
         
         {/* Diff view for original vs suggestion */}
-        {originalContent && suggestion && (
+        {(isGenerating || suggestion) && originalContent && (
           <div className="border rounded-lg overflow-hidden bg-muted/30">
             <div className="p-2 max-h-[300px] overflow-y-auto">
               <DiffView
                 oldContent={originalContent}
-                newContent={suggestion}
+                newContent={suggestion || originalContent} // Show old content while generating
               />
             </div>
             
-            {/* Action buttons */}
-            <div className="flex justify-end gap-2 p-2 border-t bg-background/50">
-              <button
-                onClick={onClose}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:text-red-500"
-              >
-                <X size={13} strokeWidth={2.5} />
-                <span className="text-xs">Reject</span>
-              </button>
-              <button
-                onClick={() => handleAcceptSuggestion(suggestion)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:text-green-500"
-              >
-                <Check size={13} strokeWidth={2.5} />
-                <span className="text-xs">Accept</span>
-              </button>
-            </div>
+            {/* Action buttons - only show on completion */}
+            {!isGenerating && suggestion && (
+              <div className="flex justify-end gap-2 p-2 border-t bg-background/50">
+                <button
+                  onClick={onClose}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:text-destructive"
+                >
+                  <X size={13} strokeWidth={2.5} />
+                  <span className="text-xs">Reject</span>
+                </button>
+                <button
+                  onClick={() => onAcceptSuggestion(suggestion)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:text-primary"
+                >
+                  <Check size={13} strokeWidth={2.5} />
+                  <span className="text-xs">Accept</span>
+                </button>
+              </div>
+            )}
+            
+            {/* Show loading state with spinner */}
+            {isGenerating && (
+              <div className="flex justify-center items-center p-2 border-t bg-background/50">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <span>Generating suggestion...</span>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

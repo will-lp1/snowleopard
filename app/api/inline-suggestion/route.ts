@@ -1,4 +1,4 @@
-import { createClient } from '@/utils/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { streamText, smoothStream } from 'ai';
 import { getDocumentById } from '@/lib/db/queries';
@@ -8,8 +8,10 @@ async function handleInlineSuggestionRequest(
   documentId: string,
   currentContent: string,
   contextAfter: string,
+  fullContent: string,
   nodeType: string,
-  session?: any
+  session: any,
+  aiOptions: { suggestionLength?: 'short' | 'medium' | 'long', customInstructions?: string }
 ) {
   // Validate document
   const document = await getDocumentById({ id: documentId });
@@ -38,7 +40,9 @@ async function handleInlineSuggestionRequest(
         document,
         currentContent,
         contextAfter,
+        fullContent,
         nodeType,
+        aiOptions,
         write: async (type, content) => {
           if (writerClosed) return;
           
@@ -126,14 +130,16 @@ export async function POST(request: Request) {
       documentId,
       currentContent,
       contextAfter = '',
-      nodeType = 'paragraph'
+      fullContent = '',
+      nodeType = 'paragraph',
+      aiOptions = {}
     } = await request.json();
 
     if (!documentId || !currentContent) {
       return new Response('Missing parameters', { status: 400 });
     }
 
-    return handleInlineSuggestionRequest(documentId, currentContent, contextAfter, nodeType, session);
+    return handleInlineSuggestionRequest(documentId, currentContent, contextAfter, fullContent, nodeType, session, aiOptions);
   } catch (error) {
     console.error('Inline suggestion route error:', error);
     return NextResponse.json({ error }, { status: 400 });
@@ -144,28 +150,40 @@ async function streamInlineSuggestion({
   document,
   currentContent,
   contextAfter,
+  fullContent,
   nodeType,
+  aiOptions,
   write
 }: {
   document: any;
   currentContent: string;
   contextAfter: string;
+  fullContent: string;
   nodeType: string;
+  aiOptions: { suggestionLength?: 'short' | 'medium' | 'long', customInstructions?: string };
   write: (type: string, content: string) => Promise<void>;
 }) {
-  console.log("Starting inline suggestion generation");
+  console.log("Starting inline suggestion generation with options:", aiOptions);
 
-  // Analyze the content to determine the type
   const contentType = detectContentType(currentContent, nodeType);
-  const prompt = buildPrompt(currentContent, contextAfter, contentType);
+  
+  const prompt = buildPrompt(
+    currentContent,
+    contextAfter,
+    document.title || '',
+    contentType,
+    aiOptions?.suggestionLength
+  );
+
+  const maxTokens = { short: 20, medium: 50, long: 80 }[aiOptions?.suggestionLength || 'medium'];
 
   const { fullStream } = streamText({
     model: myProvider.languageModel('artifact-model'),
-    system: getSystemPrompt(contentType),
+    system: getSystemPrompt(contentType, aiOptions?.customInstructions),
     experimental_transform: smoothStream({ chunking: 'word' }),
     prompt,
-    temperature: 0.3,
-    maxTokens: 100,
+    temperature: contentType === 'code' ? 0.2 : 0.4,
+    maxTokens: maxTokens,
     experimental_providerMetadata: {
       openai: {
         prediction: {
@@ -183,7 +201,6 @@ async function streamInlineSuggestion({
     if (type === 'text-delta') {
       const { textDelta } = delta;
       
-      // Stop if we hit a natural ending
       if (shouldStopGeneration(textDelta, suggestionContent, contentType)) {
         break;
       }
@@ -194,85 +211,110 @@ async function streamInlineSuggestion({
   }
 }
 
-function detectContentType(content: string, nodeType: string): 'code' | 'markdown' | 'text' {
-  // First check node type
+function detectContentType(
+  content: string, 
+  nodeType: string
+): 'code' | 'text' {
+  // Simple check for code vs text
   if (nodeType === 'code_block') return 'code';
-  if (nodeType === 'heading') return 'markdown';
-
-  // Then check content patterns
-  if (content.includes('{') || content.includes('}') || 
-      content.includes('function') || content.includes('const ') ||
-      content.includes('let ') || content.includes('var ') ||
-      content.includes('import ') || content.includes('export ')) {
+  
+  // Quick check for code-like content
+  if (content.match(/^(function|const|let|var|import|export|class|if|for|while)\b/) ||
+      content.includes('{') || content.includes('}') ||
+      content.includes(';') || content.includes('=>')) {
     return 'code';
-  }
-
-  if (content.includes('#') || content.includes('```') ||
-      content.includes('*') || content.includes('- ') ||
-      content.includes('> ')) {
-    return 'markdown';
   }
 
   return 'text';
 }
 
-function getSystemPrompt(contentType: 'code' | 'markdown' | 'text'): string {
-  switch (contentType) {
-    case 'code':
-      return `You are an intelligent code completion assistant. Complete the code naturally based on the context.
-Focus on predicting the most likely next tokens. Keep suggestions concise and follow the established code style.
-Only suggest valid syntax. Do not include comments or documentation unless specifically continuing an existing comment.`;
-    
-    case 'markdown':
-      return `You are a markdown completion assistant. Complete the markdown naturally based on the context.
-Focus on continuing the current section or starting a logical next section. Maintain consistent formatting.
-If completing a list, maintain the same list style. If completing a heading, maintain the same level.`;
-    
-    default:
-      return `You are an intelligent text completion assistant. Complete the text naturally based on the context.
-Focus on predicting what comes next while maintaining the writing style and tone. Keep the voice consistent.
-Pay attention to sentence structure and paragraph flow. Suggest natural continuations that fit the context.`;
+function getSystemPrompt(contentType: 'code' | 'text', customInstructions?: string): string {
+  let basePrompt: string;
+
+  if (contentType === 'code') {
+    basePrompt = `You are a code completion assistant. Complete the code naturally, following the established style and patterns.
+Keep suggestions concise and focused on the immediate next tokens.
+- Match indentation and code style
+- Complete logical structures
+- Use valid syntax
+- Don't add comments unless continuing one
+- Stop at natural boundaries (semicolons, brackets, etc.)`;
+  } else {
+    basePrompt = `You are a writing assistant providing quick, natural text completions.
+Your goal is to predict the next few words that would naturally follow the cursor position.
+- Match the exact tone and style of the text
+- Keep suggestions short (5-10 words) and natural
+- Focus on immediate context
+- Stop at natural boundaries (periods, commas, etc.)
+- **Do NOT add quotation marks unless continuing an existing quote.**
+- Don't complete entire sentences or paragraphs`;
   }
+
+  if (customInstructions) {
+    basePrompt += `\n\nFollow these user instructions:\n${customInstructions}`;
+  }
+
+  return basePrompt;
 }
 
-function buildPrompt(currentContent: string, contextAfter: string, contentType: 'code' | 'markdown' | 'text'): string {
-  let prompt = `Complete this ${contentType} naturally. Here's what comes before the cursor:\n\n${currentContent}\n\n`;
-  
-  if (contextAfter) {
-    prompt += `And here's some context after the cursor (but don't repeat this exactly):\n\n${contextAfter}\n\n`;
+function buildPrompt(
+  currentContent: string,
+  contextAfter: string,
+  documentTitle: string,
+  contentType: 'code' | 'text',
+  suggestionLength: 'short' | 'medium' | 'long' = 'medium'
+): string {
+  const contextWindow = contentType === 'code' ? 500 : 200;
+  const relevantContent = currentContent.slice(-contextWindow);
+
+  let prompt = `Complete this ${contentType === 'code' ? 'code' : 'text'} naturally.${
+    documentTitle ? ` Document: "${documentTitle}"` : ''
+  }\n\nCurrent content (cursor at end):\n"""\n${relevantContent}\n"""`;
+
+  if (contextAfter && contextAfter.length < 100) {
+    prompt += `\n\nWhat follows (for context only):\n"""\n${contextAfter}\n"""`;
   }
 
-  prompt += `Continue from the cursor position with a natural completion. Keep it concise and relevant.
-Pay attention to any patterns or structures in the existing content and maintain them.
-For example, if there's a specific coding style or text formatting, follow that same style.`;
-  
+  const lengthInstruction = {
+    short: 'Suggest the next 1-5 words.',
+    medium: 'Suggest the next 5-10 words.',
+    long: 'Suggest the next 10-15 words.',
+  }[suggestionLength];
+
+  prompt += `\n\nProvide a natural, immediate continuation from the cursor position.${
+    contentType === 'code'
+      ? ' Complete the current code construct.'
+      : ` ${lengthInstruction} Do NOT add quotation marks unless continuing an existing quote.`
+  }`;
+
   return prompt;
 }
 
-function shouldStopGeneration(delta: string, currentSuggestion: string, contentType: 'code' | 'markdown' | 'text'): boolean {
+function shouldStopGeneration(delta: string, currentSuggestion: string, contentType: 'code' | 'text'): boolean {
   const combined = currentSuggestion + delta;
-  
-  // Common stop conditions
-  if (combined.length > 100 || combined.includes('\n\n')) return true;
+  const wordCount = combined.trim().split(/\s+/).length;
 
-  // Content-specific stop conditions
-  switch (contentType) {
-    case 'code':
-      return combined.includes('}') || 
-             combined.includes(';') ||
-             combined.includes('return ') ||
-             combined.includes('\n');
-    
-    case 'markdown':
-      return combined.includes('\n#') || 
-             combined.includes('\n- ') ||
-             combined.includes('\n1. ');
-    
-    case 'text':
-      return combined.includes('. ') ||
-             combined.includes('? ') ||
-             combined.includes('! ');
+  // Universal length limit based roughly on words
+  if (wordCount > 18) return true; // Absolute max words
+
+  if (contentType === 'code') {
+    return combined.includes(';') ||
+           combined.includes('}') ||
+           combined.includes('{') ||
+           combined.includes('\n') ||
+           combined.includes('//') ||
+           combined.match(/\([^)]*\)/) !== null;
   }
 
-  return false;
+  // Text boundaries - stop *before* adding an unnecessary quote
+  if (delta.trim() === '"' && !currentSuggestion.endsWith('"') && !currentSuggestion.match(/["']$/)) return true;
+
+  return combined.includes('.') ||
+         combined.includes('?') ||
+         combined.includes('!') ||
+         combined.includes(',') ||
+         combined.includes('\n') ||
+         combined.includes(';') ||
+         combined.includes(':') ||
+         wordCount > 15; // Stop after a good number of words
 } 

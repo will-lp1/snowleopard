@@ -1,4 +1,4 @@
-import { createClient } from '@/utils/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { streamText, smoothStream } from 'ai';
 import { getDocumentById } from '@/lib/db/queries';

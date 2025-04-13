@@ -10,6 +10,8 @@ interface InlineSuggestionState {
   documentId: string | null;
   lastRequestTime: number;
   abortController: AbortController | null;
+  suggestionActive: boolean;
+  lastCursorPosition: number | null;
 }
 
 // Debounce delay for suggestion requests (ms)
@@ -28,20 +30,52 @@ export const inlineSuggestionsPlugin = new Plugin<InlineSuggestionState>({
         currentSuggestion: '',
         documentId: null,
         lastRequestTime: 0,
-        abortController: null
+        abortController: null,
+        suggestionActive: false,
+        lastCursorPosition: null
       };
     },
     apply(tr, state) {
       // Update decorations based on transaction
       const meta = tr.getMeta(inlineSuggestionsKey);
       
-      // Clear suggestions if content changed
-      if (tr.docChanged && !tr.getMeta('no-suggestion-clear')) {
+      // Track cursor position for stability
+      if (tr.selectionSet) {
+        const currentPos = tr.selection.from;
+        const cursorMoved = state.lastCursorPosition !== null && 
+                           state.lastCursorPosition !== currentPos;
+        
+        // If cursor moved significantly, clear suggestions
+        if (cursorMoved && Math.abs((state.lastCursorPosition || 0) - currentPos) > 1) {
+          return {
+            ...state,
+            decorations: DecorationSet.empty,
+            currentSuggestion: '',
+            suggestionActive: false,
+            lastCursorPosition: currentPos
+          };
+        }
+        
         return {
           ...state,
-          decorations: DecorationSet.empty,
-          currentSuggestion: ''
+          lastCursorPosition: currentPos
         };
+      }
+      
+      // Clear suggestions if content changed significantly
+      if (tr.docChanged && !tr.getMeta('no-suggestion-clear')) {
+        // Check if it's just the suggestion being applied
+        // If so, don't clear the suggestion state
+        const isSuggestionApplication = tr.getMeta('suggestion-applied');
+        
+        if (!isSuggestionApplication) {
+          return {
+            ...state,
+            decorations: DecorationSet.empty,
+            currentSuggestion: '',
+            suggestionActive: false
+          };
+        }
       }
 
       if (meta) {
@@ -50,6 +84,7 @@ export const inlineSuggestionsPlugin = new Plugin<InlineSuggestionState>({
             ...state,
             decorations: DecorationSet.empty,
             currentSuggestion: '',
+            suggestionActive: false
           };
         }
         if (meta.type === 'update') {
@@ -57,6 +92,7 @@ export const inlineSuggestionsPlugin = new Plugin<InlineSuggestionState>({
             ...state,
             decorations: meta.decorations,
             currentSuggestion: meta.suggestion,
+            suggestionActive: true
           };
         }
         if (meta.type === 'setDocumentId') {
@@ -74,7 +110,11 @@ export const inlineSuggestionsPlugin = new Plugin<InlineSuggestionState>({
         }
         if (meta.type === 'setAbortController') {
           if (state.abortController) {
-            state.abortController.abort();
+            try {
+              state.abortController.abort();
+            } catch (e) {
+              // Ignore abort errors
+            }
           }
           return {
             ...state,
@@ -104,11 +144,14 @@ export const inlineSuggestionsPlugin = new Plugin<InlineSuggestionState>({
 
       // Handle TAB to accept suggestion
       if (event.key === 'Tab' && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
-        if (pluginState.currentSuggestion) {
+        if (pluginState.currentSuggestion && pluginState.suggestionActive) {
           event.preventDefault();
           
           // Use the new helper function to insert formatted content
           insertFormattedContent(view, pluginState.currentSuggestion);
+          
+          // Mark this as a suggestion application to prevent clearing
+          tr.setMeta('suggestion-applied', true);
           
           // Clear the suggestion
           view.dispatch(view.state.tr.setMeta(inlineSuggestionsKey, { type: 'clear' }));
@@ -118,7 +161,7 @@ export const inlineSuggestionsPlugin = new Plugin<InlineSuggestionState>({
 
       // Clear suggestions on Escape
       if (event.key === 'Escape') {
-        if (pluginState.currentSuggestion) {
+        if (pluginState.currentSuggestion && pluginState.suggestionActive) {
           event.preventDefault();
           view.dispatch(view.state.tr.setMeta(inlineSuggestionsKey, { type: 'clear' }));
           return true;
@@ -127,7 +170,7 @@ export const inlineSuggestionsPlugin = new Plugin<InlineSuggestionState>({
 
       // Clear suggestions on arrow keys
       if (event.key.startsWith('Arrow')) {
-        if (pluginState.currentSuggestion) {
+        if (pluginState.currentSuggestion && pluginState.suggestionActive) {
           view.dispatch(view.state.tr.setMeta(inlineSuggestionsKey, { type: 'clear' }));
         }
       }
@@ -139,6 +182,18 @@ export const inlineSuggestionsPlugin = new Plugin<InlineSuggestionState>({
   view(editorView) {
     let timeout: NodeJS.Timeout | null = null;
     let isRequestInProgress = false;
+    let positionUpdateInterval: NodeJS.Timeout | null = null;
+
+    // Set up an interval to periodically update suggestion position
+    // This helps with stability during scrolling and window resizing
+    positionUpdateInterval = setInterval(() => {
+      const state = editorView.state;
+      const pluginState = inlineSuggestionsKey.getState(state);
+      
+      if (pluginState?.suggestionActive && pluginState.currentSuggestion) {
+        updateSuggestionNodePosition(editorView);
+      }
+    }, 100);
 
     return {
       update: (view, prevState) => {
@@ -147,6 +202,11 @@ export const inlineSuggestionsPlugin = new Plugin<InlineSuggestionState>({
         
         if (!pluginState?.documentId) {
           return;
+        }
+
+        // Update suggestion position whenever the view updates
+        if (pluginState.suggestionActive && pluginState.currentSuggestion) {
+          updateSuggestionNodePosition(view);
         }
 
         // Clear any pending request
@@ -164,10 +224,10 @@ export const inlineSuggestionsPlugin = new Plugin<InlineSuggestionState>({
         const timeSinceLastRequest = now - (pluginState.lastRequestTime || 0);
         
         // Check if we should request a new suggestion
-        if (prevState && 
-            (state.selection.from !== prevState.selection.from || state.doc !== prevState.doc) &&
-            timeSinceLastRequest > SUGGESTION_DEBOUNCE) {
-          
+        const selectionChanged = prevState && state.selection.from !== prevState.selection.from;
+        const contentChanged = prevState && state.doc !== prevState.doc;
+        
+        if ((selectionChanged || contentChanged) && timeSinceLastRequest > SUGGESTION_DEBOUNCE) {
           // Get the current paragraph node
           const $pos = state.selection.$from;
           const node = $pos.node();
@@ -198,12 +258,28 @@ export const inlineSuggestionsPlugin = new Plugin<InlineSuggestionState>({
         }
       },
       destroy: () => {
+        // Clean up resources
         if (timeout) {
           clearTimeout(timeout);
         }
+        
+        if (positionUpdateInterval) {
+          clearInterval(positionUpdateInterval);
+        }
+        
         const pluginState = inlineSuggestionsKey.getState(editorView.state);
         if (pluginState?.abortController) {
-          pluginState.abortController.abort();
+          try {
+            pluginState.abortController.abort();
+          } catch (e) {
+            // Ignore abort errors
+          }
+        }
+        
+        // Remove any suggestion nodes from DOM
+        const suggestionNode = document.querySelector('.prosemirror-suggestion-widget');
+        if (suggestionNode) {
+          suggestionNode.remove();
         }
       }
     };
@@ -255,7 +331,19 @@ async function requestInlineSuggestion(view: EditorView, documentId: string): Pr
     const contextBefore = node.textBetween(0, $pos.parentOffset, '\n', '  ');
     
     // Get some context after cursor for better predictions
-    const contextAfter = node.textBetween($pos.parentOffset, node.content.size, '\n', '  ');
+    const contextAfter = node.textBetween($pos.parentOffset, node.content.size);
+    
+    // Skip if not enough context
+    if (contextBefore.length < MIN_CONTENT_LENGTH) {
+      return;
+    }
+
+    // Get entire document content for better context
+    let fullContent = '';
+    const docSize = state.doc.content.size;
+    if (docSize > 0) {
+      fullContent = state.doc.textBetween(0, docSize);
+    }
 
     const response = await fetch('/api/inline-suggestion', {
       method: 'POST',
@@ -266,10 +354,8 @@ async function requestInlineSuggestion(view: EditorView, documentId: string): Pr
         documentId,
         currentContent: contextBefore,
         contextAfter,
-        nodeType,
-        nodeAttrs,
-        parentNodeType,
-        isListItem: nodeType === 'listItem' || parentNodeType === 'bulletList' || parentNodeType === 'orderedList'
+        fullContent,
+        nodeType: node.type.name
       }),
       signal: abortController.signal
     });
@@ -303,9 +389,14 @@ async function requestInlineSuggestion(view: EditorView, documentId: string): Pr
                 case 'suggestion-delta':
                   suggestion += data.content;
                   updateSuggestionDisplay(view, suggestion);
+                  
+                  // Update position after each suggestion update
+                  setTimeout(() => updateSuggestionNodePosition(view), 0);
                   break;
                   
                 case 'finish':
+                  // Final position update
+                  setTimeout(() => updateSuggestionNodePosition(view), 0);
                   return;
                   
                 case 'error':
@@ -346,23 +437,15 @@ function updateSuggestionDisplay(view: EditorView, suggestion: string) {
   // Create inline decoration for suggestion
   const decoration = Decoration.widget(pos, () => {
     const span = document.createElement('span');
-    span.className = 'inline-suggestion';
+    span.className = 'prosemirror-suggestion-widget inline-suggestion';
     span.setAttribute('aria-label', 'Press Tab to accept suggestion');
+    span.setAttribute('data-suggestion', suggestion);
     
-    // Handle list items and other formatted content
-    const isListItem = $pos.parent.type.name === 'listItem' || 
-                      $pos.node().type.name === 'listItem' ||
-                      $pos.parent.type.name === 'bulletList' ||
-                      $pos.parent.type.name === 'orderedList';
-    
-    // Format suggestion based on context
-    if (isListItem) {
-      // For list items, ensure proper indentation and bullet point handling
-      const lines = suggestion.split('\n');
-      span.textContent = lines.map(line => line.trim()).join('\n  ');
-    } else {
-      span.textContent = suggestion;
-    }
+    // Add Tab key indicator
+    const tabKeyElement = document.createElement('span');
+    tabKeyElement.className = 'tab-key-indicator';
+    tabKeyElement.innerHTML = 'tab';
+    span.appendChild(tabKeyElement);
     
     return span;
   }, {
@@ -376,79 +459,80 @@ function updateSuggestionDisplay(view: EditorView, suggestion: string) {
     decorations: DecorationSet.create(state.doc, [decoration]),
     suggestion
   }));
+  
+  // Immediately update position
+  setTimeout(() => updateSuggestionNodePosition(view), 0);
 }
 
-// Add helper function to handle formatted content insertion
-function insertFormattedContent(view: EditorView, suggestion: string) {
-  const state = view.state;
-  const { tr } = state;
-  const $pos = state.selection.$from;
-  const node = $pos.node();
+// Separate function to update suggestion node position
+function updateSuggestionNodePosition(view: EditorView) {
+  // Find the suggestion node in the DOM
+  const suggestionNode = document.querySelector('.prosemirror-suggestion-widget') as HTMLElement;
+  if (!suggestionNode) return;
   
-  if (!node) return;
-
-  const isListItem = node.type.name === 'listItem' || 
-                    $pos.parent.type.name === 'listItem' ||
-                    $pos.parent.type.name === 'bulletList' ||
-                    $pos.parent.type.name === 'orderedList';
-
-  if (isListItem) {
-    // Handle list item insertion with proper node structure
-    const schema = state.schema;
-    const listItemType = schema.nodes.listItem;
-    const paragraphType = schema.nodes.paragraph;
-    const bulletListType = schema.nodes.bulletList;
-    const orderedListType = schema.nodes.orderedList;
+  // Get the editor DOM node
+  const editorDOM = view.dom;
+  if (!editorDOM) return;
+  
+  // Get editor boundaries
+  const editorRect = editorDOM.getBoundingClientRect();
+  
+  // Get the current cursor position
+  const state = view.state;
+  const cursorPos = state.selection.from;
+  
+  // Get the DOM node and position for cursor
+  const cursorCoords = view.coordsAtPos(cursorPos);
+  
+  if (!cursorCoords) return;
+  
+  // Get computed styles for the editor
+  const editorStyle = window.getComputedStyle(editorDOM);
+  
+  // Apply styling to match editor text
+  suggestionNode.style.fontSize = editorStyle.fontSize;
+  suggestionNode.style.fontFamily = editorStyle.fontFamily;
+  suggestionNode.style.lineHeight = editorStyle.lineHeight;
+  suggestionNode.style.fontWeight = editorStyle.fontWeight;
+  suggestionNode.style.letterSpacing = editorStyle.letterSpacing;
+  
+  // Set basic display properties
+  suggestionNode.style.position = 'absolute';
+  suggestionNode.style.whiteSpace = 'pre-wrap';
+  suggestionNode.style.wordBreak = 'break-word';
+  suggestionNode.style.zIndex = '9999';
+  
+  // Get scroll position
+  const scrollX = window.scrollX || window.pageXOffset || 0;
+  const scrollY = window.scrollY || window.pageYOffset || 0;
+  
+  // Set position after cursor
+  suggestionNode.style.left = `${cursorCoords.right + scrollX}px`;
+  suggestionNode.style.top = `${cursorCoords.top + scrollY}px`;
+  
+  // Calculate available width
+  const rightEdge = editorRect.right + scrollX;
+  const availableWidth = rightEdge - cursorCoords.right - scrollX;
+  
+  // Check if we need to wrap to next line
+  const suggestionWidth = suggestionNode.offsetWidth;
+  
+  if (suggestionWidth > availableWidth) {
+    // Calculate line height for wrapping
+    const lineHeight = parseFloat(editorStyle.lineHeight);
+    const fontSize = parseFloat(editorStyle.fontSize);
+    const effectiveLineHeight = isNaN(lineHeight) ? fontSize * 1.2 : lineHeight;
     
-    // Determine if we're in a bullet list or ordered list
-    const parentNode = $pos.parent;
-    const isOrderedList = parentNode.type.name === 'orderedList' || 
-                          (parentNode.type.name === 'listItem' && 
-                           $pos.depth > 1 && $pos.node($pos.depth - 1).type.name === 'orderedList');
-    
-    // Get parent attributes to maintain consistency
-    const parentAttrs = parentNode.attrs || {};
-    
-    const lines = suggestion.split('\n');
-    
-    if (lines.length === 1) {
-      // For single line, just insert the text at cursor position
-      const startPos = $pos.pos;
-      const endPos = startPos + node.textContent.length - $pos.parentOffset;
-      tr.insertText(suggestion, startPos);
-    } else {
-      // For multiple lines, create proper list item structure
-      const listItems = lines.map(line => {
-        // Create paragraph for the list item content
-        const paragraph = paragraphType.create(
-          null,
-          schema.text(line.trim())
-        );
-        
-        // Create list item with the paragraph as content
-        return listItemType.create(
-          parentAttrs,
-          paragraph
-        );
-      });
-      
-      // Create the list container with appropriate type
-      const listNode = isOrderedList ? 
-        orderedListType.create(null, listItems) : 
-        bulletListType.create(null, listItems);
-      
-      // Find position to insert
-      const depth = $pos.depth;
-      const startPos = $pos.start(depth);
-      const endPos = $pos.end(depth);
-      
-      // Replace the current list item(s) with our new list structure
-      tr.replaceWith(startPos, endPos, listNode);
-    }
-  } else {
-    // For regular text, simply insert at cursor position
-    tr.insertText(suggestion, $pos.pos);
+    // Position at beginning of next line
+    suggestionNode.style.left = `${editorRect.left + scrollX}px`;
+    suggestionNode.style.top = `${cursorCoords.bottom + scrollY}px`;
   }
   
-  view.dispatch(tr);
+  // Set maximum width to prevent extending beyond editor
+  const currentLeft = parseFloat(suggestionNode.style.left) || 0;
+  const maxWidth = rightEdge - currentLeft;
+  suggestionNode.style.maxWidth = `${maxWidth}px`;
+  
+  // Ensure the node is visible
+  suggestionNode.style.display = 'inline-block';
 } 

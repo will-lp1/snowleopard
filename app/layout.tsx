@@ -3,6 +3,7 @@ import { Toaster } from 'sonner';
 
 import { ThemeProvider } from '@/components/theme-provider';
 import { SuggestionOverlayProvider } from '@/components/suggestion-overlay-provider';
+import { DocumentProvider } from '@/hooks/use-document-context';
 
 import './globals.css';
 
@@ -64,8 +65,10 @@ export default async function RootLayout({
           disableTransitionOnChange
         >
           <SuggestionOverlayProvider>
-            <Toaster position="top-center" />
-            {children}
+            <DocumentProvider>
+              <Toaster position="top-center" />
+              {children}
+            </DocumentProvider>
           </SuggestionOverlayProvider>
         </ThemeProvider>
       </body>

@@ -29,9 +29,17 @@
     .text-balance {
         text-wrap: balance;
     }
+    
+    .subtle-border {
+        @apply border-black/10 dark:border-white/10;
+    }
 }
 
 @layer base {
+    body {
+        @apply bg-background text-foreground;
+    }
+
     :root {
         --background: 0 0% 100%;
         --foreground: 240 10% 3.9%;
@@ -84,7 +92,7 @@
         --accent-foreground: 0 0% 98%;
         --destructive: 0 62.8% 30.6%;
         --destructive-foreground: 0 0% 98%;
-        --border: 240 3.7% 15.9%;
+        --border: 0 0% 100% / 0.1;
         --input: 240 3.7% 15.9%;
         --ring: 240 4.9% 83.9%;
         --chart-1: 220 70% 50%;
@@ -98,16 +106,12 @@
         --sidebar-primary-foreground: 0 0% 100%;
         --sidebar-accent: 240 3.7% 15.9%;
         --sidebar-accent-foreground: 240 4.8% 95.9%;
-        --sidebar-border: 240 3.7% 15.9%;
+        --sidebar-border: 0 0% 100% / 0.1;
         --sidebar-ring: 217.2 91.2% 59.8%;
     }
 }
 
 @layer base {
-    * {
-        @apply border-border;
-    }
-
     body {
         @apply bg-background text-foreground;
     }

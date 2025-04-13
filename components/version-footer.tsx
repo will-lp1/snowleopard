@@ -119,3 +119,4 @@ export const VersionFooter = ({
     </motion.div>
   );
 };
+

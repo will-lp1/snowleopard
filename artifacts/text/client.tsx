@@ -1,9 +1,9 @@
 'use client';
 
 import { Artifact } from '@/components/create-artifact';
-import { DiffView } from '@/components/diffview';
-import { DocumentSkeleton } from '@/components/document-skeleton';
-import { Editor } from '@/components/text-editor';
+import { DiffView } from '@/components/document/diffview';
+import { DocumentSkeleton } from '@/components/document/document-skeleton';
+import { LexicalEditor } from '@/components/document/lexical-editor';
 import {
   CheckIcon,
   ClockRewind,
@@ -77,7 +77,7 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
     }
     
     if (streamPart.type === 'text-delta') {
-      setArtifact((draftArtifact) => {
+      setArtifact((draftArtifact: any) => {
         return {
           ...draftArtifact,
           content: draftArtifact.content + (streamPart.content as string),
@@ -163,7 +163,7 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
     return (
       <div className="px-8 py-10 max-w-4xl mx-auto">
         {isCurrentVersion && mode === 'edit' ? (
-          <Editor
+          <LexicalEditor
             content={content}
             onSaveContent={onSaveContent}
             status={status}

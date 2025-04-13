@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { createClient } from '@/utils/supabase/client';
+import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/components/toast';
 import { AuthForm } from '@/components/auth-form';
 import { SubmitButton } from '@/components/submit-button';
@@ -34,7 +34,7 @@ export default function LoginPage() {
       }
 
       setIsSuccessful(true);
-      router.push('/chat');
+      router.push('/documents');
       router.refresh();
     } catch (err) {
       toast({

@@ -30,7 +30,7 @@ export function SuggestionOverlayProvider({ children }: { children: ReactNode })
   const [isOpen, setIsOpen] = useState(false);
   const [selectedText, setSelectedText] = useState('');
   const [position, setPosition] = useState({ x: 100, y: 100 });
-  const { artifact, setArtifact } = useArtifact();
+  const { artifact } = useArtifact();
 
   const openSuggestionOverlay = useCallback(
     ({ selectedText, position }: { selectedText?: string; position?: { x: number; y: number } }) => {
@@ -55,53 +55,30 @@ export function SuggestionOverlayProvider({ children }: { children: ReactNode })
 
   const handleAcceptSuggestion = useCallback((suggestion: string) => {
     if (!artifact.documentId || artifact.documentId === 'init') {
+      toast.error("Cannot apply suggestion: No document loaded.");
       return;
     }
 
-    // Get the ProseMirror view instance
-    const editorView = (document.querySelector('.ProseMirror') as VueElement)?.__vue__?.$refs?.editor?.view;
-    if (!editorView) {
-      toast.error("Could not find editor instance");
-      return;
-    }
-
-    const { state, dispatch } = editorView;
-    const { tr } = state;
-    
-    try {
-      if (selectedText) {
-        // Find the exact position of the selected text in the document
-        const docText = state.doc.textContent;
-        const startPos = docText.indexOf(selectedText);
-        
-        if (startPos !== -1) {
-          const endPos = startPos + selectedText.length;
-          const $start = state.doc.resolve(startPos);
-          const $end = state.doc.resolve(endPos);
-          
-          // Create a text selection
-          tr.replaceWith($start.pos, $end.pos, state.schema.text(suggestion));
-          dispatch(tr);
-          toast.success("Suggestion applied");
-        } else {
-          toast.error("Could not locate selected text");
+    // Only proceed if there was text selected when the overlay opened.
+    if (selectedText && selectedText.trim() !== '') {
+      console.log('[Provider] Dispatching apply-suggestion event for:', selectedText);
+      // Dispatch the custom event for the Lexical editor to handle
+      const event = new CustomEvent('apply-suggestion', {
+        detail: {
+          originalText: selectedText,
+          suggestion: suggestion,
+          documentId: artifact.documentId
         }
-      } else {
-        // Replace entire node content while preserving formatting
-        const node = tr.selection.$from.node();
-        if (node) {
-          const pos = tr.selection.$from.start();
-          const end = tr.selection.$from.end();
-          tr.replaceWith(pos, end, state.schema.text(suggestion));
-          dispatch(tr);
-          toast.success("Document updated with suggestion");
-        }
-      }
-    } catch (error) {
-      console.error('Error applying suggestion:', error);
-      toast.error("Failed to apply suggestion");
+      });
+      window.dispatchEvent(event);
+      
+      // Remove direct artifact update here
+      // toast.success("Suggestion dispatched to editor"); // Optional: change toast message
+      closeSuggestionOverlay(); 
+    } else {
+      toast.warning("Cannot apply suggestion: No text was selected");
     }
-  }, [artifact, selectedText]);
+  }, [artifact.documentId, selectedText, closeSuggestionOverlay]);
 
   // Setup global keyboard shortcut for cmd+k
   useEffect(() => {
