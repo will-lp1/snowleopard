@@ -68,7 +68,7 @@ export default function Home() {
       {/* Header */}
       <header className="absolute top-0 w-full flex justify-between items-center px-8 py-6 z-10">
         <h1 className="text-lg font-normal text-foreground/90">
-          cursorforwriting
+          snow leopard
         </h1>
         <button 
           onClick={handleBeginClick}
