@@ -14,7 +14,7 @@ export async function GET() {
   // 1. Fetch recent chats with their document_context
   const { data: chats, error: chatError } = await supabase
     .from('Chat')
-    .select('id, title, createdAt, userId, visibility, document_context')
+    .select('id, title, createdAt, userId, document_context')
     .eq('userId', userId)
     .order('createdAt', { ascending: false })
     .limit(10); // Limit the number of chats fetched initially

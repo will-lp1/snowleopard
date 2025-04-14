@@ -9,6 +9,7 @@ import {
   primaryKey,
   foreignKey,
   boolean,
+  jsonb,
 } from 'drizzle-orm/pg-core';
 
 export const user = pgTable('User', {
@@ -26,9 +27,7 @@ export const chat = pgTable('Chat', {
   userId: uuid('userId')
     .notNull()
     .references(() => user.id),
-  visibility: varchar('visibility', { enum: ['public', 'private'] })
-    .notNull()
-    .default('private'),
+  document_context: jsonb('document_context'),
 });
 
 export type Chat = InferSelectModel<typeof chat>;

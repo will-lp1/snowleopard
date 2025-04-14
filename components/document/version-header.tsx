@@ -43,6 +43,21 @@ export const VersionHeader = ({
   const x = useMotionValue(0);
   const springX = useSpring(x, { damping: 50, stiffness: 400 });
   
+  // Define the callback before any potential early returns
+  const handleCommitVersion = useCallback(() => {
+    if (activeIndex !== currentVersionIndex) {
+      if (activeIndex < currentVersionIndex) {
+        for (let i = 0; i < currentVersionIndex - activeIndex; i++) {
+          handleVersionChange('prev');
+        }
+      } else if (activeIndex > currentVersionIndex) {
+        for (let i = 0; i < activeIndex - currentVersionIndex; i++) {
+          handleVersionChange('next');
+        }
+      }
+    }
+  }, [activeIndex, currentVersionIndex, handleVersionChange]);
+  
   // When documents or currentVersionIndex changes, update the activeIndex and slider position
   useEffect(() => {
     if (!documents || documents.length === 0) return;
@@ -94,24 +109,9 @@ export const VersionHeader = ({
     return unsubscribe;
   }, [documents, activeIndex, springX]);
   
+  // Early return check
   if (!documents || documents.length === 0) return null;
 
-  const handleCommitVersion = useCallback(() => {
-    if (activeIndex !== currentVersionIndex) {
-      if (activeIndex < currentVersionIndex) {
-        // Need to go back multiple versions
-        for (let i = 0; i < currentVersionIndex - activeIndex; i++) {
-          handleVersionChange('prev');
-        }
-      } else if (activeIndex > currentVersionIndex) {
-        // Need to go forward multiple versions
-        for (let i = 0; i < activeIndex - currentVersionIndex; i++) {
-          handleVersionChange('next');
-        }
-      }
-    }
-  }, [activeIndex, currentVersionIndex, handleVersionChange]);
-  
   // When we finish dragging, commit to the active version
   const onDragEnd = () => {
     setIsDragging(false);

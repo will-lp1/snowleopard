@@ -51,42 +51,42 @@ export function AiSettingsMenu() {
       id: 'professional', 
       label: 'Professional',
       description: 'Clear, concise business writing',
-      icon: <BriefcaseBusiness className="w-3 h-3" />,
+      icon: <BriefcaseBusiness className="size-3" />,
       instructions: 'Write in a professional, business tone. Use clear, concise language and maintain a formal style. Avoid jargon and focus on factual information.'
     },
     { 
       id: 'academic', 
       label: 'Academic', 
       description: 'Scholarly, citation-ready content',
-      icon: <BookText className="w-3 h-3" />,
+      icon: <BookText className="size-3" />,
       instructions: 'Write in an academic style suitable for scholarly work. Use precise language, maintain a formal tone, include relevant terminology, and structure content logically with clear arguments.'
     },
     { 
       id: 'email', 
       label: 'Email', 
       description: 'Concise professional emails',
-      icon: <Mail className="w-3 h-3" />,
+      icon: <Mail className="size-3" />,
       instructions: 'Format as a professional email with appropriate greeting and closing. Be concise and direct, with clear action items if needed. Maintain a polite, professional tone.'
     },
     { 
       id: 'technical', 
       label: 'Technical', 
       description: 'Technical documentation style',
-      icon: <Code className="w-3 h-3" />,
+      icon: <Code className="size-3" />,
       instructions: 'Write technical content with precise terminology. Structure with clear headings, use examples where appropriate, and prioritize accuracy and clarity over style.'
     },
     { 
       id: 'creative', 
       label: 'Creative', 
       description: 'Engaging narrative style',
-      icon: <Brain className="w-3 h-3" />,
+      icon: <Brain className="size-3" />,
       instructions: 'Write with creative flair using descriptive language, engaging narrative techniques, and a conversational tone. Feel free to use metaphors and varied sentence structures.'
     },
     { 
       id: 'documentation', 
       label: 'Documentation', 
       description: 'Clear instructional content',
-      icon: <FileText className="w-3 h-3" />,
+      icon: <FileText className="size-3" />,
       instructions: 'Write clear documentation with step-by-step instructions. Use numbered lists for sequences, bullet points for options, and include examples. Focus on clarity and completeness.'
     }
   ];
@@ -106,7 +106,7 @@ export function AiSettingsMenu() {
               variant="outline" 
               className="h-fit p-2 dark:hover:bg-zinc-700"
             >
-              <Settings className="h-4 w-4" />
+              <Settings className="size-3" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent 
@@ -221,7 +221,7 @@ export function AiSettingsMenu() {
                     onClick={() => setInstructionsOpen(!instructionsOpen)}
                     className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5"
                   >
-                    <MessageCircle className="w-3 h-3" />
+                    <MessageCircle className="size-3" />
                     Custom Instructions
                   </button>
                   

@@ -371,22 +371,6 @@ export async function deleteMessagesByChatIdAfterTimestamp({
   if (error) throw error;
 }
 
-export async function updateChatVisiblityById({
-  chatId,
-  visibility,
-}: {
-  chatId: string;
-  visibility: 'private' | 'public';
-}) {
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from('Chat')
-    .update({ visibility })
-    .eq('id', chatId);
-
-  if (error) throw error;
-}
-
 export async function saveMessageContent({ messageId, contents }: SaveMessageContentParams) {
   const supabase = await createClient();
 

@@ -7,7 +7,8 @@ import { AlwaysVisibleArtifact } from '@/components/always-visible-artifact';
 export const dynamic = 'auto';
 export const dynamicParams = true;
 
-export default async function DocumentPage({ params }: { params: { id: string } }) {
+export default async function DocumentPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const documentId = params.id;
     

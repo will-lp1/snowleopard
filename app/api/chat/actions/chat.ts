@@ -4,11 +4,13 @@ import { generateText, Message } from 'ai';
 import { cookies } from 'next/headers';
 
 import {
-  deleteMessagesByChatIdAfterTimestamp,
+  deleteChatById,
+  saveChat,
+  saveMessages,
+  getMessagesByChatId,
   getMessageById,
-  updateChatVisiblityById,
+  deleteMessagesByChatIdAfterTimestamp,
 } from '@/lib/db/queries';
-import { VisibilityType } from '@/components/visibility-selector';
 import { myProvider } from '@/lib/ai/providers';
 
 export async function saveChatModelAsCookie(model: string) {
@@ -41,14 +43,4 @@ export async function deleteTrailingMessages({ id }: { id: string }) {
     chatId: message.chatId,
     timestamp: message.createdAt,
   });
-}
-
-export async function updateChatVisibility({
-  chatId,
-  visibility,
-}: {
-  chatId: string;
-  visibility: VisibilityType;
-}) {
-  await updateChatVisiblityById({ chatId, visibility });
 } 

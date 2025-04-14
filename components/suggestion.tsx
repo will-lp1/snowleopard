@@ -8,7 +8,7 @@ import { CheckIcon, CrossIcon, MessageIcon } from './icons';
 import { Button } from './ui/button';
 import { cn } from '@/lib/utils';
 import { ArtifactKind } from './artifact';
-import { DiffView } from './diffview';
+import { DiffView } from './document/diffview';
 
 export const Suggestion = ({
   suggestion,

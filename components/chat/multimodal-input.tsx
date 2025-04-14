@@ -78,12 +78,11 @@ const mentionInputStyle: MentionsInputProps['style'] = {
   },
   suggestions: {
     list: {
-      // Keep specific suggestion styling for now, could be theme variables too
-      backgroundColor: 'white', // Might need dark:bg-popover equivalent if needed
-      border: '1px solid hsl(var(--border))', // Use CSS variable
+      backgroundColor: 'hsl(var(--background))',
+      border: '1px solid hsl(var(--border))',
       fontSize: 14,
       borderRadius: '0.375rem',
-      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)', // Consider theme vars for shadow
+      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
       maxHeight: 240,
       overflowY: 'auto',
       zIndex: 20,
@@ -95,20 +94,17 @@ const mentionInputStyle: MentionsInputProps['style'] = {
     },
     item: {
       padding: '8px 12px',
-      borderBottom: '1px solid rgba(0,0,0,0.05)', // Consider theme border
-      color: 'hsl(var(--foreground))', // Use CSS variable for suggestion text
+      borderBottom: '1px solid hsl(var(--border))',
+      color: 'hsl(var(--foreground))',
       '&focused': {
-        backgroundColor: 'hsl(var(--accent))', // Use CSS variable
-        color: 'hsl(var(--accent-foreground))', // Use CSS variable
+        backgroundColor: 'hsl(var(--accent))',
+        color: 'hsl(var(--accent-foreground))',
       },
     },
   },
 };
 
-// Dark mode specific styles are no longer needed for the main input
-// const mentionInputDarkStyle: MentionsInputProps['style'] = { ... };
-
-// Style specifically for the highlighted mention text (Keep separate light/dark)
+// Style specifically for the highlighted mention text
 const mentionStyleLight: React.CSSProperties = {
   backgroundColor: '#dbeafe', // bg-blue-100
   padding: '1px 2px',
@@ -119,7 +115,7 @@ const mentionStyleLight: React.CSSProperties = {
 };
 
 const mentionStyleDark: React.CSSProperties = {
-  backgroundColor: 'rgba(30, 58, 138, 0.6)', // dark:bg-blue-900/60 approx
+  backgroundColor: 'rgba(59, 130, 246, 0.2)', // Lighter blue background for dark mode
   padding: '1px 2px',
   borderRadius: '0.25rem',
   fontWeight: 500,
@@ -357,11 +353,10 @@ function PureMultimodalInput({
   // Apply the correct *mention* highlight style based on theme
   const currentMentionStyle = isDarkMode ? mentionStyleDark : mentionStyleLight;
 
-  // Custom suggestion renderer (optional, for icon)
+  // Custom suggestion renderer (simplified, no icon)
   const renderSuggestion = (suggestion: SuggestionDataItem, search: string, highlightedDisplay: React.ReactNode, index: number, focused: boolean) => {
     return (
-      <div className={cn("flex items-center gap-2", { "bg-blue-100 dark:bg-blue-900/30": focused })}>
-        <span className="text-blue-500 dark:text-blue-400 flex-shrink-0"><FileIcon size={16} /></span>
+      <div className={cn("px-1 py-1", { "bg-accent text-accent-foreground": focused })}>
         <span>{highlightedDisplay}</span>
       </div>
     );
