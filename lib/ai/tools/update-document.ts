@@ -51,7 +51,7 @@ export const updateDocument = ({ session, dataStream, documentId: defaultDocumen
           };
         }
         
-        console.log(`[AI Tool] Updating document with ID: ${documentId}`);
+        console.log(`[AI Tool] Proposing update for document with ID: ${documentId}`);
         
         try {
           // Fetch document
@@ -64,10 +64,10 @@ export const updateDocument = ({ session, dataStream, documentId: defaultDocumen
             };
           }
   
-          // Notify the user that we're updating the document
+          // Notify the user that we're processing the update proposal
           dataStream.writeData({
-            type: 'clear',
-            content: document.title,
+            type: 'clear', 
+            content: `Processing update proposal for: ${document.title}`,
           });
 
           // Find appropriate document handler
@@ -87,74 +87,59 @@ export const updateDocument = ({ session, dataStream, documentId: defaultDocumen
             // Process the update using the appropriate handler
             console.log(`[AI Tool] Using document handler for kind: ${document.kind}`);
             
-            // Call the document handler to process the update
+            // Call the document handler to GET THE PROPOSED content
+            // This should NO LONGER save to DB itself (verified in lib/artifacts/server.ts)
             const result = await documentHandler.onUpdateDocument({
               document: {
                 ...document,
                 kind: document.kind as typeof documentHandler.kind
               },
               description,
-              dataStream,
+              dataStream, // Pass stream for potential intermediate updates from handler
               session,
             });
 
-            // Get access to Supabase client
-            const supabase = await createClient();
+            // Get the proposed content from the document handler result
+            const proposedNewContent = result.content;
+            const originalContent = document.content || '';
+            console.log(`[AI Tool] Got proposed content from handler, length: ${proposedNewContent.length} chars`);
             
-            // Get the updated content from the document handler result
-            console.log(`[AI Tool] Got updated content from handler, length: ${result.content.length} chars`);
-            
-            console.log(`[AI Tool] Saving updated document content to ID: ${documentId}`);
-            
-            // Save the updated document
-            const { error: updateError } = await supabase
-              .from('Document')
-              .insert({
-                id: document.id,
-                title: document.title,
-                content: result.content, // Use the content from the result
-                kind: document.kind,
-                chatId: document.chatId,
-                userId: session.user.id,
-                createdAt: new Date().toISOString(),
-              });
-              
-            if (updateError) {
-              console.error('[AI Tool] Error saving document update:', updateError);
-              throw new Error(`Failed to save document update: ${updateError.message}`);
-            }
-            
-            console.log(`[AI Tool] Document updated successfully: ${documentId}`);
-            
-            // Signal that the update is complete with metadata to trigger diff view
-            // This data will be captured by the Editor component and used to show section diffs
+            // --- Stream Diff Data to Client --- 
+            // 1. Send original content
             dataStream.writeData({ 
-              type: 'artifactUpdate', 
+              type: 'original-content', 
+              content: originalContent
+            });
+            
+            // 2. Send new proposed content
+            dataStream.writeData({ 
+              type: 'new-content', 
+              content: proposedNewContent
+            });
+            
+            // 3. Signal that diff data is ready for the editor
+            dataStream.writeData({ 
+              type: 'diff-ready', 
               content: JSON.stringify({
-                type: 'documentUpdated',
                 documentId: documentId,
                 title: document.title,
-                previousContent: document.content || '',
-                newContent: result.content // Use the content from the result
+                // Note: Actual content is sent separately above
               })
             });
+            // --- End Diff Data Streaming ---
             
-            // NOTE: The client-side window event dispatch happens in the browser
-            // when this response is processed, not here in the server context.
-            // The text-editor.tsx component listens for the artifactUpdate event data
-            // in the stream and will display the section-by-section diff view.
-            
+            // Signal the overall tool execution is finished
             dataStream.writeData({ 
               type: 'finish', 
-              content: 'Document updated successfully'
+              content: 'Update proposed. Please review the changes.'
             });
             
-            // Return success response
+            // Return success response (content indicates proposal)
             return {
               id: documentId,
               title: document.title,
               kind: document.kind,
-              content: 'The document has been updated successfully.',
+              content: 'Changes have been proposed. Please review them in the editor.',
             };
           } else {
             const error = `Document kind ${document.kind} does not match handler kind ${documentHandler.kind}`;
@@ -162,16 +147,23 @@ export const updateDocument = ({ session, dataStream, documentId: defaultDocumen
             throw new Error(error);
           }
         } catch (error) {
-          console.error('[AI Tool] Error fetching document:', error);
+          console.error('[AI Tool] Error fetching/processing document:', error);
+          // Still stream finish and error markers if possible
+          dataStream.writeData({ type: 'finish', content: 'Error proposing update.' });
           return {
-            error: 'Failed to fetch document: ' + (error instanceof Error ? error.message : String(error)),
+            error: 'Failed to process document update: ' + (error instanceof Error ? error.message : String(error)),
           };
         }
       } catch (error) {
-        console.error('[AI Tool] Error updating document:', error);
+        console.error('[AI Tool] Error proposing document update:', error);
+        // Stream finish and error markers
+        dataStream.writeData({ type: 'finish', content: 'Error proposing update.' });
         return {
-          error: 'Failed to update document: ' + (error instanceof Error ? error.message : String(error)),
+          error: 'Failed to propose document update: ' + (error instanceof Error ? error.message : String(error)),
         };
+      } finally {
+         // Ensure dataStream is properly closed if necessary, though `streamText` usually handles this.
+         // dataStream.close(); // Might not be needed depending on `ai` library handling.
       }
     },
   });

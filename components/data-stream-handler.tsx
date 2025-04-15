@@ -19,7 +19,10 @@ export type DataStreamDelta = {
     | 'original'
     | 'clear'
     | 'finish'
-    | 'kind';
+    | 'kind'
+    | 'original-content'
+    | 'new-content'
+    | 'diff-ready';
   content: string | Suggestion;
 };
 
@@ -35,6 +38,10 @@ export function DataStreamHandler({ id }: { id: string }) {
   const { data: dataStream } = useChat({ id });
   const { artifact, setArtifact, setMetadata } = useArtifact();
   const lastProcessedIndex = useRef(-1);
+  
+  // Refs to store diff content pieces temporarily during streaming
+  const originalContentRef = useRef<string | null>(null);
+  const newContentRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!dataStream?.length) return;
@@ -104,6 +111,52 @@ export function DataStreamHandler({ id }: { id: string }) {
               ...prevMetadata,
               pendingSuggestion: (prevMetadata.pendingSuggestion || '') + (delta.content as string)
             }));
+            return draftArtifact;
+
+          case 'original-content':
+            originalContentRef.current = delta.content as string;
+            console.log('[DataStream] Received original-content');
+            return draftArtifact;
+
+          case 'new-content':
+            newContentRef.current = delta.content as string;
+            console.log('[DataStream] Received new-content');
+            return draftArtifact;
+
+          case 'diff-ready':
+            console.log('[DataStream] Received diff-ready signal');
+            if (originalContentRef.current !== null && newContentRef.current !== null) {
+              try {
+                const diffData = JSON.parse(delta.content as string);
+                console.log('[DataStream] Dispatching editor:show-diff event:', diffData);
+                
+                // Dispatch event for LexicalEditor to pick up
+                window.dispatchEvent(new CustomEvent('editor:show-diff', {
+                  detail: {
+                    type: 'documentDiff',
+                    documentId: diffData.documentId,
+                    title: diffData.title,
+                    originalContent: originalContentRef.current,
+                    newContent: newContentRef.current,
+                  }
+                }));
+                
+                // Reset refs after dispatching
+                originalContentRef.current = null;
+                newContentRef.current = null;
+                
+              } catch (error) {
+                console.error('[DataStream] Error parsing diff-ready content:', error);
+                // Reset refs on error too
+                originalContentRef.current = null;
+                newContentRef.current = null;
+              }
+            } else {
+              console.warn('[DataStream] Received diff-ready but missing content parts.');
+              // Reset refs if something went wrong
+              originalContentRef.current = null;
+              newContentRef.current = null;
+            }
             return draftArtifact;
 
           case 'finish':
