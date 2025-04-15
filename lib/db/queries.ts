@@ -223,6 +223,7 @@ export async function saveDocument({
     content,
     userId,
     createdAt: new Date().toISOString(),
+    is_current: true,
   });
 
   if (error) throw error;

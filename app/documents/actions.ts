@@ -39,22 +39,12 @@ export async function updateDocumentContent({
   // First get the existing document to preserve other fields
   const document = await getDocumentById({ id });
   
-  // Add null check here
-  if (!document) {
-    console.error(`[updateDocumentContent Action] Document not found with ID: ${id}`);
-    // Optionally throw an error or return a status
-    throw new Error(`Document with ID ${id} not found`); 
-    // Or return; // if you want to silently fail
-  }
-  
-  // Now it's safe to access document properties
+  // Then save it with updated content
   await saveDocument({
     id,
     title: document.title,
     kind: document.kind as ArtifactKind,
     content,
     userId: document.userId,
-    // Explicitly set is_current if needed by saveDocument (check its definition)
-    // is_current: true, // Assuming saveDocument handles versioning or this is intended to overwrite
   });
 } 

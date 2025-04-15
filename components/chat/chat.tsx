@@ -16,6 +16,7 @@ import { MentionedDocument } from './multimodal-input';
 import { FileIcon } from '../icons';
 import { useArtifact } from '@/hooks/use-artifact';
 import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
+import { DataStreamHandler } from '@/components/data-stream-handler';
 
 export interface ChatProps {
   id?: string;
@@ -275,6 +276,8 @@ export function Chat({
           </form>
         </div>
       )}
+
+      <DataStreamHandler id={chatId} />
     </div>
   );
 }

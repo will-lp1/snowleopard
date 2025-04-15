@@ -69,14 +69,25 @@ export function createDocumentHandler<T extends ArtifactKind>(config: {
       return;
     },
     onUpdateDocument: async (args: UpdateDocumentCallbackProps) => {
-      const proposedContent = await config.onUpdateDocument({
+      const draftContent = await config.onUpdateDocument({
         document: args.document,
         description: args.description,
         dataStream: args.dataStream,
         session: args.session,
       });
 
-      return { content: proposedContent };
+      if (args.session?.user?.id) {
+        await saveDocument({
+          id: args.document.id,
+          title: args.document.title,
+          content: draftContent,
+          kind: config.kind,
+          userId: args.session.user.id,
+        });
+      }
+
+      // Return the updated content so it can be used by the update-document tool
+      return { content: draftContent };
     },
   };
 }

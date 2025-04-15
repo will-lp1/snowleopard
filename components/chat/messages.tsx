@@ -27,55 +27,6 @@ function PureMessages({
   const [messagesContainerRef, messagesEndRef] =
     useScrollToBottom<HTMLDivElement>();
 
-  // Add effect to process message content for artifact update events
-  useEffect(() => {
-    if (messages.length === 0) return;
-    
-    // Check the last message for tool data
-    const lastMessage = messages[messages.length - 1];
-    if (lastMessage.role === 'assistant') {
-      try {
-        // Parse the message content to look for tool data
-        let content;
-        
-        if (typeof lastMessage.content === 'string') {
-          try {
-            content = JSON.parse(lastMessage.content);
-          } catch (e) {
-            // Not valid JSON, skip processing
-            return;
-          }
-        } else {
-          content = lastMessage.content;
-        }
-        
-        if (content && Array.isArray(content) && content.length > 0) {
-          // Scan for artifactUpdate data in the message
-          content.forEach(item => {
-            if (item && typeof item === 'object' && item.type === 'artifactUpdate') {
-              console.log('[Messages] Found artifactUpdate data in message, dispatching to editor');
-              
-              // Dispatch the data to the editor
-              if (typeof window !== 'undefined') {
-                try {
-                  const event = new CustomEvent('editor:stream-data', {
-                    detail: item
-                  });
-                  window.dispatchEvent(event);
-                } catch (err) {
-                  console.error('[Messages] Error dispatching editor event:', err);
-                }
-              }
-            }
-          });
-        }
-      } catch (error) {
-        // Not JSON or doesn't have the expected structure, which is fine
-        console.log('[Messages] Non-critical error parsing message content:', error);
-      }
-    }
-  }, [messages]);
-
   return (
     <div
       ref={messagesContainerRef}
