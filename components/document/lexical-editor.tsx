@@ -21,22 +21,30 @@ import {
   $isElementNode,
   $nodesOfType,
   RangeSelection,
-  $addUpdateTag
+  $addUpdateTag,
+  UNDO_COMMAND,
+  REDO_COMMAND,
+  CAN_UNDO_COMMAND,
+  CAN_REDO_COMMAND,
+  FORMAT_TEXT_COMMAND,
+  FORMAT_ELEMENT_COMMAND,
+  SELECTION_CHANGE_COMMAND,
+  $selectAll,
 } from 'lexical';
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { ContentEditable } from '@lexical/react/LexicalContentEditable';
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
 import { AutoFocusPlugin } from '@lexical/react/LexicalAutoFocusPlugin';
-import { HeadingNode, QuoteNode } from '@lexical/rich-text';
+import { HeadingNode, QuoteNode, $createHeadingNode, $createQuoteNode } from '@lexical/rich-text';
 import { TableCellNode, TableNode, TableRowNode } from '@lexical/table';
-import { ListItemNode, ListNode } from '@lexical/list';
+import { ListItemNode, ListNode, INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND, REMOVE_LIST_COMMAND, INSERT_CHECK_LIST_COMMAND } from '@lexical/list';
 import { CheckListPlugin } from '@lexical/react/LexicalCheckListPlugin';
 import { ListPlugin } from '@lexical/react/LexicalListPlugin';
-import { CodeNode, CodeHighlightNode } from '@lexical/code';
-import { LinkNode } from '@lexical/link';
+import { CodeNode, CodeHighlightNode, $createCodeNode } from '@lexical/code';
+import { LinkNode, TOGGLE_LINK_COMMAND } from '@lexical/link';
 import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
-import { HorizontalRuleNode } from '@lexical/react/LexicalHorizontalRuleNode';
+import { HorizontalRuleNode, INSERT_HORIZONTAL_RULE_COMMAND } from '@lexical/react/LexicalHorizontalRuleNode';
 import { MarkdownShortcutPlugin } from '@lexical/react/LexicalMarkdownShortcutPlugin';
 import { TRANSFORMERS, CHECK_LIST, STRIKETHROUGH } from '@lexical/markdown';
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
@@ -49,9 +57,17 @@ import { toast } from 'sonner';
 import { useAiOptions } from '@/hooks/ai-options';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
+import { Separator } from "@/components/ui/separator";
+import { Bold, Italic, Underline, Heading1, Heading2, Heading3, List, ListOrdered, ListChecks, Quote, Code, Link as LinkIcon, Minus, Undo, Redo } from 'lucide-react';
 
 import type { Suggestion } from '@/lib/db/schema';
 import SuggestionOverlay from '@/components/suggestion-overlay';
+
+// --- Helper Imports for Toolbar --- 
+import { $isLinkNode } from '@lexical/link';
+import { $isListNode } from '@lexical/list';
+import { $isHeadingNode } from '@lexical/rich-text';
+import { $getNearestNodeOfType } from '@lexical/utils';
 
 type EditorProps = {
   content: string;
@@ -127,6 +143,8 @@ function PlaceholderPlugin({ isNewDocument }: { isNewDocument?: boolean }) {
 function InlineSuggestionsPlugin({ documentId, onSaveContent }: { documentId: string; onSaveContent: (content: string, debounce: boolean) => void }) {
   const [editor] = useLexicalComposerContext();
   const [currentSuggestion, setCurrentSuggestion] = useState<string>('');
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastRequestTimeRef = useRef<number>(0);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -370,7 +388,7 @@ function InlineSuggestionsPlugin({ documentId, onSaveContent }: { documentId: st
                   console.log('[Suggestions] Received suggestion delta:', data.content);
                   editor.dispatchCommand(SET_INLINE_SUGGESTION, suggestion);
                   setCurrentSuggestion(suggestion);
-                  
+
                   // Force position update after each new suggestion part
                   setTimeout(updateSuggestionPosition, 0);
                   break;
@@ -684,6 +702,7 @@ function InlineSuggestionsPlugin({ documentId, onSaveContent }: { documentId: st
       clearSuggestionListener();
       tabKeyListener();
       handleRightArrow();
+      // unregister undo/redo listeners if moved
     };
   }, [editor, currentSuggestion, onSaveContent, requestInlineSuggestion]); // Added requestInlineSuggestion dependency
 
@@ -762,6 +781,270 @@ const PLAYGROUND_TRANSFORMERS = [
   STRIKETHROUGH,
   ...TRANSFORMERS,
 ];
+
+// Example low priority listener
+const LowPriority = 1;
+
+// --- Editor Toolbar Plugin ---
+function EditorToolbarPlugin() {
+  const [editor] = useLexicalComposerContext();
+  const [activeEditor, setActiveEditor] = useState(editor);
+  const [isBold, setIsBold] = useState(false);
+  const [isItalic, setIsItalic] = useState(false);
+  const [isUnderline, setIsUnderline] = useState(false);
+  const [blockType, setBlockType] = useState<string>('paragraph');
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+  const [isLink, setIsLink] = useState(false);
+
+  // Helper to set block type (simplified due to missing imports)
+  const $setBlocksType_LOCAL = (selection: RangeSelection, fn: () => ElementNode) => {
+    // Iterate over selected nodes instead of using $selectAll
+    selection.getNodes().forEach(node => {
+      // Get the top-level element for block-level changes
+      const topLevelElement = node.getTopLevelElement(); 
+      if ($isElementNode(topLevelElement)) {
+        const newNode = fn();
+        node.replace(newNode);
+        if ($isRangeSelection(selection) && newNode instanceof ElementNode) {
+          selection.insertNodes([newNode]); // Corrected: takes one argument
+        }
+      }
+    });
+  };
+
+  const updateToolbar = useCallback(() => {
+    const selection = $getSelection();
+    if ($isRangeSelection(selection)) {
+      // Update text format states
+      setIsBold(selection.hasFormat('bold'));
+      setIsItalic(selection.hasFormat('italic'));
+      setIsUnderline(selection.hasFormat('underline'));
+
+      // Update link state
+      const node = selection.anchor.getNode();
+      const parent = node.getParent();
+      setIsLink($isLinkNode(node) || $isLinkNode(parent));
+
+      // Update block type state
+      const anchorNode = selection.anchor.getNode();
+      let element =
+        anchorNode.getKey() === 'root'
+          ? anchorNode
+          : anchorNode.getTopLevelElementOrThrow();
+
+      if (element) {
+          if ($isListNode(element)) {
+            const parentList = $getNearestNodeOfType(anchorNode, ListNode);
+            const type = parentList ? parentList.getListType() : ($isListNode(element) ? element.getListType() : '');
+            setBlockType(type);
+          } else {
+            let type = element.getType(); // Default to node type
+            if ($isHeadingNode(element)) {
+              type = element.getTag(); // Use tag (h1, h2) for headings
+            }
+            setBlockType(type);
+          }
+      }
+    }
+  }, [activeEditor]);
+
+  useEffect(() => {
+    return mergeRegister(
+      // Listener for selection changes
+      editor.registerUpdateListener(({ editorState }) => {
+        editorState.read(() => {
+          updateToolbar();
+        });
+      }),
+      // Listener for editor changes (e.g., focus)
+      editor.registerCommand(
+        SELECTION_CHANGE_COMMAND,
+        (_payload, newEditor) => {
+          setActiveEditor(newEditor);
+          updateToolbar();
+          return false;
+        },
+        LowPriority,
+      ),
+      // Listeners for undo/redo state
+      editor.registerCommand(
+        CAN_UNDO_COMMAND,
+        (payload) => {
+          setCanUndo(payload);
+          return false;
+        },
+        LowPriority,
+      ),
+      editor.registerCommand(
+        CAN_REDO_COMMAND,
+        (payload) => {
+          setCanRedo(payload);
+          return false;
+        },
+        LowPriority,
+      ),
+    );
+  }, [editor, updateToolbar]);
+
+  // --- Formatting Functions ---
+
+  const formatParagraph = () => {
+    editor.update(() => {
+      const selection = $getSelection();
+      if ($isRangeSelection(selection)) {
+        $setBlocksType_LOCAL(selection, () => $createParagraphNode());
+      }
+    });
+  };
+
+  const formatHeading = (level: 1 | 2 | 3) => {
+    editor.update(() => {
+      const selection = $getSelection();
+      if ($isRangeSelection(selection)) {
+        $setBlocksType_LOCAL(selection, () => $createHeadingNode(`h${level}`));
+      }
+    });
+  };
+
+  const formatBulletList = () => {
+    if (blockType !== 'ul') {
+      editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined);
+    } else {
+      editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined);
+    }
+  };
+
+  const formatNumberedList = () => {
+    if (blockType !== 'ol') {
+      editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined);
+    } else {
+      editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined);
+    }
+  };
+
+  const formatCheckList = () => {
+    if (blockType !== 'check') {
+      editor.dispatchCommand(INSERT_CHECK_LIST_COMMAND, undefined);
+    } else {
+      editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined);
+    }
+  };
+
+  const formatQuote = () => {
+    if (blockType !== 'quote') {
+      editor.update(() => {
+        const selection = $getSelection();
+        if ($isRangeSelection(selection)) {
+          $setBlocksType_LOCAL(selection, () => $createQuoteNode());
+        }
+      });
+    } else {
+      formatParagraph(); // Turn back to paragraph
+    }
+  };
+
+  const formatCodeBlock = () => {
+     if (blockType !== 'code') {
+      editor.update(() => {
+        let selection = $getSelection();
+        if ($isRangeSelection(selection)) {
+           if (selection.isCollapsed()) {
+             $setBlocksType_LOCAL(selection, () => $createCodeNode());
+           } else {
+             // Wrap selected text in code block
+             const textContent = selection.getTextContent();
+             const codeNode = $createCodeNode();
+             selection.insertNodes([codeNode]);
+             selection = $getSelection(); // Re-get selection after insertion
+             if ($isRangeSelection(selection))
+               selection.insertText(textContent);
+           }
+         }
+       });
+     } else {
+       formatParagraph(); // Turn back to paragraph
+     }
+  };
+
+  const insertLink = useCallback(() => {
+    if (!isLink) {
+      const url = prompt('Enter link URL:');
+      if (url) {
+        editor.dispatchCommand(TOGGLE_LINK_COMMAND, url);
+      }
+    } else {
+      // Remove link
+      editor.dispatchCommand(TOGGLE_LINK_COMMAND, null);
+    }
+  }, [editor, isLink]);
+
+  return (
+    <div className="sticky top-0 z-10 mb-2 flex flex-wrap items-center gap-1 rounded-md border bg-background p-1 shadow-sm">
+      {/* Text Formatting Buttons */}
+      <Button
+        size="sm"
+        variant={isBold ? 'secondary' : 'ghost'}
+        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold')}
+        aria-label="Format Bold"
+      >
+        <Bold className="h-4 w-4" />
+      </Button>
+      <Button
+        size="sm"
+        variant={isItalic ? 'secondary' : 'ghost'}
+        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic')}
+        aria-label="Format Italic"
+      >
+        <Italic className="h-4 w-4" />
+      </Button>
+      <Button
+        size="sm"
+        variant={isUnderline ? 'secondary' : 'ghost'}
+        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'underline')}
+        aria-label="Format Underline"
+      >
+        <Underline className="h-4 w-4" />
+      </Button>
+      <Separator orientation="vertical" className="h-6" />
+
+      {/* Heading Buttons */}
+      <Button size="sm" variant={blockType === 'h1' ? 'secondary' : 'ghost'} onClick={() => formatHeading(1)} aria-label="Heading 1"><Heading1 className="h-4 w-4" /></Button>
+      <Button size="sm" variant={blockType === 'h2' ? 'secondary' : 'ghost'} onClick={() => formatHeading(2)} aria-label="Heading 2"><Heading2 className="h-4 w-4" /></Button>
+      <Button size="sm" variant={blockType === 'h3' ? 'secondary' : 'ghost'} onClick={() => formatHeading(3)} aria-label="Heading 3"><Heading3 className="h-4 w-4" /></Button>
+      <Separator orientation="vertical" className="h-6" />
+
+      {/* List Buttons */}
+      <Button size="sm" variant={blockType === 'ul' ? 'secondary' : 'ghost'} onClick={formatBulletList} aria-label="Bullet List"><List className="h-4 w-4" /></Button>
+      <Button size="sm" variant={blockType === 'ol' ? 'secondary' : 'ghost'} onClick={formatNumberedList} aria-label="Numbered List"><ListOrdered className="h-4 w-4" /></Button>
+      <Button size="sm" variant={blockType === 'check' ? 'secondary' : 'ghost'} onClick={formatCheckList} aria-label="Check List"><ListChecks className="h-4 w-4" /></Button>
+      <Separator orientation="vertical" className="h-6" />
+
+      {/* Block Formatting Buttons */}
+      <Button size="sm" variant={blockType === 'quote' ? 'secondary' : 'ghost'} onClick={formatQuote} aria-label="Quote"><Quote className="h-4 w-4" /></Button>
+      <Button size="sm" variant={blockType === 'code' ? 'secondary' : 'ghost'} onClick={formatCodeBlock} aria-label="Code Block"><Code className="h-4 w-4" /></Button>
+       <Button
+          size="sm"
+          variant={isLink ? 'secondary' : 'ghost'}
+          onClick={insertLink}
+          aria-label="Insert Link"
+        >
+          <LinkIcon className="h-4 w-4" />
+        </Button>
+      <Button size="sm" variant="ghost" onClick={() => editor.dispatchCommand(INSERT_HORIZONTAL_RULE_COMMAND, undefined)} aria-label="Insert Horizontal Rule"><Minus className="h-4 w-4" /></Button>
+      <Separator orientation="vertical" className="h-6" />
+
+      {/* History Buttons */}
+      <Button size="sm" variant="ghost" disabled={!canUndo} onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)} aria-label="Undo">
+        <Undo className="h-4 w-4" />
+      </Button>
+      <Button size="sm" variant="ghost" disabled={!canRedo} onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)} aria-label="Redo">
+        <Redo className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+}
+// --- End Editor Toolbar Plugin ---
 
 function PureLexicalEditor({
   content,
@@ -1226,6 +1509,7 @@ function PureLexicalEditor({
 
       <LexicalComposer initialConfig={initialConfig}>
         <div className="relative lexical-editor-wrapper">
+          <EditorToolbarPlugin />
           <div className={cn("lexical-editor-container", isWiping && "opacity-20 pointer-events-none")}>
             <RichTextPlugin
               contentEditable={<ContentEditable className="lexical-editor-content-editable min-h-[300px] outline-none" />}
