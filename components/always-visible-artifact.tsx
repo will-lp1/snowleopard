@@ -750,7 +750,7 @@ export function AlwaysVisibleArtifact({
             <FileText className="size-16 opacity-50" />
             <div className="text-center">
               <h3 className="text-lg font-medium mb-1">Document Not Found</h3>
-              <p className="text-sm mb-1">The document you're looking for doesn&apos;t exist.</p>
+              <p className="text-sm mb-1">The document you&apos;re looking for doesn&apos;t exist.</p>
               <p className="text-sm mb-4">Would you like to create a new document with this ID?</p>
             </div>
             <div className="flex gap-3">

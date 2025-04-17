@@ -21,30 +21,22 @@ import {
   $isElementNode,
   $nodesOfType,
   RangeSelection,
-  $addUpdateTag,
-  UNDO_COMMAND,
-  REDO_COMMAND,
-  CAN_UNDO_COMMAND,
-  CAN_REDO_COMMAND,
-  FORMAT_TEXT_COMMAND,
-  FORMAT_ELEMENT_COMMAND,
-  SELECTION_CHANGE_COMMAND,
-  $selectAll,
+  $addUpdateTag
 } from 'lexical';
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { ContentEditable } from '@lexical/react/LexicalContentEditable';
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
 import { AutoFocusPlugin } from '@lexical/react/LexicalAutoFocusPlugin';
-import { HeadingNode, QuoteNode, $createHeadingNode, $createQuoteNode } from '@lexical/rich-text';
+import { HeadingNode, QuoteNode } from '@lexical/rich-text';
 import { TableCellNode, TableNode, TableRowNode } from '@lexical/table';
-import { ListItemNode, ListNode, INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND, REMOVE_LIST_COMMAND, INSERT_CHECK_LIST_COMMAND } from '@lexical/list';
+import { ListItemNode, ListNode } from '@lexical/list';
 import { CheckListPlugin } from '@lexical/react/LexicalCheckListPlugin';
 import { ListPlugin } from '@lexical/react/LexicalListPlugin';
-import { CodeNode, CodeHighlightNode, $createCodeNode } from '@lexical/code';
-import { LinkNode, TOGGLE_LINK_COMMAND } from '@lexical/link';
+import { CodeNode, CodeHighlightNode } from '@lexical/code';
+import { LinkNode } from '@lexical/link';
 import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
-import { HorizontalRuleNode, INSERT_HORIZONTAL_RULE_COMMAND } from '@lexical/react/LexicalHorizontalRuleNode';
+import { HorizontalRuleNode } from '@lexical/react/LexicalHorizontalRuleNode';
 import { MarkdownShortcutPlugin } from '@lexical/react/LexicalMarkdownShortcutPlugin';
 import { TRANSFORMERS, CHECK_LIST, STRIKETHROUGH } from '@lexical/markdown';
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
@@ -57,17 +49,10 @@ import { toast } from 'sonner';
 import { useAiOptions } from '@/hooks/ai-options';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
-import { Separator } from "@/components/ui/separator";
-import { Bold, Italic, Underline, Heading1, Heading2, Heading3, List, ListOrdered, ListChecks, Quote, Code, Link as LinkIcon, Minus, Undo, Redo } from 'lucide-react';
 
 import type { Suggestion } from '@/lib/db/schema';
 import SuggestionOverlay from '@/components/suggestion-overlay';
-
-// --- Helper Imports for Toolbar --- 
-import { $isLinkNode } from '@lexical/link';
-import { $isListNode } from '@lexical/list';
-import { $isHeadingNode } from '@lexical/rich-text';
-import { $getNearestNodeOfType } from '@lexical/utils';
+import EditorToolbar from '@/components/document/editor-toolbar';
 
 type EditorProps = {
   content: string;
@@ -82,6 +67,7 @@ type EditorProps = {
   lastSaveError?: string | null;
   isNewDocument?: boolean;
   onCreateDocument?: (initialContent: string) => Promise<void>;
+  code: 'editor-text-code';
 };
 
 // Constants for inline suggestions
@@ -112,6 +98,11 @@ const theme = {
     ul: 'editor-list-ul',
     ol: 'editor-list-ol',
     li: 'editor-list-li',
+    nested: {
+      listitem: 'editor-nested-listitem',
+    },
+    listitemChecked: 'editor-listitem-checked',
+    listitemUnchecked: 'editor-listitem-unchecked',
   },
   quote: 'editor-quote',
   link: 'editor-link',
@@ -143,8 +134,6 @@ function PlaceholderPlugin({ isNewDocument }: { isNewDocument?: boolean }) {
 function InlineSuggestionsPlugin({ documentId, onSaveContent }: { documentId: string; onSaveContent: (content: string, debounce: boolean) => void }) {
   const [editor] = useLexicalComposerContext();
   const [currentSuggestion, setCurrentSuggestion] = useState<string>('');
-  const [canUndo, setCanUndo] = useState(false);
-  const [canRedo, setCanRedo] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastRequestTimeRef = useRef<number>(0);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -388,7 +377,7 @@ function InlineSuggestionsPlugin({ documentId, onSaveContent }: { documentId: st
                   console.log('[Suggestions] Received suggestion delta:', data.content);
                   editor.dispatchCommand(SET_INLINE_SUGGESTION, suggestion);
                   setCurrentSuggestion(suggestion);
-
+                  
                   // Force position update after each new suggestion part
                   setTimeout(updateSuggestionPosition, 0);
                   break;
@@ -702,7 +691,6 @@ function InlineSuggestionsPlugin({ documentId, onSaveContent }: { documentId: st
       clearSuggestionListener();
       tabKeyListener();
       handleRightArrow();
-      // unregister undo/redo listeners if moved
     };
   }, [editor, currentSuggestion, onSaveContent, requestInlineSuggestion]); // Added requestInlineSuggestion dependency
 
@@ -782,270 +770,6 @@ const PLAYGROUND_TRANSFORMERS = [
   ...TRANSFORMERS,
 ];
 
-// Example low priority listener
-const LowPriority = 1;
-
-// --- Editor Toolbar Plugin ---
-function EditorToolbarPlugin() {
-  const [editor] = useLexicalComposerContext();
-  const [activeEditor, setActiveEditor] = useState(editor);
-  const [isBold, setIsBold] = useState(false);
-  const [isItalic, setIsItalic] = useState(false);
-  const [isUnderline, setIsUnderline] = useState(false);
-  const [blockType, setBlockType] = useState<string>('paragraph');
-  const [canUndo, setCanUndo] = useState(false);
-  const [canRedo, setCanRedo] = useState(false);
-  const [isLink, setIsLink] = useState(false);
-
-  // Helper to set block type (simplified due to missing imports)
-  const $setBlocksType_LOCAL = (selection: RangeSelection, fn: () => ElementNode) => {
-    // Iterate over selected nodes instead of using $selectAll
-    selection.getNodes().forEach(node => {
-      // Get the top-level element for block-level changes
-      const topLevelElement = node.getTopLevelElement(); 
-      if ($isElementNode(topLevelElement)) {
-        const newNode = fn();
-        node.replace(newNode);
-        if ($isRangeSelection(selection) && newNode instanceof ElementNode) {
-          selection.insertNodes([newNode]); // Corrected: takes one argument
-        }
-      }
-    });
-  };
-
-  const updateToolbar = useCallback(() => {
-    const selection = $getSelection();
-    if ($isRangeSelection(selection)) {
-      // Update text format states
-      setIsBold(selection.hasFormat('bold'));
-      setIsItalic(selection.hasFormat('italic'));
-      setIsUnderline(selection.hasFormat('underline'));
-
-      // Update link state
-      const node = selection.anchor.getNode();
-      const parent = node.getParent();
-      setIsLink($isLinkNode(node) || $isLinkNode(parent));
-
-      // Update block type state
-      const anchorNode = selection.anchor.getNode();
-      let element =
-        anchorNode.getKey() === 'root'
-          ? anchorNode
-          : anchorNode.getTopLevelElementOrThrow();
-
-      if (element) {
-          if ($isListNode(element)) {
-            const parentList = $getNearestNodeOfType(anchorNode, ListNode);
-            const type = parentList ? parentList.getListType() : ($isListNode(element) ? element.getListType() : '');
-            setBlockType(type);
-          } else {
-            let type = element.getType(); // Default to node type
-            if ($isHeadingNode(element)) {
-              type = element.getTag(); // Use tag (h1, h2) for headings
-            }
-            setBlockType(type);
-          }
-      }
-    }
-  }, [activeEditor]);
-
-  useEffect(() => {
-    return mergeRegister(
-      // Listener for selection changes
-      editor.registerUpdateListener(({ editorState }) => {
-        editorState.read(() => {
-          updateToolbar();
-        });
-      }),
-      // Listener for editor changes (e.g., focus)
-      editor.registerCommand(
-        SELECTION_CHANGE_COMMAND,
-        (_payload, newEditor) => {
-          setActiveEditor(newEditor);
-          updateToolbar();
-          return false;
-        },
-        LowPriority,
-      ),
-      // Listeners for undo/redo state
-      editor.registerCommand(
-        CAN_UNDO_COMMAND,
-        (payload) => {
-          setCanUndo(payload);
-          return false;
-        },
-        LowPriority,
-      ),
-      editor.registerCommand(
-        CAN_REDO_COMMAND,
-        (payload) => {
-          setCanRedo(payload);
-          return false;
-        },
-        LowPriority,
-      ),
-    );
-  }, [editor, updateToolbar]);
-
-  // --- Formatting Functions ---
-
-  const formatParagraph = () => {
-    editor.update(() => {
-      const selection = $getSelection();
-      if ($isRangeSelection(selection)) {
-        $setBlocksType_LOCAL(selection, () => $createParagraphNode());
-      }
-    });
-  };
-
-  const formatHeading = (level: 1 | 2 | 3) => {
-    editor.update(() => {
-      const selection = $getSelection();
-      if ($isRangeSelection(selection)) {
-        $setBlocksType_LOCAL(selection, () => $createHeadingNode(`h${level}`));
-      }
-    });
-  };
-
-  const formatBulletList = () => {
-    if (blockType !== 'ul') {
-      editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined);
-    } else {
-      editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined);
-    }
-  };
-
-  const formatNumberedList = () => {
-    if (blockType !== 'ol') {
-      editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined);
-    } else {
-      editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined);
-    }
-  };
-
-  const formatCheckList = () => {
-    if (blockType !== 'check') {
-      editor.dispatchCommand(INSERT_CHECK_LIST_COMMAND, undefined);
-    } else {
-      editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined);
-    }
-  };
-
-  const formatQuote = () => {
-    if (blockType !== 'quote') {
-      editor.update(() => {
-        const selection = $getSelection();
-        if ($isRangeSelection(selection)) {
-          $setBlocksType_LOCAL(selection, () => $createQuoteNode());
-        }
-      });
-    } else {
-      formatParagraph(); // Turn back to paragraph
-    }
-  };
-
-  const formatCodeBlock = () => {
-     if (blockType !== 'code') {
-      editor.update(() => {
-        let selection = $getSelection();
-        if ($isRangeSelection(selection)) {
-           if (selection.isCollapsed()) {
-             $setBlocksType_LOCAL(selection, () => $createCodeNode());
-           } else {
-             // Wrap selected text in code block
-             const textContent = selection.getTextContent();
-             const codeNode = $createCodeNode();
-             selection.insertNodes([codeNode]);
-             selection = $getSelection(); // Re-get selection after insertion
-             if ($isRangeSelection(selection))
-               selection.insertText(textContent);
-           }
-         }
-       });
-     } else {
-       formatParagraph(); // Turn back to paragraph
-     }
-  };
-
-  const insertLink = useCallback(() => {
-    if (!isLink) {
-      const url = prompt('Enter link URL:');
-      if (url) {
-        editor.dispatchCommand(TOGGLE_LINK_COMMAND, url);
-      }
-    } else {
-      // Remove link
-      editor.dispatchCommand(TOGGLE_LINK_COMMAND, null);
-    }
-  }, [editor, isLink]);
-
-  return (
-    <div className="sticky top-0 z-10 mb-2 flex flex-wrap items-center gap-1 rounded-md border bg-background p-1 shadow-sm">
-      {/* Text Formatting Buttons */}
-      <Button
-        size="sm"
-        variant={isBold ? 'secondary' : 'ghost'}
-        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold')}
-        aria-label="Format Bold"
-      >
-        <Bold className="h-4 w-4" />
-      </Button>
-      <Button
-        size="sm"
-        variant={isItalic ? 'secondary' : 'ghost'}
-        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic')}
-        aria-label="Format Italic"
-      >
-        <Italic className="h-4 w-4" />
-      </Button>
-      <Button
-        size="sm"
-        variant={isUnderline ? 'secondary' : 'ghost'}
-        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'underline')}
-        aria-label="Format Underline"
-      >
-        <Underline className="h-4 w-4" />
-      </Button>
-      <Separator orientation="vertical" className="h-6" />
-
-      {/* Heading Buttons */}
-      <Button size="sm" variant={blockType === 'h1' ? 'secondary' : 'ghost'} onClick={() => formatHeading(1)} aria-label="Heading 1"><Heading1 className="h-4 w-4" /></Button>
-      <Button size="sm" variant={blockType === 'h2' ? 'secondary' : 'ghost'} onClick={() => formatHeading(2)} aria-label="Heading 2"><Heading2 className="h-4 w-4" /></Button>
-      <Button size="sm" variant={blockType === 'h3' ? 'secondary' : 'ghost'} onClick={() => formatHeading(3)} aria-label="Heading 3"><Heading3 className="h-4 w-4" /></Button>
-      <Separator orientation="vertical" className="h-6" />
-
-      {/* List Buttons */}
-      <Button size="sm" variant={blockType === 'ul' ? 'secondary' : 'ghost'} onClick={formatBulletList} aria-label="Bullet List"><List className="h-4 w-4" /></Button>
-      <Button size="sm" variant={blockType === 'ol' ? 'secondary' : 'ghost'} onClick={formatNumberedList} aria-label="Numbered List"><ListOrdered className="h-4 w-4" /></Button>
-      <Button size="sm" variant={blockType === 'check' ? 'secondary' : 'ghost'} onClick={formatCheckList} aria-label="Check List"><ListChecks className="h-4 w-4" /></Button>
-      <Separator orientation="vertical" className="h-6" />
-
-      {/* Block Formatting Buttons */}
-      <Button size="sm" variant={blockType === 'quote' ? 'secondary' : 'ghost'} onClick={formatQuote} aria-label="Quote"><Quote className="h-4 w-4" /></Button>
-      <Button size="sm" variant={blockType === 'code' ? 'secondary' : 'ghost'} onClick={formatCodeBlock} aria-label="Code Block"><Code className="h-4 w-4" /></Button>
-       <Button
-          size="sm"
-          variant={isLink ? 'secondary' : 'ghost'}
-          onClick={insertLink}
-          aria-label="Insert Link"
-        >
-          <LinkIcon className="h-4 w-4" />
-        </Button>
-      <Button size="sm" variant="ghost" onClick={() => editor.dispatchCommand(INSERT_HORIZONTAL_RULE_COMMAND, undefined)} aria-label="Insert Horizontal Rule"><Minus className="h-4 w-4" /></Button>
-      <Separator orientation="vertical" className="h-6" />
-
-      {/* History Buttons */}
-      <Button size="sm" variant="ghost" disabled={!canUndo} onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)} aria-label="Undo">
-        <Undo className="h-4 w-4" />
-      </Button>
-      <Button size="sm" variant="ghost" disabled={!canRedo} onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)} aria-label="Redo">
-        <Redo className="h-4 w-4" />
-      </Button>
-    </div>
-  );
-}
-// --- End Editor Toolbar Plugin ---
-
 function PureLexicalEditor({
   content,
   onSaveContent,
@@ -1057,6 +781,7 @@ function PureLexicalEditor({
   lastSaveError,
   isNewDocument,
   onCreateDocument,
+  code,
 }: EditorProps) {
   const editorStateRef = useRef<EditorState | null>(null);
   const lastContentRef = useRef<string>(content);
@@ -1490,8 +1215,71 @@ function PureLexicalEditor({
     };
   }, [documentId, isWiping]); // Add isWiping to dependencies to prevent re-triggering during wipe
 
+  // Add event listener for apply-suggestion from overlay
+  useEffect(() => {
+    const handleApplySuggestion = (event: CustomEvent) => {
+      if (!editorRef.current || !event.detail) return;
+      
+      const { originalText, suggestion, documentId: suggestionDocId } = event.detail;
+      
+      // Ensure the event is for the current document
+      if (suggestionDocId !== documentId) {
+        return;
+      }
+      
+      console.log('[LexicalEditor] Received apply-suggestion event');
+
+      editorRef.current.update(() => {
+        const selection = $getSelection();
+        
+        if ($isRangeSelection(selection)) {
+          const currentSelectedText = selection.getTextContent();
+          
+          // Verify the current selection matches the original text from the overlay
+          if (currentSelectedText === originalText) {
+            console.log('[LexicalEditor] Applying suggestion:', suggestion);
+            selection.insertText(suggestion);
+            toast.success("Suggestion applied successfully");
+            
+            // Trigger a save after applying
+            lastContentRef.current = ''; // Force save
+            contentChangedRef.current = true;
+             if (saveTimeoutRef.current) {
+                clearTimeout(saveTimeoutRef.current);
+             }
+             saveTimeoutRef.current = setTimeout(() => {
+                if (contentChangedRef.current && editorRef.current) {
+                   const contentToSave = editorRef.current.getEditorState().read(() => $getRoot().getTextContent());
+                   editorRef.current.update(() => $addUpdateTag('skip-dom-selection'));
+                   console.log(`[Editor] Saving content after suggestion apply for ${documentId}`);
+                   onSaveContent(contentToSave, false); // Immediate save
+                   contentChangedRef.current = false;
+                }
+                saveTimeoutRef.current = null;
+             }, 50); // Short delay for save
+             
+          } else {
+            console.warn('[LexicalEditor] Suggestion not applied: Selection changed since overlay opened.');
+            toast.warning("Selection changed, suggestion not applied.");
+          }
+        } else {
+           console.warn('[LexicalEditor] Suggestion not applied: No range selection found.');
+        }
+      });
+    };
+
+    window.addEventListener('apply-suggestion', handleApplySuggestion as EventListener);
+    console.log('[LexicalEditor] Listener added for apply-suggestion.');
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('apply-suggestion', handleApplySuggestion as EventListener);
+      console.log('[LexicalEditor] Listener removed for apply-suggestion.');
+    };
+  }, [documentId, onSaveContent]);
+
   return (
-    <div className="relative prose dark:prose-invert">
+    <div className="relative">
       {/* Remove the DiffView section */}
       {/* {showDiff && status !== 'streaming' && ( ... )} */}
 
@@ -1508,9 +1296,13 @@ function PureLexicalEditor({
       )}
 
       <LexicalComposer initialConfig={initialConfig}>
-        <div className="relative lexical-editor-wrapper">
-          <EditorToolbarPlugin />
-          <div className={cn("lexical-editor-container", isWiping && "opacity-20 pointer-events-none")}>
+        {/* Toolbar integrated here */}
+        <EditorToolbar />
+        <div className="relative lexical-editor-wrapper mt-2">
+          <div className={cn(
+            "lexical-editor-container p-4 rounded-b-md",
+            isWiping && "opacity-20 pointer-events-none"
+          )}>
             <RichTextPlugin
               contentEditable={<ContentEditable className="lexical-editor-content-editable min-h-[300px] outline-none" />}
               placeholder={<PlaceholderPlugin isNewDocument={isNewDocument} />}
@@ -1533,6 +1325,8 @@ function PureLexicalEditor({
             border: 0;
             font-family: inherit;
             font-size: 1rem;
+            line-height: 1.6;
+            color: var(--foreground);
             resize: none;
             width: 100%;
             caret-color: var(--foreground);
@@ -1540,6 +1334,7 @@ function PureLexicalEditor({
             tab-size: 1;
             outline: 0;
             padding: 0;
+            min-height: 300px;
           }
           
           .lexical-editor-placeholder {
@@ -1547,11 +1342,13 @@ function PureLexicalEditor({
             overflow: hidden;
             position: absolute;
             text-overflow: ellipsis;
-            top: 0;
-            left: 0;
+            top: 1rem;
+            left: 1rem;
+            font-size: 1rem;
             user-select: none;
             pointer-events: none;
             opacity: 0.6;
+            line-height: 1.6;
           }
 
           .inline-suggestion {
@@ -1688,78 +1485,165 @@ function PureLexicalEditor({
           }
           
           /* Editor theme styling */
-          .editor-text-bold {
-            font-weight: bold;
-          }
-
-          .editor-text-italic {
-            font-style: italic;
-          }
-
-          .editor-text-underline {
-            text-decoration: underline;
-          }
+          .editor-text-bold { font-weight: bold; }
+          .editor-text-italic { font-style: italic; }
+          .editor-text-underline { text-decoration: underline; }
+          .editor-text-strikethrough { text-decoration: line-through; }
+          .editor-text-code {
+             background-color: hsl(var(--muted));
+             padding: 0.1em 0.3em;
+             font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
+             font-size: 90%;
+             border-radius: 3px;
+           }
 
           .editor-paragraph {
-            margin: 0 0 1em 0;
+            margin: 0 0 0.8rem 0;
             position: relative;
           }
 
           .editor-heading-h1 {
-            font-size: 1.75rem;
+            font-size: 1.8rem;
             font-weight: 700;
-            margin-top: 2rem;
-            margin-bottom: 1rem;
+            line-height: 1.3;
+            margin-top: 1.5rem;
+            margin-bottom: 0.8rem;
+            padding-bottom: 0.2em;
+            border-bottom: 1px solid hsl(var(--border));
           }
 
           .editor-heading-h2 {
             font-size: 1.5rem;
             font-weight: 600;
-            margin-top: 1.5rem;
-            margin-bottom: 0.75rem;
+            line-height: 1.3;
+            margin-top: 1.4rem;
+            margin-bottom: 0.7rem;
+            padding-bottom: 0.2em;
+            border-bottom: 1px solid hsl(var(--border));
           }
 
           .editor-heading-h3 {
             font-size: 1.25rem;
             font-weight: 600;
-            margin-top: 1.25rem;
-            margin-bottom: 0.5rem;
+            line-height: 1.3;
+            margin-top: 1.3rem;
+            margin-bottom: 0.6rem;
           }
 
           .editor-quote {
             margin: 1rem 0;
             padding-left: 1rem;
-            border-left: 4px solid var(--border);
-            color: var(--muted-foreground);
+            border-left: 3px solid hsl(var(--border));
+            color: hsl(var(--muted-foreground));
+            font-style: italic;
           }
 
           .editor-list-ul, .editor-list-ol {
-            margin: 0 0 0 1rem;
+            margin: 0 0 0.8rem 1.5rem;
             padding: 0;
+            list-style-position: outside;
           }
 
           .editor-list-li {
-            margin: 0 0 0.5rem 0;
+            margin: 0.2rem 0;
+            line-height: 1.6;
+            position: relative;
           }
           
+          .editor-list-ol { list-style-type: decimal; }
+          .editor-list-ul { list-style-type: disc; }
+
+          .editor-nested-listitem {
+            list-style-type: none;
+          }
+          .editor-list-li .editor-list-ul { margin-left: 1.5rem; list-style-type: circle; }
+          .editor-list-li .editor-list-ol { margin-left: 1.5rem; list-style-type: lower-alpha; }
+          .editor-list-li .editor-list-ul .editor-list-ul { list-style-type: square; }
+          .editor-list-li .editor-list-ol .editor-list-ol { list-style-type: lower-roman; }
+
+          .editor-listitem-unchecked,
+          .editor-listitem-checked {
+            position: relative;
+            padding-left: 24px;
+            list-style-type: none;
+            outline: none;
+          }
+          .editor-listitem-unchecked:focus-visible,
+          .editor-listitem-checked:focus-visible {
+              /* Optional focus styling for list item itself */
+              /* background-color: hsl(var(--accent)); */
+          }
+          .editor-listitem-unchecked::before,
+          .editor-listitem-checked::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0.2em;
+            width: 16px;
+            height: 16px;
+            display: block;
+            border-radius: 3px;
+            background-color: transparent;
+            border: 1.5px solid hsl(var(--muted-foreground));
+            cursor: pointer;
+            transition: all 0.15s ease;
+          }
+          .editor-listitem-checked::before {
+            border-color: hsl(var(--primary));
+            background-color: hsl(var(--primary));
+          }
+          .editor-listitem-checked::after {
+            content: '';
+            position: absolute;
+            left: 4px;
+            top: 0.2em + 4px;
+            width: 8px;
+            height: 4px;
+            border-left: 2px solid hsl(var(--primary-foreground));
+            border-bottom: 2px solid hsl(var(--primary-foreground));
+            transform: rotate(-45deg);
+            pointer-events: none;
+          }
+          .editor-listitem-checked {
+            text-decoration: line-through;
+            color: hsl(var(--muted-foreground));
+          }
+
           .editor-horizontal-rule {
-            padding: 2px 0;
             border: none;
             margin: 1.5em 0;
             height: 1px;
             background-color: hsl(var(--border));
           }
-          
-          /* Style diff view */
-          .diff-editor span.bg-green-100 {
-            background-color: rgba(74, 222, 128, 0.2);
-            padding: 2px 0;
+
+          .editor-code {
+            background-color: hsl(var(--muted));
+            font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
+            padding: 1rem;
+            margin-bottom: 0.8rem;
+            font-size: 90%;
+            overflow-x: auto;
+            position: relative;
+            line-height: 1.4;
+            border-radius: 4px;
           }
-          
-          .diff-editor span.bg-red-100 {
-            background-color: rgba(248, 113, 113, 0.2);
-            padding: 2px 0;
+          .editor-code:before {
+              content: attr(data-highlight-language);
+              position: absolute;
+              top: 4px;
+              right: 6px;
+              font-size: 0.75rem;
+              color: hsl(var(--muted-foreground));
+              opacity: 0.7;
           }
+          .editor-tokenComment { color: slategray; }
+          .editor-tokenPunctuation { color: #999; }
+          .editor-tokenProperty { color: #905; }
+          .editor-tokenSelector { color: #690; }
+          .editor-tokenOperator { color: #9a6e3a; }
+          .editor-tokenAttr { color: #07a; }
+          .editor-tokenVariable { color: #e90; }
+          .editor-tokenFunction { color: #dd4a68; }
 
           /* Ensure selection styling works in both modes */
           .lexical-editor-content-editable::selection,
@@ -1788,12 +1672,12 @@ function PureLexicalEditor({
             --border: #2d3748;
           }
 
-          /* Editor Focus */
-          .lexical-editor-content-editable:focus-visible {
+          /* Editor Focus (Removed Outline) */
+          /* .lexical-editor-content-editable:focus-visible {
             outline: 2px solid var(--ring);
             outline-offset: 2px;
             border-radius: 3px; 
-          }
+          } */
 
           /* Link Styling */
           .editor-link {
