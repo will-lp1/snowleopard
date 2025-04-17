@@ -337,7 +337,7 @@ export async function POST(request: Request) {
           maxSteps: 5,
           // Conditionally activate updateDocument tool ONLY if a valid active document ID exists
           experimental_activeTools:
-            selectedChatModel === 'chat-model-reasoning'
+            selectedChatModel === 'chat-model-large'
               ? []
               : validatedActiveDocumentId 
                 ? ['updateDocument'] // Activate ONLY if active doc ID is valid
@@ -350,7 +350,6 @@ export async function POST(request: Request) {
             // Pass the validated *active* document ID to the update tool
             updateDocument: updateDocument({ 
               session: adaptedSession, 
-              dataStream,
               documentId: validatedActiveDocumentId // Ensure tool gets the active ID
             }),
           },

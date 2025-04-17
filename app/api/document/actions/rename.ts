@@ -42,7 +42,7 @@ export async function renameDocument(request: NextRequest, body: any) {
       // First check if the document exists and verify ownership
       const { data: existingDocs, error: queryError } = await supabase
         .from('Document')
-        .select('id, userId, createdAt')
+        .select('id, userId, createdAt, content, kind, chatId')
         .eq('id', id)
         .order('createdAt', { ascending: false })
         .limit(1);
@@ -71,19 +71,18 @@ export async function renameDocument(request: NextRequest, body: any) {
       // Use the most recent version's createdAt timestamp to ensure we update the correct version
       const latestCreatedAt = existingDocs[0].createdAt;
       
-      const { error: updateError, data: updateData } = await supabase
-        .from('Document')
-        .update({
-          title: title,
-          // Only update the title, nothing else
-        })
-        .eq('id', id)
-        .eq('createdAt', latestCreatedAt)
-        .select('id, title, createdAt')
-        .single();
-        
-      if (updateError) {
-        console.error('[Document API] Error renaming document:', updateError);
+      const { data, error } = await supabase.rpc('create_new_document_version', {
+        p_id: id,
+        p_user_id: session.user.id,
+        p_title: title,
+        p_content: existingDocs[0].content,
+        p_kind: existingDocs[0].kind,
+        p_chat_id: existingDocs[0].chatId,
+        p_is_current_override: true
+      });
+      
+      if (error) {
+        console.error('Error calling create_new_document_version during rename:', error);
         return NextResponse.json({ error: 'Failed to rename document' }, { status: 500 });
       }
       
@@ -97,7 +96,7 @@ export async function renameDocument(request: NextRequest, body: any) {
       if (getError) {
         console.error('[Document API] Error fetching renamed document:', getError);
         // Still return the update data since the rename was successful
-        return NextResponse.json(updateData);
+        return NextResponse.json(data);
       }
       
       console.log(`[Document API] Document renamed successfully: ${id} to "${title}"`);

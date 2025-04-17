@@ -419,6 +419,54 @@ export function AlwaysVisibleArtifact({
         throw new Error(`Failed to save document: ${errorData.error || response.statusText}`);
       }
       
+      const updatedDocumentData: Document = await response.json();
+
+      // Update SWR cache with the returned data
+      // Find the existing document in the cache to update it, or update the whole array if needed
+      mutateDocuments((currentData) => {
+        if (!currentData) return [updatedDocumentData]; // If cache is empty, initialize with new data
+        
+        // Find the index of the document version to update (usually the last one)
+        const indexToUpdate = currentData.findIndex(doc => 
+          doc.id === updatedDocumentData.id && 
+          doc.createdAt === updatedDocumentData.createdAt
+        );
+        
+        if (indexToUpdate !== -1) {
+          // Update the specific version in the array
+          const newData = [...currentData];
+          newData[indexToUpdate] = updatedDocumentData;
+          return newData;
+        } else {
+          // If the exact version wasn't found (e.g., it was a new version created),
+          // find the latest version for the same ID and replace it, or append.
+          // This logic assumes the API returns the *single* latest version state.
+          const latestIndexForId = currentData.reduce((latestIdx, doc, currentIdx) => {
+            if (doc.id === updatedDocumentData.id && (latestIdx === -1 || new Date(doc.createdAt) > new Date(currentData[latestIdx].createdAt))) {
+              return currentIdx;
+            }
+            return latestIdx;
+          }, -1);
+
+          if (latestIndexForId !== -1) {
+             const newData = [...currentData];
+             // Check if the returned data represents a NEWER version or just an UPDATE to the latest
+             if (new Date(updatedDocumentData.createdAt) > new Date(newData[latestIndexForId].createdAt)) {
+               // It's a newer version, append it (or replace if ID matches but createdAt differs)
+               newData.push(updatedDocumentData);
+               // Remove older versions if necessary (or handle based on desired history view)
+             } else {
+               // It's an update to the latest known version
+               newData[latestIndexForId] = updatedDocumentData;
+             }
+             return newData;
+          } else {
+             // Document ID not found at all, append as new
+             return [...currentData, updatedDocumentData];
+          }
+        }
+      }, { revalidate: false }); // Update cache, don't trigger immediate refetch
+      
       // Clear save indicator after successful save
       setIsContentDirty(false);
       setSaveState('idle');
@@ -519,9 +567,12 @@ export function AlwaysVisibleArtifact({
       return "Start typing to create";
     }
     
-    return document ? (
+    // Use updatedAt if available, otherwise fallback to createdAt
+    const lastSavedDate = document?.updatedAt ? new Date(document.updatedAt) : (document?.createdAt ? new Date(document.createdAt) : null);
+
+    return lastSavedDate ? (
       `Last saved ${formatDistance(
-        new Date(document.createdAt),
+        lastSavedDate,
         new Date(),
         {
           addSuffix: true,
@@ -809,19 +860,19 @@ export function AlwaysVisibleArtifact({
             {!isDocumentsFetching && artifact.documentId === initialDocumentId ? (
               <div className="px-8 py-6 mx-auto max-w-3xl">
                 <LexicalEditor
-                  key={artifact.documentId} // Key ensures reset on ID change
-                  content={isCurrentVersion ? artifact.content : getDocumentContentById(currentVersionIndex)}
-                  onSaveContent={saveContent}
-                  status={artifact.status}
-                  isCurrentVersion={isCurrentVersion}
-                  currentVersionIndex={currentVersionIndex}
-                  suggestions={[]}
-                  onSuggestionResolve={() => {}}
-                  documentId={artifact.documentId}
-                  saveState={isContentDirty ? 'saving' : 'idle'}
-                  isNewDocument={artifact.documentId === 'init'}
-                  onCreateDocument={handleCreateDocumentFromEditor}
-                />
+                        key={artifact.documentId} // Key ensures reset on ID change
+                        content={isCurrentVersion ? artifact.content : getDocumentContentById(currentVersionIndex)}
+                        onSaveContent={saveContent}
+                        status={artifact.status}
+                        isCurrentVersion={isCurrentVersion}
+                        currentVersionIndex={currentVersionIndex}
+                        suggestions={[]}
+                        onSuggestionResolve={() => { } }
+                        documentId={artifact.documentId}
+                        saveState={isContentDirty ? 'saving' : 'idle'}
+                        isNewDocument={artifact.documentId === 'init'}
+                        onCreateDocument={handleCreateDocumentFromEditor}
+                 />
               </div>
             ) : (
               // Show loader while waiting for the correct document content to load

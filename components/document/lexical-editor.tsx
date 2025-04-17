@@ -31,12 +31,14 @@ import { AutoFocusPlugin } from '@lexical/react/LexicalAutoFocusPlugin';
 import { HeadingNode, QuoteNode } from '@lexical/rich-text';
 import { TableCellNode, TableNode, TableRowNode } from '@lexical/table';
 import { ListItemNode, ListNode } from '@lexical/list';
+import { CheckListPlugin } from '@lexical/react/LexicalCheckListPlugin';
 import { ListPlugin } from '@lexical/react/LexicalListPlugin';
 import { CodeNode, CodeHighlightNode } from '@lexical/code';
 import { LinkNode } from '@lexical/link';
+import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
 import { HorizontalRuleNode } from '@lexical/react/LexicalHorizontalRuleNode';
 import { MarkdownShortcutPlugin } from '@lexical/react/LexicalMarkdownShortcutPlugin';
-import { TRANSFORMERS } from '@lexical/markdown';
+import { TRANSFORMERS, CHECK_LIST, STRIKETHROUGH } from '@lexical/markdown';
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { TabIndentationPlugin } from '@lexical/react/LexicalTabIndentationPlugin';
 import { CheckIcon, X, ChevronDown, ChevronUp } from 'lucide-react';
@@ -45,18 +47,12 @@ import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext
 import { mergeRegister } from '@lexical/utils';
 import { toast } from 'sonner';
 import { useAiOptions } from '@/hooks/ai-options';
+import { Button } from '@/components/ui/button';
+import { motion } from 'framer-motion';
 
 import type { Suggestion } from '@/lib/db/schema';
-import { DiffView } from './diffview';
 import SuggestionOverlay from '@/components/suggestion-overlay';
-
-// Add types for section-based diffs
-interface DiffSection {
-  id: string;
-  oldContent: string;
-  newContent: string;
-  isExpanded?: boolean;
-}
+import EditorToolbar from '@/components/document/editor-toolbar';
 
 type EditorProps = {
   content: string;
@@ -101,6 +97,11 @@ const theme = {
     ul: 'editor-list-ul',
     ol: 'editor-list-ol',
     li: 'editor-list-li',
+    nested: {
+      listitem: 'editor-nested-listitem',
+    },
+    listitemChecked: 'editor-listitem-checked',
+    listitemUnchecked: 'editor-listitem-unchecked',
   },
   quote: 'editor-quote',
   link: 'editor-link',
@@ -761,6 +762,13 @@ const nodes = [
   HorizontalRuleNode,
 ];
 
+// Transformers for Markdown shortcuts
+const PLAYGROUND_TRANSFORMERS = [
+  CHECK_LIST,
+  STRIKETHROUGH,
+  ...TRANSFORMERS,
+];
+
 function PureLexicalEditor({
   content,
   onSaveContent,
@@ -776,11 +784,6 @@ function PureLexicalEditor({
   const editorStateRef = useRef<EditorState | null>(null);
   const lastContentRef = useRef<string>(content);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [showDiff, setShowDiff] = useState(false);
-  const [previousContent, setPreviousContent] = useState<string>('');
-  const [aiUpdatedContent, setAiUpdatedContent] = useState<string>('');
-  const [diffSections, setDiffSections] = useState<DiffSection[]>([]);
-  const aiUpdateInProgressRef = useRef<boolean>(false);
   const contentChangedRef = useRef<boolean>(false);
   const editorRef = useRef<LexicalEditorType | null>(null);
   const initialLoadCompletedRef = useRef<boolean>(false);
@@ -792,6 +795,10 @@ function PureLexicalEditor({
   const [showSuggestionOverlay, setShowSuggestionOverlay] = useState(false);
   const [overlayPosition, setOverlayPosition] = useState({ x: 0, y: 0 });
 
+  // ADD state for wipe animation
+  const [isWiping, setIsWiping] = useState(false);
+  const wipeTimeoutRef = useRef<NodeJS.Timeout | null>(null); // To ensure state resets
+
   // Initialize editor configuration
   const initialConfig = {
     namespace: `Document-${documentId}`,
@@ -799,28 +806,52 @@ function PureLexicalEditor({
     onError,
     nodes,
     editorState: content ? () => {
-      const editor = createEditor();
+      try {
+        const initialState = editorRef.current?.parseEditorState(content) || null;
+        if (initialState) {
+          editorRef.current?.setEditorState(initialState);
+        } else {
+          // Fallback if parse fails or editor not ready
+          const editor = createEditor({ namespace: `Document-${documentId}`, theme, onError, nodes });
       editor.update(() => {
         const root = $getRoot();
         root.clear();
-        
-        // Create proper Lexical nodes from content
         const paragraphs = content.split(/\n\n+/);
-        paragraphs.forEach(paragraph => {
+            paragraphs.forEach((paragraph: string) => {
           if (paragraph.trim()) {
             root.append($createParagraphNode().append($createTextNode(paragraph)));
           } else {
-            // Keep empty paragraphs for structure
             root.append($createParagraphNode());
           }
         });
       });
-      
-      // Mark as initialized immediately
+          editorRef.current = editor; // Ensure ref is set
+        }
       initialLoadCompletedRef.current = true;
       editorContentSynced.current = true;
       lastContentRef.current = content;
       console.log(`[Editor] Initial content loaded for document: ${documentId}`);
+      } catch (parseError) {
+          console.error('[Editor] Failed to parse initial editor state from content:', parseError);
+          // Fallback to basic text node creation
+          if (editorRef.current) {
+              editorRef.current.update(() => {
+                  const root = $getRoot();
+                  root.clear();
+                  const paragraphs = content.split(/\n\n+/);
+                  paragraphs.forEach((paragraph: string) => {
+                    if (paragraph.trim()) {
+                      root.append($createParagraphNode().append($createTextNode(paragraph)));
+                    } else {
+                      root.append($createParagraphNode());
+                    }
+                  });
+              });
+              initialLoadCompletedRef.current = true;
+              editorContentSynced.current = true;
+              lastContentRef.current = content;
+          }
+      }
     } : undefined,
   };
 
@@ -828,56 +859,31 @@ function PureLexicalEditor({
   useEffect(() => {
     if (documentId !== lastDocumentIdRef.current) {
       console.log(`[Editor] Document ID changed from ${lastDocumentIdRef.current} to ${documentId}`);
-      
-      // Reset initialization flags
       initialLoadCompletedRef.current = false;
       editorContentSynced.current = false;
       contentChangedRef.current = false;
-      
-      // Update refs
       lastDocumentIdRef.current = documentId;
-      
-      // Cancel any pending saves
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = null;
       }
       
-      // Force editor update with new content
-      if (editorRef.current && content) {
+      if (editorRef.current) {
+          const newContent = content || ''; // Use provided content or empty string
         console.log(`[Editor] Initializing editor for new document ID: ${documentId}`);
-        
         editorRef.current.update(() => {
           const root = $getRoot();
           root.clear();
-          
-          // Create proper Lexical nodes from content
-          const paragraphs = content.split(/\n\n+/);
-          paragraphs.forEach(paragraph => {
+              const paragraphs = newContent.split(/\n\n+/);
+              paragraphs.forEach((paragraph: string) => {
             if (paragraph.trim()) {
               root.append($createParagraphNode().append($createTextNode(paragraph)));
             } else {
-              // Keep empty paragraphs for structure
               root.append($createParagraphNode());
             }
           });
         });
-        
-        // Update tracking refs
-        lastContentRef.current = content;
-        editorContentSynced.current = true;
-      } else if (editorRef.current) {
-        // Clear editor for new document with no content
-        console.log(`[Editor] Clearing editor for new document ID: ${documentId} with no content`);
-        
-        editorRef.current.update(() => {
-          const root = $getRoot();
-          root.clear();
-          root.append($createParagraphNode());
-        });
-        
-        // Update tracking refs
-        lastContentRef.current = '';
+          lastContentRef.current = newContent;
         editorContentSynced.current = true;
       }
     }
@@ -887,24 +893,18 @@ function PureLexicalEditor({
   useEffect(() => {
     if (content && editorRef.current && !editorContentSynced.current) {
       console.log('[Editor] Syncing editor content:', content.substring(0, 50) + '...');
-      
       editorRef.current.update(() => {
         const root = $getRoot();
         root.clear();
-        
-        // Create proper Lexical nodes from content
         const paragraphs = content.split(/\n\n+/);
-        paragraphs.forEach(paragraph => {
+          paragraphs.forEach((paragraph: string) => {
           if (paragraph.trim()) {
             root.append($createParagraphNode().append($createTextNode(paragraph)));
           } else {
-            // Keep empty paragraphs for structure
             root.append($createParagraphNode());
           }
         });
       });
-      
-      // Update refs to track we've loaded content
       lastContentRef.current = content;
       editorContentSynced.current = true;
       initialLoadCompletedRef.current = true;
@@ -1034,477 +1034,79 @@ function PureLexicalEditor({
     editorRef.current = editor;
   }, []);
 
-  // New function to generate diff sections from old and new content
-  const generateDiffSections = useCallback((oldText: string, newText: string) => {
-    // Guard against null/undefined inputs
-    if (!oldText || !newText) {
-      console.log('[Editor] Cannot generate diff sections - missing content');
-      return;
-    }
-    
-    // Simple algorithm to split by paragraphs
-    const oldParagraphs = oldText.split(/\n\n+/);
-    const newParagraphs = newText.split(/\n\n+/);
-    
-    // Create diff sections where paragraphs are different
-    const sections: DiffSection[] = [];
-    
-    // Use a simple LCS-based approach to find changed sections
-    let i = 0, j = 0;
-    
-    while (i < oldParagraphs.length || j < newParagraphs.length) {
-      // Make sure both i and j are within bounds before comparing
-      if (i < oldParagraphs.length && j < newParagraphs.length && 
-          oldParagraphs[i]?.trim() === newParagraphs[j]?.trim()) {
-        // No difference - just skip identical paragraphs
-        i++;
-        j++;
-        continue;
-      }
-      
-      // Try to find the next matching paragraph
-      let nextMatch = -1;
-      let searchLimit = Math.min(5, oldParagraphs.length - i);
-      
-      for (let k = 1; k <= searchLimit; k++) {
-        if (i + k < oldParagraphs.length && j < newParagraphs.length && 
-            oldParagraphs[i + k]?.trim() === newParagraphs[j]?.trim()) {
-          nextMatch = k;
-          break;
-        }
-      }
-      
-      if (nextMatch > 0) {
-        // Found a match ahead - the paragraphs in between were removed
-        sections.push({
-          id: `diff-${sections.length}`,
-          oldContent: oldParagraphs.slice(i, i + nextMatch).join('\n\n') || '',
-          newContent: '',
-          isExpanded: true
-        });
-        i += nextMatch;
-      } else {
-        // No match found ahead - this is a new paragraph
-        sections.push({
-          id: `diff-${sections.length}`,
-          oldContent: i < oldParagraphs.length ? oldParagraphs[i] || '' : '',
-          newContent: j < newParagraphs.length ? newParagraphs[j] || '' : '',
-          isExpanded: true
-        });
-        i++;
-        j++;
-      }
-    }
-    
-    // Filter out sections where old and new are identical
-    const filteredSections = sections.filter(section => 
-      section.oldContent?.trim() !== section.newContent?.trim()
-    );
-    
-    console.log('[Editor] Generated diff sections:', filteredSections.length);
-    setDiffSections(filteredSections);
-  }, []);
-
-  // Accept a single diff section
-  const acceptDiffSection = useCallback((sectionId: string) => {
-    const section = diffSections.find(s => s.id === sectionId);
-    if (!section || !section.oldContent || !section.newContent) return;
-    
-    try {
-      // Get the current editor content
-      const currentContent = lastContentRef.current;
-      
-      // Replace the old content with the new content
-      const updatedContent = currentContent.replace(section.oldContent, section.newContent);
-      
-      // Update the editor and save content
-      lastContentRef.current = updatedContent;
-      onSaveContent(updatedContent, false);
-      
-      // Remove this section from the list
-      setDiffSections(prev => prev.filter(s => s.id !== sectionId));
-      
-      // Close diff view if no more sections
-      if (diffSections.length <= 1) {
-        setShowDiff(false);
-        setAiUpdatedContent('');
-        setPreviousContent('');
-        aiUpdateInProgressRef.current = false;
-      }
-    } catch (error) {
-      console.error('[Editor] Error applying diff section:', error);
-    }
-  }, [diffSections, onSaveContent]);
-
-  // Toggle section expansion
-  const toggleSectionExpansion = useCallback((sectionId: string) => {
-    setDiffSections(prev => prev.map(section => 
-      section.id === sectionId 
-        ? { ...section, isExpanded: !section.isExpanded } 
-        : section
-    ));
-  }, []);
-
-  // Accept all AI changes
-  const acceptAiChanges = useCallback(() => {
-    setShowDiff(false);
-    
-    if (aiUpdatedContent) {
-      // Save the AI-updated content
-      onSaveContent(aiUpdatedContent, false);
-      
-      // Reset AI update state
-      setAiUpdatedContent('');
-      setPreviousContent('');
-      setDiffSections([]);
-      aiUpdateInProgressRef.current = false;
-    }
-  }, [aiUpdatedContent, onSaveContent]);
-
-  // Handle AI-driven document updates and diff view
-  useEffect(() => {
-    // Function to handle artifactUpdate data events
-    const handleStreamArtifactUpdate = (e: CustomEvent) => {
-      try {
-        const data = e.detail;
-        if (data.type === 'artifactUpdate') {
-          // Parse the data from the stream
-          const updateData = JSON.parse(data.content);
-          
-          console.log('[Editor] Received artifactUpdate data from stream:', updateData);
-          
-          // Check if this update is for our document
-          if (updateData.type === 'documentUpdated' && 
-              updateData.documentId === documentId) {
-              
-            console.log('[Editor] Processing document update for current document');
-            
-            // Get current editor content to show diff against
-            const currentContent = lastContentRef.current;
-            setPreviousContent(currentContent);
-            setAiUpdatedContent(updateData.newContent || '');
-            
-            // Generate diff sections from the old and new content
-            generateDiffSections(currentContent, updateData.newContent || '');
-            
-            // Mark as AI update and show diff view
-            aiUpdateInProgressRef.current = true;
-            setShowDiff(true);
-            
-            // Dispatch a browser event for other components that might need this info
-            if (typeof window !== 'undefined') {
-              try {
-                const event = new CustomEvent('artifactUpdate', {
-                  detail: updateData
-                });
-                window.dispatchEvent(event);
-              } catch (error) {
-                console.error('[Editor] Error dispatching browser event:', error);
-              }
-            }
-          }
-        }
-      } catch (error) {
-        console.error('[Editor] Error handling artifact update data:', error);
-      }
-    };
-    
-    // Add listener for editor stream data
-    window.addEventListener('editor:stream-data', handleStreamArtifactUpdate as EventListener);
-    
-    return () => {
-      window.removeEventListener('editor:stream-data', handleStreamArtifactUpdate as EventListener);
-    };
-  }, [documentId, generateDiffSections]);
-
-  // Handle content updates from parent
-  useEffect(() => {
-    if (content) {
-      // Handle refresh case - force update if content doesn't match last saved
-      if (lastContentRef.current !== content && editorRef.current && contentChangedRef.current === false) {
-        console.log('[Editor] Detected stale content after refresh, updating editor');
-        
-        editorRef.current.update(() => {
-          const root = $getRoot();
-          root.clear();
-          
-          // Create proper Lexical nodes from content
-          const paragraphs = content.split(/\n\n+/);
-          paragraphs.forEach(paragraph => {
-            if (paragraph.trim()) {
-              root.append($createParagraphNode().append($createTextNode(paragraph)));
-            }
-          });
-        });
-      }
-      
-      // Skip this update if it would cause a loop
-      if (lastContentRef.current === content) {
-        return;
-      }
-
-      // Check if this content update might be from an AI update
-      if (status === 'streaming' || aiUpdateInProgressRef.current) {
-        console.log('[Editor] AI update detected, saving current content for diff view');
-        
-        // Save current content for diff view and mark as AI update in progress
-        if (!aiUpdateInProgressRef.current) {
-          setPreviousContent(lastContentRef.current);
-          aiUpdateInProgressRef.current = true;
-        }
-        
-        // Update AI updated content for diff view
-        setAiUpdatedContent(content);
-        
-        // Generate diff sections from the old and new content
-        if (previousContent && content) {
-          generateDiffSections(previousContent, content);
-        }
-        
-        // Show diff view when we get content during AI streaming
-        setShowDiff(true);
-      }
-      
-      // If AI updates just completed, keep diff view visible but reset flag
-      if (status !== 'streaming' && aiUpdateInProgressRef.current) {
-        aiUpdateInProgressRef.current = false;
-      }
-
-      console.log('[Editor] Updating content from parent');
-      lastContentRef.current = content;
-      contentChangedRef.current = false; // Reset since we just got new content from parent
-    }
-  }, [content, status, previousContent, generateDiffSections]);
-
-  // Add an event listener for the 'apply-suggestion' event
-  useEffect(() => {
-    const handleApplySuggestion = (event: CustomEvent) => {
-      if (!editorRef.current || !event.detail) return;
-      
-      const { originalText, suggestion, documentId: suggestedDocId } = event.detail;
-      
-      // Only handle if this event is for our document
-      if (suggestedDocId === documentId && originalText && suggestion) {
-        console.log('[Editor] Handling apply-suggestion event for:', originalText);
-        
-        // Update the editor using Lexical's API
-        editorRef.current.update(() => {
-          const textNodes = $nodesOfType(TextNode);
-          let found = false;
-
-          for (const node of textNodes) {
-            const textContent = node.getTextContent();
-            const index = textContent.indexOf(originalText);
-
-            if (index !== -1) {
-              console.log('[Editor] Found text in node, applying spliceText');
-              // Use spliceText for precise replacement within the node
-              node.spliceText(index, originalText.length, suggestion);
-              found = true;
-              break; // Stop after the first match
-            }
-          }
-          
-          // Fallback: If spliceText didn't find/replace (e.g., selection across nodes?)
-          // Revert to the simpler string replace and re-parse approach.
-          if (!found) {
-            console.warn('[Editor] SpliceText failed, falling back to full re-parse for suggestion.');
-            const root = $getRoot();
-            const currentContent = root.getTextContent(); // Get current content directly
-            
-            if (currentContent.includes(originalText)) {
-              const updatedContent = currentContent.replace(originalText, suggestion);
-              
-              // Re-render the entire document
-              root.clear();
-              const paragraphs = updatedContent.split(/\n\n+/);
-              paragraphs.forEach(paragraph => {
-                if (paragraph.trim()) {
-                  root.append($createParagraphNode().append($createTextNode(paragraph)));
-                } else {
-                  // Handle empty paragraphs if needed
-                  root.append($createParagraphNode());
-                }
-              });
-              
-              // Update ref immediately since onChange might not catch this fast enough
-              lastContentRef.current = updatedContent;
-              found = true;
-            }
-          }
-
-          if (!found) {
-            console.error('[Editor] Failed to apply suggestion. Original text not found:', originalText);
-          }
-        });
-        
-        // Force a save immediately after the update completes
-        // Use a small timeout to ensure the update has flushed
-        setTimeout(() => {
-          if (editorRef.current) {
-            const currentState = editorRef.current.getEditorState();
-            let content = '';
-            currentState.read(() => {
-              const root = $getRoot();
-              // Use a more reliable way to get paragraphs, respecting structure
-              content = root.getChildren().map(node => node.getTextContent()).join('\n\n');
-            });
-            
-            console.log('[Editor] Saving content after applying suggestion event');
-            onSaveContent(content, false); // Immediate save
-          }
-        }, 0); 
-      }
-    };
-    
-    // Listen for apply-suggestion events
-    window.addEventListener('apply-suggestion', handleApplySuggestion as EventListener);
-    
-    return () => {
-      window.removeEventListener('apply-suggestion', handleApplySuggestion as EventListener);
-    };
-  }, [documentId, onSaveContent]);
-
-  // Add an event listener for version restoration events
-  useEffect(() => {
-    const handleVersionRestored = (event: CustomEvent) => {
-      if (!editorRef.current || !event.detail) return;
-      
-      const { documentId: restoredDocId, content: restoredContent } = event.detail;
-      
-      // Only update editor if this event is for our current document
-      if (restoredDocId === documentId && restoredContent) {
-        console.log('[Editor] Handling version-restored event');
-        
-        // Force update the editor content with the restored version
-        editorRef.current.update(() => {
-          const root = $getRoot();
-          root.clear();
-          
-          // Create proper Lexical nodes from the restored content
-          const paragraphs = (restoredContent as string).split(/\n\n+/);
-          paragraphs.forEach((paragraph: string) => {
-            if (paragraph.trim()) {
-              root.append($createParagraphNode().append($createTextNode(paragraph)));
-            } else {
-              // Keep empty paragraphs for structure
-              root.append($createParagraphNode());
-            }
-          });
-        });
-        
-        // Update refs to track we've loaded content
-        lastContentRef.current = restoredContent as string;
-        contentChangedRef.current = false;
-        console.log('[Editor] Editor content updated with restored version');
-      }
-    };
-    
-    // Listen for version restoration events
-    window.addEventListener('version-restored', handleVersionRestored as EventListener);
-    
-    return () => {
-      window.removeEventListener('version-restored', handleVersionRestored as EventListener);
-    };
-  }, [documentId]);
-
-  // Simplified onChange handler to prevent cursor jumps during saves
+  // onChange handler: Simplify - remove checks related to AI status/diff view
   const onChange = useCallback((editorState: EditorState) => {
     editorStateRef.current = editorState;
     
-    // Extract content without any selection side effects
     let serializedContent = '';
-    let savedSelection = null;
-    
     editorState.read(() => {
-      // Get text content
       const root = $getRoot();
-      const paragraphs: string[] = [];
-      root.getChildren().forEach((node) => {
-        paragraphs.push(node.getTextContent());
-      });
-      serializedContent = paragraphs.join('\n\n');
-      
-      // Save selection for later reference
-      const selection = $getSelection();
-      if ($isRangeSelection(selection)) {
-        savedSelection = selection.clone();
-      }
+      // Consistent paragraph joining
+      serializedContent = root.getChildren().map(node => node.getTextContent()).join('\n\n');
     });
 
-    // Skip if content hasn't changed
+    // Skip if content hasn't changed OR if an AI update is actively streaming
     if (serializedContent === lastContentRef.current) {
       return;
     }
 
-    // --- NEW DOCUMENT CREATION LOGIC ---
-    // Check if this is the first edit in a new document
+    // --- NEW DOCUMENT CREATION LOGIC (remains the same) ---
     if (isNewDocument && lastContentRef.current === '' && serializedContent !== '') {
       console.log('[Editor] First edit detected in new document, triggering creation...');
-      // Call the creation callback instead of the regular save
       if (onCreateDocument) {
-        // Update refs immediately to prevent duplicate creation calls
         lastContentRef.current = serializedContent; 
-        contentChangedRef.current = true; // Mark as dirty, though save is handled by creation
-        
-        // Clear any pending save timeout
+        contentChangedRef.current = true; 
         if (saveTimeoutRef.current) {
           clearTimeout(saveTimeoutRef.current);
           saveTimeoutRef.current = null;
         }
-        
-        // Call the creation handler passed from the parent
         onCreateDocument(serializedContent);
       }
-      return; // Stop further processing in this onChange call
+      return;
     }
     // --- END NEW DOCUMENT LOGIC ---
 
-    // Update reference for comparison (for existing documents)
     lastContentRef.current = serializedContent;
     contentChangedRef.current = true;
     
-    // Clear existing timeout
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
     
-    // Store current document ID to handle doc changes during timeout
     const currentDocId = documentId;
     
-    // Schedule save
     if (saveState !== 'saving') {
       saveTimeoutRef.current = setTimeout(() => {
-        // Check if document ID changed during timeout
         if (currentDocId !== documentId) {
           console.log('[Editor] Document changed during save timeout, cancelling save');
           return;
         }
         
         if (contentChangedRef.current && editorRef.current) {
-          // THE CRITICAL FIX: Add skip-dom-selection tag OUTSIDE the update
+          // Get the latest content from the ref, as state might be slightly behind
+          const contentToSave = lastContentRef.current; 
+          
+          // Add skip-dom-selection tag *before* calling save to prevent cursor jump
           editorRef.current.update(() => {
-            // This prevents Lexical from updating the DOM selection
             $addUpdateTag('skip-dom-selection');
           });
           
-          console.log(`[Editor] Saving content for ${documentId}`);
-          onSaveContent(serializedContent, true);
+          console.log(`[Editor] Saving content for ${documentId} (debounced)`);
+          onSaveContent(contentToSave, true); // Use content from ref
+          contentChangedRef.current = false; // Reset flag after initiating save
         }
         saveTimeoutRef.current = null;
-      }, 800);
+      }, 800); // Keep debounce time
     }
   }, [documentId, onSaveContent, saveState, isNewDocument, onCreateDocument]);
 
-  // Improved cleanup on unmount
+  // Cleanup on unmount (remains similar)
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
-        saveTimeoutRef.current = null;
       }
-      
-      // Only save if there are unsaved changes and we're not already saving
+      // Save immediately if changes exist and we're not already saving
       if (contentChangedRef.current && saveState !== 'saving' && documentId === lastDocumentIdRef.current) {
         console.log('[Editor] Saving on unmount for document:', documentId);
         onSaveContent(lastContentRef.current, false); // immediate save
@@ -1512,7 +1114,7 @@ function PureLexicalEditor({
     };
   }, [onSaveContent, saveState, documentId]);
 
-  // Add keyboard shortcut for manual saving
+  // Manual save shortcut (remains similar)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Check for Cmd+S or Ctrl+S
@@ -1551,79 +1153,135 @@ function PureLexicalEditor({
     };
   }, [onSaveContent]);
 
-  return (
-    <div className="relative prose dark:prose-invert">
-      {/* Show section-by-section diff view when AI has updated the document */}
-      {showDiff && status !== 'streaming' && diffSections.length > 0 && (
-        <div className="mb-6 border rounded-md overflow-hidden">
-          <div className="bg-primary/10 p-3 flex justify-between items-center">
-            <h3 className="text-sm font-medium m-0">AI Updates</h3>
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={() => setDiffSections([])}
-                className="text-xs text-destructive hover:bg-destructive/10 px-2 py-1 rounded-md flex items-center gap-1"
-              >
-                <X size={12} strokeWidth={2.5} />
-                <span>Reject All</span>
-              </button>
-              <button 
-                onClick={acceptAiChanges}
-                className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded-md flex items-center gap-1"
-              >
-                <CheckIcon size={12} strokeWidth={2.5} />
-                <span>Accept All</span>
-              </button>
-            </div>
-          </div>
+  // Listener for 'apply-document-update' - FINAL REVISION for Wipe Effect
+  useEffect(() => {
+    const handleApplyUpdate = (event: CustomEvent) => {
+      if (!editorRef.current || !event.detail || isWiping) return; // Prevent overlapping wipes
+      
+      const { documentId: updatedDocId, newContent } = event.detail;
+      
+      if (updatedDocId === documentId && typeof newContent === 'string') {
+        console.log(`[Editor] Applying whiteboard wipe update for ${documentId}.`);
+        
+        // --- Trigger Wipe Out Animation --- 
+        setIsWiping(true);
+        
+        // --- Apply Content Change (slightly delayed) --- 
+        // Use timeout(0) or requestAnimationFrame to allow wipe-out to start rendering
+        // before the potentially blocking editor update
+        requestAnimationFrame(() => { 
+          if (!editorRef.current) return; // Check ref again inside async
           
-          <div className="divide-y">
-            {diffSections.map((section) => (
-              <div key={section.id} className="bg-muted/30">
-                <div 
-                  className="px-3 py-2 flex justify-between items-center cursor-pointer hover:bg-muted/50"
-                  onClick={() => toggleSectionExpansion(section.id)}
-                >
-                  <span className="text-xs font-medium text-muted-foreground">
-                    Change {section.id.split('-')[1]}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    {section.isExpanded ? 
-                      <ChevronUp size={14} className="text-muted-foreground" /> : 
-                      <ChevronDown size={14} className="text-muted-foreground" />
-                    }
-                  </div>
-                </div>
-                
-                {section.isExpanded && (
-                  <div className="p-3 border-t">
-                    <div className="mb-2">
-                      <DiffView oldContent={section.oldContent} newContent={section.newContent} />
-                    </div>
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => setDiffSections(prev => prev.filter(s => s.id !== section.id))}
-                        className="flex items-center gap-1 px-2 py-1 text-xs rounded-md transition-colors text-muted-foreground hover:text-destructive"
-                      >
-                        <X size={12} strokeWidth={2.5} />
-                        <span>Skip</span>
-                      </button>
-                      <button
-                        onClick={() => acceptDiffSection(section.id)}
-                        className="flex items-center gap-1 px-2 py-1 text-xs rounded-md transition-colors text-muted-foreground hover:text-green-500"
-                      >
-                        <CheckIcon size={12} strokeWidth={2.5} />
-                        <span>Apply</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+          // Apply the update to the editor state
+          editorRef.current.update(() => {
+            const root = $getRoot();
+            root.clear();
+            const paragraphs = newContent.split(/\n\n+/);
+            paragraphs.forEach((paragraph: string) => { 
+              if (paragraph.trim()) {
+                root.append($createParagraphNode().append($createTextNode(paragraph)));
+              } else {
+                root.append($createParagraphNode()); 
+              }
+            });
+            root.selectEnd(); 
+          });
+          
+          // --- Trigger Save Immediately --- 
+          console.log(`[Editor] Triggering immediate save after applying update for ${documentId}`);
+          onSaveContent(newContent, false); // Pass false for immediate save
 
-      {/* Add suggestion overlay */}
+          // --- Trigger Wipe In Animation --- 
+          // Schedule the reveal animation shortly after update logic completes
+          setIsWiping(false);
+          
+          // Optional: Add a timeout failsafe to reset isWiping if something hangs
+          if (wipeTimeoutRef.current) clearTimeout(wipeTimeoutRef.current);
+          wipeTimeoutRef.current = setTimeout(() => setIsWiping(false), 500);
+        });
+      }
+    };
+    
+    window.addEventListener('apply-document-update', handleApplyUpdate as EventListener);
+    console.log('[LexicalEditor] Listener added for apply-document-update (wipe effect).');
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('apply-document-update', handleApplyUpdate as EventListener);
+      console.log('[LexicalEditor] Listener removed for apply-document-update.');
+      if (wipeTimeoutRef.current) clearTimeout(wipeTimeoutRef.current);
+    };
+  }, [documentId, isWiping, onSaveContent]); // Add onSaveContent to dependencies
+
+  // Add event listener for apply-suggestion from overlay
+  useEffect(() => {
+    const handleApplySuggestion = (event: CustomEvent) => {
+      if (!editorRef.current || !event.detail) return;
+      
+      const { originalText, suggestion, documentId: suggestionDocId } = event.detail;
+      
+      // Ensure the event is for the current document
+      if (suggestionDocId !== documentId) {
+        return;
+      }
+      
+      console.log('[LexicalEditor] Received apply-suggestion event');
+
+      editorRef.current.update(() => {
+        const selection = $getSelection();
+        
+        if ($isRangeSelection(selection)) {
+          const currentSelectedText = selection.getTextContent();
+          
+          // Verify the current selection matches the original text from the overlay
+          if (currentSelectedText === originalText) {
+            console.log('[LexicalEditor] Applying suggestion:', suggestion);
+            selection.insertText(suggestion);
+            toast.success("Suggestion applied successfully");
+            
+            // Trigger a save after applying
+            lastContentRef.current = ''; // Force save
+            contentChangedRef.current = true;
+             if (saveTimeoutRef.current) {
+                clearTimeout(saveTimeoutRef.current);
+             }
+             saveTimeoutRef.current = setTimeout(() => {
+                if (contentChangedRef.current && editorRef.current) {
+                   const contentToSave = editorRef.current.getEditorState().read(() => $getRoot().getTextContent());
+                   editorRef.current.update(() => $addUpdateTag('skip-dom-selection'));
+                   console.log(`[Editor] Saving content after suggestion apply for ${documentId}`);
+                   onSaveContent(contentToSave, false); // Immediate save
+                   contentChangedRef.current = false;
+                }
+                saveTimeoutRef.current = null;
+             }, 50); // Short delay for save
+             
+          } else {
+            console.warn('[LexicalEditor] Suggestion not applied: Selection changed since overlay opened.');
+            toast.warning("Selection changed, suggestion not applied.");
+          }
+        } else {
+           console.warn('[LexicalEditor] Suggestion not applied: No range selection found.');
+        }
+      });
+    };
+
+    window.addEventListener('apply-suggestion', handleApplySuggestion as EventListener);
+    console.log('[LexicalEditor] Listener added for apply-suggestion.');
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('apply-suggestion', handleApplySuggestion as EventListener);
+      console.log('[LexicalEditor] Listener removed for apply-suggestion.');
+    };
+  }, [documentId, onSaveContent]);
+
+  return (
+    <div className="relative">
+      {/* Remove the DiffView section */}
+      {/* {showDiff && status !== 'streaming' && ( ... )} */}
+
+      {/* Keep suggestion overlay */}
       {showSuggestionOverlay && (
         <SuggestionOverlay
           documentId={documentId}
@@ -1636,31 +1294,37 @@ function PureLexicalEditor({
       )}
 
       <LexicalComposer initialConfig={initialConfig}>
-        <div className="lexical-editor-container">
-          <RichTextPlugin
-            contentEditable={<ContentEditable className="lexical-editor-content-editable min-h-[300px] outline-none" />}
-            placeholder={<PlaceholderPlugin isNewDocument={isNewDocument} />}
-            ErrorBoundary={() => <div>Error loading editor</div>}
-          />
-          <HistoryPlugin />
-          <AutoFocusPlugin />
-          <ListPlugin />
-          
-          {/* Order is important! InlineSuggestionsPlugin needs to handle tab BEFORE TabIndentationPlugin */}
-          <InlineSuggestionsPlugin documentId={documentId} onSaveContent={onSaveContent} />
-          <TabIndentationPlugin />
-          
-          <MarkdownShortcutPlugin transformers={TRANSFORMERS} />
-          <OnChangePlugin onChange={onChange} />
-          
-          {/* Custom plugin to store editor reference */}
-          <EditorRefPlugin onRef={handleEditorReference} />
+        {/* Toolbar integrated here */}
+        <EditorToolbar />
+        <div className="relative lexical-editor-wrapper mt-2">
+          <div className={cn(
+            "lexical-editor-container p-4 rounded-b-md",
+            isWiping && "opacity-20 pointer-events-none"
+          )}>
+            <RichTextPlugin
+              contentEditable={<ContentEditable className="lexical-editor-content-editable min-h-[300px] outline-none" />}
+              placeholder={<PlaceholderPlugin isNewDocument={isNewDocument} />}
+              ErrorBoundary={() => <div>Error loading editor</div>}
+            />
+            <HistoryPlugin />
+            <AutoFocusPlugin />
+            <ListPlugin />
+            <CheckListPlugin />
+            <LinkPlugin />
+            <InlineSuggestionsPlugin documentId={documentId} onSaveContent={onSaveContent} />
+            <TabIndentationPlugin />
+            <MarkdownShortcutPlugin transformers={PLAYGROUND_TRANSFORMERS} />
+            <OnChangePlugin onChange={onChange} ignoreHistoryMergeTagChange={true} />
+            <EditorRefPlugin onRef={handleEditorReference} />
+          </div>
         </div>
         <style jsx global>{`
           .lexical-editor-content-editable {
             border: 0;
             font-family: inherit;
             font-size: 1rem;
+            line-height: 1.6;
+            color: var(--foreground);
             resize: none;
             width: 100%;
             caret-color: var(--foreground);
@@ -1668,6 +1332,7 @@ function PureLexicalEditor({
             tab-size: 1;
             outline: 0;
             padding: 0;
+            min-height: 300px;
           }
           
           .lexical-editor-placeholder {
@@ -1675,11 +1340,13 @@ function PureLexicalEditor({
             overflow: hidden;
             position: absolute;
             text-overflow: ellipsis;
-            top: 0;
-            left: 0;
+            top: 1rem;
+            left: 1rem;
+            font-size: 1rem;
             user-select: none;
             pointer-events: none;
             opacity: 0.6;
+            line-height: 1.6;
           }
 
           .inline-suggestion {
@@ -1816,78 +1483,165 @@ function PureLexicalEditor({
           }
           
           /* Editor theme styling */
-          .editor-text-bold {
-            font-weight: bold;
-          }
-
-          .editor-text-italic {
-            font-style: italic;
-          }
-
-          .editor-text-underline {
-            text-decoration: underline;
-          }
+          .editor-text-bold { font-weight: bold; }
+          .editor-text-italic { font-style: italic; }
+          .editor-text-underline { text-decoration: underline; }
+          .editor-text-strikethrough { text-decoration: line-through; }
+          .editor-text-code {
+             background-color: hsl(var(--muted));
+             padding: 0.1em 0.3em;
+             font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
+             font-size: 90%;
+             border-radius: 3px;
+           }
 
           .editor-paragraph {
-            margin: 0 0 1em 0;
+            margin: 0 0 0.8rem 0;
             position: relative;
           }
 
           .editor-heading-h1 {
-            font-size: 1.75rem;
+            font-size: 1.8rem;
             font-weight: 700;
-            margin-top: 2rem;
-            margin-bottom: 1rem;
+            line-height: 1.3;
+            margin-top: 1.5rem;
+            margin-bottom: 0.8rem;
+            padding-bottom: 0.2em;
+            border-bottom: 1px solid hsl(var(--border));
           }
 
           .editor-heading-h2 {
             font-size: 1.5rem;
             font-weight: 600;
-            margin-top: 1.5rem;
-            margin-bottom: 0.75rem;
+            line-height: 1.3;
+            margin-top: 1.4rem;
+            margin-bottom: 0.7rem;
+            padding-bottom: 0.2em;
+            border-bottom: 1px solid hsl(var(--border));
           }
 
           .editor-heading-h3 {
             font-size: 1.25rem;
             font-weight: 600;
-            margin-top: 1.25rem;
-            margin-bottom: 0.5rem;
+            line-height: 1.3;
+            margin-top: 1.3rem;
+            margin-bottom: 0.6rem;
           }
 
           .editor-quote {
             margin: 1rem 0;
             padding-left: 1rem;
-            border-left: 4px solid var(--border);
-            color: var(--muted-foreground);
+            border-left: 3px solid hsl(var(--border));
+            color: hsl(var(--muted-foreground));
+            font-style: italic;
           }
 
           .editor-list-ul, .editor-list-ol {
-            margin: 0 0 0 1rem;
+            margin: 0 0 0.8rem 1.5rem;
             padding: 0;
+            list-style-position: outside;
           }
 
           .editor-list-li {
-            margin: 0 0 0.5rem 0;
+            margin: 0.2rem 0;
+            line-height: 1.6;
+            position: relative;
           }
           
+          .editor-list-ol { list-style-type: decimal; }
+          .editor-list-ul { list-style-type: disc; }
+
+          .editor-nested-listitem {
+            list-style-type: none;
+          }
+          .editor-list-li .editor-list-ul { margin-left: 1.5rem; list-style-type: circle; }
+          .editor-list-li .editor-list-ol { margin-left: 1.5rem; list-style-type: lower-alpha; }
+          .editor-list-li .editor-list-ul .editor-list-ul { list-style-type: square; }
+          .editor-list-li .editor-list-ol .editor-list-ol { list-style-type: lower-roman; }
+
+          .editor-listitem-unchecked,
+          .editor-listitem-checked {
+            position: relative;
+            padding-left: 24px;
+            list-style-type: none;
+            outline: none;
+          }
+          .editor-listitem-unchecked:focus-visible,
+          .editor-listitem-checked:focus-visible {
+              /* Optional focus styling for list item itself */
+              /* background-color: hsl(var(--accent)); */
+          }
+          .editor-listitem-unchecked::before,
+          .editor-listitem-checked::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0.2em;
+            width: 16px;
+            height: 16px;
+            display: block;
+            border-radius: 3px;
+            background-color: transparent;
+            border: 1.5px solid hsl(var(--muted-foreground));
+            cursor: pointer;
+            transition: all 0.15s ease;
+          }
+          .editor-listitem-checked::before {
+            border-color: hsl(var(--primary));
+            background-color: hsl(var(--primary));
+          }
+          .editor-listitem-checked::after {
+            content: '';
+            position: absolute;
+            left: 4px;
+            top: 0.2em + 4px;
+            width: 8px;
+            height: 4px;
+            border-left: 2px solid hsl(var(--primary-foreground));
+            border-bottom: 2px solid hsl(var(--primary-foreground));
+            transform: rotate(-45deg);
+            pointer-events: none;
+          }
+          .editor-listitem-checked {
+            text-decoration: line-through;
+            color: hsl(var(--muted-foreground));
+          }
+
           .editor-horizontal-rule {
-            padding: 2px 0;
             border: none;
-            margin: 1em 0;
+            margin: 1.5em 0;
             height: 1px;
-            background-color: var(--border);
+            background-color: hsl(var(--border));
           }
-          
-          /* Style diff view */
-          .diff-editor span.bg-green-100 {
-            background-color: rgba(74, 222, 128, 0.2);
-            padding: 2px 0;
+
+          .editor-code {
+            background-color: hsl(var(--muted));
+            font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
+            padding: 1rem;
+            margin-bottom: 0.8rem;
+            font-size: 90%;
+            overflow-x: auto;
+            position: relative;
+            line-height: 1.4;
+            border-radius: 4px;
           }
-          
-          .diff-editor span.bg-red-100 {
-            background-color: rgba(248, 113, 113, 0.2);
-            padding: 2px 0;
+          .editor-code:before {
+              content: attr(data-highlight-language);
+              position: absolute;
+              top: 4px;
+              right: 6px;
+              font-size: 0.75rem;
+              color: hsl(var(--muted-foreground));
+              opacity: 0.7;
           }
+          .editor-tokenComment { color: slategray; }
+          .editor-tokenPunctuation { color: #999; }
+          .editor-tokenProperty { color: #905; }
+          .editor-tokenSelector { color: #690; }
+          .editor-tokenOperator { color: #9a6e3a; }
+          .editor-tokenAttr { color: #07a; }
+          .editor-tokenVariable { color: #e90; }
+          .editor-tokenFunction { color: #dd4a68; }
 
           /* Ensure selection styling works in both modes */
           .lexical-editor-content-editable::selection,
@@ -1914,6 +1668,45 @@ function PureLexicalEditor({
           .dark {
             --primary-light: rgba(66, 153, 225, 0.3);
             --border: #2d3748;
+          }
+
+          /* Editor Focus (Removed Outline) */
+          /* .lexical-editor-content-editable:focus-visible {
+            outline: 2px solid var(--ring);
+            outline-offset: 2px;
+            border-radius: 3px; 
+          } */
+
+          /* Link Styling */
+          .editor-link {
+            color: hsl(var(--primary));
+            text-decoration: underline;
+            text-decoration-color: hsl(var(--primary) / 0.4);
+            transition: all 0.15s ease-out;
+            cursor: pointer;
+          }
+          .editor-link:hover {
+            color: hsl(var(--primary-hover)); /* Needs --primary-hover variable */
+            text-decoration-color: hsl(var(--primary));
+            /* background-color: hsl(var(--primary) / 0.05); Optional subtle highlight */
+          }
+
+          /* Checklist Item Styling */
+          .editor-list-li.checked {
+            text-decoration: line-through;
+            color: hsl(var(--muted-foreground));
+          }
+          .editor-list-li.unchecked .editor-list-li-checkbox {
+            border-color: hsl(var(--muted-foreground));
+          }
+          .editor-list-li-checkbox {
+            /* Add custom styling for checkboxes if needed */
+            /* Example: appearance: none; width: 16px; height: 16px; border: 1px solid; border-radius: 3px; ... */
+          }
+          .editor-list-li.checked .editor-list-li-checkbox {
+            /* Style for checked state */
+            /* Example: background-color: hsl(var(--primary)); border-color: hsl(var(--primary)); ... */
+          }
         `}</style>
       </LexicalComposer>
     </div>
@@ -1931,18 +1724,21 @@ function EditorRefPlugin({ onRef }: { onRef: (editor: LexicalEditorType) => void
   return null;
 }
 
+// areEqual comparison function: Simplify by removing DiffView-related props
 function areEqual(prevProps: EditorProps, nextProps: EditorProps) {
-  // Always re-render when documentId changes to ensure proper initialization
   if (prevProps.documentId !== nextProps.documentId) {
     return false;
   }
+  
+  // Don't re-render purely based on 'status' if it's just flipping during AI updates
+  // Let the stream listener handle updates internally
   
   return (
     prevProps.suggestions === nextProps.suggestions &&
     prevProps.currentVersionIndex === nextProps.currentVersionIndex &&
     prevProps.isCurrentVersion === nextProps.isCurrentVersion &&
-    !(prevProps.status === 'streaming' && nextProps.status === 'streaming') &&
-    prevProps.content === nextProps.content &&
+    // prevProps.status === nextProps.status && // Remove status check
+    prevProps.content === nextProps.content && // Still need content for initial load/external changes
     prevProps.onSaveContent === nextProps.onSaveContent &&
     prevProps.onSuggestionResolve === nextProps.onSuggestionResolve &&
     prevProps.saveState === nextProps.saveState &&

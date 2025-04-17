@@ -13,10 +13,6 @@ import { createClient } from '@/lib/supabase/client';
 export const experimental_ppr = true;
 
 export default function DocumentsLayout({ children }: { children: ReactNode }) {
-  // Generate a stable placeholder ID for chat/data stream if needed.
-  // Chat component manages its *real* internal ID.
-  const layoutChatId = generateUUID(); 
-
   const [session, setSession] = useState<any>(null);
   const [isCollapsed, setIsCollapsed] = useState(true);
 
@@ -64,9 +60,6 @@ export default function DocumentsLayout({ children }: { children: ReactNode }) {
               // isReadonly needs to be determined within Chat component now
             />
           </ResizablePanel>
-          <DataStreamHandler id={layoutChatId} /> 
-          {/* DataStreamHandler might need adjustment depending on how it uses the ID */}
-          {/* If it needs the *actual* chat ID, it might need to move inside Chat or use context */}
         </div>
       </div>
     </SidebarProvider>

@@ -19,7 +19,8 @@ export type DataStreamDelta = {
     | 'original'
     | 'clear'
     | 'finish'
-    | 'kind';
+    | 'kind'
+    | 'artifactUpdate';
   content: string | Suggestion;
 };
 
@@ -111,6 +112,32 @@ export function DataStreamHandler({ id }: { id: string }) {
               ...draftArtifact,
               status: 'idle',
             };
+
+          case 'artifactUpdate':
+            try {
+              const updateData = JSON.parse(delta.content as string);
+              console.log('[DataStreamHandler] Received artifactUpdate, dispatching to editor:', updateData);
+              
+              // Verify running client-side before dispatch
+              if (typeof window !== 'undefined') {
+                console.log('[DataStreamHandler] Window context confirmed. Attempting to dispatch editor:stream-data...');
+                try {
+                  // Dispatch the data directly for the editor to consume
+                  window.dispatchEvent(new CustomEvent('editor:stream-data', {
+                    detail: { type: 'artifactUpdate', content: delta.content }
+                  }));
+                  console.log('[DataStreamHandler] Dispatched editor:stream-data successfully.', { detail: { type: 'artifactUpdate', content: delta.content } });
+                } catch (dispatchError) {
+                  console.error('[DataStreamHandler] Error dispatching editor:stream-data:', dispatchError);
+                }
+              } else {
+                console.warn('[DataStreamHandler] Window context not found. Cannot dispatch event.');
+              }
+            } catch (error) {
+              console.error('[DataStreamHandler] Error parsing artifactUpdate content:', error);
+            }
+            // No state change needed here, just dispatching the event
+            return draftArtifact;
 
           default:
             return draftArtifact;

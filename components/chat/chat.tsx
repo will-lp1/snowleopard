@@ -16,6 +16,7 @@ import { MentionedDocument } from './multimodal-input';
 import { FileIcon } from '../icons';
 import { useArtifact } from '@/hooks/use-artifact';
 import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
+import { DataStreamHandler } from '@/components/data-stream-handler';
 
 export interface ChatProps {
   id?: string;
@@ -116,6 +117,13 @@ export function Chat({
       
       if (!detail || !detail.chatId) return;
       
+      if (detail.chatId === chatId) {
+        console.log(`[Chat] Received load-chat event for current chat ${chatId}, ignoring.`);
+        return;
+      }
+      
+      console.log(`[Chat] Received load-chat event for ${detail.chatId}. Current: ${chatId}`);
+      
       try {
         const chatResponse = await fetch(`/api/chat?id=${detail.chatId}`);
         if (!chatResponse.ok) throw new Error('Failed to fetch chat');
@@ -125,13 +133,17 @@ export function Chat({
           throw new Error('Invalid chat data received');
         }
         
+        setMessages([]);
+        setInput('');
+        
+        const oldChatId = chatId;
+        setChatId(detail.chatId); 
+        
         setMessages(chatData.messages);
         
         window.dispatchEvent(new CustomEvent('chat-id-changed', { 
-          detail: { oldChatId: chatId, newChatId: detail.chatId }
+          detail: { oldChatId: oldChatId, newChatId: detail.chatId }
         }));
-        
-        setInput('');
 
         console.log(`[Chat] Successfully loaded chat ${detail.chatId} with ${chatData.messages.length} messages`);
       } catch (error) {
@@ -264,6 +276,8 @@ export function Chat({
           </form>
         </div>
       )}
+
+      <DataStreamHandler id={chatId} />
     </div>
   );
 }

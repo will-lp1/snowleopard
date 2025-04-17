@@ -128,6 +128,8 @@ export async function createDocument(request: NextRequest, body: any) {
           chatId: finalChatId,
           userId: session.user.id,
           createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          is_current: true,
         })
         .select('id, title, content, kind, chatId, createdAt, userId')
         .single();
