@@ -38,6 +38,9 @@ importers:
       '@lexical/code':
         specifier: ^0.29.0
         version: 0.29.0
+      '@lexical/html':
+        specifier: ^0.30.0
+        version: 0.30.0
       '@lexical/link':
         specifier: ^0.29.0
         version: 0.29.0
@@ -119,6 +122,9 @@ importers:
       '@types/lodash.debounce':
         specifier: ^4.0.9
         version: 4.0.9
+      '@types/marked':
+        specifier: ^6.0.0
+        version: 6.0.0
       '@types/react-mentions':
         specifier: ^4.4.1
         version: 4.4.1
@@ -182,6 +188,9 @@ importers:
       lucide-react:
         specifier: ^0.446.0
         version: 0.446.0(react@19.0.0-rc-45804af1-20241021)
+      marked:
+        specifier: ^15.0.8
+        version: 15.0.8
       nanoid:
         specifier: ^5.0.8
         version: 5.0.8
@@ -1125,6 +1134,9 @@ packages:
   '@lexical/clipboard@0.29.0':
     resolution: {integrity: sha512-llxZosYCwH13p2GfPfhAinukdvAZYxWuwf5md107X80hsE8TQJj25unjqTwRKQ+w/wD+hpmBMziU8+K/WTitWQ==}
 
+  '@lexical/clipboard@0.30.0':
+    resolution: {integrity: sha512-taWQURtE6xF4Jy4I8teQw3+nVBVNO1r+9N9voXeivgwxSrAM40rjqQ/aZEKxWbwZtfkABDkCEArbVrqP0SkWcQ==}
+
   '@lexical/code@0.29.0':
     resolution: {integrity: sha512-yKGzoKpyIO39Xf7OKLPpoCE5V8mTDCM3l3CDHZR3X1gM/VZQzf4jAiO3b06y9YkQ2fM8kqwchYu87wGvs8/iIQ==}
 
@@ -1146,11 +1158,17 @@ packages:
   '@lexical/html@0.29.0':
     resolution: {integrity: sha512-+jV6ijppOpxpUGeXkGssXJbsAmFALfeLrgbM0xuZbxZ7RgYZ+5Atn00WjSno7+JV5EOuRkYmCNtS1tiHtXMY1g==}
 
+  '@lexical/html@0.30.0':
+    resolution: {integrity: sha512-GdegWO6RjJ7eE+yD3Z0X/OpT88SZjOs3DyQ0rgrZy3z7RPaFCbEEcq0M/NssJbKAB1XOFUsUFrnS7kZs1vJzGg==}
+
   '@lexical/link@0.29.0':
     resolution: {integrity: sha512-wGbKRF0x/6ZQHuCfr8m8qD1J0R1kFmWINBG2A1hUXPDf7UY5qm/nS2oKNDGpjiDMGwkVZ7n7WfzeBGO+KRe/Lg==}
 
   '@lexical/list@0.29.0':
     resolution: {integrity: sha512-sWiof+i2ff8rL7KxJ3dxHLwyJfX423e1EVLmAdQEOPhyZJiNbeLTSNhNGsZ8FjFoBwvTTEDwuQZm3iT3hliKOg==}
+
+  '@lexical/list@0.30.0':
+    resolution: {integrity: sha512-WKnwH+Cg+j2I0EbaEyPHo8MPNyrqQV3W1NmH5Mf/iRxCq42z7NJxemhmRUxbqv8vsugACwBkh2RlkhekRXmUQQ==}
 
   '@lexical/mark@0.29.0':
     resolution: {integrity: sha512-UB3x6pyUdpZHRqF4tiajLnC1+Umvt7x8Rkkdi29aNNvzIWniVwGkBOlmvFus7x+4dOV1D1fydwiP4m38nGgLDw==}
@@ -1179,14 +1197,23 @@ packages:
   '@lexical/selection@0.29.0':
     resolution: {integrity: sha512-lX9CRrXgKte65cozTHFXwUJ2fvZD92OEtos+YU+U40GJjf3NdheGeKDxDfOpF4AXrYRSszY7E0CzmIvuEs0p4A==}
 
+  '@lexical/selection@0.30.0':
+    resolution: {integrity: sha512-Ys2XfSmIV/Irg6Xo663YtR4jozIv/7sDemArkEGHT0fxZn2py5qftowPF5IBqFYxKTigAdv5vVPwusBvAnLIEg==}
+
   '@lexical/table@0.29.0':
     resolution: {integrity: sha512-Jdj32kBDeJh/0dGaZB14JggnEIS956/cN7grnLr7cmhhVzDicvLMBENSXQVEJAQVcSIU4G9EvxC7GJZ9VgqDnA==}
+
+  '@lexical/table@0.30.0':
+    resolution: {integrity: sha512-XPCIMIGnZLKTa5/4cP16bXbmzvMndPR273HNl7ZaF35ky7UjZxdj42HBbE7q9zw2zbRPDiO77EyhYA0p20cbdw==}
 
   '@lexical/text@0.29.0':
     resolution: {integrity: sha512-QnNGr6ickTLk76o3PdxJjPwt//dpuh8idVfR73WdCIoAwkhiEPUxxTZERoMsudXj6O/lJ+/HhI61wVjLckYr3A==}
 
   '@lexical/utils@0.29.0':
     resolution: {integrity: sha512-y2hhWQDjcXdplsAaQMuZx6ht9u1I4BV5NynA+WKoQ3h8vKxzeDnpCxVOK/zxU1R5dhM/nilnFu7uhvrSeEn+TQ==}
+
+  '@lexical/utils@0.30.0':
+    resolution: {integrity: sha512-VJlAUhupCZmnbYYX3zMWovd4viu2guR01sAqKGbbOMbP+4rlaymixFbinvNPaRKDBloOARi+fpiveQFxnyr/Ew==}
 
   '@lexical/yjs@0.29.0':
     resolution: {integrity: sha512-6IXWWlGkVJEzWP/+LcuKYJ9jmcFp8k7TT/jmz4V5gBD9Ut3swOGsIA/sQCtB9y7jad10csaDVmFdFzGNWKVH9A==}
@@ -2041,6 +2068,10 @@ packages:
 
   '@types/markdown-it@14.1.2':
     resolution: {integrity: sha512-promo4eFwuiW+TfGxhi+0x3czqTYJkG8qB17ZUJiVF10Xm7NLVRSLUsfRTU/6h1e24VvRnXCx+hG7li58lkzog==}
+
+  '@types/marked@6.0.0':
+    resolution: {integrity: sha512-jmjpa4BwUsmhxcfsgUit/7A9KbrC48Q0q8KvnY107ogcjGgTFDlIL3RpihNpx2Mu1hM4mdFQjoVc4O6JoGKHsA==}
+    deprecated: This is a stub types definition. marked provides its own type definitions, so you do not need this installed.
 
   '@types/mdast@4.0.4':
     resolution: {integrity: sha512-kGaNbPh1k7AFzgpud/gMdvIm5xuECykRR+JnWKQno9TAXVa6WIVCGTPvYGekIDL4uwCZQSYbUxNBSb1aUo79oA==}
@@ -3265,6 +3296,9 @@ packages:
   lexical@0.29.0:
     resolution: {integrity: sha512-eoBHUEn0LmExKeK6x2cFKU0FPaMk2Bc5HgiCzTiv5ymKtwWw7LeKcxaNPmLxRRdQpcWV1IMKjayAbw7Lt/Gu7w==}
 
+  lexical@0.30.0:
+    resolution: {integrity: sha512-6gxYeXaJiAcreJD0whCofvO0MuJmnWoIgIl1w7L5FTigfhnEohuCx2SoI/oywzfzXE9gzZnyr3rVvZrMItPL8A==}
+
   lib0@0.2.101:
     resolution: {integrity: sha512-LljA6+Ehf0Z7YnxhgSAvspzWALjW4wlWdN/W4iGiqYc1KvXQgOVXWI0xwlwqozIL5WRdKeUW2gq0DLhFsY+Xlw==}
     engines: {node: '>=16'}
@@ -3324,6 +3358,11 @@ packages:
 
   markdown-table@3.0.4:
     resolution: {integrity: sha512-wiYz4+JrLyb/DqW2hkFJxP7Vd7JuTDm77fvbM8VfEQdmSMqcImWeeRbHwZjBjIFki/VaMK2BhFi7oUUZeM5bqw==}
+
+  marked@15.0.8:
+    resolution: {integrity: sha512-rli4l2LyZqpQuRve5C0rkn6pj3hT8EWPC+zkAxFTAJLxRbENfTAhEQq9itrmf1Y81QtAX5D/MYlGlIomNgj9lA==}
+    engines: {node: '>= 18'}
+    hasBin: true
 
   math-intrinsics@1.1.0:
     resolution: {integrity: sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==}
@@ -5093,6 +5132,14 @@ snapshots:
       '@lexical/utils': 0.29.0
       lexical: 0.29.0
 
+  '@lexical/clipboard@0.30.0':
+    dependencies:
+      '@lexical/html': 0.30.0
+      '@lexical/list': 0.30.0
+      '@lexical/selection': 0.30.0
+      '@lexical/utils': 0.30.0
+      lexical: 0.30.0
+
   '@lexical/code@0.29.0':
     dependencies:
       '@lexical/utils': 0.29.0
@@ -5130,6 +5177,12 @@ snapshots:
       '@lexical/utils': 0.29.0
       lexical: 0.29.0
 
+  '@lexical/html@0.30.0':
+    dependencies:
+      '@lexical/selection': 0.30.0
+      '@lexical/utils': 0.30.0
+      lexical: 0.30.0
+
   '@lexical/link@0.29.0':
     dependencies:
       '@lexical/utils': 0.29.0
@@ -5140,6 +5193,12 @@ snapshots:
       '@lexical/selection': 0.29.0
       '@lexical/utils': 0.29.0
       lexical: 0.29.0
+
+  '@lexical/list@0.30.0':
+    dependencies:
+      '@lexical/selection': 0.30.0
+      '@lexical/utils': 0.30.0
+      lexical: 0.30.0
 
   '@lexical/mark@0.29.0':
     dependencies:
@@ -5206,11 +5265,21 @@ snapshots:
     dependencies:
       lexical: 0.29.0
 
+  '@lexical/selection@0.30.0':
+    dependencies:
+      lexical: 0.30.0
+
   '@lexical/table@0.29.0':
     dependencies:
       '@lexical/clipboard': 0.29.0
       '@lexical/utils': 0.29.0
       lexical: 0.29.0
+
+  '@lexical/table@0.30.0':
+    dependencies:
+      '@lexical/clipboard': 0.30.0
+      '@lexical/utils': 0.30.0
+      lexical: 0.30.0
 
   '@lexical/text@0.29.0':
     dependencies:
@@ -5222,6 +5291,13 @@ snapshots:
       '@lexical/selection': 0.29.0
       '@lexical/table': 0.29.0
       lexical: 0.29.0
+
+  '@lexical/utils@0.30.0':
+    dependencies:
+      '@lexical/list': 0.30.0
+      '@lexical/selection': 0.30.0
+      '@lexical/table': 0.30.0
+      lexical: 0.30.0
 
   '@lexical/yjs@0.29.0(yjs@13.6.24)':
     dependencies:
@@ -6040,6 +6116,10 @@ snapshots:
     dependencies:
       '@types/linkify-it': 5.0.0
       '@types/mdurl': 2.0.0
+
+  '@types/marked@6.0.0':
+    dependencies:
+      marked: 15.0.8
 
   '@types/mdast@4.0.4':
     dependencies:
@@ -7431,6 +7511,8 @@ snapshots:
 
   lexical@0.29.0: {}
 
+  lexical@0.30.0: {}
+
   lib0@0.2.101:
     dependencies:
       isomorphic.js: 0.2.5
@@ -7481,6 +7563,8 @@ snapshots:
       uc.micro: 2.1.0
 
   markdown-table@3.0.4: {}
+
+  marked@15.0.8: {}
 
   math-intrinsics@1.1.0: {}
 

@@ -350,7 +350,6 @@ export async function POST(request: Request) {
             // Pass the validated *active* document ID to the update tool
             updateDocument: updateDocument({ 
               session: adaptedSession, 
-              dataStream,
               documentId: validatedActiveDocumentId // Ensure tool gets the active ID
             }),
           },
