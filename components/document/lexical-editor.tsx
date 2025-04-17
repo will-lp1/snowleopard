@@ -1189,9 +1189,9 @@ function PureLexicalEditor({
             root.selectEnd(); 
           });
           
-          // Update internal refs
-          lastContentRef.current = newContent;
-          contentChangedRef.current = false; 
+          // --- Trigger Save Immediately --- 
+          console.log(`[Editor] Triggering immediate save after applying update for ${documentId}`);
+          onSaveContent(newContent, false); // Pass false for immediate save
 
           // --- Trigger Wipe In Animation --- 
           // Schedule the reveal animation shortly after update logic completes
@@ -1213,7 +1213,7 @@ function PureLexicalEditor({
       console.log('[LexicalEditor] Listener removed for apply-document-update.');
       if (wipeTimeoutRef.current) clearTimeout(wipeTimeoutRef.current);
     };
-  }, [documentId, isWiping]); // Add isWiping to dependencies to prevent re-triggering during wipe
+  }, [documentId, isWiping, onSaveContent]); // Add onSaveContent to dependencies
 
   // Add event listener for apply-suggestion from overlay
   useEffect(() => {
