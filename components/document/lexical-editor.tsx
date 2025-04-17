@@ -67,7 +67,6 @@ type EditorProps = {
   lastSaveError?: string | null;
   isNewDocument?: boolean;
   onCreateDocument?: (initialContent: string) => Promise<void>;
-  code: 'editor-text-code';
 };
 
 // Constants for inline suggestions
@@ -781,7 +780,6 @@ function PureLexicalEditor({
   lastSaveError,
   isNewDocument,
   onCreateDocument,
-  code,
 }: EditorProps) {
   const editorStateRef = useRef<EditorState | null>(null);
   const lastContentRef = useRef<string>(content);

@@ -871,7 +871,8 @@ export function AlwaysVisibleArtifact({
                         documentId={artifact.documentId}
                         saveState={isContentDirty ? 'saving' : 'idle'}
                         isNewDocument={artifact.documentId === 'init'}
-                        onCreateDocument={handleCreateDocumentFromEditor} code={'editor-text-code'}                />
+                        onCreateDocument={handleCreateDocumentFromEditor}
+                 />
               </div>
             ) : (
               // Show loader while waiting for the correct document content to load
