@@ -49,6 +49,7 @@ export const document = pgTable(
   {
     id: uuid('id').notNull().defaultRandom(),
     createdAt: timestamp('createdAt', { mode: 'string' }).notNull(),
+    updatedAt: timestamp('updatedAt', { mode: 'string' }).notNull().defaultNow(),
     title: text('title').notNull(),
     content: text('content'),
     kind: varchar('kind', { enum: ['text', 'code', 'image', 'sheet'] })
