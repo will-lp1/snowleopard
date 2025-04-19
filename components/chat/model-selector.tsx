@@ -29,10 +29,12 @@ export function ModelSelector({
   selectedModelId,
   className,
   minimal = false,
+  onModelChange,
 }: {
   selectedModelId: string;
   className?: string;
   minimal?: boolean;
+  onModelChange: (newModelId: string) => void;
 } & React.ComponentProps<typeof Button>) {
   const [open, setOpen] = useState(false);
   const [optimisticModelId, setOptimisticModelId] =
@@ -83,6 +85,7 @@ export function ModelSelector({
                 startTransition(() => {
                   setOptimisticModelId(id);
                   saveChatModelAsCookie(id);
+                  onModelChange(id);
                 });
               }}
               data-active={id === optimisticModelId}

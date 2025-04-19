@@ -1162,6 +1162,13 @@ function PureLexicalEditor({
       
       if (updatedDocId === documentId && typeof newContent === 'string') {
         console.log(`[Editor] Applying whiteboard wipe update for ${documentId}.`);
+
+        // --- Clear any pending save timeout from previous edits --- 
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current);
+          saveTimeoutRef.current = null;
+          console.log('[Editor] Cleared pending save timeout before applying update.');
+        }
         
         // --- Trigger Wipe Out Animation --- 
         setIsWiping(true);
@@ -1187,10 +1194,6 @@ function PureLexicalEditor({
             root.selectEnd(); 
           });
           
-          // --- Trigger Save Immediately --- 
-          console.log(`[Editor] Triggering immediate save after applying update for ${documentId}`);
-          onSaveContent(newContent, false); // Pass false for immediate save
-
           // --- Trigger Wipe In Animation --- 
           // Schedule the reveal animation shortly after update logic completes
           setIsWiping(false);

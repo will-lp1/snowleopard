@@ -17,6 +17,7 @@ import { FileIcon } from '../icons';
 import { useArtifact } from '@/hooks/use-artifact';
 import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
 import { DataStreamHandler } from '@/components/data-stream-handler';
+import { motion } from 'framer-motion';
 
 export interface ChatProps {
   id?: string;
@@ -40,6 +41,12 @@ export function Chat({
   const [selectedChatModel, setSelectedChatModel] = useState(
     () => initialSelectedChatModel || DEFAULT_CHAT_MODEL
   );
+
+  // Callback function to update the model state
+  const handleModelChange = (newModelId: string) => {
+    setSelectedChatModel(newModelId);
+    console.log('[Chat] Model changed to:', newModelId);
+  };
 
   const [confirmedMentions, setConfirmedMentions] = useState<MentionedDocument[]>([]);
 
@@ -203,6 +210,8 @@ export function Chat({
       });
     }
     
+    console.log('[Chat] Submitting with Model:', selectedChatModel);
+
     const contextData: { 
       activeDocumentId?: string | null;
       mentionedDocumentIds?: string[]; 
@@ -234,12 +243,23 @@ export function Chat({
         chatId={chatId}
         selectedModelId={selectedChatModel}
         isReadonly={isReadonly}
+        onModelChange={handleModelChange}
       />
 
-      {documentContextActive && (
-        <div className="px-3 py-1 text-xs text-muted-foreground text-center border-b subtle-border bg-muted/20">
+      {documentContextActive ? (
+        <div className="px-3 py-1 text-xs text-muted-foreground text-center border-b border-zinc-200 dark:border-zinc-700 bg-muted/20">
           Active Document: <span className="font-medium text-foreground">{documentTitle}</span>
         </div>
+      ) : (
+        <motion.div
+          key="no-messages"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 10 }}
+          className="px-3 py-1 text-xs text-muted-foreground text-center border-b border-zinc-200 dark:border-zinc-700 bg-muted/20"
+        >
+          No messages in this chat yet.
+        </motion.div>
       )}
 
       <div className="flex-1 overflow-y-auto">
@@ -255,7 +275,7 @@ export function Chat({
       </div>
 
       {!isReadonly && (
-        <div className="p-4 border-t subtle-border">
+        <div className="p-4 border-t border-zinc-200 dark:border-zinc-700">
           
           <form onSubmit={wrappedSubmit}>
             <MultimodalInput

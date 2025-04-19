@@ -29,6 +29,7 @@ import { Input } from './ui/input';
 import { useDocumentContext } from '@/hooks/use-document-context';
 import { ArtifactKind } from '@/components/artifact';
 import { AiSettingsMenu } from './ai-settings-menu';
+import { SidebarToggle } from '@/components/sidebar/sidebar-toggle';
 
 export function AlwaysVisibleArtifact({ 
   chatId, 
@@ -694,8 +695,9 @@ export function AlwaysVisibleArtifact({
   return (
     <div className="flex flex-col h-dvh bg-background">
       {/* Header with document info or actions */}
-      <div className="flex flex-row justify-between items-center border-b subtle-border px-3 h-[45px]">
-        <div className="flex flex-row gap-4 items-center min-w-0">
+      <div className="flex flex-row justify-between items-center border-b border-zinc-200 dark:border-zinc-700 px-3 h-[45px]">
+        <div className="flex flex-row gap-2 items-center min-w-0">
+          <SidebarToggle />
           <div className="flex flex-col min-w-0">
             {editingTitle ? (
               <div className="flex items-center gap-1">

@@ -416,7 +416,7 @@ export function PureArtifact({
           exit={{ opacity: 0, transition: { duration: 0.2 } }}
         >
           <motion.div
-            className="fixed dark:bg-muted bg-background h-dvh flex flex-col overflow-y-scroll md:border-r subtle-border"
+            className="fixed dark:bg-muted bg-background h-dvh flex flex-col overflow-y-scroll md:border-r dark:border-zinc-700 border-zinc-200"
             initial={
               isMobile
                 ? {

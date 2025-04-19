@@ -23,7 +23,6 @@ import {
   convertToUIMessages,
 } from '@/lib/utils';
 import { generateTitleFromUserMessage } from '@/app/api/chat/actions/chat';
-import { createDocument } from '@/lib/ai/tools/create-document';
 import { updateDocument } from '@/lib/ai/tools/update-document';
 import { isProductionEnvironment } from '@/lib/constants';
 import { NextResponse } from 'next/server';
@@ -53,6 +52,14 @@ async function createEnhancedSystemPrompt({
 }) {
   let basePrompt = systemPrompt({ selectedChatModel });
   let contextAdded = false;
+
+  // Explicitly ask the reasoning model to use think tags
+  if (selectedChatModel === 'chat-model-reasoning') {
+    basePrompt += "\n\nIMPORTANT: Think step-by-step about your plan using <think> tags before generating the response.";
+  }
+
+  // Log the model received by the prompt function
+  console.log(`[createEnhancedSystemPrompt] Received model: ${selectedChatModel}`);
 
   // Log that we're processing document context
   console.log(`[Chat API] Processing context. Active: ${activeDocumentId || 'none'}, Mentioned: ${mentionedDocumentIds?.length || 0}`);
@@ -227,6 +234,9 @@ export async function POST(request: Request) {
       }
     } = await request.json();
 
+    // Log the received selectedChatModel
+    console.log(`[Chat API POST] Received request for chatId: ${chatId}, selectedChatModel: ${selectedChatModel}`);
+
     // Extract IDs from requestData
     const activeDocumentId = requestData?.activeDocumentId;
     const mentionedDocumentIds = requestData?.mentionedDocumentIds;
@@ -328,6 +338,9 @@ export async function POST(request: Request) {
       }
     }
 
+    // Log the model being passed to streamText
+    console.log(`[Chat API POST] Calling streamText with model: ${selectedChatModel}`);
+
     return createDataStreamResponse({
       execute: (dataStream) => {
         const result = streamText({
@@ -335,18 +348,13 @@ export async function POST(request: Request) {
           system: enhancedSystemPrompt,
           messages,
           maxSteps: 5,
-          // Conditionally activate updateDocument tool ONLY if a valid active document ID exists
-          experimental_activeTools:
-            selectedChatModel === 'chat-model-large'
-              ? []
-              : validatedActiveDocumentId 
-                ? ['updateDocument'] // Activate ONLY if active doc ID is valid
-                : [], // No active doc = no update tool
+          // Activate only updateDocument, and only if active doc exists
+          experimental_activeTools: validatedActiveDocumentId
+            ? ['updateDocument'] // Only updateDocument if active doc exists
+            : [], // No tools active if no active doc
           experimental_transform: smoothStream({ chunking: 'word' }),
           experimental_generateMessageId: generateUUID,
           tools: {
-            // Keep createDocument always available 
-            createDocument: createDocument({ session: adaptedSession, dataStream }),
             // Pass the validated *active* document ID to the update tool
             updateDocument: updateDocument({ 
               session: adaptedSession, 
@@ -354,6 +362,9 @@ export async function POST(request: Request) {
             }),
           },
           onFinish: async ({ response, reasoning }) => {
+            // Log the entire response object received onFinish
+            console.log('[Chat API POST onFinish] Full response object:', JSON.stringify(response, null, 2));
+
             if (userId) { // Check validated userId
               try {
                 const sanitizedResponseMessages = sanitizeResponseMessages({

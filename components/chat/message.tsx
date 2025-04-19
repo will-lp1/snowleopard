@@ -79,6 +79,8 @@ const PurePreviewMessage = ({
 }) => {
   const [mode, setMode] = useState<'view' | 'edit'>('view');
 
+  console.log('[PreviewMessage] Rendering message:', message);
+
   return (
     <AnimatePresence>
       <motion.div

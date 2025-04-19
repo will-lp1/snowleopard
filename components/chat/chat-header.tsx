@@ -30,10 +30,14 @@ function PureChatHeader({
   chatId,
   selectedModelId,
   isReadonly,
+  className,
+  onModelChange,
 }: {
   chatId: string;
   selectedModelId: string;
   isReadonly: boolean;
+  className?: string;
+  onModelChange: (newModelId: string) => void;
 }) {
   const router = useRouter();
   const { open } = useSidebar();
@@ -55,7 +59,12 @@ function PureChatHeader({
     : [];
 
   return (
-    <header className="flex sticky top-0 bg-background/80 backdrop-blur-sm z-10 border-b subtle-border items-center px-3 h-[45px] gap-2 transition-all duration-200">
+    <header
+      className={cn(
+        'flex sticky top-0 bg-background/80 backdrop-blur-sm z-10 border-b border-zinc-200 dark:border-zinc-700 items-center px-3 h-[45px] gap-2 transition-all duration-200',
+        className,
+      )}
+    >
       {/* Only show sidebar toggle when we're in mobile view */}
       {isMobile && <SidebarToggle />}
 
@@ -87,6 +96,7 @@ function PureChatHeader({
               'w-[140px] md:px-2 md:h-[34px]': isCompact,
               'w-[180px] md:px-3 md:h-[34px]': !isCompact
             })}
+            onModelChange={onModelChange}
           />
         </div>
       )}
