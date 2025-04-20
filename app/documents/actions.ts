@@ -8,7 +8,6 @@ import {
   saveDocument,
 } from '@/lib/db/queries';
 import { myProvider } from '@/lib/ai/providers';
-import { createClient } from '@/lib/supabase/server';
 import { ArtifactKind } from '@/components/artifact';
 
 export async function generateDocumentTitleFromContent({
@@ -39,12 +38,20 @@ export async function updateDocumentContent({
   // First get the existing document to preserve other fields
   const document = await getDocumentById({ id });
   
-  // Then save it with updated content
+  // Handle case where document is not found
+  if (!document) {
+    console.error(`[Action] updateDocumentContent: Document with ID ${id} not found.`);
+    // Optionally throw an error or handle differently
+    throw new Error(`Document not found: ${id}`); 
+  }
+  
+  // Now document is guaranteed to be non-null
   await saveDocument({
-    id,
+    id: document.id, // Use document.id for consistency
     title: document.title,
     kind: document.kind as ArtifactKind,
     content,
     userId: document.userId,
+    // saveDocument creates a new version, is_current defaults to true
   });
 } 

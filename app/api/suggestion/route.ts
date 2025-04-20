@@ -1,16 +1,17 @@
-import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { streamText, smoothStream } from 'ai';
 import { getDocumentById } from '@/lib/db/queries';
 import { myProvider } from '@/lib/ai/providers';
 import { updateDocumentPrompt } from '@/lib/ai/prompts';
+import { auth } from "@/lib/auth"; // Import Better Auth
+import { headers } from 'next/headers'; // Import headers
 
 // Common function to handle streaming the response
 async function handleSuggestionRequest(
   documentId: string,
   description: string,
-  selectedText?: string,
-  session?: any
+  userId: string, // Pass userId for validation
+  selectedText?: string
 ) {
   // Validate document
   const document = await getDocumentById({ id: documentId });
@@ -19,7 +20,8 @@ async function handleSuggestionRequest(
     throw new Error('Document not found');
   }
 
-  if (document.userId !== session?.user?.id) {
+  // Use passed userId for authorization check
+  if (document.userId !== userId) { 
     throw new Error('Unauthorized');
   }
 
@@ -103,17 +105,15 @@ async function handleSuggestionRequest(
 // GET handler for EventSource streaming
 export async function GET(request: Request) {
   try {
-    const supabase = await createClient();
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-    if (sessionError) {
-      console.error('Session error:', sessionError);
-      return new Response('Authentication error', { status: 401 });
-    }
+    // --- Authentication --- 
+    const readonlyHeaders = await headers();
+    const requestHeaders = new Headers(readonlyHeaders);
+    const session = await auth.api.getSession({ headers: requestHeaders });
 
     if (!session?.user?.id) {
-      return new Response('Unauthorized', { status: 401 });
+      return NextResponse.json({ error: 'Authentication error' }, { status: 401 });
     }
+    const userId = session.user.id;
 
     // Get params from URL
     const url = new URL(request.url);
@@ -122,30 +122,30 @@ export async function GET(request: Request) {
     const selectedText = url.searchParams.get('selectedText') || undefined;
 
     if (!documentId || !description) {
-      return new Response('Missing parameters', { status: 400 });
+      return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
     }
 
-    return handleSuggestionRequest(documentId, description, selectedText, session);
-  } catch (error) {
-    console.error('Suggestion route error:', error);
-    return NextResponse.json({ error }, { status: 400 });
+    // Pass userId to handler
+    return handleSuggestionRequest(documentId, description, userId, selectedText);
+  } catch (error: any) {
+    console.error('Suggestion GET route error:', error);
+    // Return NextResponse with error message
+    return NextResponse.json({ error: error.message || 'An error occurred' }, { status: 400 });
   }
 }
 
 // POST handler for backward compatibility
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-    if (sessionError) {
-      console.error('Session error:', sessionError);
-      return new Response('Authentication error', { status: 401 });
-    }
+    // --- Authentication --- 
+    const readonlyHeaders = await headers();
+    const requestHeaders = new Headers(readonlyHeaders);
+    const session = await auth.api.getSession({ headers: requestHeaders });
 
     if (!session?.user?.id) {
-      return new Response('Unauthorized', { status: 401 });
+      return NextResponse.json({ error: 'Authentication error' }, { status: 401 });
     }
+    const userId = session.user.id;
 
     const {
       documentId,
@@ -154,13 +154,15 @@ export async function POST(request: Request) {
     } = await request.json();
 
     if (!documentId || !description) {
-      return new Response('Missing parameters', { status: 400 });
+      return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
     }
 
-    return handleSuggestionRequest(documentId, description, selectedText, session);
-  } catch (error) {
-    console.error('Suggestion route error:', error);
-    return NextResponse.json({ error }, { status: 400 });
+    // Pass userId to handler
+    return handleSuggestionRequest(documentId, description, userId, selectedText);
+  } catch (error: any) {
+    console.error('Suggestion POST route error:', error);
+    // Return NextResponse with error message
+    return NextResponse.json({ error: error.message || 'An error occurred' }, { status: 400 });
   }
 }
 

@@ -1,76 +1,112 @@
-# Snow Leopard
+# Snow Leopard - AI-Powered Writing Assistant
 
-An AI-powered writing assistant with document editing capabilities and chatbot integration.
+## What is Snow Leopard?
+Snow Leopard is an intelligent writing environment designed to enhance your writing process with AI capabilities. It provides a seamless interface for document creation, editing, and collaboration, augmented by AI suggestions, content generation, and contextual chat.
 
-## Snow Leopard Features
+## Why Snow Leopard?
+Modern writing tools often lack deep AI integration or are closed-source. Snow Leopard aims to provide:
 
-- **Integrated Document Editing**: Edit and create documents directly within the chat interface
-- **Document Renaming**: Edit document titles and manage document properties easily
-- **Version History**: Track and review document changes over time
-- **Context-Aware AI**: The AI assistant understands your document's content and can help you improve it
-- **Seamless Chat Integration**: Create new chats linked to existing documents for collaborative sessions
-- **Unified Interface**: Consistent document creation and management across the application
-- **Real-time Collaboration**: Seamless integration between document editing and AI assistance
-- **Easy Document Creation**: Create new documents with a single click from anywhere in the app
+✅ **Open-Source & Extensible** – Transparent development and easy integration.
+🦾 **AI Driven** - Enhance your writing with AI suggestions, generation, and chat context.
+🔒 **Data Privacy Focused** – Your documents, your data. Designed with privacy in mind.
+⚙️ **Self-Hosting Option** – Flexibility to run your own instance (details TBD).
+📄 **Rich Document Editing** – Supports various content types and formats.
+🎨 **Modern UI & UX** – Clean, intuitive interface built with Shadcn UI and TailwindCSS.
+🚀 **Developer-Friendly** – Built with Next.js and Drizzle for easy customization.
 
-<a href="https://chat.vercel.ai/">
-  <img alt="Next.js 14 and App Router-ready AI chatbot." src="app/(chat)/opengraph-image.png">
-  <h1 align="center">Next.js AI Chatbot</h1>
-</a>
+## Tech Stack
+*   **Framework:** Next.js (App Router)
+*   **Language:** TypeScript
+*   **UI:** React, TailwindCSS, Shadcn UI
+*   **Database:** PostgreSQL
+*   **ORM:** Drizzle ORM
+*   **Authentication:** Better Auth
+*   **AI Integration:** [Specify your AI provider/library, e.g., Vercel AI SDK, OpenAI, Anthropic]
 
-<p align="center">
-  An Open-Source AI Chatbot Template Built With Next.js and the AI SDK by Vercel.
-</p>
 
-<p align="center">
-  <a href="#features"><strong>Features</strong></a> ·
-  <a href="#model-providers"><strong>Model Providers</strong></a> ·
-  <a href="#deploy-your-own"><strong>Deploy Your Own</strong></a> ·
-  <a href="#running-locally"><strong>Running locally</strong></a>
-</p>
-<br/>
+## Getting Started
 
-## Features
+### Prerequisites
+*   **Node.js:** v18 or higher
+*   **pnpm:** v8 or higher (Recommended package manager)
+*   **Docker:** v20 or higher (For local PostgreSQL)
 
-- [Next.js](https://nextjs.org) App Router
-  - Advanced routing for seamless navigation and performance
-  - React Server Components (RSCs) and Server Actions for server-side rendering and increased performance
-- [AI SDK](https://sdk.vercel.ai/docs)
-  - Unified API for generating text, structured objects, and tool calls with LLMs
-  - Hooks for building dynamic chat and generative user interfaces
-  - Supports OpenAI (default), Anthropic, Cohere, and other model providers
-- [shadcn/ui](https://ui.shadcn.com)
-  - Styling with [Tailwind CSS](https://tailwindcss.com)
-  - Component primitives from [Radix UI](https://radix-ui.com) for accessibility and flexibility
-- Data Persistence
-  - [Vercel Postgres powered by Neon](https://vercel.com/storage/postgres) for saving chat history and user data
-  - [Vercel Blob](https://vercel.com/storage/blob) for efficient file storage
-- [NextAuth.js](https://github.com/nextauthjs/next-auth)
-  - Simple and secure authentication
+### Setup
 
-## Model Providers
+1.  **Clone and Install**
+    ```bash
+    git clone <your-repo-url> # Replace with your repository URL
+    cd <your-repo-directory>
+    pnpm install
+    ```
 
-This template ships with OpenAI `gpt-4o` as the default. However, with the [AI SDK](https://sdk.vercel.ai/docs), you can switch LLM providers to [OpenAI](https://openai.com), [Anthropic](https://anthropic.com), [Cohere](https://cohere.com/), and [many more](https://sdk.vercel.ai/providers/ai-sdk-providers) with just a few lines of code.
+2.  **Set Up Environment Variables**
+    *   Copy `.env.example` to `.env` in the project root: `cp .env.example .env`
+    *   Configure the variables in `.env` (see **Environment Variables** section below).
 
-## Deploy Your Own
+3.  **Database Setup**
+    *   Ensure Docker is running.
+    *   Start the local PostgreSQL container:
+        ```bash
+        # Add a docker-compose.yml if you don't have one, or use a specific command
+        docker compose up -d # Assuming you have a docker-compose.yml for postgres
+        ```
+    *   Push the database schema (this applies migrations defined by Drizzle Kit based on `lib/db/schema.ts`):
+        ```bash
+        pnpm db:push # Assumes a script "db:push": "drizzle-kit push:pg"
+        ```
+        *Note: This might create the initial Better Auth tables defined in `lib/db/schema.ts` if they don't exist.* 
+        *You may need to generate migrations (`pnpm db:generate`) and apply them (`pnpm db:migrate`) for more complex changes.* 
 
-You can deploy your own version of the Next.js AI Chatbot to Vercel with one click:
+4.  **Start the Development Server**
+    ```bash
+    pnpm dev
+    ```
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fai-chatbot&env=AUTH_SECRET,OPENAI_API_KEY&envDescription=Learn%20more%20about%20how%20to%20get%20the%20API%20Keys%20for%20the%20application&envLink=https%3A%2F%2Fgithub.com%2Fvercel%2Fai-chatbot%2Fblob%2Fmain%2F.env.example&demo-title=AI%20Chatbot&demo-description=An%20Open-Source%20AI%20Chatbot%20Template%20Built%20With%20Next.js%20and%20the%20AI%20SDK%20by%20Vercel.&demo-url=https%3A%2F%2Fchat.vercel.ai&stores=[{%22type%22:%22postgres%22},{%22type%22:%22blob%22}])
+5.  **Open in Browser**
+    Visit [http://localhost:3000](http://localhost:3000)
 
-## Running locally
+### Environment Variables
+Configure the following in your `.env` file:
 
-You will need to use the environment variables [defined in `.env.example`](.env.example) to run Next.js AI Chatbot. It's recommended you use [Vercel Environment Variables](https://vercel.com/docs/projects/environment-variables) for this, but a `.env` file is all that is necessary.
+```dotenv
+# Database (Required)
+# Example for local Docker setup
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/snow_leopard_db" # Replace with your DB name
 
-> Note: You should not commit your `.env` file or it will expose secrets that will allow others to control access to your various OpenAI and authentication provider accounts.
+# Better Auth (Required)
+BETTER_AUTH_SECRET="" # Generate a strong secret (e.g., openssl rand -hex 32)
+BETTER_AUTH_URL="http://localhost:3000" # Base URL of your app
 
-1. Install Vercel CLI: `npm i -g vercel`
-2. Link local instance with Vercel and GitHub accounts (creates `.vercel` directory): `vercel link`
-3. Download your environment variables: `vercel env pull`
+# Resend API (Required for Feedback)
+RESEND_API_KEY="" # Your Resend API key
 
-```bash
-pnpm install
-pnpm dev
+# AI Provider (Example for OpenAI - replace/add as needed)
+# OPENAI_API_KEY=""
+
+# Add other necessary environment variables (e.g., specific AI model IDs)
 ```
 
-Your app template should now be running on [localhost:3000](http://localhost:3000/).
+### Database
+
+*   **Start Local DB:** `docker compose up -d` (Requires `docker-compose.yml`)
+*   **Connect String:** Ensure `DATABASE_URL` in `.env` points to your PostgreSQL instance.
+*   **Apply Schema/Migrations:** `pnpm db:push` (for simple schema sync) or `pnpm db:migrate` (to apply generated migration files).
+*   **Generate Migrations:** `pnpm db:generate` (Run after changing `lib/db/schema.ts`).
+*   **DB Studio (Optional):** `pnpm db:studio` (Requires Drizzle Studio). 
+
+*(Make sure you have corresponding scripts in your `package.json` for `db:push`, `db:generate`, `db:migrate`, `db:studio`)*
+
+### Authentication (Better Auth)
+
+*   **Secret:** Set a strong `BETTER_AUTH_SECRET` in your `.env` file.
+*   **Adapter:** Configured in `lib/auth.ts` to use Drizzle with PostgreSQL.
+*   **Schema:** Better Auth requires specific tables (`user`, `session`, `account`, `verification`). These are defined in `lib/db/schema.ts` and should be created by `pnpm db:push` or via migrations (like `0001_add_better_auth_tables.sql` if you use manual migrations). Check Better Auth documentation for details.
+
+## Contributing
+
+(Add contribution guidelines here if applicable)
+
+## License
+
+(Specify your project's license, e.g., MIT License)

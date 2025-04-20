@@ -1,70 +1,69 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { auth } from "@/lib/auth"; // Import Better Auth
+import { headers } from 'next/headers'; // Import headers
+import { deleteDocumentByIdAndUserId } from '@/lib/db/queries'; // Import Drizzle query
 
 /**
- * Handles document deletion operations
+ * Handles document deletion operations (DELETE)
  */
 export async function deleteDocument(request: NextRequest, body: any) {
   try {
-    const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    // --- Authentication --- 
+    const readonlyHeaders = await headers();
+    const requestHeaders = new Headers(readonlyHeaders);
+    const session = await auth.api.getSession({ headers: requestHeaders });
     
     if (!session?.user?.id) {
-      console.warn('[Document API] Delete request unauthorized - no session');
+      console.warn('[Document API - DELETE] Delete request unauthorized - no session');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const userId = session.user.id;
     
-    const { id } = body;
+    const { id: documentId } = body; // Rename id to documentId for clarity
     
-    console.log('[Document API] Delete request received for document:', id);
+    console.log(`[Document API - DELETE] User ${userId} requested deletion for document: ${documentId}`);
     
-    // Validate document ID 
-    if (!id || id === 'undefined' || id === 'null' || id === 'init') {
-      console.error('[Document API] Invalid document ID for deletion:', id);
+    // --- Validation --- 
+    if (!documentId || documentId === 'undefined' || documentId === 'null' || documentId === 'init') {
+      console.error(`[Document API - DELETE] Invalid document ID for deletion: ${documentId}`);
       return NextResponse.json({ error: 'Invalid document ID' }, { status: 400 });
     }
-    
-    // Check if document exists and user owns it - get all versions, don't use maybeSingle()
-    const { data: documents, error: fetchError } = await supabase
-      .from('Document')
-      .select('id, userId')
-      .eq('id', id);
-      
-    if (fetchError) {
-      console.error('[Document API] Error fetching document for deletion:', fetchError);
-      return NextResponse.json({ error: 'Failed to check document ownership' }, { status: 500 });
+
+    // Validate UUID format (optional but good practice)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(documentId)) {
+      console.error(`[Document API - DELETE] Invalid document ID format: ${documentId}`);
+      return NextResponse.json({ 
+        error: `Invalid document ID format. Must be a valid UUID.` 
+      }, { status: 400 });
     }
     
-    if (!documents || documents.length === 0) {
-      return NextResponse.json({ error: 'Document not found' }, { status: 404 });
-    }
+    // --- Deletion --- 
+    // The Drizzle query function `deleteDocumentByIdAndUserId` handles both 
+    // checking ownership and deleting all versions if authorized.
+    await deleteDocumentByIdAndUserId({ userId: userId, documentId: documentId });
     
-    // Verify ownership - check if at least one version is owned by the user
-    // All versions should have the same owner, but we'll check to be safe
-    const userOwnsDocument = documents.some(doc => doc.userId === session.user.id);
-    
-    if (!userOwnsDocument) {
-      console.warn('[Document API] Unauthorized deletion attempt for document:', id);
-      return NextResponse.json({ error: 'Unauthorized - you do not own this document' }, { status: 403 });
-    }
-    
-    // Delete all versions of the document
-    const { error: deleteError } = await supabase
-      .from('Document')
-      .delete()
-      .eq('id', id);
-      
-    if (deleteError) {
-      console.error('[Document API] Error deleting document:', deleteError);
-      return NextResponse.json({ error: 'Failed to delete document' }, { status: 500 });
-    }
-    
-    console.log('[Document API] Document deleted successfully:', id);
+    console.log(`[Document API - DELETE] Document deleted successfully: ${documentId}`);
     return NextResponse.json({ success: true, message: 'Document deleted successfully' });
-  } catch (error) {
-    console.error('[Document API] Delete error:', error);
+
+  } catch (error: any) {
+    // Handle potential errors from the query function (e.g., Unauthorized)
+    console.error('[Document API - DELETE] Delete error:', error);
+    
+    let status = 500;
+    let message = 'Failed to delete document';
+
+    if (error.message?.includes('Unauthorized')) {
+      status = 403; // Forbidden
+      message = 'Unauthorized - you do not own this document or it does not exist';
+    } else if (error.message?.includes('not found')) {
+       status = 404; // Not Found
+       message = 'Document not found';
+    }
+
     return NextResponse.json({ 
-      error: `Failed to delete document: ${error instanceof Error ? error.message : String(error)}`
-    }, { status: 500 });
+      error: message, 
+      detail: error instanceof Error ? error.message : String(error) 
+    }, { status: status });
   }
 } 

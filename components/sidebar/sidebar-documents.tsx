@@ -3,7 +3,7 @@
 import { isToday, isYesterday, subMonths, subWeeks } from 'date-fns';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import type { User } from '@supabase/auth-helpers-nextjs';
+import type { User } from '@/lib/auth';
 import { memo, useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import useSWR from 'swr';
@@ -50,6 +50,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { MessageSquare as MessageSquareIcon } from 'lucide-react';
 import { ArrowRightCircle } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 type GroupedDocuments = {
   today: Document[];

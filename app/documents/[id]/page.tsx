@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { getUser } from '@/app/(auth)/auth';
 import { getDocumentById } from '@/lib/db/queries';
 import { AlwaysVisibleArtifact } from '@/components/always-visible-artifact';
 
@@ -12,20 +12,15 @@ export default async function DocumentPage(props: { params: Promise<{ id: string
   try {
     const documentId = params.id;
     
-    let document = null;
-    try {
-      document = await getDocumentById({ id: documentId });
-    } catch (error) {
-      console.error(`Error fetching document ${documentId}:`, error);
-      // Let the !document check handle this
-    }
-
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    // Fetch document and user concurrently
+    const [document, user] = await Promise.all([
+      getDocumentById({ id: documentId }),
+      getUser() // Use Better Auth helper
+    ]);
 
     // No document found or accessible
     if (!document || !user || (user.id !== document.userId)) {
-      // Check if user is logged in to show create prompt
+      // Check if user is logged in but document just doesn't exist for them
       if (user && !document) { 
         return (
           <AlwaysVisibleArtifact 
@@ -35,10 +30,11 @@ export default async function DocumentPage(props: { params: Promise<{ id: string
           />
         );
       }
-      // Otherwise, truly not found/authorized
+      // Otherwise, truly not found or unauthorized (user not logged in or doesn't own doc)
       return notFound();
     }
 
+    // User is authenticated and owns the document
     // Render only the artifact - chat is handled by layout
     return (
       <AlwaysVisibleArtifact 

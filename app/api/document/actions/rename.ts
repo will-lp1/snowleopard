@@ -1,112 +1,83 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { auth } from "@/lib/auth"; // Import Better Auth
+import { headers } from 'next/headers'; // Import headers
+import { renameDocumentTitle, getDocumentById } from '@/lib/db/queries'; // Import Drizzle queries
 
 /**
- * Handles document rename operations
+ * Handles document rename operations (POST)
  */
 export async function renameDocument(request: NextRequest, body: any) {
   try {
-    const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    // --- Authentication --- 
+    const readonlyHeaders = await headers();
+    const requestHeaders = new Headers(readonlyHeaders);
+    const session = await auth.api.getSession({ headers: requestHeaders });
     
     if (!session?.user?.id) {
-      console.warn('[Document API] Rename request unauthorized - no session');
+      console.warn('[Document API - RENAME] Rename request unauthorized - no session');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const userId = session.user.id;
     
-    const { id, title } = body;
+    // --- Input Validation --- 
+    const { id: documentId, title: newTitle } = body; // Rename for clarity
     
-    if (!id || !title) {
-      console.error('[Document API] Missing required parameters:', { id, title });
+    if (!documentId || !newTitle) {
+      console.error('[Document API - RENAME] Missing required parameters:', { documentId, newTitle });
       return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
     }
     
-    console.log('[Document API] Rename request received:', { id, title });
+    console.log(`[Document API - RENAME] User ${userId} renaming document ${documentId} to "${newTitle}"`);
     
-    // Validate ID format to prevent errors
-    if (id === 'undefined' || id === 'null' || id === 'init') {
-      console.error('[Document API] Invalid document ID:', id);
+    // Validate ID format (optional but good practice)
+    if (documentId === 'undefined' || documentId === 'null' || documentId === 'init') {
+      console.error(`[Document API - RENAME] Invalid document ID: ${documentId}`);
       return NextResponse.json({ error: 'Invalid document ID' }, { status: 400 });
     }
-    
-    // Validate UUID format
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(id)) {
-      console.error(`[Document API] Invalid document ID format: ${id}`);
+    if (!uuidRegex.test(documentId)) {
+      console.error(`[Document API - RENAME] Invalid document ID format: ${documentId}`);
       return NextResponse.json({ 
         error: `Invalid document ID format. Must be a valid UUID.` 
       }, { status: 400 });
     }
 
-    try {
-      // First check if the document exists and verify ownership
-      const { data: existingDocs, error: queryError } = await supabase
-        .from('Document')
-        .select('id, userId, createdAt, content, kind, chatId')
-        .eq('id', id)
-        .order('createdAt', { ascending: false })
-        .limit(1);
+    // --- Rename Operation --- 
+    // The Drizzle query function handles ownership check and updates title for all versions
+    await renameDocumentTitle({ 
+      userId: userId, 
+      documentId: documentId, 
+      newTitle: newTitle 
+    });
       
-      if (queryError) {
-        console.error('[Document API] Error checking for existing document:', queryError);
-        return NextResponse.json({ error: 'Failed to check document existence' }, { status: 500 });
-      }
-      
-      // If no documents found, the document doesn't exist
-      if (!existingDocs || existingDocs.length === 0) {
-        return NextResponse.json({ 
-          error: 'Document not found', 
-        }, { status: 404 });
-      }
-      
-      // Check ownership if document exists
-      if (existingDocs[0].userId !== session.user.id) {
-        console.error('[Document API] User does not own this document');
-        return NextResponse.json({ 
-          error: 'Unauthorized - you do not own this document' 
-        }, { status: 403 });
-      }
-        
-      // Document exists and user owns it - UPDATE it
-      // Use the most recent version's createdAt timestamp to ensure we update the correct version
-      const latestCreatedAt = existingDocs[0].createdAt;
-      
-      const { data, error } = await supabase.rpc('create_new_document_version', {
-        p_id: id,
-        p_user_id: session.user.id,
-        p_title: title,
-        p_content: existingDocs[0].content,
-        p_kind: existingDocs[0].kind,
-        p_chat_id: existingDocs[0].chatId,
-        p_is_current_override: true
-      });
-      
-      if (error) {
-        console.error('Error calling create_new_document_version during rename:', error);
-        return NextResponse.json({ error: 'Failed to rename document' }, { status: 500 });
-      }
-      
-      // Get latest document data to return the full document
-      const { data: document, error: getError } = await supabase
-        .from('Document')
-        .select('*')
-        .eq('id', id)
-        .single();
-      
-      if (getError) {
-        console.error('[Document API] Error fetching renamed document:', getError);
-        // Still return the update data since the rename was successful
-        return NextResponse.json(data);
-      }
-      
-      console.log(`[Document API] Document renamed successfully: ${id} to "${title}"`);
-      return NextResponse.json(document);
-    } catch (dbError) {
-      console.error('[Document API] Database operation error:', dbError);
-      return NextResponse.json({ error: 'Database operation failed' }, { status: 500 });
+    // --- Fetch and Return Updated Document --- 
+    // Fetch the latest version to return updated data
+    const updatedDocument = await getDocumentById({ id: documentId });
+    
+    if (!updatedDocument) {
+        console.error(`[Document API - RENAME] Failed to retrieve document ${documentId} after renaming.`);
+        // Should not happen if rename succeeded, but handle defensively
+        return NextResponse.json({ error: 'Failed to retrieve updated document data.'}, { status: 500 });
     }
-  } catch (error) {
-    console.error('[Document API] Rename error:', error);
-    return NextResponse.json({ error: 'Failed to rename document' }, { status: 500 });
+      
+    console.log(`[Document API - RENAME] Document renamed successfully: ${documentId} to "${newTitle}"`);
+    return NextResponse.json(updatedDocument); // Return latest document version data
+
+  } catch (error: any) {
+    // Handle potential errors from the query function (e.g., Unauthorized)
+    console.error('[Document API - RENAME] Rename error:', error);
+    
+    let status = 500;
+    let message = 'Failed to rename document';
+
+    if (error.message?.includes('Unauthorized') || error.message?.includes('not found')) {
+      status = 403; // Or 404 depending on desired feedback
+      message = 'Unauthorized or document not found';
+    }
+
+    return NextResponse.json({ 
+      error: message, 
+      detail: error instanceof Error ? error.message : String(error) 
+    }, { status: status });
   }
 } 

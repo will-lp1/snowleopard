@@ -2,8 +2,11 @@
 import { ChevronUp } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { useState } from 'react';
+import { authClient } from '@/lib/auth-client';
 import { useTheme } from 'next-themes';
+import { toast } from '@/components/toast';
+import type { ClientUser as User } from '@/lib/auth-client';
 
 import {
   DropdownMenu,
@@ -18,40 +21,53 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
 
-interface User {
-  email?: string | null;
-}
-
-export function SidebarUserNav({ user }: { user: User }) {
+export function SidebarUserNav({ user }: { user: User | null }) {
   const { setTheme, theme } = useTheme();
   const router = useRouter();
-  const supabase = createClient();
+
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSignOut = async () => {
-    try {
-      await supabase.auth.signOut();
-      // Clear any local state/cookies if needed
-      router.push('/login');
-      router.refresh();
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
+    setIsLoading(true);
+    await authClient.signOut({
+    }, {
+      onRequest: () => {
+          setIsLoading(true); 
+      },
+      onSuccess: () => {
+          setIsLoading(false);
+          router.push('/login');
+          router.refresh(); 
+      },
+      onError: (ctx) => {
+          setIsLoading(false);
+          console.error('Error signing out:', ctx.error);
+          toast({
+            type: 'error',
+            description: ctx.error.message || 'Failed to sign out.'
+          });
+      }
+    });
   };
+
+  if (!user) {
+    return null;
+  }
 
   return (
     <SidebarMenu>
       <SidebarMenuItem>
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+          <DropdownMenuTrigger asChild disabled={isLoading}>
             <SidebarMenuButton className="data-[state=open]:bg-sidebar-accent bg-background data-[state=open]:text-sidebar-accent-foreground h-10">
               <Image
-                src={`https://avatar.vercel.sh/${user.email}`}
+                src={`https://avatar.vercel.sh/${user.email ?? 'default'}`}
                 alt={user.email ?? 'User Avatar'}
                 width={24}
                 height={24}
                 className="rounded-full"
               />
-              <span className="truncate">{user?.email}</span>
+              <span className="truncate">{user.email ?? 'User'}</span>
               <ChevronUp className="ml-auto" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
@@ -69,8 +85,9 @@ export function SidebarUserNav({ user }: { user: User }) {
             <DropdownMenuItem
               className="cursor-pointer"
               onSelect={handleSignOut}
+              disabled={isLoading}
             >
-              Sign out
+              {isLoading ? 'Signing out...' : 'Sign out'}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

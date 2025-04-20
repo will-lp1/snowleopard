@@ -1,118 +1,77 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { NextResponse, type NextRequest } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server';
+import { getSessionCookie } from 'better-auth/cookies'; // Import Better Auth helper
+import { headers } from 'next/headers';
+import { auth } from "@/lib/auth"; // Import your configured auth instance
+
+// Function to check session using Better Auth server-side API
+// Recommended for Next.js 15.2.0+ as it avoids extra fetches
+async function checkSessionServerSide(request: NextRequest) {
+  try {
+    // Use headers() from next/headers for server components/middleware
+    // Await the headers promise and then convert to a standard Headers object
+    const readonlyHeaders = await headers();
+    const requestHeaders = new Headers(readonlyHeaders);
+    const session = await auth.api.getSession({ headers: requestHeaders });
+    return !!session; // Return true if session exists, false otherwise
+  } catch (error) {
+    console.error('[Middleware] Error fetching session:', error);
+    return false; // Assume not logged in if error occurs
+  }
+}
+
+// Function to check session using cookie helper (works on older Next.js versions)
+// Faster as it doesn't hit the API, but only checks cookie existence/basic validity
+async function checkSessionCookieOnly(request: NextRequest) {
+  try {
+    // Pass request directly, no need for specific config if using defaults in lib/auth.ts
+    const sessionCookie = getSessionCookie(request);
+    return !!sessionCookie; // Return true if cookie exists, false otherwise
+  } catch (error) {
+    console.error('[Middleware] Error checking session cookie:', error);
+    return false; // Assume not logged in if error occurs
+  }
+}
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  })
+  const isLoggedIn = await checkSessionCookieOnly(request);
+  const pathname = request.nextUrl.pathname;
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value,
-            ...options,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
-          response.cookies.set({
-            name,
-            value,
-            ...options,
-          })
-        },
-        remove(name: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
-          response.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
-        },
-      },
-    }
-  )
+  // Define protected and public routes
+  const isAuthRoute = pathname === '/login' || pathname === '/register';
+  const isProtectedRoute = pathname.startsWith('/documents');
 
-  // Refresh session if expired - required for Server Components
-  // No need to await getSession here, we'll get it if needed below
-  // await supabase.auth.getSession() 
-
-  // Handle routes
-  const { data: { session } } = await supabase.auth.getSession()
-  const isLoggedIn = !!session?.user
-  const pathname = request.nextUrl.pathname
-
-  // Check if the route is a documents route
-  const isDocumentsRoute = pathname === '/documents' || pathname.startsWith('/documents/')
-  const isOnRegister = pathname === '/register'
-  const isOnLogin = pathname === '/login'
-  const isRootPath = pathname === '/' // Keep track of root path
-
-  // Redirect authenticated users away from auth pages or root path
-  if (isLoggedIn && (isOnLogin || isOnRegister)) {
-    return NextResponse.redirect(new URL('/documents', request.url))
-  }
-  // If logged in and on root, redirect to documents
-  if (isLoggedIn && isRootPath) {
-    return NextResponse.redirect(new URL('/documents', request.url))
+  // --- Redirect logged-in users from AUTH pages ONLY --- 
+  // Let the landing page component handle redirecting logged-in users from root
+  if (isLoggedIn && isAuthRoute) { 
+    // Redirect logged-in users trying to access login/register to the dashboard
+    return NextResponse.redirect(new URL('/documents', request.url));
   }
 
-  // Allow access to auth pages for non-authenticated users
-  if (!isLoggedIn && (isOnRegister || isOnLogin)) {
-    return response
-  }
-  
-  // Allow access to root path for everyone
-  if (isRootPath) {
-    return response
+  // --- Protect routes --- 
+  if (!isLoggedIn && isProtectedRoute) {
+    // Redirect non-logged-in users trying to access protected routes to the landing page
+    return NextResponse.redirect(new URL('/', request.url)); 
   }
 
-  // Handle documents routes - require authentication, redirect to root if not logged in
-  if (isDocumentsRoute) {
-    if (!isLoggedIn) {
-      // Redirect unauthenticated users to the landing page instead of login
-      return NextResponse.redirect(new URL('/', request.url))
-    }
-    // If logged in, allow access to documents routes
-    return response
-  }
-
-  // For any other paths not explicitly handled, allow access
-  return response
+  // --- Allow access to all other routes ---
+  return NextResponse.next();
 }
 
 export const config = {
+  // Ensure Node.js runtime is enabled if using auth.api.getSession (Next.js 15.2.0+)
+  // runtime: "nodejs", 
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
-     * - api (API routes)
+     * - api/auth (Better Auth API routes)
+     * - api (Other API routes - adjust if some need protection)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - images (static image assets)
      * - fonts (static font assets)
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|images|fonts).*)',
+    // Ensure /api/auth is excluded from the middleware
+    '/((?!api/auth|_next/static|_next/image|favicon.ico|images|fonts|api(?!/auth)).*)',
   ],
-}
+};

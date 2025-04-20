@@ -11,10 +11,11 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import Link from 'next/link';
-import { User } from '@supabase/auth-helpers-nextjs';
 import { useWindowSize } from 'usehooks-ts';
 import { SidebarDocuments } from '@/components/sidebar/sidebar-documents';
 import { FeedbackWidget } from '@/components/feedback-widget';
+import { cn } from '@/lib/utils';
+import type { User } from '@/lib/auth';
 
 export function AppSidebar({ user }: { user: User | undefined }) {
   const { setOpenMobile } = useSidebar();
@@ -49,7 +50,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
         <div className="px-2 pb-2 flex flex-col space-y-1">
           {user && (
             <>
-              <FeedbackWidget authUserId={user.id} />
+              <FeedbackWidget/>
               <SidebarUserNav user={user} />
             </>
           )}

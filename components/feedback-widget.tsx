@@ -3,7 +3,8 @@
 import { useBreakpoint } from "@/hooks/use-breakpoint"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
-import { createClient } from "@/lib/supabase/client"
+import { sendFeedbackEmail } from "@/lib/actions/feedback"
+import { authClient } from "@/lib/auth-client"
 import {
   X,
   CheckCircle as SealCheck,
@@ -28,18 +29,16 @@ const TRANSITION_CONTENT = {
   duration: 0.2,
 }
 
-type FeedbackWidgetProps = {
-  authUserId?: string
-  className?: string
-}
-
-export function FeedbackWidget({ authUserId, className }: FeedbackWidgetProps) {
+export function FeedbackWidget({ className }: { className?: string }) {
   const [status, setStatus] = useState<
     "idle" | "submitting" | "success" | "error"
   >("idle")
   const [feedback, setFeedback] = useState("")
   const [isOpen, setIsOpen] = useState(false)
   const isMobileOrTablet = useBreakpoint(896)
+  const { data: session, isPending: isSessionLoading } = authClient.useSession()
+  const userId = session?.user?.id
+  const userEmail = session?.user?.email
 
   useEffect(() => {
     setStatus("idle")
@@ -54,42 +53,41 @@ export function FeedbackWidget({ authUserId, className }: FeedbackWidgetProps) {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (!authUserId) {
+    if (!userId) {
       toast.error("Please login to submit feedback")
       return
     }
 
     setStatus("submitting")
-    if (!feedback.trim()) return
+    if (!feedback.trim()) {
+      setStatus("idle")
+      return
+    }
 
     try {
-      const supabase = createClient()
-
-      const { error } = await supabase.from("feedback").insert({
-        message: feedback,
-        user_id: authUserId,
+      const result = await sendFeedbackEmail({
+        feedbackContent: feedback,
+        userId: userId,
+        userEmail: userEmail,
       })
 
-      if (error) {
-        toast.error(`Error submitting feedback: ${error}`)
-        setStatus("error")
-        return
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to send feedback email.')
       }
-
+      
       await new Promise((resolve) => setTimeout(resolve, 1200))
-
       setStatus("success")
-
       setTimeout(() => {
         closeMenu()
       }, 2500)
-    } catch (error) {
-      toast.error(`Error submitting feedback: ${error}`)
+    } catch (error: any) {
+      console.error("Error submitting feedback:", error)
+      toast.error(`Error submitting feedback: ${error.message || 'Unknown error'}`)
       setStatus("error")
     }
   }
 
-  if (isMobileOrTablet || !authUserId) {
+  if (isMobileOrTablet || isSessionLoading || !userId) {
     return null
   }
 
@@ -107,7 +105,7 @@ export function FeedbackWidget({ authUserId, className }: FeedbackWidgetProps) {
           </DropdownMenuTrigger>
           <DropdownMenuContent
             side="top"
-            className="w-[--radix-popper-anchor-width] p-0 rounded-lg border-primary/10 shadow-lg"
+            className="w-[--radix-popper-anchor-width] p-0 rounded-lg border-b border-zinc-200 dark:border-zinc-700 shadow-lg"
             sideOffset={5}
           >
             <div className="h-[240px] w-full">

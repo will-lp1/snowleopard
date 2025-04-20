@@ -1,159 +1,100 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { auth } from "@/lib/auth"; // Import Better Auth
+import { headers } from 'next/headers'; // Import headers
+import { 
+  saveDocument, 
+  checkDocumentOwnership, 
+  setOlderVersionsNotCurrent, 
+  getDocumentById 
+} from '@/lib/db/queries'; // Import Drizzle queries
 import { generateUUID } from '@/lib/utils';
+import type { ArtifactKind } from '@/components/artifact'; // Import type if needed
 
 /**
- * Handles document creation
+ * Handles document creation (POST)
+ * Creates a new version of a document. If an ID is provided and exists for the user,
+ * older versions will be marked as not current.
  */
 export async function createDocument(request: NextRequest, body: any) {
   try {
-    const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    // --- Authentication --- 
+    const readonlyHeaders = await headers();
+    const requestHeaders = new Headers(readonlyHeaders);
+    const session = await auth.api.getSession({ headers: requestHeaders });
     
     if (!session?.user?.id) {
-      console.warn('[Document API] Create request unauthorized - no session');
+      console.warn('[Document API - CREATE] Create request unauthorized - no session');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const userId = session.user.id;
     
-    const { id: providedId, title, content, kind, chatId } = body;
+    // --- Input Validation --- 
+    const { 
+      id: providedId, 
+      title = 'Untitled Document', // Default title
+      content = '', // Default content
+      kind = 'text', // Default kind
+      chatId // Optional chatId
+    } = body;
     
     // Generate a UUID if none provided, otherwise use the provided one
-    const id = providedId || generateUUID();
+    const documentId = providedId || generateUUID();
     
     // Validate UUID format
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(id)) {
-      console.error(`[Document API] Invalid document ID format: ${id}`);
+    if (!uuidRegex.test(documentId)) {
+      console.error(`[Document API - CREATE] Invalid document ID format: ${documentId}`);
       return NextResponse.json({ 
         error: `Invalid document ID format. Must be a valid UUID.` 
       }, { status: 400 });
     }
-    
-    // Check if the document already exists
-    const { data: existingDoc, error: checkError } = await supabase
-      .from('Document')
-      .select('id, userId, createdAt')
-      .eq('id', id)
-      .order('createdAt', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-      
-    if (checkError) {
-      console.error('[Document API] Error checking document existence:', checkError);
-      return NextResponse.json({ error: 'Database error checking document' }, { status: 500 });
+
+    console.log(`[Document API - CREATE] User ${userId} creating/updating document: ${documentId}`);
+
+    // --- Versioning Logic --- 
+    // Check if any version of this document already exists for the user
+    const ownsExistingVersion = await checkDocumentOwnership({ userId, documentId });
+
+    if (ownsExistingVersion) {
+      console.log(`[Document API - CREATE] Document ${documentId} exists for user ${userId}. Setting older versions to not current.`);
+      // If it exists, mark older versions as not current *before* saving the new one
+      // Note: saveDocument will insert the new version with is_current=true
+      await setOlderVersionsNotCurrent({ userId, documentId }); 
+      // Potential Optimization: Could combine finding latest and updating older in one query/transaction
+    } else {
+       console.log(`[Document API - CREATE] Document ${documentId} is new for user ${userId}.`);
     }
     
-    // If document exists and user doesn't own it, return error
-    if (existingDoc && existingDoc.userId !== session.user.id) {
-      return NextResponse.json({ 
-        error: 'Unauthorized - you do not own this document' 
-      }, { status: 403 });
-    }
-    
-    // If document exists and user owns it, delete the old version to prevent duplicates
-    if (existingDoc && existingDoc.userId === session.user.id) {
-      const { error: deleteError } = await supabase
-        .from('Document')
-        .delete()
-        .eq('id', id);
-      
-      if (deleteError) {
-        console.warn(`[Document API] Error deleting existing document before creating new one: ${deleteError.message}`);
-        // Continue anyway - we'll create a new version
-      } else {
-        console.log(`[Document API] Deleted existing document with ID ${id} before creating new version`);
-      }
-    }
-    
-    // Verify chatId exists if provided
-    let finalChatId = null;
-    if (chatId) {
-      const { data: chatData, error: chatError } = await supabase
-        .from('Chat')
-        .select('id')
-        .eq('id', chatId)
-        .maybeSingle();
-        
-      if (chatData) {
-        finalChatId = chatId;
-        console.log(`[Document API] Chat exists and will be linked to document: ${chatId}`);
-      } else {
-        // Just log a warning but continue - don't link to invalid chat
-        console.warn(`[Document API] Chat ID ${chatId} not found or error occurred: ${chatError?.message}`);
-      }
-    }
-    
-    console.log('[Document API] Creating document:', { 
-      id, 
-      title, 
-      contentLength: content?.length || 0,
-      kind,
-      chatId: finalChatId || 'none'
+    // --- Save New Document Version --- 
+    // is_current defaults to true in saveDocument
+    await saveDocument({
+      id: documentId,
+      title: title,
+      content: content,
+      kind: kind as ArtifactKind, // Assert type if necessary
+      userId: userId,
+      // Pass chatId if needed by saveDocument schema (currently ignored by Drizzle schema)
+      // chatId: chatId, 
     });
+
+    // --- Fetch and Return Newly Created Document --- 
+    // Fetch the specific version we just created to return it
+    // (getDocumentById fetches the *latest*, which should be the one we just saved)
+    const newDocumentVersion = await getDocumentById({ id: documentId }); 
     
-    try {
-      // --- NEW LOGIC: Call database function to handle versioning, same as update --- 
-      const { data: createData, error: rpcError } = await supabase.rpc('create_new_document_version', {
-        p_id: id,
-        p_user_id: session.user.id,
-        p_title: title || 'Document', // Use provided or default title
-        p_content: content || '',       // Use provided or empty content
-        p_kind: kind || 'text',       // Use provided or default kind
-        p_chat_id: finalChatId,      // Use verified chat ID or null
-      });
-
-      if (rpcError) {
-        console.error('[Document API] Error calling create_new_document_version RPC during creation:', rpcError);
-        return NextResponse.json({ error: 'Failed to create document via RPC.' }, { status: 500 });
-      }
-      
-      // RPC function returns an array, we expect one record for the newly created version
-      if (!createData || !Array.isArray(createData) || createData.length === 0) {
-        console.error('[Document API] Create RPC function did not return the expected document data.');
-        return NextResponse.json({ error: 'Failed to retrieve created document data.' }, { status: 500 });
-      }
-
-      console.log(`[Document API] Document created successfully via RPC: ${id}${finalChatId ? `, linked to chat: ${finalChatId}` : ''}`);
-      return NextResponse.json(createData[0]); // Return the first (and only) element from the array
-
-      /* --- OLD LOGIC (Commented out for reference) ---
-      // Create a new document
-      const { error: insertError, data: insertData } = await supabase
-        .from('Document')
-        .insert({
-          id,
-          title: title || 'Document',
-          content: content || '',
-          kind: kind || 'text',
-          chatId: finalChatId,
-          userId: session.user.id,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          is_current: true,
-        })
-        .select('id, title, content, kind, chatId, createdAt, userId')
-        .single();
-        
-      if (insertError) {
-        console.error('[Document API] Error creating document:', insertError);
-        return NextResponse.json({ 
-          error: `Failed to create document: ${insertError.message || 'Database error'}`
-        }, { status: 500 });
-      }
-      
-      console.log(`[Document API] Document created: ${id}${finalChatId ? `, linked to chat: ${finalChatId}` : ''}`);
-      return NextResponse.json(insertData);
-      */
-    } catch (dbError) {
-      console.error('[Document API] Database operation error during creation:', dbError);
-      return NextResponse.json({ 
-        error: `Database operation failed: ${dbError instanceof Error ? dbError.message : String(dbError)}`
-      }, { status: 500 });
+    if (!newDocumentVersion) {
+       console.error(`[Document API - CREATE] Failed to retrieve document ${documentId} immediately after saving.`);
+       // This case is unlikely but possible; return generic error or success without data
+       return NextResponse.json({ error: 'Failed to retrieve created document data.'}, { status: 500 });
     }
-  } catch (error) {
-    console.error('[Document API] Create error:', error);
+
+    console.log(`[Document API - CREATE] Document version created successfully: ${documentId}`);
+    return NextResponse.json(newDocumentVersion); // Return the newly created version data
+
+  } catch (error: any) {
+    console.error('[Document API - CREATE] Create error:', error);
     return NextResponse.json({ 
-      error: `Failed to create document: ${error instanceof Error ? error.message : String(error)}`
+      error: `Failed to create document: ${error.message || String(error)}`
     }, { status: 500 });
   }
 } 

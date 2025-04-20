@@ -4,16 +4,15 @@ import {
   smoothStream,
   streamText,
 } from 'ai';
-import { createClient } from '@/lib/supabase/server';
 import { systemPrompt } from '@/lib/ai/prompts';
 import {
   deleteChatById,
   getChatById,
   saveChat,
   saveMessages,
-  saveMessageContent,
   getDocumentById,
   getMessagesByChatId,
+  updateChatContextQuery,
 } from '@/lib/db/queries';
 import {
   generateUUID,
@@ -27,16 +26,10 @@ import { updateDocument } from '@/lib/ai/tools/update-document';
 import { isProductionEnvironment } from '@/lib/constants';
 import { NextResponse } from 'next/server';
 import { myProvider } from '@/lib/ai/providers';
+import { auth } from "@/lib/auth";
+import { headers } from 'next/headers';
 
 export const maxDuration = 60;
-
-// Convert Supabase session to format expected by tools
-function adaptSession(supabaseSession: any) {
-  return {
-    ...supabaseSession,
-    expires: new Date(supabaseSession.expires_in ?? 0).toISOString(),
-  };
-}
 
 /**
  * Creates an enhanced system prompt that includes active and mentioned document content
@@ -124,46 +117,19 @@ ${document.content || '(Empty document)'}
   return basePrompt;
 }
 
-// Helper function to update chat document context
-async function updateChatContext({ 
-  chatId, 
-  context 
-}: { 
-  chatId: string; 
-  context: { active?: string | null; mentioned?: string[] | null } 
-}): Promise<void> {
-  try {
-    const supabase = await createClient();
-    const { error } = await supabase
-      .from('Chat')
-      .update({ document_context: context })
-      .eq('id', chatId);
-      
-    if (error) {
-      console.error('[Chat API] Error updating chat context:', error);
-      throw error;
-    }
-    console.log(`[Chat API] Updated document_context for chat ${chatId}`, context);
-  } catch (error) {
-    console.error('[Chat API] Failed to update chat context:', error);
-    throw error;
-  }
-}
-
 // Get a chat by ID with its messages
 export async function GET(request: Request) {
   try {
-    const supabase = await createClient();
-    // Use getUser() for validated session
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const readonlyHeaders = await headers();
+    const requestHeaders = new Headers(readonlyHeaders);
+    const session = await auth.api.getSession({ headers: requestHeaders });
 
-    // Check for errors or missing user
-    if (userError || !user) {
-      console.error('User auth error in GET /api/chat:', userError);
+    if (!session?.user) {
+      console.error('User auth error in GET /api/chat');
       return new Response('Authentication error', { status: 401 });
     }
     
-    const userId = user.id;
+    const userId = session.user.id;
 
     const { searchParams } = new URL(request.url);
     const chatId = searchParams.get('id');
@@ -172,24 +138,18 @@ export async function GET(request: Request) {
       return new Response('Chat ID is required', { status: 400 });
     }
 
-    // Get chat details
     const chat = await getChatById({ id: chatId });
     if (!chat) {
       return new Response('Chat not found', { status: 404 });
     }
 
-    // Only allow users to access their own chats
     if (chat.userId !== userId) {
       return new Response('Unauthorized', { status: 401 });
     }
 
-    // Get messages for this chat
     const dbMessages = await getMessagesByChatId({ id: chatId });
-    
-    // Convert database messages to the UI format using the existing utility
     const uiMessages = convertToUIMessages(dbMessages);
     
-    // Return the chat with its messages in the UI-compatible format
     return new Response(JSON.stringify({
       ...chat,
       messages: uiMessages
@@ -204,23 +164,21 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
-    // Use getUser() for validated session
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const readonlyHeaders = await headers();
+    const requestHeaders = new Headers(readonlyHeaders);
+    const session = await auth.api.getSession({ headers: requestHeaders });
 
-    // Check for errors or missing user
-    if (userError || !user) {
-      console.error('User auth error in POST /api/chat:', userError);
+    if (!session?.user) {
+      console.error('User auth error in POST /api/chat');
       return new Response('Authentication error', { status: 401 });
     }
     
-    const userId = user.id;
+    const userId = session.user.id;
 
     const {
       id: chatId,
       messages,
       selectedChatModel,
-      // Get data object which now contains context IDs
       data: requestData,
     }: {
       id: string;
@@ -229,17 +187,14 @@ export async function POST(request: Request) {
       data?: { 
         activeDocumentId?: string | null;
         mentionedDocumentIds?: string[] | null;
-        // Retain flexibility for other potential data
         [key: string]: any; 
       }
     } = await request.json();
 
-    // Log the received selectedChatModel
     console.log(`[Chat API POST] Received request for chatId: ${chatId}, selectedChatModel: ${selectedChatModel}`);
 
-    // Extract IDs from requestData
-    const activeDocumentId = requestData?.activeDocumentId;
-    const mentionedDocumentIds = requestData?.mentionedDocumentIds;
+    const activeDocumentId = requestData?.activeDocumentId ?? undefined;
+    const mentionedDocumentIds = requestData?.mentionedDocumentIds ?? undefined;
 
     const userMessage = getMostRecentUserMessage(messages);
 
@@ -247,7 +202,6 @@ export async function POST(request: Request) {
       return new Response('No user message found', { status: 400 });
     }
 
-    // Validate chat ID format
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(chatId)) {
       console.error(`[Chat API] Invalid chat ID format: ${chatId}`);
@@ -256,31 +210,25 @@ export async function POST(request: Request) {
 
     const chat = await getChatById({ id: chatId });
 
-    // Create chat if it doesn't exist
     if (!chat) {
-      const title = await generateTitleFromUserMessage({
-        message: userMessage,
-      });
-
-      // Include document_context in the initial chat creation
+      const title = await generateTitleFromUserMessage({ message: userMessage });
       await saveChat({
         id: chatId,
-        userId: userId, // Use validated userId
+        userId: userId,
         title,
         document_context: {
-          active: activeDocumentId ?? undefined,
-          mentioned: mentionedDocumentIds ?? undefined
+          active: activeDocumentId,
+          mentioned: mentionedDocumentIds
         }
       });
     } else {
-      // Check ownership using validated userId
       if (chat.userId !== userId) {
         return new Response('Unauthorized', { status: 401 });
       }
       
-      // Update the document context for the existing chat
-      await updateChatContext({ 
+      await updateChatContextQuery({ 
         chatId, 
+        userId,
         context: {
           active: activeDocumentId,
           mentioned: mentionedDocumentIds
@@ -288,45 +236,30 @@ export async function POST(request: Request) {
       });
     }
 
-    // Generate a new backend ID for the user message
     const userMessageBackendId = generateUUID();
 
     await saveMessages({
       messages: [{
-        id: userMessageBackendId, // Use the newly generated ID
+        id: userMessageBackendId,
         chatId: chatId,
         role: userMessage.role,
-        content: '{}',
+        content: parseMessageContent(userMessage.content),
         createdAt: new Date().toISOString(),
       }],
     });
 
-    await saveMessageContent({
-      messageId: userMessageBackendId, // Use the same generated ID
-      contents: parseMessageContent(userMessage.content),
-    });
-
-    // Adapt session for tools - IMPORTANT: If tools need session details beyond just user existence,
-    // you might need to fetch the session here IF getUser() doesn't provide enough info.
-    // However, adaptSession currently uses expires_in which isn't in the User object.
-    // Let's fetch the session *here* only if needed, just before passing to tools.
-    const { data: { session: toolSession } } = await supabase.auth.getSession(); 
-    const adaptedSession = toolSession ? adaptSession(toolSession) : null;
-    
-    // Ensure adaptedSession is not null if tools require it
-    if (!adaptedSession) {
+    const toolSession = session;
+    if (!toolSession) {
       console.error('Failed to get session details needed for tools');
       return new Response('Internal Server Error', { status: 500 });
     }
 
-    // Get enhanced system prompt with potentially both active and mentioned contexts
     const enhancedSystemPrompt = await createEnhancedSystemPrompt({
       selectedChatModel,
       activeDocumentId,
       mentionedDocumentIds,
     });
 
-    // Validate the active document ID before passing it to tools
     let validatedActiveDocumentId: string | undefined = undefined;
     if (activeDocumentId) {
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -338,7 +271,6 @@ export async function POST(request: Request) {
       }
     }
 
-    // Log the model being passed to streamText
     console.log(`[Chat API POST] Calling streamText with model: ${selectedChatModel}`);
 
     return createDataStreamResponse({
@@ -348,24 +280,21 @@ export async function POST(request: Request) {
           system: enhancedSystemPrompt,
           messages,
           maxSteps: 5,
-          // Activate only updateDocument, and only if active doc exists
           experimental_activeTools: validatedActiveDocumentId
-            ? ['updateDocument'] // Only updateDocument if active doc exists
-            : [], // No tools active if no active doc
+            ? ['updateDocument']
+            : [],
           experimental_transform: smoothStream({ chunking: 'word' }),
           experimental_generateMessageId: generateUUID,
           tools: {
-            // Pass the validated *active* document ID to the update tool
             updateDocument: updateDocument({ 
-              session: adaptedSession, 
-              documentId: validatedActiveDocumentId // Ensure tool gets the active ID
+              session: toolSession,
+              documentId: validatedActiveDocumentId
             }),
           },
           onFinish: async ({ response, reasoning }) => {
-            // Log the entire response object received onFinish
             console.log('[Chat API POST onFinish] Full response object:', JSON.stringify(response, null, 2));
 
-            if (userId) { // Check validated userId
+            if (userId) {
               try {
                 const sanitizedResponseMessages = sanitizeResponseMessages({
                   messages: response.messages,
@@ -377,30 +306,21 @@ export async function POST(request: Request) {
                     id: message.id,
                     chatId: chatId,
                     role: message.role,
-                    content: '{}',
+                    content: parseMessageContent(message.content),
                     createdAt: new Date().toISOString(),
                   })),
                 });
-
-                await Promise.all(
-                  sanitizedResponseMessages.map((message) =>
-                    saveMessageContent({
-                      messageId: message.id,
-                      contents: parseMessageContent(message.content),
-                    })
-                  )
-                );
                 
-                // Ensure the document_context is up to date after the conversation
-                await updateChatContext({ 
+                await updateChatContextQuery({ 
                   chatId, 
+                  userId,
                   context: {
                     active: activeDocumentId,
                     mentioned: mentionedDocumentIds
                   }
                 });
               } catch (error) {
-                console.error('Failed to save chat:', error);
+                console.error('Failed to save chat/messages onFinish:', error);
               }
             }
           },
@@ -428,17 +348,16 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const supabase = await createClient();
-    // Use getUser() for validated session
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const readonlyHeaders = await headers();
+    const requestHeaders = new Headers(readonlyHeaders);
+    const session = await auth.api.getSession({ headers: requestHeaders });
 
-    // Check for errors or missing user
-    if (userError || !user) {
-      console.error('User auth error in DELETE /api/chat:', userError);
+    if (!session?.user) {
+      console.error('User auth error in DELETE /api/chat');
       return new Response('Authentication error', { status: 401 });
     }
     
-    const userId = user.id;
+    const userId = session.user.id;
 
     const { searchParams } = new URL(request.url);
     const rawChatId = searchParams.get('id');
@@ -447,7 +366,6 @@ export async function DELETE(request: Request) {
       return new Response('Chat ID is required', { status: 400 });
     }
 
-    // Validate chat ID format
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(rawChatId)) {
       return new Response('Invalid chat ID format', { status: 400 });
@@ -459,7 +377,6 @@ export async function DELETE(request: Request) {
       return new Response('Chat not found', { status: 404 });
     }
 
-    // Check ownership using validated userId
     if (chat.userId !== userId) {
       return new Response('Unauthorized', { status: 401 });
     }

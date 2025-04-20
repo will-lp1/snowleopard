@@ -4,8 +4,8 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Crimson_Text } from 'next/font/google'
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { redirect, useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation'
+import { authClient } from '@/lib/auth-client' // Import Better Auth client
 
 const crimson = Crimson_Text({
   weight: ['400', '700'],
@@ -15,16 +15,25 @@ const crimson = Crimson_Text({
 
 export default function Home() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(true) // Start loading until session check completes
   const router = useRouter()
-  const supabase = createClient()
+  // Remove Supabase client initialization
+  // const supabase = createClient()
 
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession()
+        // Use Better Auth client to get session
+        const { data: session, error } = await authClient.getSession();
         
-        if (session) {
+        if (error) {
+           console.error('Error fetching session:', error);
+           // Stay on landing page if session check fails
+           setIsLoading(false);
+           return;
+        }
+
+        if (session?.user) {
           // If user is logged in, redirect to documents
           router.push('/documents')
           // No need to set isLoading to false here, as we are navigating away
@@ -33,24 +42,25 @@ export default function Home() {
           setIsLoading(false)
         }
       } catch (error) {
-        console.error('Error checking session:', error)
+        console.error('Error checking session unexpectedly:', error)
         // Also stop loading on error to prevent infinite spinner
         setIsLoading(false)
       }
     }
 
     checkSession()
-    // Removed router and supabase.auth from dependencies as they are stable
-    // If they *can* change in your setup, add them back.
-  }, [supabase.auth, router]) // Keep dependencies if needed
+  }, [router]) // router is generally stable
 
   const handleBeginClick = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
+    setIsLoading(true); // Show loading indicator on click
+    const { data: session } = await authClient.getSession()
     if (session?.user) {
       router.push('/documents')
     } else {
-      router.push('/login?redirect=/documents')
+      // Redirect to login, keeping the intended destination
+      router.push('/login?redirect=/documents') 
     }
+    // setIsLoading(false); // Loading stops on navigation or page load
   }
 
   // Don't render content while checking auth

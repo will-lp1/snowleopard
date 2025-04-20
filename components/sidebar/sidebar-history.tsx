@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect } from 'react';
-import type { User } from '@supabase/auth-helpers-nextjs';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import type { User } from '@/lib/auth';
 import { SidebarGroup, SidebarGroupContent } from '@/components/ui/sidebar';
 
 // This component is replaced by sidebar-documents

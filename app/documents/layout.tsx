@@ -8,7 +8,7 @@ import { generateUUID } from '@/lib/utils';
 
 import { AppSidebar } from '@/components/sidebar/app-sidebar';
 import { SidebarInset, SidebarProvider, SidebarRail } from '@/components/ui/sidebar';
-import { createClient } from '@/lib/supabase/client';
+import { authClient } from '@/lib/auth-client';
 
 export const experimental_ppr = true;
 
@@ -23,9 +23,8 @@ export default function DocumentsLayout({ children }: { children: ReactNode }) {
 
     // Get session data
     const getSession = async () => {
-      const supabase = createClient();
-      const { data } = await supabase.auth.getSession();
-      setSession(data.session);
+      const { data } = await authClient.getSession();
+      setSession(data?.session);
     };
     
     getSession();

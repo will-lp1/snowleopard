@@ -1,43 +1,55 @@
-import { getMessagesByChatId } from '@/lib/db/queries';
-import { createClient } from '@/lib/supabase/server';
+import { NextResponse } from 'next/server';
+import { auth } from "@/lib/auth"; // Import Better Auth
+import { headers } from 'next/headers'; // Import headers
+import { getMessagesByChatId, getChatById } from '@/lib/db/queries'; // Import Drizzle queries
 
 export async function GET(request: Request) {
   try {
-    const supabase = await createClient();
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-    if (sessionError) {
-      console.error('Session error:', sessionError);
-      return new Response('Authentication error', { status: 401 });
-    }
+    // --- Authentication --- 
+    const readonlyHeaders = await headers();
+    const requestHeaders = new Headers(readonlyHeaders);
+    const session = await auth.api.getSession({ headers: requestHeaders });
 
     if (!session?.user?.id) {
-      return new Response('Unauthorized', { status: 401 });
+      console.error('Session error in /api/messages');
+      return NextResponse.json({ error: 'Authentication error' }, { status: 401 });
     }
+    const userId = session.user.id;
 
+    // --- Get Chat ID --- 
     const { searchParams } = new URL(request.url);
     const chatId = searchParams.get('chatId');
 
     if (!chatId) {
-      return new Response('Chat ID is required', { status: 400 });
+      return NextResponse.json({ error: 'Chat ID is required' }, { status: 400 });
     }
 
-    // Fetch messages for the specified chat
+    // --- Authorization (Optional but recommended) --- 
+    // Verify the user owns the chat they are requesting messages for
+    const chat = await getChatById({ id: chatId });
+    if (!chat) {
+       return NextResponse.json({ error: 'Chat not found' }, { status: 404 });
+    }
+    if (chat.userId !== userId) {
+       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    }
+
+    // --- Fetch Messages --- 
     const messages = await getMessagesByChatId({ id: chatId });
 
-    // Format messages in the right structure for the client
+    // Format messages (assuming client expects this format, Drizzle returns JSON in `content`)
     const formattedMessages = messages.map(msg => ({
       id: msg.id,
       role: msg.role,
-      content: msg.content,
+      content: msg.content, // Client needs to handle parsing if necessary
       createdAt: msg.createdAt
     }));
 
-    return new Response(JSON.stringify(formattedMessages), {
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return NextResponse.json(formattedMessages);
+
   } catch (error) {
     console.error('Error fetching messages:', error);
-    return new Response('Error fetching messages', { status: 500 });
+    // Use NextResponse for consistency
+    return NextResponse.json({ error: 'Error fetching messages' }, { status: 500 });
   }
 } 

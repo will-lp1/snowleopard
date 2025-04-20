@@ -1,8 +1,9 @@
-import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { streamText, smoothStream } from 'ai';
 import { getDocumentById } from '@/lib/db/queries';
 import { myProvider } from '@/lib/ai/providers';
+import { auth } from "@/lib/auth"; // Import Better Auth
+import { headers } from 'next/headers'; // Import headers
 
 async function handleInlineSuggestionRequest(
   documentId: string,
@@ -10,7 +11,7 @@ async function handleInlineSuggestionRequest(
   contextAfter: string,
   fullContent: string,
   nodeType: string,
-  session: any,
+  userId: string, // Pass userId for validation
   aiOptions: { suggestionLength?: 'short' | 'medium' | 'long', customInstructions?: string }
 ) {
   // Validate document
@@ -20,7 +21,8 @@ async function handleInlineSuggestionRequest(
     throw new Error('Document not found');
   }
 
-  if (document.userId !== session?.user?.id) {
+  // Use passed userId for authorization check
+  if (document.userId !== userId) { 
     throw new Error('Unauthorized');
   }
 
@@ -114,17 +116,15 @@ async function handleInlineSuggestionRequest(
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-    if (sessionError) {
-      console.error('Session error:', sessionError);
-      return new Response('Authentication error', { status: 401 });
-    }
+    // --- Authentication --- 
+    const readonlyHeaders = await headers();
+    const requestHeaders = new Headers(readonlyHeaders);
+    const session = await auth.api.getSession({ headers: requestHeaders });
 
     if (!session?.user?.id) {
-      return new Response('Unauthorized', { status: 401 });
+      return NextResponse.json({ error: 'Authentication error' }, { status: 401 });
     }
+    const userId = session.user.id;
 
     const {
       documentId,
@@ -136,13 +136,15 @@ export async function POST(request: Request) {
     } = await request.json();
 
     if (!documentId || !currentContent) {
-      return new Response('Missing parameters', { status: 400 });
+      return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
     }
 
-    return handleInlineSuggestionRequest(documentId, currentContent, contextAfter, fullContent, nodeType, session, aiOptions);
-  } catch (error) {
+    // Pass userId to handler
+    return handleInlineSuggestionRequest(documentId, currentContent, contextAfter, fullContent, nodeType, userId, aiOptions);
+  } catch (error: any) {
     console.error('Inline suggestion route error:', error);
-    return NextResponse.json({ error }, { status: 400 });
+    // Return NextResponse with error message
+    return NextResponse.json({ error: error.message || 'An error occurred' }, { status: 400 });
   }
 }
 

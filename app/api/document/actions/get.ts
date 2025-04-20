@@ -1,63 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import { getDocumentsById } from '@/lib/db/queries';
+import { auth } from "@/lib/auth"; // Import Better Auth
+import { headers } from 'next/headers'; // Import headers
+import { getDocumentsById, getCurrentDocumentsByUserId } from '@/lib/db/queries'; // Import Drizzle queries
 
 /**
- * Handles document retrieval operations
+ * Handles document retrieval operations (GET)
  */
 export async function getDocuments(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    // Use getUser() for validated session
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
-    // Check for errors or missing user
-    if (userError || !user) {
-      console.warn('[Document API] Unauthorized request');
+    // --- Authentication --- 
+    const readonlyHeaders = await headers();
+    const requestHeaders = new Headers(readonlyHeaders);
+    const session = await auth.api.getSession({ headers: requestHeaders });
+
+    if (!session?.user?.id) {
+      console.warn('[Document API - GET] Unauthorized request');
       return NextResponse.json({ error: 'Unauthorized', documents: [] }, { status: 401 });
     }
-    
-    // Use user.id from the validated user object
-    const userId = user.id;
+    const userId = session.user.id;
     
     // Extract query parameters
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
     
-    console.log('[Document API] Fetch request:', { id });
+    console.log(`[Document API - GET] Fetch request for user ${userId}:`, { id });
     
-    // Validate document ID
-    if (id === 'undefined' || id === 'null' || id === 'init') {
-      console.warn('[Document API] Invalid document ID:', id);
-      return NextResponse.json({ error: 'Invalid document ID', documents: [] }, { status: 400 });
-    }
-    
-    // Fetch by document ID
+    // --- Fetch by specific document ID --- 
     if (id) {
-      // Use validated userId
+       // Validate document ID (moved inside the 'if' block)
+      if (id === 'undefined' || id === 'null' || id === 'init') {
+        console.warn(`[Document API - GET] Invalid document ID: ${id}`);
+        // Return empty array for invalid ID requests
+        return NextResponse.json([]); 
+      }
+      
+      // Fetch using Drizzle query (already checks user ID)
       const documents = await getDocumentsById({ ids: [id], userId: userId }); 
-      return NextResponse.json(documents);
+      return NextResponse.json(documents || []); // Ensure array is returned
     } 
-    // No parameters - fetch all *current* documents for the user
+    // --- Fetch all *current* documents for the user --- 
     else {
-      console.log(`[Document API] Fetching all *current* documents for user: ${userId}`);
+      console.log(`[Document API - GET] Fetching all *current* documents for user: ${userId}`);
       try {
-        // Fetch only the current documents for the user
-        const { data: documents, error } = await supabase
-          .from('Document')
-          .select('*')
-          .eq('userId', userId) // Use validated userId
-          .eq('is_current', true) // *** ADDED: Fetch only current versions ***
-          .order('createdAt', { ascending: false });
-          
-        if (error) throw error;
-        
-        // *** REMOVED: No longer need client-side deduplication ***
-        // const dedupedDocuments = documents ? [...new Map(documents.map(doc => [doc.id, doc])).values()] : [];
-        
+        // Fetch using the new Drizzle query
+        const documents = await getCurrentDocumentsByUserId({ userId: userId });
         return NextResponse.json(documents || []); // Return the filtered documents
       } catch (error) {
-        console.error('[Document API] Error fetching all current documents:', error);
+        console.error('[Document API - GET] Error fetching all current documents:', error);
         return NextResponse.json(
           { error: 'Failed to fetch documents', documents: [] }, 
           { status: 500 }
@@ -65,7 +54,7 @@ export async function getDocuments(request: NextRequest) {
       }
     }
   } catch (error) {
-    console.error('[Document API] GET error:', error);
+    console.error('[Document API - GET] General error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch documents', documents: [] }, 
       { status: 500 }

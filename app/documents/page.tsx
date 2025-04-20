@@ -1,17 +1,20 @@
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+// Remove Supabase client import
+// import { createClient } from '@/lib/supabase/server';
+// Import Better Auth session helper
+import { getSession } from '@/app/(auth)/auth'; 
 import { AlwaysVisibleArtifact } from '@/components/always-visible-artifact';
 
 // This page now acts as a placeholder entry point to the documents view.
 // It renders the AlwaysVisibleArtifact in its initial state when no specific document ID is in the URL.
 
 export default async function Page() {
-  const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  // Use Better Auth helper to get session
+  const session = await getSession();
 
   // Unauthenticated users are redirected by middleware, but check again just in case
   if (!session || !session.user) {
-    redirect('/'); // Redirect to landing page
+    redirect('/'); // Redirect to landing page if no session
   }
 
   // Render the artifact component in its initial/empty state.
@@ -24,7 +27,7 @@ export default async function Page() {
   );
 
   /* 
-  // --- OLD LOGIC --- 
+  // --- OLD LOGIC (Removed) --- 
   // Create a new document with a unique ID
   const documentId = generateUUID();
   
