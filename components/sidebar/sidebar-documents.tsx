@@ -45,6 +45,7 @@ import type { Document } from '@/lib/db/schema';
 import { useArtifact } from '@/hooks/use-artifact';
 import { ArtifactKind } from '@/components/artifact';
 import { useDocumentUtils } from '@/hooks/use-document-utils';
+import { useDocumentContext } from '@/hooks/use-document-context';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -187,10 +188,11 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
   const { setArtifact } = useArtifact();
   const { 
     createNewDocument, 
-    loadDocument, 
+    loadDocument,
     deleteDocument,
     isCreatingDocument
   } = useDocumentUtils();
+  const { updateDocument } = useDocumentContext();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [isExpanded, setIsExpanded] = useState(true);
@@ -456,29 +458,55 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
   };
   
   // Handle document selection
-  const handleDocumentSelect = async (documentId: string) => {
+  const handleDocumentSelect = useCallback(async (documentId: string) => {
     try {
       if (documentId === 'init' || !documentId) {
         console.error('[SidebarDocuments] Invalid document ID:', documentId);
         return;
       }
       
-      // Show loading feedback
-      const toastId = `loading-doc-${documentId}`;
-      toast.loading('Loading document...', { id: toastId, duration: 2000 });
+      // Prevent re-selecting the already active document
+      if (documentId === activeDocumentId) {
+        console.log('[SidebarDocuments] Document already active, skipping select.');
+        setOpenMobile(false); // Still close mobile sidebar
+        return;
+      }
+
+      // 1. Find the document in the current SWR cache
+      const selectedDocData = documents?.find(doc => doc.id === documentId);
+
+      // 2. Update artifact state IMMEDIATELY with cached/placeholder data
+      setArtifact((curr: any) => {
+        const newTitle = selectedDocData?.title || 'Loading...'; // Use cached title or placeholder
+        const newKind = (selectedDocData?.kind as ArtifactKind) || 'text';
+        // Keep existing content briefly if ID matches to reduce flicker, otherwise clear for loading
+        const newContent = curr.documentId === documentId ? curr.content : ''; 
+        
+        console.log(`[SidebarDocuments] Optimistically setting artifact: ID=${documentId}, Title=${newTitle}`);
+        return {
+          ...curr,
+          documentId: documentId,
+          title: newTitle,
+          content: newContent,
+          kind: newKind,
+          status: 'loading', // Set status to loading
+        };
+      });
       
-      // Navigate directly to the document
+      // 4. Navigate
+      console.log('[SidebarDocuments] Navigating to:', `/documents/${documentId}`);
       router.push(`/documents/${documentId}`);
-      
-      // Close mobile sidebar if needed
+
+      // 5. Close mobile sidebar
       setOpenMobile(false);
-      
-      toast.success('Document loaded', { id: toastId, duration: 1000 });
+
     } catch (error) {
-      console.error('[SidebarDocuments] Error loading document:', error);
+      console.error('[SidebarDocuments] Error selecting document:', error);
       toast.error('Failed to load document');
+       setArtifact((curr: any) => ({ ...curr, status: 'idle' })); // Reset status on error
     }
-  };
+  // Removed updateDocument from dependencies as it's no longer called here
+  }, [documents, setArtifact, router, setOpenMobile, activeDocumentId]);
 
   // Filter documents based on search term
   const filterDocuments = (docs: Document[]) => {

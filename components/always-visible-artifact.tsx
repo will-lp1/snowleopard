@@ -569,7 +569,19 @@ export function AlwaysVisibleArtifact({
     }
     
     // Use updatedAt if available, otherwise fallback to createdAt
-    const lastSavedDate = document?.updatedAt ? new Date(document.updatedAt) : (document?.createdAt ? new Date(document.createdAt) : null);
+    // Ensure document and timestamps are valid Date objects or parseable strings
+    let lastSavedDate: Date | null = null;
+    if (document?.updatedAt) {
+        try {
+            lastSavedDate = new Date(document.updatedAt);
+        } catch (e) { /* Ignore invalid date */ }
+    }
+    // Fallback to createdAt if updatedAt is missing or invalid
+    if (!lastSavedDate && document?.createdAt) {
+         try {
+            lastSavedDate = new Date(document.createdAt);
+        } catch (e) { /* Ignore invalid date */ }
+    }
 
     return lastSavedDate ? (
       `Last saved ${formatDistance(
@@ -580,7 +592,8 @@ export function AlwaysVisibleArtifact({
         },
       )}`
     ) : (
-      <div className="w-32 h-3 bg-muted-foreground/20 rounded-md animate-pulse" />
+      // Show skeleton loader if no valid date found yet
+      <div className="w-32 h-3 bg-muted-foreground/20 rounded-md animate-pulse" /> 
     );
   };
   

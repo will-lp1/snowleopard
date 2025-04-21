@@ -90,8 +90,10 @@ export const Document = pgTable(
   'Document',
   {
     id: uuid('id').notNull().defaultRandom(),
-    createdAt: timestamp('createdAt', { mode: 'string' }).notNull(),
-    updatedAt: timestamp('updatedAt', { mode: 'string' }).notNull().defaultNow(),
+    createdAt: timestamp('createdAt', { withTimezone: true, mode: 'date' }).notNull(),
+    updatedAt: timestamp('updatedAt', { withTimezone: true, mode: 'date' })
+      .notNull()
+      .$onUpdate(() => new Date()),
     title: text('title').notNull(),
     content: text('content'),
     kind: artifactKindEnum('kind')

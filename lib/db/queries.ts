@@ -200,13 +200,13 @@ export async function saveDocument({
     const newVersionData = {
       id,
       title,
-      kind: kind as typeof schema.artifactKindEnum.enumValues[number], // Cast kind to enum type
+      kind: kind as typeof schema.artifactKindEnum.enumValues[number],
       content,
       userId,
-      chatId: chatId || null, // Use provided chatId or null
-      is_current: true, // New versions are always current when saved via this function
-      createdAt: now.toISOString(), // FIX: Convert to ISO string
-      updatedAt: now.toISOString(), // FIX: Convert to ISO string
+      chatId: chatId || null,
+      is_current: true,
+      createdAt: now,
+      updatedAt: now,
     };
 
     const inserted = await db
@@ -294,10 +294,14 @@ export async function deleteDocumentsByIdAfterTimestamp({
   timestamp: string;
 }) {
   try {
+    const timestampDate = new Date(timestamp); // Convert string to Date
+    if (isNaN(timestampDate.getTime())) { // Validate the parsed date
+        throw new Error("Invalid timestamp provided for deletion.");
+    }
     await db.delete(schema.Document)
-      .where(and( // Combine conditions with and()
+      .where(and(
         eq(schema.Document.id, id),
-        gt(schema.Document.createdAt, timestamp)
+        gt(schema.Document.createdAt, timestampDate) // Compare with Date object
       ));
   } catch (error) {
     console.error('Error deleting documents:', error);
@@ -564,7 +568,7 @@ export async function renameDocumentTitle({
 
     // Update title for all versions matching the ID and owned by the user
     await db.update(schema.Document)
-      .set({ title: newTitle, updatedAt: new Date().toISOString() }) // Also update updatedAt
+      .set({ title: newTitle, updatedAt: new Date() }) // Pass Date object directly
       .where(
         and(
           eq(schema.Document.id, documentId),
@@ -652,14 +656,11 @@ export async function updateCurrentDocumentVersion({
   content: string;
 }): Promise<(typeof schema.Document.$inferSelect) | null> {
   try {
-    const updatedTimestamp = new Date(); // Use current time for updatedAt
-    
     // Update the document where id, userId match and is_current is true
     const updatedDocs = await db
       .update(schema.Document)
       .set({ 
         content: content, 
-        updatedAt: updatedTimestamp.toISOString() // FIX: Convert to ISO string
       })
       .where(and(
         eq(schema.Document.id, documentId),

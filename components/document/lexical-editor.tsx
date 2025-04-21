@@ -780,13 +780,12 @@ function PureLexicalEditor({
   onCreateDocument,
 }: EditorProps) {
   const editorStateRef = useRef<EditorState | null>(null);
-  const lastContentRef = useRef<string>(content);
+  const lastContentRef = useRef<string | null>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const contentChangedRef = useRef<boolean>(false);
   const editorRef = useRef<LexicalEditorType | null>(null);
-  const initialLoadCompletedRef = useRef<boolean>(false);
-  const lastDocumentIdRef = useRef<string>(documentId);
-  const editorContentSynced = useRef<boolean>(false);
+  const lastSyncedDocIdRef = useRef<string | null>(null);
+  const lastSyncedContentRef = useRef<string | null>(null);
   
   // Add state for suggestion overlay
   const [selectedText, setSelectedText] = useState<string>('');
@@ -795,242 +794,68 @@ function PureLexicalEditor({
 
   // ADD state for wipe animation
   const [isWiping, setIsWiping] = useState(false);
-  const wipeTimeoutRef = useRef<NodeJS.Timeout | null>(null); // To ensure state resets
+  const wipeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Initialize editor configuration
+  // Initialize editor configuration - Use default empty state
   const initialConfig = {
     namespace: `Document-${documentId}`,
     theme,
     onError,
     nodes,
-    editorState: content ? () => {
-      try {
-        const initialState = editorRef.current?.parseEditorState(content) || null;
-        if (initialState) {
-          editorRef.current?.setEditorState(initialState);
-        } else {
-          // Fallback if parse fails or editor not ready
-          const editor = createEditor({ namespace: `Document-${documentId}`, theme, onError, nodes });
-      editor.update(() => {
-        const root = $getRoot();
-        root.clear();
-        const paragraphs = content.split(/\n\n+/);
-            paragraphs.forEach((paragraph: string) => {
-          if (paragraph.trim()) {
-            root.append($createParagraphNode().append($createTextNode(paragraph)));
-          } else {
-            root.append($createParagraphNode());
-          }
-        });
-      });
-          editorRef.current = editor; // Ensure ref is set
-        }
-      initialLoadCompletedRef.current = true;
-      editorContentSynced.current = true;
-      lastContentRef.current = content;
-      console.log(`[Editor] Initial content loaded for document: ${documentId}`);
-      } catch (parseError) {
-          console.error('[Editor] Failed to parse initial editor state from content:', parseError);
-          // Fallback to basic text node creation
-          if (editorRef.current) {
-              editorRef.current.update(() => {
-                  const root = $getRoot();
-                  root.clear();
-                  const paragraphs = content.split(/\n\n+/);
-                  paragraphs.forEach((paragraph: string) => {
-                    if (paragraph.trim()) {
-                      root.append($createParagraphNode().append($createTextNode(paragraph)));
-                    } else {
-                      root.append($createParagraphNode());
-                    }
-                  });
-              });
-              initialLoadCompletedRef.current = true;
-              editorContentSynced.current = true;
-              lastContentRef.current = content;
-          }
-      }
-    } : undefined,
+    editorState: null,
   };
 
-  // Reset editor when document ID changes
+  // Effect to synchronize editor state with content prop
   useEffect(() => {
-    if (documentId !== lastDocumentIdRef.current) {
-      console.log(`[Editor] Document ID changed from ${lastDocumentIdRef.current} to ${documentId}`);
-      initialLoadCompletedRef.current = false;
-      editorContentSynced.current = false;
-      contentChangedRef.current = false;
-      lastDocumentIdRef.current = documentId;
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-        saveTimeoutRef.current = null;
-      }
-      
-      if (editorRef.current) {
-          const newContent = content || ''; // Use provided content or empty string
-        console.log(`[Editor] Initializing editor for new document ID: ${documentId}`);
-        editorRef.current.update(() => {
-          const root = $getRoot();
-          root.clear();
-              const paragraphs = newContent.split(/\n\n+/);
-              paragraphs.forEach((paragraph: string) => {
-            if (paragraph.trim()) {
-              root.append($createParagraphNode().append($createTextNode(paragraph)));
-            } else {
-              root.append($createParagraphNode());
-            }
-          });
-        });
-          lastContentRef.current = newContent;
-        editorContentSynced.current = true;
-      }
-    }
-  }, [documentId, content]);
+    if (editorRef.current && content !== null && content !== undefined) {
+      const editor = editorRef.current;
+      const currentEditorContent = editor.getEditorState().read(() => $getRoot().getTextContent());
 
-  // Enhanced effect to ensure content is loaded on refresh or document change
-  useEffect(() => {
-    if (content && editorRef.current && !editorContentSynced.current) {
-      console.log('[Editor] Syncing editor content:', content.substring(0, 50) + '...');
-      editorRef.current.update(() => {
-        const root = $getRoot();
-        root.clear();
-        const paragraphs = content.split(/\n\n+/);
-          paragraphs.forEach((paragraph: string) => {
-          if (paragraph.trim()) {
-            root.append($createParagraphNode().append($createTextNode(paragraph)));
-          } else {
+      // Only update if the prop content is different from the current editor content
+      // AND if the content prop or documentId has actually changed since last sync
+      if ((content !== currentEditorContent || documentId !== lastSyncedDocIdRef.current) && content !== lastSyncedContentRef.current) {
+        console.log(`[Editor Sync Effect] Updating editor state for ${documentId}. Prop content length: ${content.length}`);
+        
+        // Perform modifications within an update block
+        editor.update(() => {
+          const root = $getRoot();
+          root.clear(); // Now inside update()
+          const paragraphs = content.split(/\n\n+/);
+          paragraphs.forEach((paragraphText: string) => {
+            const paragraphNode = $createParagraphNode();
+            if (paragraphText.trim()) {
+              paragraphNode.append($createTextNode(paragraphText));
+            }
+            root.append(paragraphNode);
+          });
+          if (root.isEmpty()) {
             root.append($createParagraphNode());
           }
         });
-      });
-      lastContentRef.current = content;
-      editorContentSynced.current = true;
-      initialLoadCompletedRef.current = true;
-      console.log('[Editor] Editor content sync complete for document:', documentId);
+        
+        // No need to create/set newState explicitly, update() modified the current state
+        
+        // Update refs tracking synced state
+        lastSyncedContentRef.current = content;
+        lastSyncedDocIdRef.current = documentId;
+        lastContentRef.current = content; // Also update the ref used by onChange
+        contentChangedRef.current = false; // Reset changed flag after sync
+        
+        console.log(`[Editor Sync Effect] Editor state updated for ${documentId}`);
+      }
     }
-  }, [content, documentId]);
-
-  // Function to show suggestion overlay for selected text
-  const handleShowSuggestionOverlay = useCallback(() => {
-    if (!editorRef.current) return;
-    
-    // Get selected text from editor
-    let selection = '';
-    let position = { x: 0, y: 0 };
-    let hasValidPosition = false;
-    
-    editorRef.current.getEditorState().read(() => {
-      const lexicalSelection = $getSelection();
-      if ($isRangeSelection(lexicalSelection) && !lexicalSelection.isCollapsed()) {
-        selection = lexicalSelection.getTextContent();
-        
-        // Get DOM selection for positioning
-        const domSelection = window.getSelection();
-        if (domSelection && domSelection.rangeCount > 0) {
-          const range = domSelection.getRangeAt(0);
-          const rect = range.getBoundingClientRect();
-          position.x = rect.left;
-          position.y = rect.bottom;
-          hasValidPosition = true;
-        }
-      }
-    });
-    
-    if (selection && hasValidPosition) {
-      setSelectedText(selection);
-      
-      // Calculate position for overlay
-      const scrollX = typeof window !== 'undefined' ? window.scrollX || 0 : 0;
-      const scrollY = typeof window !== 'undefined' ? window.scrollY || 0 : 0;
-      
-      setOverlayPosition({
-        x: position.x + scrollX,
-        y: position.y + scrollY + 10 // 10px below selection
-      });
-      
-      setShowSuggestionOverlay(true);
-    }
-  }, []);
-
-  // Fix the function to handle accepting a suggestion from the overlay
-  const handleAcceptSuggestion = useCallback((suggestion: string) => {
-    if (!editorRef.current || !selectedText) return;
-    
-    // Insert the suggestion in place of the selected text
-    editorRef.current.update(() => {
-      const selection = $getSelection();
-      if ($isRangeSelection(selection)) {
-        // Delete the selected text first
-        selection.insertText('');
-        
-        // Then insert the suggested text
-        selection.insertText(suggestion);
-        
-        // Trigger a manual save to ensure persistence
-        lastContentRef.current = '';  // Force a save by invalidating the ref
-        contentChangedRef.current = true;
-      }
-    });
-    
-    // Force a save immediately after applying the suggestion
-    setTimeout(() => {
-      if (editorRef.current) {
-        const currentState = editorRef.current.getEditorState();
-        let content = '';
-        currentState.read(() => {
-          const root = $getRoot();
-          const paragraphs: string[] = [];
-          root.getChildren().forEach((node) => {
-            const textContent = node.getTextContent();
-            if (textContent.trim()) {
-              paragraphs.push(textContent);
-            }
-          });
-          content = paragraphs.join('\n\n');
-        });
-        
-        console.log('[Editor] Saving content after applying suggestion');
-        onSaveContent(content, false);
-      }
-    }, 50);
-    
-    // Close the overlay
-    setShowSuggestionOverlay(false);
-    setSelectedText('');
-  }, [selectedText, onSaveContent]);
-
-  // Text selection handler
-  useEffect(() => {
-    const handleSelectionChange = () => {
-      const selection = window.getSelection();
-      if (selection && !selection.isCollapsed && selection.toString().trim()) {
-        // Enable context menu for suggestions on selection
-        // This would be triggered by right-click or another UI element
-      }
-    };
-
-    document.addEventListener('selectionchange', handleSelectionChange);
-    
-    // Add keyboard shortcut for showing suggestion overlay (Cmd+E / Ctrl+E)
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'e') {
-        e.preventDefault();
-        handleShowSuggestionOverlay();
-      }
-    };
-    
-    document.addEventListener('keydown', handleKeyDown);
-    
-    return () => {
-      document.removeEventListener('selectionchange', handleSelectionChange);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [handleShowSuggestionOverlay]);
+  // Depend on editor instance availability, content prop, and documentId
+  }, [content, documentId, editorRef.current]); // Adding editorRef.current might seem odd, but ensures effect runs when editor is ready
 
   // Store reference to editor
-  const handleEditorReference = useCallback((editor: LexicalEditorType) => {
-    editorRef.current = editor;
-  }, []);
+  const handleEditorReference = useCallback((editor: LexicalEditorType | null) => {
+    editorRef.current = editor; // Update the ref
+    // Force the sync effect to run now that the editor is available
+    if (editor && content !== null && content !== undefined) {
+       // Triggering a state update slightly forces re-evaluation if needed,
+       // but the dependency array on the useEffect above is key.
+    }
+  }, [content]); // Re-run if content changes before editor is ready
 
   // onChange handler: Simplify - remove checks related to AI status/diff view
   const onChange = useCallback((editorState: EditorState) => {
@@ -1043,58 +868,52 @@ function PureLexicalEditor({
       serializedContent = root.getChildren().map(node => node.getTextContent()).join('\n\n');
     });
 
-    // Skip if content hasn't changed OR if an AI update is actively streaming
+    // Skip if content hasn't changed from the last known state (saved or synced)
     if (serializedContent === lastContentRef.current) {
-      console.log('[Editor onChange] Content identical, skipping save trigger.');
       return;
     }
+    
+    // Update lastContentRef immediately upon user typing
+    lastContentRef.current = serializedContent;
+    contentChangedRef.current = true; // Mark as changed
 
-    // --- NEW DOCUMENT CREATION LOGIC (remains the same) ---
-    if (isNewDocument && lastContentRef.current === '' && serializedContent !== '') {
+    // --- NEW DOCUMENT CREATION LOGIC ---
+    if (isNewDocument && serializedContent !== '') { // Simplified check
       console.log('[Editor onChange] First edit detected in new document, triggering creation...');
       if (onCreateDocument) {
-        lastContentRef.current = serializedContent; 
-        contentChangedRef.current = true; // Mark as changed
         if (saveTimeoutRef.current) {
           clearTimeout(saveTimeoutRef.current);
           saveTimeoutRef.current = null;
         }
-        // onCreateDocument should ideally handle the save itself or update state that leads to a save
         onCreateDocument(serializedContent);
       }
-      return; // Don't proceed with regular debounced save for initial creation
+      return; 
     }
     // --- END NEW DOCUMENT LOGIC ---
-
-    console.log('[Editor onChange] Content changed, scheduling debounced save.');
-    lastContentRef.current = serializedContent; // Update ref immediately
-    contentChangedRef.current = true; // Mark as changed
     
+    // Clear existing debounce timeout
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
     
     const currentDocId = documentId;
     
+    // Schedule the save if not already saving
     if (saveState !== 'saving') {
       saveTimeoutRef.current = setTimeout(() => {
         if (currentDocId !== documentId) {
-          console.log('[Editor onChange] Document changed during save timeout, cancelling save');
-          return;
+          return; // Document changed during timeout
         }
         
         // Check the flag again inside the timeout
         if (contentChangedRef.current && editorRef.current) {
-          // Get the latest content from the ref
-          const contentToSave = lastContentRef.current; 
+          const contentToSave = lastContentRef.current ?? ''; // Use last known content or empty string
           
-          // Add skip-dom-selection tag *before* calling save to prevent cursor jump
           editorRef.current.update(() => {
             $addUpdateTag('skip-dom-selection');
           });
           
-          console.log(`[Editor onChange] Saving content for ${documentId} (debounced)`);
-          onSaveContent(contentToSave, true); // Use content from ref, indicate debounce
+          onSaveContent(contentToSave, true); // Indicate debounce
           contentChangedRef.current = false; // Reset flag *after* initiating save
         }
         saveTimeoutRef.current = null;
@@ -1102,18 +921,21 @@ function PureLexicalEditor({
     }
   }, [documentId, onSaveContent, saveState, isNewDocument, onCreateDocument]);
 
-  // Cleanup on unmount (remains similar)
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
       // Save immediately if changes exist and we're not already saving
-      if (contentChangedRef.current && saveState !== 'saving' && documentId === lastDocumentIdRef.current) {
+      // Use lastContentRef which holds the latest editor state
+      if (contentChangedRef.current && saveState !== 'saving' && documentId === lastSyncedDocIdRef.current) {
         console.log('[Editor] Saving on unmount for document:', documentId);
-        onSaveContent(lastContentRef.current, false); // immediate save
+        onSaveContent(lastContentRef.current ?? '', false); // immediate save
       }
     };
+  // Add lastContentRef to dependencies? No, it changes too often.
+  // Rely on contentChangedRef and documentId matching.
   }, [onSaveContent, saveState, documentId]);
 
   // Manual save shortcut (remains similar)
@@ -1293,7 +1115,7 @@ function PureLexicalEditor({
           selectedText={selectedText}
           isOpen={showSuggestionOverlay}
           onClose={() => setShowSuggestionOverlay(false)}
-          onAcceptSuggestion={handleAcceptSuggestion}
+          onAcceptSuggestion={() => {}}
           position={overlayPosition}
         />
       )}
@@ -1719,11 +1541,14 @@ function PureLexicalEditor({
 }
 
 // Add editor reference plugin
-function EditorRefPlugin({ onRef }: { onRef: (editor: LexicalEditorType) => void }) {
+function EditorRefPlugin({ onRef }: { onRef: (editor: LexicalEditorType | null) => void }) {
   const [editor] = useLexicalComposerContext();
   
   useEffect(() => {
     onRef(editor);
+    return () => {
+      onRef(null); // Clear ref on unmount
+    };
   }, [editor, onRef]);
   
   return null;

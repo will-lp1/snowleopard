@@ -77,9 +77,18 @@ export async function updateDocument(request: NextRequest, body: any): Promise<N
       // 2. Decide whether to update the current version or create a new one
       let shouldUpdateCurrent = false;
       if (currentVersion && currentVersion.updatedAt) {
-        const minutesSinceLastUpdate = differenceInMinutes(new Date(), new Date(currentVersion.updatedAt));
+        // --- Remove Logging ---
+        // const now = new Date();
+        // const updatedAtDate = new Date(currentVersion.updatedAt); // No longer needed, it's already a Date
+        // console.log(`[Document API - UPDATE] Time Check - Now: ${now.toISOString()}, UpdatedAt Raw: ${currentVersion.updatedAt}, UpdatedAt Parsed: ${updatedAtDate.toISOString()}`);
+        // --- End Logging ---
+        
+        // Directly use the Date objects for comparison
+        const minutesSinceLastUpdate = differenceInMinutes(new Date(), currentVersion.updatedAt);
         const metadataMatches = currentVersion.title === title && currentVersion.kind === kind;
         
+         console.log(`[Document API - UPDATE] Time Check - Now: ${new Date().toISOString()}, UpdatedAt: ${currentVersion.updatedAt.toISOString()}`); // Log actual dates used
+
         if (minutesSinceLastUpdate < VERSION_THRESHOLD_MINUTES && metadataMatches) {
           shouldUpdateCurrent = true;
         }
