@@ -89,19 +89,50 @@ function addToolMessageToChat({
 // Extend ToolInvocation to include result
 type ExtendedToolInvocation = ToolInvocation & {
   result?: any;
+  // applied?: boolean; // Remove applied flag
 };
 
 export function convertToUIMessages(
   messages: Array<DBMessage>,
 ): Array<Message> {
-  return messages.reduce((chatMessages: Array<Message>, message) => {
+  const processedMessages: Array<Message> = [];
+
+  for (const message of messages) {
     if (message.role === 'tool') {
-      return addToolMessageToChat({
-        toolMessage: message as CoreToolMessage,
-        messages: chatMessages,
-      });
+      // Process tool results and update the corresponding assistant message's invocation
+      const toolResults = Array.isArray(message.content) ? message.content : [message.content];
+
+      for (const toolResultContent of toolResults) {
+        if (toolResultContent?.type === 'tool_result') {
+          const toolCallId = toolResultContent.toolCallId || toolResultContent.content?.toolCallId;
+          const resultData = toolResultContent.result || toolResultContent.content?.result;
+
+          if (toolCallId) {
+            // Find the assistant message with the matching tool call ID
+            for (let i = processedMessages.length - 1; i >= 0; i--) {
+              const assistantMessage = processedMessages[i];
+              if (assistantMessage.role === 'assistant' && assistantMessage.toolInvocations) {
+                const invocationIndex = assistantMessage.toolInvocations.findIndex(
+                  (inv) => inv.toolCallId === toolCallId
+                );
+                if (invocationIndex !== -1) {
+                  // Update the state and result of the found invocation
+                  const invocationToUpdate = assistantMessage.toolInvocations[invocationIndex] as ExtendedToolInvocation;
+                  invocationToUpdate.state = 'result';
+                  invocationToUpdate.result = resultData;
+                  // Found and updated, break inner loop
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+      // Skip adding the 'tool' role message itself to the output
+      continue;
     }
 
+    // --- Process other roles (user, assistant) --- 
     let textContent = '';
     let reasoning: string | undefined = undefined;
     const toolInvocations: Array<ExtendedToolInvocation> = [];
@@ -122,19 +153,20 @@ export function convertToUIMessages(
         } else if (content.type === 'tool_result') {
           // Find matching tool invocation and update it
           const existingInvocation = toolInvocations.find(
-            inv => inv.toolCallId === (content.toolCallId || content.content.toolCallId)
+            inv => inv.toolCallId === (content.toolCallId || content.content?.toolCallId)
           );
           if (existingInvocation) {
             existingInvocation.state = 'result';
-            existingInvocation.result = content.result || content.content.result;
+            existingInvocation.result = content.result || content.content?.result;
           } else {
             // If no matching invocation found, create a new one
+            console.warn('[convertToUIMessages] Tool result found without matching call:', content);
             toolInvocations.push({
               state: 'result',
-              toolCallId: content.toolCallId || content.content.toolCallId,
-              toolName: content.toolName || content.content.toolName,
-              args: content.args || content.content.args,
-              result: content.result || content.content.result,
+              toolCallId: content.toolCallId || content.content?.toolCallId,
+              toolName: content.toolName || content.content?.toolName,
+              args: content.args || content.content?.args,
+              result: content.result || content.content?.result,
             });
           }
         } else if (content.type === 'reasoning') {
@@ -143,16 +175,16 @@ export function convertToUIMessages(
       }
     }
 
-    chatMessages.push({
+    processedMessages.push({
       id: message.id,
       role: message.role as Message['role'],
       content: textContent,
       reasoning,
       toolInvocations: toolInvocations.length > 0 ? toolInvocations : undefined,
     });
+  }
 
-    return chatMessages;
-  }, []);
+  return processedMessages;
 }
 
 type ResponseMessageWithoutId = CoreToolMessage | CoreAssistantMessage;

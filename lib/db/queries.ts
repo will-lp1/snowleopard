@@ -1,24 +1,14 @@
 import 'server-only';
-// Remove Supabase client import
-// import { createClient } from '@/lib/supabase/server';
-import { db } from './index'; // Import Drizzle client
-import * as schema from './schema'; // Import Drizzle schema
+import { db } from './index'; 
+import * as schema from './schema'; 
 import { eq, desc, asc, inArray, gt, and, sql } from 'drizzle-orm'; // Import Drizzle operators and
-// Remove unused Supabase type import
-// import type { Database } from '@/lib/supabase/database.types'; 
 import type { ArtifactKind } from '@/components/artifact';
-// Remove cookies import
-// import { cookies } from 'next/headers';
 
-// Keep existing type aliases or derive from Drizzle schema if preferred
-// type Tables = Database['public']['Tables']; // Remove unused Supabase Tables type
-type Chat = typeof schema.Chat.$inferSelect; // Use Drizzle type
-type Message = typeof schema.Message.$inferSelect; // Use Drizzle type
-type Document = typeof schema.Document.$inferSelect; // Use Drizzle type
-// type Suggestion = typeof schema.suggestion.$inferSelect; // Removed Suggestion type alias
-// type Feedback = typeof schema.feedback.$inferSelect; // Removed Feedback type alias
+type Chat = typeof schema.Chat.$inferSelect; 
+type Message = typeof schema.Message.$inferSelect; 
+type Document = typeof schema.Document.$inferSelect; 
 
-// Interface for MessageContent might need adjustments if schema changes
+
 interface MessageContent {
   type: 'text' | 'tool_call' | 'tool_result';
   content: any;
@@ -29,21 +19,6 @@ interface SaveMessageContentParams {
   messageId: string;
   contents: MessageContent[];
 }
-
-// Remove Supabase Auth specific function
-// export async function getUser(email: string) {
-//   const supabase = await createClient();
-//   const { data: user, error } = await supabase
-//     .from('auth.users')
-//     .select()
-//     .eq('email', email)
-//     .single();
-// 
-//   if (error) throw error;
-//   return user;
-// }
-
-// TODO: Add local authentication logic here
 
 export async function saveChat({
   id,
@@ -91,7 +66,7 @@ export async function getChatsByUserId({ id }: { id: string }): Promise<Chat[]> 
     return data;
   } catch (error) {
     console.error('Error fetching chats by user ID:', error);
-    throw error; // Re-throw or return empty array based on desired behavior
+    throw error; 
   }
 }
 
@@ -109,28 +84,23 @@ export async function getChatById({ id }: { id: string }): Promise<Chat | null> 
   }
 }
 
-// Note: Message saving needs adjustment as `content` is json in Drizzle schema, not MessageContent relation
-// This function assumes `messages` are prepared correctly according to the Drizzle schema.
 export async function saveMessages({ messages }: { messages: Array<typeof schema.Message.$inferInsert> }) {
    try {
-    // Ensure content is correctly formatted as JSON string before insertion
     const formattedMessages = messages.map(msg => {
         let finalContent: string | null = null;
         if (typeof msg.content === 'string') {
-          // If it's already a string, assume it's simple text and wrap it
           finalContent = JSON.stringify([{ type: 'text', content: msg.content, order: 0 }]);
         } else if (typeof msg.content === 'object' && msg.content !== null) {
-           // If it's an object (like from AI SDK for tool calls/results), stringify it
+           finalContent = JSON.stringify(msg.content);
           finalContent = JSON.stringify(msg.content);
         } else {
           console.warn(`[DB Query - saveMessages] Unexpected message content type for msg ID (if exists) ${msg.id}:`, typeof msg.content);
-          // Handle unexpected types, maybe stringify or set to null/empty array string
           finalContent = JSON.stringify([]);
         }
 
         return {
             ...msg,
-            content: finalContent // Store as JSON string
+            content: finalContent 
         };
     });
 
@@ -141,10 +111,6 @@ export async function saveMessages({ messages }: { messages: Array<typeof schema
   }
 }
 
-// This needs significant rewrite as MessageContent is not a direct relation in Drizzle schema
-// and the `content` field in `Message` table holds the JSON data directly.
-// The following is a placeholder showing how to fetch Messages.
-// Logic to handle JSON content parsing needs to be implemented based on application needs.
 export async function getMessagesByChatId({ id }: { id: string }): Promise<Message[]> {
   try {
     const data = await db.select()
@@ -152,40 +118,32 @@ export async function getMessagesByChatId({ id }: { id: string }): Promise<Messa
       .where(eq(schema.Message.chatId, id))
       .orderBy(asc(schema.Message.createdAt));
 
-    // Parse the JSON content field
     return data.map((message) => {
-      let parsedContent: string | object = ''; // Default to empty string
+      let parsedContent: string | object = ''; 
       try {
         if (message.content) {
-          // Assuming content is stored as a JSON string representing an array
           const contentArray = typeof message.content === 'string'
             ? JSON.parse(message.content)
             : message.content;
 
-          // Handle different content structures (adjust as needed based on actual usage)
           if (Array.isArray(contentArray) && contentArray.length > 0) {
             const firstElement = contentArray[0];
             if (firstElement.type === 'text' && typeof firstElement.content === 'string') {
-              parsedContent = firstElement.content; // Extract text content
+              parsedContent = firstElement.content; 
             } else {
-               // Keep structured content for tool calls/results etc.
-               // Or handle other types as needed
-              parsedContent = contentArray; // Keep as array/object if not simple text
+              parsedContent = contentArray; 
             }
           } else if (typeof contentArray === 'object' && contentArray !== null) {
-            // Handle case where content is a single object (e.g., tool call/result)
-             parsedContent = contentArray;
+            parsedContent = contentArray;
           }
-          // Add more specific parsing logic if other types/structures exist
         }
       } catch (e) {
         console.error(`[DB Query - getMessagesByChatId] Failed to parse message content for msg ${message.id}:`, e, 'Raw content:', message.content);
-        // Fallback or default behavior if parsing fails
         parsedContent = '[Error parsing content]';
       }
       return {
         ...message,
-        content: parsedContent as any, // Assign parsed content (string or object)
+        content: parsedContent as any, 
       };
     });
 
@@ -210,11 +168,6 @@ export async function getMessagesByIds(ids: string[]): Promise<Message[]> {
   }
 }
 
-// This function is redundant now as getMessagesByChatId/getMessagesByIds fetch the message
-// with its content directly from the `message.content` column.
-// export async function getMessageWithContent(message: Message) {
-// ... removed ...
-// }
 
 export async function saveDocument({
   id,
@@ -261,17 +214,14 @@ export async function saveDocument({
   }
 }
 
-/**
- * Get documents by their IDs, ensuring the user has access
- */
 export async function getDocumentsById({ ids, userId }: { ids: string[], userId: string }): Promise<Document[]> {
   if (!ids || ids.length === 0) {
-    return []; // Return early if ids array is empty
+    return [];
   }
   try {
     const data = await db.select()
       .from(schema.Document)
-      .where(and( // Combine conditions with and()
+      .where(and(
         eq(schema.Document.userId, userId),
         inArray(schema.Document.id, ids)
       ));
@@ -282,22 +232,16 @@ export async function getDocumentsById({ ids, userId }: { ids: string[], userId:
   }
 }
 
-/**
- * Get a single document by its ID - useful for specific lookups
- */
-export async function getDocumentById({ id }: { id: string }): Promise<Document | null> { // Return null if not found
-  // Keep validation logic if necessary
+export async function getDocumentById({ id }: { id: string }): Promise<Document | null> { 
   if (!id || id === 'undefined' || id === 'null' || id === 'init' ||
       id === 'current document' || id === 'current document ID' ||
       id.includes('current')) {
     console.warn(`[DB Query] Invalid document ID provided: ${id}`);
-    // throw new Error(`Invalid document ID: ${id}`); // Or return null
     return null;
   }
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (!uuidRegex.test(id)) {
     console.warn(`[DB Query] Document ID is not a valid UUID format: ${id}`);
-    // throw new Error(`Invalid document ID format: ${id}`); // Or return null
     return null;
   }
 
@@ -316,12 +260,10 @@ export async function getDocumentById({ id }: { id: string }): Promise<Document 
     return data[0];
   } catch (error) {
     console.error(`[DB Query] Error fetching document with ID ${id}:`, error);
-    // throw error; // Re-throw or return null based on desired behavior
     return null;
   }
 }
 
-// This function logic changes as Document PK is (id, createdAt)
 export async function deleteDocumentsByIdAfterTimestamp({
   id,
   timestamp,
@@ -330,14 +272,14 @@ export async function deleteDocumentsByIdAfterTimestamp({
   timestamp: string;
 }) {
   try {
-    const timestampDate = new Date(timestamp); // Convert string to Date
-    if (isNaN(timestampDate.getTime())) { // Validate the parsed date
+    const timestampDate = new Date(timestamp); 
+    if (isNaN(timestampDate.getTime())) { 
         throw new Error("Invalid timestamp provided for deletion.");
     }
     await db.delete(schema.Document)
       .where(and(
         eq(schema.Document.id, id),
-        gt(schema.Document.createdAt, timestampDate) // Compare with Date object
+        gt(schema.Document.createdAt, timestampDate) 
       ));
   } catch (error) {
     console.error('Error deleting documents:', error);
@@ -355,7 +297,7 @@ export async function getMessageById({ id }: { id: string }): Promise<Message | 
     return data[0] || null;
   } catch (error) {
     console.error('Error fetching message by ID:', error);
-    throw error; // Or return null
+    throw error; 
   }
 }
 
@@ -368,7 +310,7 @@ export async function deleteMessagesByChatIdAfterTimestamp({
 }) {
   try {
     await db.delete(schema.Message)
-      .where(and( // Combine conditions with and()
+      .where(and(
         eq(schema.Message.chatId, chatId),
         gt(schema.Message.createdAt, timestamp)
       ));
@@ -378,12 +320,7 @@ export async function deleteMessagesByChatIdAfterTimestamp({
   }
 }
 
-// This function becomes irrelevant as message.content is handled directly in Message table
-// export async function saveMessageContent({ messageId, contents }: SaveMessageContentParams) {
-// ... removed ...
-// }
 
-// Function to update the document context of a chat
 export async function updateChatContextQuery({
   chatId,
   userId,
@@ -391,7 +328,7 @@ export async function updateChatContextQuery({
 }: {
   chatId: string;
   userId: string;
-  context: { active?: string; mentioned?: string[] }; // Expect undefined, not null
+  context: { active?: string; mentioned?: string[] }; 
 }) {
   try {
     await db.update(schema.Chat)
@@ -399,35 +336,28 @@ export async function updateChatContextQuery({
       .where(
         and(
           eq(schema.Chat.id, chatId),
-          eq(schema.Chat.userId, userId) // Ensure user owns the chat
+          eq(schema.Chat.userId, userId) 
         )
       );
   } catch (error) {
     console.error('Error updating chat context:', error);
-    throw error; // Re-throw the error to be handled by the caller
+    throw error; 
   }
 }
 
-// Get a chat by ID with its messages
-export async function GET(request: Request) {
-  // ... existing code ...
-}
-
-// Function to get ALL document versions for a user, ordered by creation date descending
 export async function getAllDocumentsByUserId({ userId }: { userId: string }): Promise<Document[]> {
   try {
     const data = await db.select()
       .from(schema.Document)
       .where(eq(schema.Document.userId, userId))
-      .orderBy(desc(schema.Document.createdAt)); // Order by creation date DESC
+      .orderBy(desc(schema.Document.createdAt)); 
     return data || [];
   } catch (error) {
     console.error('Error fetching all documents by user ID:', error);
-    return []; // Return empty array on error
+    return []; 
   }
 }
 
-// Function to get only the *current* document versions for a user
 export async function getCurrentDocumentsByUserId({ userId }: { userId: string }): Promise<Document[]> {
   try {
     const data = await db.select()
@@ -435,18 +365,17 @@ export async function getCurrentDocumentsByUserId({ userId }: { userId: string }
       .where(
         and(
           eq(schema.Document.userId, userId),
-          eq(schema.Document.is_current, true) // Filter for is_current = true
+          eq(schema.Document.is_current, true) 
         )
       )
-      .orderBy(desc(schema.Document.createdAt)); // Order by creation date DESC
+      .orderBy(desc(schema.Document.createdAt)); 
     return data || [];
   } catch (error) {
     console.error('Error fetching current documents by user ID:', error);
-    return []; // Return empty array on error
+    return []; 
   }
 }
 
-// Function to search current documents by title/content (case-insensitive)
 export async function searchDocumentsByQuery({ 
   userId, 
   query, 
@@ -463,7 +392,6 @@ export async function searchDocumentsByQuery({
         and(
           eq(schema.Document.userId, userId),
           eq(schema.Document.is_current, true),
-          // Case-insensitive search using ilike
           sql`(${schema.Document.title} ilike ${`%${query}%`} or ${schema.Document.content} ilike ${`%${query}%`})`
         )
       )
@@ -476,7 +404,6 @@ export async function searchDocumentsByQuery({
   }
 }
 
-// Function to get the *current* document version by title (case-insensitive)
 export async function getCurrentDocumentByTitle({ 
   userId, 
   title 
@@ -491,10 +418,10 @@ export async function getCurrentDocumentByTitle({
         and(
           eq(schema.Document.userId, userId),
           eq(schema.Document.is_current, true),
-          sql`${schema.Document.title} ilike ${title}` // Case-insensitive title match
+          sql`${schema.Document.title} ilike ${title}` 
         )
       )
-      .orderBy(desc(schema.Document.createdAt)) // Just in case of unlikely duplicate titles
+      .orderBy(desc(schema.Document.createdAt)) 
       .limit(1);
     return data[0] || null;
   } catch (error) {
@@ -503,7 +430,6 @@ export async function getCurrentDocumentByTitle({
   }
 }
 
-// Function to check if a user owns ANY version of a document
 export async function checkDocumentOwnership({ 
   userId, 
   documentId 
@@ -529,7 +455,6 @@ export async function checkDocumentOwnership({
   }
 }
 
-// Function to delete ALL versions of a document owned by a specific user
 export async function deleteDocumentByIdAndUserId({ 
   userId, 
   documentId 
@@ -538,14 +463,12 @@ export async function deleteDocumentByIdAndUserId({
   documentId: string 
 }): Promise<void> {
   try {
-    // First, verify ownership (optional, but safer)
     const ownsDocument = await checkDocumentOwnership({ userId, documentId });
     if (!ownsDocument) {
       console.warn(`User ${userId} attempted to delete document ${documentId} they don't own.`);
-      throw new Error('Unauthorized or document not found'); // Prevent deletion
+      throw new Error('Unauthorized or document not found'); 
     }
 
-    // Delete all versions matching the ID and owned by the user
     await db.delete(schema.Document)
       .where(
         and(
@@ -556,11 +479,10 @@ export async function deleteDocumentByIdAndUserId({
     console.log(`Deleted all versions of document ${documentId} for user ${userId}`);
   } catch (error) {
     console.error('Error deleting document by ID and User ID:', error);
-    throw error; // Re-throw error
+    throw error; 
   }
 }
 
-// Function to set is_current = false for all older versions of a document
 export async function setOlderVersionsNotCurrent({ 
   userId, 
   documentId 
@@ -575,7 +497,6 @@ export async function setOlderVersionsNotCurrent({
       .where(and(
         eq(schema.Document.id, documentId),
         eq(schema.Document.userId, userId)
-        // No need to check is_current here, set all to false
       ));
     console.log(`[DB Query - setOlderVersionsNotCurrent] Marked older versions of doc ${documentId} for user ${userId} as not current.`);
   } catch (error) {
@@ -584,7 +505,6 @@ export async function setOlderVersionsNotCurrent({
   }
 }
 
-// Function to rename the title for ALL versions of a document owned by a user
 export async function renameDocumentTitle({ 
   userId, 
   documentId, 
@@ -595,16 +515,14 @@ export async function renameDocumentTitle({
   newTitle: string; 
 }): Promise<void> {
   try {
-    // First, verify ownership (optional, but safer)
     const ownsDocument = await checkDocumentOwnership({ userId, documentId });
     if (!ownsDocument) {
       console.warn(`User ${userId} attempted to rename document ${documentId} they don't own.`);
-      throw new Error('Unauthorized or document not found'); // Prevent rename
+      throw new Error('Unauthorized or document not found'); 
     }
 
-    // Update title for all versions matching the ID and owned by the user
     await db.update(schema.Document)
-      .set({ title: newTitle, updatedAt: new Date() }) // Pass Date object directly
+      .set({ title: newTitle, updatedAt: new Date() })
       .where(
         and(
           eq(schema.Document.id, documentId),
@@ -615,45 +533,10 @@ export async function renameDocumentTitle({
 
   } catch (error) {
     console.error('Error renaming document title:', error); 
-    throw error; // Re-throw error
+    throw error; 
   }
 }
 
-// --- Remove Feedback Query ---
-
-// /**
-//  * Saves feedback to the database.
-//  */
-// export async function saveFeedback({
-//   userId, // Optional: Link feedback to the logged-in user
-//   type,   // Optional: Categorize feedback (e.g., 'bug', 'feature')
-//   content,
-// }: {
-//   userId?: string;
-//   type?: string;
-//   content: string;
-// }): Promise<void> { 
-//   try {
-//     await db.insert(schema.feedback).values({
-//       userId,
-//       type,
-//       content,
-//       // createdAt is handled by defaultNow()
-//     });
-//     console.log('[DB Query] Saved feedback');
-//   } catch (error) {
-//     console.error('[DB Query] Error saving feedback:', error);
-//     throw error; // Re-throw error
-//   }
-// }
-
-// --- End removed Feedback Query ---
-
-// Make sure no other code references the removed functions or types
-
-/**
- * Fetches the single currently active version of a document for a user.
- */
 export async function getCurrentDocumentVersion({ 
   userId, 
   documentId 
@@ -670,7 +553,7 @@ export async function getCurrentDocumentVersion({
         eq(schema.Document.userId, userId),
         eq(schema.Document.is_current, true)
       ))
-      .limit(1); // Should only ever be one current version
+      .limit(1); 
 
     return results[0] || null;
   } catch (error) {
@@ -679,9 +562,6 @@ export async function getCurrentDocumentVersion({
   }
 }
 
-/**
- * Updates the content and timestamp of the currently active document version.
- */
 export async function updateCurrentDocumentVersion({
   userId,
   documentId,
@@ -692,7 +572,6 @@ export async function updateCurrentDocumentVersion({
   content: string;
 }): Promise<(typeof schema.Document.$inferSelect) | null> {
   try {
-    // Update the document where id, userId match and is_current is true
     const updatedDocs = await db
       .update(schema.Document)
       .set({ 
@@ -703,11 +582,10 @@ export async function updateCurrentDocumentVersion({
         eq(schema.Document.userId, userId),
         eq(schema.Document.is_current, true) 
       ))
-      .returning(); // Return the updated record
+      .returning(); 
       
     if (updatedDocs.length === 0) {
         console.warn(`[DB Query - updateCurrentDocumentVersion] No current document found to update for doc ${documentId}, user ${userId}.`);
-        // Attempt to fetch any version to check for ownership/existence issues
         const anyVersionExists = await db.select({ id: schema.Document.id })
                                        .from(schema.Document)
                                        .where(and(eq(schema.Document.id, documentId), eq(schema.Document.userId, userId)))
@@ -724,20 +602,15 @@ export async function updateCurrentDocumentVersion({
 
   } catch (error) {
     console.error(`[DB Query - updateCurrentDocumentVersion] Error updating current version for doc ${documentId}, user ${userId}:`, error);
-    // Rethrow specific errors or a generic one
-     if (error instanceof Error && (error.message === 'Document not found or unauthorized.' || error.message.startsWith('Failed to update'))) {
+    if (error instanceof Error && (error.message === 'Document not found or unauthorized.' || error.message.startsWith('Failed to update'))) {
         throw error;
     }
     throw new Error(`Failed to update current document version: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
-/**
- * Checks if a Chat exists with the given ID.
- */
 export async function getChatExists({ chatId }: { chatId: string }): Promise<boolean> {
   try {
-    // Basic UUID validation before querying
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!chatId || !uuidRegex.test(chatId)) {
       console.warn(`[DB Query - getChatExists] Invalid chat ID format provided: ${chatId}`);
@@ -753,17 +626,10 @@ export async function getChatExists({ chatId }: { chatId: string }): Promise<boo
     return result.length > 0;
   } catch (error) {
     console.error(`[DB Query - getChatExists] Error checking chat ${chatId}:`, error);
-    // Decide if error means "doesn't exist" or "throw"
-    // Let's assume error means we can't confirm existence, so return false
     return false; 
   }
 }
 
-/**
- * Orchestrates creating a new document version:
- * 1. Marks all existing versions as not current.
- * 2. Saves the new version data as the current one.
- */
 export async function createNewDocumentVersion({
   id,
   title,
@@ -780,10 +646,8 @@ export async function createNewDocumentVersion({
   chatId?: string | null;
 }): Promise<(typeof schema.Document.$inferSelect)> {
    try {
-    // 1. Mark older versions as not current
     await setOlderVersionsNotCurrent({ userId, documentId: id });
     
-    // 2. Save the new version (is_current defaults to true in saveDocument)
     const newDocument = await saveDocument({
       id: id,
       title: title,
@@ -848,4 +712,5 @@ export async function getLatestDocumentById({ id }: { id: string }): Promise<(ty
     return null; 
   }
 }
+
 
