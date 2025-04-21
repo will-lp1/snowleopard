@@ -72,6 +72,7 @@ export function AlwaysVisibleArtifact({
     {
       revalidateOnFocus: false,
       dedupingInterval: 5000,
+      refreshInterval: 60000,
       onSuccess: (data) => {
         if (data && data.length > 0) {
           console.log(`[Document] Loaded ${data.length} document versions for ID: ${initialDocumentId}`);
@@ -878,15 +879,11 @@ export function AlwaysVisibleArtifact({
                         key={artifact.documentId} // Key ensures reset on ID change
                         content={isCurrentVersion ? artifact.content : getDocumentContentById(currentVersionIndex)}
                         onSaveContent={saveContent}
-                        status={artifact.status}
-                        isCurrentVersion={isCurrentVersion}
-                        currentVersionIndex={currentVersionIndex}
                         documentId={artifact.documentId}
-                        saveState={isContentDirty ? 'saving' : 'idle'}
+                        saveState={saveState} // Renamed from isContentDirty for clarity
                         isNewDocument={artifact.documentId === 'init'}
-                        onCreateDocument={handleCreateDocumentFromEditor} onSuggestionResolve={function (suggestionId: string, shouldApply: boolean): void {
-                          throw new Error('Function not implemented.');
-                        } } suggestions={undefined}                 />
+                        onCreateDocument={handleCreateDocumentFromEditor}
+                 />
               </div>
             ) : (
               // Show loader while waiting for the correct document content to load

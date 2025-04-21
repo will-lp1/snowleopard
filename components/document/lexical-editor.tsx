@@ -817,6 +817,13 @@ function PureLexicalEditor({
     if (editor && (needsSyncDueToDocId || propContentDiffersFromEditor)) {
       console.log(`[Editor Sync Effect] Syncing editor for ${documentId}. Reason: ${needsSyncDueToDocId ? 'Doc ID change' : 'Content prop value changed & differs from editor state'}`);
 
+      // Clear any pending save timeout before overwriting editor state
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+        console.log(`[Editor Sync Effect] Cleared pending save timeout for ${documentId}`);
+      }
+
       editor.update(() => {
         const root = $getRoot();
         root.clear();
