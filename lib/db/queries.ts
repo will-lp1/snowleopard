@@ -186,31 +186,42 @@ export async function saveDocument({
   kind,
   content,
   userId,
-  is_current = true,
+  chatId, // Added optional chatId
 }: {
   id: string;
   title: string;
   kind: ArtifactKind;
-  content: string | null; // Drizzle allows null for text
+  content: string;
   userId: string;
-  is_current?: boolean; // Make optional in parameters
-}) {
+  chatId?: string | null; // Make it optional
+}): Promise<(typeof schema.Document.$inferSelect)> {
   try {
-    // Drizzle requires both PK columns for insert if not using default
-    const createdAt = new Date().toISOString();
-    await db.insert(schema.Document).values({
+    const now = new Date();
+    const newVersionData = {
       id,
       title,
-      kind,
+      kind: kind as typeof schema.artifactKindEnum.enumValues[number], // Cast kind to enum type
       content,
       userId,
-      createdAt: createdAt,
-      updatedAt: createdAt, // Set initial updatedAt
-      is_current: is_current, // Add is_current to the inserted values
-    });
+      chatId: chatId || null, // Use provided chatId or null
+      is_current: true, // New versions are always current when saved via this function
+      createdAt: now.toISOString(), // FIX: Convert to ISO string
+      updatedAt: now.toISOString(), // FIX: Convert to ISO string
+    };
+
+    const inserted = await db
+      .insert(schema.Document)
+      .values(newVersionData)
+      .returning();
+
+    console.log(`[DB Query - saveDocument] Saved new version for doc ${id}, user ${userId}`);
+    if (!inserted || inserted.length === 0) {
+        throw new Error("Failed to insert new document version or retrieve the inserted data.");
+    }
+    return inserted[0];
   } catch (error) {
-    console.error('Error saving document:', error);
-    throw error;
+    console.error(`[DB Query - saveDocument] Error saving new version for doc ${id}, user ${userId}:`, error);
+    throw new Error(`Failed to save document version: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -461,19 +472,20 @@ export async function checkDocumentOwnership({
   documentId: string 
 }): Promise<boolean> {
   try {
-    const data = await db.select({ id: schema.Document.id })
+    const result = await db
+      .select({ count: sql<number>`count(*)` })
       .from(schema.Document)
-      .where(
-        and(
-          eq(schema.Document.id, documentId),
-          eq(schema.Document.userId, userId)
-        )
-      )
-      .limit(1); // We only need to find one matching record
-    return data.length > 0;
+      .where(and(
+        eq(schema.Document.id, documentId),
+        eq(schema.Document.userId, userId)
+      ))
+      .limit(1); // Optimization
+
+    return result[0]?.count > 0;
   } catch (error) {
-    console.error('Error checking document ownership:', error);
-    return false; // Assume no ownership on error
+    console.error(`[DB Query - checkDocumentOwnership] Error checking ownership for doc ${documentId}, user ${userId}:`, error);
+    // Assume false on error to be safe
+    return false;
   }
 }
 
@@ -517,42 +529,18 @@ export async function setOlderVersionsNotCurrent({
   documentId: string 
 }): Promise<void> {
   try {
-    // Find the timestamp of the latest version for this user and document ID
-    const latestVersion = await db.select({ latestCreatedAt: schema.Document.createdAt })
-      .from(schema.Document)
+    await db
+      .update(schema.Document)
+      .set({ is_current: false })
       .where(and(
         eq(schema.Document.id, documentId),
         eq(schema.Document.userId, userId)
-      ))
-      .orderBy(desc(schema.Document.createdAt))
-      .limit(1);
-
-    if (!latestVersion || latestVersion.length === 0) {
-      // No versions found, nothing to update
-      console.log(`[DB Query] No versions found for doc ${documentId} user ${userId} to set older as not current.`);
-      return;
-    }
-
-    const latestTimestamp = latestVersion[0].latestCreatedAt;
-
-    // Update older versions
-    await db.update(schema.Document)
-      .set({ is_current: false })
-      .where(
-        and(
-          eq(schema.Document.id, documentId),
-          eq(schema.Document.userId, userId),
-          // Use direct SQL comparison for timestamp inequality
-          sql`${schema.Document.createdAt} < ${latestTimestamp}`
-          // Alternatively, if timestamps are precise and unique:
-          // ne(schema.Document.createdAt, latestTimestamp) 
-        )
-      );
-    console.log(`[DB Query] Set is_current=false for older versions of doc ${documentId} user ${userId}`);
-
+        // No need to check is_current here, set all to false
+      ));
+    console.log(`[DB Query - setOlderVersionsNotCurrent] Marked older versions of doc ${documentId} for user ${userId} as not current.`);
   } catch (error) {
-    console.error('Error setting older document versions not current:', error);
-    throw error; // Re-throw error
+    console.error(`[DB Query - setOlderVersionsNotCurrent] Error marking older versions for doc ${documentId}, user ${userId}:`, error);
+    throw new Error(`Failed to mark older document versions as not current: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -622,4 +610,205 @@ export async function renameDocumentTitle({
 // --- End removed Feedback Query ---
 
 // Make sure no other code references the removed functions or types
+
+/**
+ * Fetches the single currently active version of a document for a user.
+ */
+export async function getCurrentDocumentVersion({ 
+  userId, 
+  documentId 
+}: { 
+  userId: string; 
+  documentId: string 
+}): Promise<(typeof schema.Document.$inferSelect) | null> {
+  try {
+    const results = await db
+      .select()
+      .from(schema.Document)
+      .where(and(
+        eq(schema.Document.id, documentId),
+        eq(schema.Document.userId, userId),
+        eq(schema.Document.is_current, true)
+      ))
+      .limit(1); // Should only ever be one current version
+
+    return results[0] || null;
+  } catch (error) {
+    console.error(`[DB Query - getCurrentDocumentVersion] Error fetching current version for doc ${documentId}, user ${userId}:`, error);
+    throw new Error(`Failed to fetch current document version: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+/**
+ * Updates the content and timestamp of the currently active document version.
+ */
+export async function updateCurrentDocumentVersion({
+  userId,
+  documentId,
+  content,
+}: {
+  userId: string;
+  documentId: string;
+  content: string;
+}): Promise<(typeof schema.Document.$inferSelect) | null> {
+  try {
+    const updatedTimestamp = new Date(); // Use current time for updatedAt
+    
+    // Update the document where id, userId match and is_current is true
+    const updatedDocs = await db
+      .update(schema.Document)
+      .set({ 
+        content: content, 
+        updatedAt: updatedTimestamp.toISOString() // FIX: Convert to ISO string
+      })
+      .where(and(
+        eq(schema.Document.id, documentId),
+        eq(schema.Document.userId, userId),
+        eq(schema.Document.is_current, true) 
+      ))
+      .returning(); // Return the updated record
+      
+    if (updatedDocs.length === 0) {
+        console.warn(`[DB Query - updateCurrentDocumentVersion] No current document found to update for doc ${documentId}, user ${userId}.`);
+        // Attempt to fetch any version to check for ownership/existence issues
+        const anyVersionExists = await db.select({ id: schema.Document.id })
+                                       .from(schema.Document)
+                                       .where(and(eq(schema.Document.id, documentId), eq(schema.Document.userId, userId)))
+                                       .limit(1);
+        if (anyVersionExists.length === 0) {
+            throw new Error('Document not found or unauthorized.');
+        } else {
+            throw new Error('Failed to update the current document version. It might have been changed or deleted.');
+        }
+    }
+      
+    console.log(`[DB Query - updateCurrentDocumentVersion] Updated content for current version of doc ${documentId}, user ${userId}`);
+    return updatedDocs[0];
+
+  } catch (error) {
+    console.error(`[DB Query - updateCurrentDocumentVersion] Error updating current version for doc ${documentId}, user ${userId}:`, error);
+    // Rethrow specific errors or a generic one
+     if (error instanceof Error && (error.message === 'Document not found or unauthorized.' || error.message.startsWith('Failed to update'))) {
+        throw error;
+    }
+    throw new Error(`Failed to update current document version: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+/**
+ * Checks if a Chat exists with the given ID.
+ */
+export async function getChatExists({ chatId }: { chatId: string }): Promise<boolean> {
+  try {
+    // Basic UUID validation before querying
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!chatId || !uuidRegex.test(chatId)) {
+      console.warn(`[DB Query - getChatExists] Invalid chat ID format provided: ${chatId}`);
+      return false;
+    }
+  
+    const result = await db
+      .select({ id: schema.Chat.id })
+      .from(schema.Chat)
+      .where(eq(schema.Chat.id, chatId))
+      .limit(1);
+      
+    return result.length > 0;
+  } catch (error) {
+    console.error(`[DB Query - getChatExists] Error checking chat ${chatId}:`, error);
+    // Decide if error means "doesn't exist" or "throw"
+    // Let's assume error means we can't confirm existence, so return false
+    return false; 
+  }
+}
+
+/**
+ * Orchestrates creating a new document version:
+ * 1. Marks all existing versions as not current.
+ * 2. Saves the new version data as the current one.
+ */
+export async function createNewDocumentVersion({
+  id,
+  title,
+  kind,
+  content,
+  userId,
+  chatId,
+}: {
+  id: string;
+  title: string;
+  kind: ArtifactKind;
+  content: string;
+  userId: string;
+  chatId?: string | null;
+}): Promise<(typeof schema.Document.$inferSelect)> {
+   try {
+    // 1. Mark older versions as not current
+    await setOlderVersionsNotCurrent({ userId, documentId: id });
+    
+    // 2. Save the new version (is_current defaults to true in saveDocument)
+    const newDocument = await saveDocument({
+      id: id,
+      title: title,
+      content: content,
+      kind: kind,
+      userId: userId,
+      chatId: chatId, 
+    });
+    
+    console.log(`[DB Query - createNewDocumentVersion] Successfully created new version for doc ${id}, user ${userId}`);
+    return newDocument;
+    
+  } catch (error) {
+    console.error(`[DB Query - createNewDocumentVersion] Error creating new version for doc ${id}, user ${userId}:`, error);
+    throw new Error(`Failed to create new document version: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+/**
+ * Get the most recent version of a document by its ID, regardless of is_current status.
+ * Useful for fetching the very latest record after an update or creation.
+ */
+export async function getLatestDocumentById({ id }: { id: string }): Promise<(typeof schema.Document.$inferSelect) | null> {
+  // FIX: Reimplemented using Drizzle
+  try {
+    // Validate document ID
+    if (!id || id === 'undefined' || id === 'null' || id === 'init') {
+      console.warn(`[DB Query - getLatestDocumentById] Invalid document ID provided: ${id}`);
+      throw new Error(`Invalid document ID: ${id}`);
+    }
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      console.warn(`[DB Query - getLatestDocumentById] Document ID is not a valid UUID format: ${id}`);
+      throw new Error(`Invalid document ID format: ${id}`);
+    }
+    
+    // Fetch the latest version based on creation time using Drizzle
+    const data = await db
+      .select()
+      .from(schema.Document)
+      .where(eq(schema.Document.id, id)) 
+      .orderBy(desc(schema.Document.createdAt))
+      .limit(1);
+
+    if (!data || data.length === 0) {
+      // This is okay, might be a new document being created
+      console.log(`[DB Query - getLatestDocumentById] No document found with ID: ${id}`);
+      return null; 
+    }
+    
+    return data[0]; // Return the latest document found
+
+  } catch (error) {
+    console.error(`[DB Query - getLatestDocumentById] Error fetching document with ID ${id}:`, error);
+    // Rethrow validation/DB errors specifically
+    if (error instanceof Error && (error.message.includes('Invalid document ID') || error.message.includes('format'))) {
+       throw error; 
+    }
+    // For other errors (like DB connection issues), maybe throw a generic error or return null depending on desired behavior
+    // Returning null to align with maybeSingle() behavior in case of non-validation errors
+    console.error('[DB Query - getLatestDocumentById] Non-validation error encountered, returning null.');
+    return null; 
+  }
+}
 

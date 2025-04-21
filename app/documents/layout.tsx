@@ -2,51 +2,36 @@
 
 import { useState, useEffect, ReactNode } from 'react';
 import { Chat } from '@/components/chat/chat';
-import { DataStreamHandler } from '@/components/data-stream-handler';
 import { ResizablePanel } from '@/components/resizable-panel';
-import { generateUUID } from '@/lib/utils';
 
 import { AppSidebar } from '@/components/sidebar/app-sidebar';
-import { SidebarInset, SidebarProvider, SidebarRail } from '@/components/ui/sidebar';
+import { SidebarProvider, SidebarRail } from '@/components/ui/sidebar';
 import { authClient } from '@/lib/auth-client';
 
 export const experimental_ppr = true;
 
 export default function DocumentsLayout({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<any>(null);
+  const { data: session, isPending } = authClient.useSession();
   const [isCollapsed, setIsCollapsed] = useState(true);
 
   useEffect(() => {
-    // Get sidebar state from cookie
     const sidebarState = document.cookie.split('; ').find(row => row.startsWith('sidebar:state'));
-    setIsCollapsed(sidebarState?.split('=')[1] !== 'true');
-
-    // Get session data
-    const getSession = async () => {
-      const { data } = await authClient.getSession();
-      setSession(data?.session);
-    };
-    
-    getSession();
+    setIsCollapsed(sidebarState ? sidebarState.split('=')[1] !== 'true' : true);
   }, []);
 
   return (
     <SidebarProvider defaultOpen={!isCollapsed}>
       <div className="flex flex-row h-dvh w-full bg-background">
-        {/* Left Sidebar */}
         <div className="relative">
           <AppSidebar user={session?.user} />
           <SidebarRail className="bg-background/80 backdrop-blur-sm" />
         </div>
         
-        {/* Main content area */}
         <div className="flex-1 flex flex-row">
-          {/* Left panel - Document Content (from page.tsx) */}
           <div className="flex-1 min-w-0 overflow-hidden border-r subtle-border transition-all duration-200 ease-in-out">
             {children} 
           </div>
 
-          {/* Right panel - Persistent Chat */}
           <ResizablePanel 
             defaultSize={400} 
             minSize={320} 
@@ -54,9 +39,7 @@ export default function DocumentsLayout({ children }: { children: ReactNode }) {
             className="border-l subtle-border transition-all duration-200"
           >
             <Chat
-              // id prop is optional, Chat manages its own state
-              initialMessages={[]} // Start empty, state is preserved internally
-              // isReadonly needs to be determined within Chat component now
+              initialMessages={[]}
             />
           </ResizablePanel>
         </div>

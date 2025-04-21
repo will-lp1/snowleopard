@@ -50,14 +50,17 @@ import { useAiOptions } from '@/hooks/ai-options';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 
+import SuggestionOverlay from '@/components/suggestion-overlay';
 import EditorToolbar from '@/components/document/editor-toolbar';
 
 type EditorProps = {
+  suggestions: any;
   content: string;
   onSaveContent: (updatedContent: string, debounce: boolean) => void;
   status: 'streaming' | 'idle';
   isCurrentVersion: boolean;
   currentVersionIndex: number;
+  onSuggestionResolve: (suggestionId: string, shouldApply: boolean) => void;
   documentId: string;
   saveState?: 'idle' | 'saving' | 'error';
   lastSaveError?: string | null;
@@ -769,150 +772,948 @@ function PureLexicalEditor({
   content,
   onSaveContent,
   status,
+  onSuggestionResolve,
   documentId,
   saveState,
   lastSaveError,
   isNewDocument,
   onCreateDocument,
-  isCurrentVersion,
-  currentVersionIndex
 }: EditorProps) {
-  const [editor] = useLexicalComposerContext();
-  const initialContentRef = useRef(content);
-  const lastSavedContentRef = useRef(content);
-  const hasUnsavedChangesRef = useRef(false);
-  const isCreatingRef = useRef(isNewDocument);
-  const [localSaveState, setLocalSaveState] = useState<'idle' | 'saving' | 'error'>('idle');
-  const [localError, setLocalError] = useState<string | null>(null);
+  const editorStateRef = useRef<EditorState | null>(null);
+  const lastContentRef = useRef<string>(content);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const contentChangedRef = useRef<boolean>(false);
   const editorRef = useRef<LexicalEditorType | null>(null);
+  const initialLoadCompletedRef = useRef<boolean>(false);
+  const lastDocumentIdRef = useRef<string>(documentId);
+  const editorContentSynced = useRef<boolean>(false);
+  
+  // Add state for suggestion overlay
+  const [selectedText, setSelectedText] = useState<string>('');
+  const [showSuggestionOverlay, setShowSuggestionOverlay] = useState(false);
+  const [overlayPosition, setOverlayPosition] = useState({ x: 0, y: 0 });
 
-  // Combine external and internal save state/error
-  const displaySaveState = saveState ?? localSaveState;
-  const displayError = lastSaveError ?? localError;
+  // ADD state for wipe animation
+  const [isWiping, setIsWiping] = useState(false);
+  const wipeTimeoutRef = useRef<NodeJS.Timeout | null>(null); // To ensure state resets
 
-  // Callback to handle content saving
-  const handleSave = useCallback((updatedContent: string, forceSave = false) => {
-    // Only save if content actually changed, unless forced
-    if (forceSave || updatedContent !== lastSavedContentRef.current) {
-      // If it's a new document being created, call onCreateDocument first
-      if (isCreatingRef.current && onCreateDocument) {
-        console.log('[LexicalEditor] Creating new document before first save...');
-        setLocalSaveState('saving');
-        setLocalError(null);
-        onCreateDocument(updatedContent)
-          .then(() => {
-            console.log('[LexicalEditor] New document created successfully.');
-            isCreatingRef.current = false; // No longer creating
-            lastSavedContentRef.current = updatedContent;
-            hasUnsavedChangesRef.current = false;
-            setLocalSaveState('idle');
-            onSaveContent(updatedContent, false); // Notify parent (no debounce needed after create)
-          })
-          .catch((err) => {
-            console.error('[LexicalEditor] Error creating document:', err);
-            setLocalSaveState('error');
-            setLocalError(err.message || 'Failed to create document');
+  // Initialize editor configuration
+  const initialConfig = {
+    namespace: `Document-${documentId}`,
+    theme,
+    onError,
+    nodes,
+    editorState: content ? () => {
+      try {
+        const initialState = editorRef.current?.parseEditorState(content) || null;
+        if (initialState) {
+          editorRef.current?.setEditorState(initialState);
+        } else {
+          // Fallback if parse fails or editor not ready
+          const editor = createEditor({ namespace: `Document-${documentId}`, theme, onError, nodes });
+      editor.update(() => {
+        const root = $getRoot();
+        root.clear();
+        const paragraphs = content.split(/\n\n+/);
+            paragraphs.forEach((paragraph: string) => {
+          if (paragraph.trim()) {
+            root.append($createParagraphNode().append($createTextNode(paragraph)));
+          } else {
+            root.append($createParagraphNode());
+          }
+        });
+      });
+          editorRef.current = editor; // Ensure ref is set
+        }
+      initialLoadCompletedRef.current = true;
+      editorContentSynced.current = true;
+      lastContentRef.current = content;
+      console.log(`[Editor] Initial content loaded for document: ${documentId}`);
+      } catch (parseError) {
+          console.error('[Editor] Failed to parse initial editor state from content:', parseError);
+          // Fallback to basic text node creation
+          if (editorRef.current) {
+              editorRef.current.update(() => {
+                  const root = $getRoot();
+                  root.clear();
+                  const paragraphs = content.split(/\n\n+/);
+                  paragraphs.forEach((paragraph: string) => {
+                    if (paragraph.trim()) {
+                      root.append($createParagraphNode().append($createTextNode(paragraph)));
+                    } else {
+                      root.append($createParagraphNode());
+                    }
+                  });
+              });
+              initialLoadCompletedRef.current = true;
+              editorContentSynced.current = true;
+              lastContentRef.current = content;
+          }
+      }
+    } : undefined,
+  };
+
+  // Reset editor when document ID changes
+  useEffect(() => {
+    if (documentId !== lastDocumentIdRef.current) {
+      console.log(`[Editor] Document ID changed from ${lastDocumentIdRef.current} to ${documentId}`);
+      initialLoadCompletedRef.current = false;
+      editorContentSynced.current = false;
+      contentChangedRef.current = false;
+      lastDocumentIdRef.current = documentId;
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+      
+      if (editorRef.current) {
+          const newContent = content || ''; // Use provided content or empty string
+        console.log(`[Editor] Initializing editor for new document ID: ${documentId}`);
+        editorRef.current.update(() => {
+          const root = $getRoot();
+          root.clear();
+              const paragraphs = newContent.split(/\n\n+/);
+              paragraphs.forEach((paragraph: string) => {
+            if (paragraph.trim()) {
+              root.append($createParagraphNode().append($createTextNode(paragraph)));
+            } else {
+              root.append($createParagraphNode());
+            }
           });
-      } else if (!isCreatingRef.current) {
-        // Existing document, just save content
-        console.log('[LexicalEditor] Saving existing document content...');
-        setLocalSaveState('saving');
-        setLocalError(null);
-        // Call parent's onSaveContent (likely debounced)
-        onSaveContent(updatedContent, true); 
-        lastSavedContentRef.current = updatedContent;
-        hasUnsavedChangesRef.current = false;
-        // Parent should update saveState prop eventually, or we timeout
-        setTimeout(() => {
-           if (localSaveState === 'saving') setLocalSaveState('idle'); // Assume success if not updated
-        }, 3000); 
+        });
+          lastContentRef.current = newContent;
+        editorContentSynced.current = true;
       }
     }
-  }, [onSaveContent, onCreateDocument, localSaveState]);
+  }, [documentId, content]);
 
-  // Debounced save function
-  const debouncedSave = useCallback(debounce(handleSave, 1000), [handleSave]);
+  // Enhanced effect to ensure content is loaded on refresh or document change
+  useEffect(() => {
+    if (content && editorRef.current && !editorContentSynced.current) {
+      console.log('[Editor] Syncing editor content:', content.substring(0, 50) + '...');
+      editorRef.current.update(() => {
+        const root = $getRoot();
+        root.clear();
+        const paragraphs = content.split(/\n\n+/);
+          paragraphs.forEach((paragraph: string) => {
+          if (paragraph.trim()) {
+            root.append($createParagraphNode().append($createTextNode(paragraph)));
+          } else {
+            root.append($createParagraphNode());
+          }
+        });
+      });
+      lastContentRef.current = content;
+      editorContentSynced.current = true;
+      initialLoadCompletedRef.current = true;
+      console.log('[Editor] Editor content sync complete for document:', documentId);
+    }
+  }, [content, documentId]);
 
-  // Handle content changes
-  const handleContentChange = useCallback((editorState: EditorState) => {
-    editorState.read(() => {
-      const root = $getRoot();
-      const currentTextContent = root.getTextContent();
-      
-      // Check if content has actually changed since last save
-      if (currentTextContent !== lastSavedContentRef.current) {
-        hasUnsavedChangesRef.current = true;
-        // Trigger debounced save for existing docs, or immediate create for new docs
-        if (!isCreatingRef.current) {
-           debouncedSave(currentTextContent);
-        } else {
-           // For new docs, maybe wait for a slightly longer pause or explicit save?
-           // Or trigger create immediately on first significant change? 
-           // Let's try debounced save for now, handleSave will call onCreateDocument.
-           debouncedSave(currentTextContent);
+  // Function to show suggestion overlay for selected text
+  const handleShowSuggestionOverlay = useCallback(() => {
+    if (!editorRef.current) return;
+    
+    // Get selected text from editor
+    let selection = '';
+    let position = { x: 0, y: 0 };
+    let hasValidPosition = false;
+    
+    editorRef.current.getEditorState().read(() => {
+      const lexicalSelection = $getSelection();
+      if ($isRangeSelection(lexicalSelection) && !lexicalSelection.isCollapsed()) {
+        selection = lexicalSelection.getTextContent();
+        
+        // Get DOM selection for positioning
+        const domSelection = window.getSelection();
+        if (domSelection && domSelection.rangeCount > 0) {
+          const range = domSelection.getRangeAt(0);
+          const rect = range.getBoundingClientRect();
+          position.x = rect.left;
+          position.y = rect.bottom;
+          hasValidPosition = true;
         }
       }
     });
-  }, [debouncedSave]);
-
-  // Effect to initialize editor state
-  useEffect(() => {
-    const initialContent = initialContentRef.current;
-    if (editor && initialContent) {
-      try {
-        const initialEditorState = editor.parseEditorState(initialContent);
-        editor.setEditorState(initialEditorState);
-        lastSavedContentRef.current = initialContent; // Set initial saved state
-      } catch (error) {
-        console.error("Failed to parse initial editor state:", error);
-        // Fallback to empty state if parsing fails
-        editor.update(() => {
-          const root = $getRoot();
-          root.clear();
-          root.append($createParagraphNode());
-        });
-        lastSavedContentRef.current = '';
-      }
+    
+    if (selection && hasValidPosition) {
+      setSelectedText(selection);
+      
+      // Calculate position for overlay
+      const scrollX = typeof window !== 'undefined' ? window.scrollX || 0 : 0;
+      const scrollY = typeof window !== 'undefined' ? window.scrollY || 0 : 0;
+      
+      setOverlayPosition({
+        x: position.x + scrollX,
+        y: position.y + scrollY + 10 // 10px below selection
+      });
+      
+      setShowSuggestionOverlay(true);
     }
-  }, [editor]);
+  }, []);
 
-  // Effect to handle external save state changes
+  // Fix the function to handle accepting a suggestion from the overlay
+  const handleAcceptSuggestion = useCallback((suggestion: string) => {
+    if (!editorRef.current || !selectedText) return;
+    
+    // Insert the suggestion in place of the selected text
+    editorRef.current.update(() => {
+      const selection = $getSelection();
+      if ($isRangeSelection(selection)) {
+        // Delete the selected text first
+        selection.insertText('');
+        
+        // Then insert the suggested text
+        selection.insertText(suggestion);
+        
+        // Trigger a manual save to ensure persistence
+        lastContentRef.current = '';  // Force a save by invalidating the ref
+        contentChangedRef.current = true;
+      }
+    });
+    
+    // Force a save immediately after applying the suggestion
+    setTimeout(() => {
+      if (editorRef.current) {
+        const currentState = editorRef.current.getEditorState();
+        let content = '';
+        currentState.read(() => {
+          const root = $getRoot();
+          const paragraphs: string[] = [];
+          root.getChildren().forEach((node) => {
+            const textContent = node.getTextContent();
+            if (textContent.trim()) {
+              paragraphs.push(textContent);
+            }
+          });
+          content = paragraphs.join('\n\n');
+        });
+        
+        console.log('[Editor] Saving content after applying suggestion');
+        onSaveContent(content, false);
+      }
+    }, 50);
+    
+    // Close the overlay
+    setShowSuggestionOverlay(false);
+    setSelectedText('');
+  }, [selectedText, onSaveContent]);
+
+  // Text selection handler
   useEffect(() => {
-     if (saveState && saveState !== 'saving') {
-        setLocalSaveState(saveState);
-     }
-     if (lastSaveError) {
-        setLocalError(lastSaveError);
-     }
-  }, [saveState, lastSaveError]);
+    const handleSelectionChange = () => {
+      const selection = window.getSelection();
+      if (selection && !selection.isCollapsed && selection.toString().trim()) {
+        // Enable context menu for suggestions on selection
+        // This would be triggered by right-click or another UI element
+      }
+    };
+
+    document.addEventListener('selectionchange', handleSelectionChange);
+    
+    // Add keyboard shortcut for showing suggestion overlay (Cmd+E / Ctrl+E)
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'e') {
+        e.preventDefault();
+        handleShowSuggestionOverlay();
+      }
+    };
+    
+    document.addEventListener('keydown', handleKeyDown);
+    
+    return () => {
+      document.removeEventListener('selectionchange', handleSelectionChange);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleShowSuggestionOverlay]);
+
+  // Store reference to editor
+  const handleEditorReference = useCallback((editor: LexicalEditorType) => {
+    editorRef.current = editor;
+  }, []);
+
+  // onChange handler: Simplify - remove checks related to AI status/diff view
+  const onChange = useCallback((editorState: EditorState) => {
+    editorStateRef.current = editorState;
+    
+    let serializedContent = '';
+    editorState.read(() => {
+      const root = $getRoot();
+      // Consistent paragraph joining
+      serializedContent = root.getChildren().map(node => node.getTextContent()).join('\n\n');
+    });
+
+    // Skip if content hasn't changed OR if an AI update is actively streaming
+    if (serializedContent === lastContentRef.current) {
+      console.log('[Editor onChange] Content identical, skipping save trigger.');
+      return;
+    }
+
+    // --- NEW DOCUMENT CREATION LOGIC (remains the same) ---
+    if (isNewDocument && lastContentRef.current === '' && serializedContent !== '') {
+      console.log('[Editor onChange] First edit detected in new document, triggering creation...');
+      if (onCreateDocument) {
+        lastContentRef.current = serializedContent; 
+        contentChangedRef.current = true; // Mark as changed
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current);
+          saveTimeoutRef.current = null;
+        }
+        // onCreateDocument should ideally handle the save itself or update state that leads to a save
+        onCreateDocument(serializedContent);
+      }
+      return; // Don't proceed with regular debounced save for initial creation
+    }
+    // --- END NEW DOCUMENT LOGIC ---
+
+    console.log('[Editor onChange] Content changed, scheduling debounced save.');
+    lastContentRef.current = serializedContent; // Update ref immediately
+    contentChangedRef.current = true; // Mark as changed
+    
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    
+    const currentDocId = documentId;
+    
+    if (saveState !== 'saving') {
+      saveTimeoutRef.current = setTimeout(() => {
+        if (currentDocId !== documentId) {
+          console.log('[Editor onChange] Document changed during save timeout, cancelling save');
+          return;
+        }
+        
+        // Check the flag again inside the timeout
+        if (contentChangedRef.current && editorRef.current) {
+          // Get the latest content from the ref
+          const contentToSave = lastContentRef.current; 
+          
+          // Add skip-dom-selection tag *before* calling save to prevent cursor jump
+          editorRef.current.update(() => {
+            $addUpdateTag('skip-dom-selection');
+          });
+          
+          console.log(`[Editor onChange] Saving content for ${documentId} (debounced)`);
+          onSaveContent(contentToSave, true); // Use content from ref, indicate debounce
+          contentChangedRef.current = false; // Reset flag *after* initiating save
+        }
+        saveTimeoutRef.current = null;
+      }, 800); // Keep debounce time
+    }
+  }, [documentId, onSaveContent, saveState, isNewDocument, onCreateDocument]);
+
+  // Cleanup on unmount (remains similar)
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+      // Save immediately if changes exist and we're not already saving
+      if (contentChangedRef.current && saveState !== 'saving' && documentId === lastDocumentIdRef.current) {
+        console.log('[Editor] Saving on unmount for document:', documentId);
+        onSaveContent(lastContentRef.current, false); // immediate save
+      }
+    };
+  }, [onSaveContent, saveState, documentId]);
+
+  // Manual save shortcut (remains similar)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check for Cmd+S or Ctrl+S
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        
+        console.log('[Editor] Manual save triggered with keyboard shortcut');
+        
+        // Get current content and save immediately (no debounce)
+        if (editorRef.current) {
+          editorRef.current.getEditorState().read(() => {
+            const root = $getRoot();
+            const paragraphs: string[] = [];
+            root.getChildren().forEach((node) => {
+              const textContent = node.getTextContent();
+              // Include all paragraphs
+              paragraphs.push(textContent);
+            });
+            const content = paragraphs.join('\n\n');
+            
+            // Force immediate save
+            onSaveContent(content, false);
+            
+            // Show visual indicator
+            toast.success('Document saved', { duration: 1500 });
+          });
+        }
+      }
+    };
+    
+    // Add the event listener to the window
+    window.addEventListener('keydown', handleKeyDown);
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onSaveContent]);
+
+  // Listener for 'apply-document-update' - REMOVE EXPLICIT SAVE
+  useEffect(() => {
+    const handleApplyUpdate = (event: CustomEvent) => {
+      if (!editorRef.current || !event.detail || isWiping) return; // Prevent overlapping wipes
+      
+      const { documentId: updatedDocId, newContent } = event.detail;
+      
+      if (updatedDocId === documentId && typeof newContent === 'string') {
+        console.log(`[Editor apply-update] Applying wipe update for ${documentId}.`);
+        
+        // Trigger Wipe Out Animation
+        setIsWiping(true);
+        
+        // Apply Content Change (slightly delayed)
+        requestAnimationFrame(() => { 
+          if (!editorRef.current) return; // Check ref again inside async
+          
+          // Apply the update to the editor state
+          editorRef.current.update(() => {
+            const root = $getRoot();
+            root.clear();
+            const paragraphs = newContent.split(/\n\n+/);
+            paragraphs.forEach((paragraph: string) => { 
+              if (paragraph.trim()) {
+                root.append($createParagraphNode().append($createTextNode(paragraph)));
+              } else {
+                root.append($createParagraphNode()); 
+              }
+            });
+            root.selectEnd(); 
+          });
+          
+          // ** FIX: REMOVE EXPLICIT SAVE CALL **
+          // onSaveContent(newContent, false); // <-- REMOVED THIS LINE
+          
+          // ** INSTEAD: Update refs to let onChange handle it **
+          // Ensure the onChange handler knows about this programmatic change
+          lastContentRef.current = newContent; 
+          contentChangedRef.current = true; // Mark as changed so onChange triggers save
+          // The onChange handler will now be triggered by the editor update and schedule the save.
+          console.log(`[Editor apply-update] Update applied. onChange will handle save for ${documentId}.`);
+
+          // Trigger Wipe In Animation
+          setIsWiping(false);
+          
+          // Optional: Failsafe timeout for wiping state
+          if (wipeTimeoutRef.current) clearTimeout(wipeTimeoutRef.current);
+          wipeTimeoutRef.current = setTimeout(() => setIsWiping(false), 500);
+        });
+      }
+    };
+    
+    window.addEventListener('apply-document-update', handleApplyUpdate as EventListener);
+    console.log('[LexicalEditor] Listener added for apply-document-update (no explicit save).');
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('apply-document-update', handleApplyUpdate as EventListener);
+      console.log('[LexicalEditor] Listener removed for apply-document-update.');
+      if (wipeTimeoutRef.current) clearTimeout(wipeTimeoutRef.current);
+    };
+  }, [documentId, isWiping]); // Corrected dependencies
+
+  // Add event listener for apply-suggestion from overlay
+  useEffect(() => {
+    const handleApplySuggestion = (event: CustomEvent) => {
+      if (!editorRef.current || !event.detail) return;
+      
+      const { originalText, suggestion, documentId: suggestionDocId } = event.detail;
+      
+      // Ensure the event is for the current document
+      if (suggestionDocId !== documentId) {
+        return;
+      }
+      
+      console.log('[LexicalEditor] Received apply-suggestion event');
+
+      editorRef.current.update(() => {
+        const selection = $getSelection();
+        
+        if ($isRangeSelection(selection)) {
+          const currentSelectedText = selection.getTextContent();
+          
+          // Verify the current selection matches the original text from the overlay
+          if (currentSelectedText === originalText) {
+            console.log('[LexicalEditor] Applying suggestion:', suggestion);
+            selection.insertText(suggestion);
+            toast.success("Suggestion applied successfully");
+            
+            // Trigger a save after applying
+            lastContentRef.current = ''; // Force save
+            contentChangedRef.current = true;
+             if (saveTimeoutRef.current) {
+                clearTimeout(saveTimeoutRef.current);
+             }
+             saveTimeoutRef.current = setTimeout(() => {
+                if (contentChangedRef.current && editorRef.current) {
+                   const contentToSave = editorRef.current.getEditorState().read(() => $getRoot().getTextContent());
+                   editorRef.current.update(() => $addUpdateTag('skip-dom-selection'));
+                   console.log(`[Editor] Saving content after suggestion apply for ${documentId}`);
+                   onSaveContent(contentToSave, false); // Immediate save
+                   contentChangedRef.current = false;
+                }
+                saveTimeoutRef.current = null;
+             }, 50); // Short delay for save
+             
+          } else {
+            console.warn('[LexicalEditor] Suggestion not applied: Selection changed since overlay opened.');
+            toast.warning("Selection changed, suggestion not applied.");
+          }
+        } else {
+           console.warn('[LexicalEditor] Suggestion not applied: No range selection found.');
+        }
+      });
+    };
+
+    window.addEventListener('apply-suggestion', handleApplySuggestion as EventListener);
+    console.log('[LexicalEditor] Listener added for apply-suggestion.');
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('apply-suggestion', handleApplySuggestion as EventListener);
+      console.log('[LexicalEditor] Listener removed for apply-suggestion.');
+    };
+  }, [documentId, onSaveContent]);
 
   return (
     <div className="relative">
-      {/* Editor Toolbar Integration */}
-      <EditorToolbar editor={editorRef.current} /> 
-      <RichTextPlugin
-        contentEditable={<ContentEditable className="lexical-editor-content-editable outline-none min-h-[200px]" spellCheck="false" />}
-        placeholder={<PlaceholderPlugin isNewDocument={isNewDocument} />}
-        ErrorBoundary={() => <div>Error loading editor content.</div>} 
-      />
-      <OnChangePlugin onChange={handleContentChange} ignoreSelectionChange ignoreHistoryMergeTagChange />
-      <HistoryPlugin />
-      <AutoFocusPlugin />
-      <ListPlugin />
-      <CheckListPlugin />
-      <LinkPlugin />
-      <TabIndentationPlugin /> 
-      <MarkdownShortcutPlugin transformers={[...TRANSFORMERS, CHECK_LIST, STRIKETHROUGH]} />
-      {/* Custom Plugins */}
-      <EditorRefPlugin onRef={editorRef} /> 
-      <InlineSuggestionsPlugin documentId={documentId} onSaveContent={handleSave} /> 
-      {/* Save Status Indicator */}
-      <div className="absolute bottom-2 right-2 text-xs text-muted-foreground">
-        {displaySaveState === 'saving' && 'Saving...'}
-        {displaySaveState === 'error' && `Error: ${displayError || 'Failed to save'}`}
-        {/* {displaySaveState === 'idle' && hasUnsavedChangesRef.current && 'Unsaved'} */}
-        {/* Optionally show saved status: {displaySaveState === 'idle' && !hasUnsavedChangesRef.current && 'Saved'} */}
-      </div>
+      {/* Remove the DiffView section */}
+      {/* {showDiff && status !== 'streaming' && ( ... )} */}
+
+      {/* Keep suggestion overlay */}
+      {showSuggestionOverlay && (
+        <SuggestionOverlay
+          documentId={documentId}
+          selectedText={selectedText}
+          isOpen={showSuggestionOverlay}
+          onClose={() => setShowSuggestionOverlay(false)}
+          onAcceptSuggestion={handleAcceptSuggestion}
+          position={overlayPosition}
+        />
+      )}
+
+      <LexicalComposer initialConfig={initialConfig}>
+        {/* Toolbar integrated here */}
+        <EditorToolbar />
+        <div className="relative lexical-editor-wrapper mt-2">
+          <div className={cn(
+            "lexical-editor-container p-4 rounded-b-md",
+            isWiping && "opacity-20 pointer-events-none"
+          )}>
+            <RichTextPlugin
+              contentEditable={<ContentEditable className="lexical-editor-content-editable min-h-[300px] outline-none" />}
+              placeholder={<PlaceholderPlugin isNewDocument={isNewDocument} />}
+              ErrorBoundary={() => <div>Error loading editor</div>}
+            />
+            <HistoryPlugin />
+            <AutoFocusPlugin />
+            <ListPlugin />
+            <CheckListPlugin />
+            <LinkPlugin />
+            <InlineSuggestionsPlugin documentId={documentId} onSaveContent={onSaveContent} />
+            <TabIndentationPlugin />
+            <MarkdownShortcutPlugin transformers={PLAYGROUND_TRANSFORMERS} />
+            <OnChangePlugin onChange={onChange} ignoreHistoryMergeTagChange={true} />
+            <EditorRefPlugin onRef={handleEditorReference} />
+          </div>
+        </div>
+        <style jsx global>{`
+          .lexical-editor-content-editable {
+            border: 0;
+            font-family: inherit;
+            font-size: 1rem;
+            line-height: 1.6;
+            color: var(--foreground);
+            resize: none;
+            width: 100%;
+            caret-color: var(--foreground);
+            position: relative;
+            tab-size: 1;
+            outline: 0;
+            padding: 0;
+            min-height: 300px;
+          }
+          
+          .lexical-editor-placeholder {
+            color: var(--muted-foreground);
+            overflow: hidden;
+            position: absolute;
+            text-overflow: ellipsis;
+            top: 1rem;
+            left: 1rem;
+            font-size: 1rem;
+            user-select: none;
+            pointer-events: none;
+            opacity: 0.6;
+            line-height: 1.6;
+          }
+
+          .inline-suggestion {
+            display: none;
+            pointer-events: none;
+            user-select: none;
+            color: var(--foreground);
+            padding: 0;
+            margin: 0;
+            font-family: inherit;
+            font-size: inherit;
+            line-height: inherit;
+            position: absolute !important;
+            z-index: 9999 !important;
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-width: 100%;
+            overflow-wrap: break-word;
+            text-overflow: ellipsis;
+            overflow: hidden;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+          }
+
+          .inline-suggestion.visible {
+            opacity: 1;
+          }
+
+          /* Common styling for light and dark modes */
+          .suggestion-text {
+            opacity: 0.5;
+            font-weight: 450;
+            color: var(--foreground);
+            white-space: inherit;
+            word-break: inherit;
+            overflow-wrap: inherit;
+            transition: opacity 0.15s ease;
+            padding: 0 1px;
+            text-shadow: 0 0 0.5px rgba(0, 0, 0, 0.03);
+          }
+          
+          /* Inline tab button with improved visibility */
+          .inline-tab-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 2px;
+            vertical-align: baseline;
+            opacity: 0.9; /* Slightly more visible by default */
+            transition: all 0.15s ease;
+          }
+          
+          /* Tab key visualization with better contrast */
+          .inline-tab-button .tab-key {
+            font-size: 10px;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            background: var(--muted-foreground);
+            color: var(--background);
+            text-transform: lowercase;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            position: relative;
+            top: -1px;
+          }
+
+          /* Tooltip styling for both modes */
+          .suggestion-tooltip {
+            position: absolute;
+            top: -26px;
+            right: 0;
+            background: var(--background);
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 450;
+            padding: 3px 8px;
+            white-space: nowrap;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+            border: 1px solid var(--border);
+            opacity: 0;
+            transform: translateY(4px);
+            transition: all 0.2s ease;
+            pointer-events: none;
+            color: var(--foreground);
+          }
+          
+          /* Key styling in tooltip */
+          .suggestion-tooltip .key {
+            font-weight: 500;
+            background: var(--muted);
+            color: var(--foreground);
+            padding: 1px 5px;
+            border-radius: 3px;
+            margin: 0 1px;
+            border: 1px solid var(--border);
+          }
+
+          /* Hover states with smooth transitions */
+          .inline-suggestion:hover .suggestion-text {
+            opacity: 0.85;
+            background: rgba(0, 122, 255, 0.08);
+            border-radius: 2px;
+          }
+          
+          .inline-suggestion:hover .inline-tab-button {
+            opacity: 1;
+            transform: scale(1.02);
+          }
+
+          /* Animation for suggestion acceptance */
+          @keyframes flash-highlight {
+            0% { background-color: transparent; }
+            30% { background-color: rgba(0, 122, 255, 0.12); }
+            100% { background-color: transparent; }
+          }
+
+          .suggestion-accepted .suggestion-text {
+            animation: flash-highlight 0.4s ease-out;
+          }
+
+          /* Fade out animation */
+          .suggestion-fade-out {
+            opacity: 0 !important;
+            transform: translateX(0);
+            transition: opacity 0.15s ease;
+          }
+
+          /* Show tooltip on hover */
+          .inline-suggestion:hover .suggestion-tooltip {
+            opacity: 1;
+            transform: translateY(0);
+          }
+          
+          /* Editor theme styling */
+          .editor-text-bold { font-weight: bold; }
+          .editor-text-italic { font-style: italic; }
+          .editor-text-underline { text-decoration: underline; }
+          .editor-text-strikethrough { text-decoration: line-through; }
+          .editor-text-code {
+             background-color: hsl(var(--muted));
+             padding: 0.1em 0.3em;
+             font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
+             font-size: 90%;
+             border-radius: 3px;
+           }
+
+          .editor-paragraph {
+            margin: 0 0 0.8rem 0;
+            position: relative;
+          }
+
+          .editor-heading-h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            line-height: 1.3;
+            margin-top: 1.5rem;
+            margin-bottom: 0.8rem;
+            padding-bottom: 0.2em;
+            border-bottom: 1px solid hsl(var(--border));
+          }
+
+          .editor-heading-h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            line-height: 1.3;
+            margin-top: 1.4rem;
+            margin-bottom: 0.7rem;
+            padding-bottom: 0.2em;
+            border-bottom: 1px solid hsl(var(--border));
+          }
+
+          .editor-heading-h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            line-height: 1.3;
+            margin-top: 1.3rem;
+            margin-bottom: 0.6rem;
+          }
+
+          .editor-quote {
+            margin: 1rem 0;
+            padding-left: 1rem;
+            border-left: 3px solid hsl(var(--border));
+            color: hsl(var(--muted-foreground));
+            font-style: italic;
+          }
+
+          .editor-list-ul, .editor-list-ol {
+            margin: 0 0 0.8rem 1.5rem;
+            padding: 0;
+            list-style-position: outside;
+          }
+
+          .editor-list-li {
+            margin: 0.2rem 0;
+            line-height: 1.6;
+            position: relative;
+          }
+          
+          .editor-list-ol { list-style-type: decimal; }
+          .editor-list-ul { list-style-type: disc; }
+
+          .editor-nested-listitem {
+            list-style-type: none;
+          }
+          .editor-list-li .editor-list-ul { margin-left: 1.5rem; list-style-type: circle; }
+          .editor-list-li .editor-list-ol { margin-left: 1.5rem; list-style-type: lower-alpha; }
+          .editor-list-li .editor-list-ul .editor-list-ul { list-style-type: square; }
+          .editor-list-li .editor-list-ol .editor-list-ol { list-style-type: lower-roman; }
+
+          .editor-listitem-unchecked,
+          .editor-listitem-checked {
+            position: relative;
+            padding-left: 24px;
+            list-style-type: none;
+            outline: none;
+          }
+          .editor-listitem-unchecked:focus-visible,
+          .editor-listitem-checked:focus-visible {
+              /* Optional focus styling for list item itself */
+              /* background-color: hsl(var(--accent)); */
+          }
+          .editor-listitem-unchecked::before,
+          .editor-listitem-checked::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0.2em;
+            width: 16px;
+            height: 16px;
+            display: block;
+            border-radius: 3px;
+            background-color: transparent;
+            border: 1.5px solid hsl(var(--muted-foreground));
+            cursor: pointer;
+            transition: all 0.15s ease;
+          }
+          .editor-listitem-checked::before {
+            border-color: hsl(var(--primary));
+            background-color: hsl(var(--primary));
+          }
+          .editor-listitem-checked::after {
+            content: '';
+            position: absolute;
+            left: 4px;
+            top: 0.2em + 4px;
+            width: 8px;
+            height: 4px;
+            border-left: 2px solid hsl(var(--primary-foreground));
+            border-bottom: 2px solid hsl(var(--primary-foreground));
+            transform: rotate(-45deg);
+            pointer-events: none;
+          }
+          .editor-listitem-checked {
+            text-decoration: line-through;
+            color: hsl(var(--muted-foreground));
+          }
+
+          .editor-horizontal-rule {
+            border: none;
+            margin: 1.5em 0;
+            height: 1px;
+            background-color: hsl(var(--border));
+          }
+
+          .editor-code {
+            background-color: hsl(var(--muted));
+            font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
+            padding: 1rem;
+            margin-bottom: 0.8rem;
+            font-size: 90%;
+            overflow-x: auto;
+            position: relative;
+            line-height: 1.4;
+            border-radius: 4px;
+          }
+          .editor-code:before {
+              content: attr(data-highlight-language);
+              position: absolute;
+              top: 4px;
+              right: 6px;
+              font-size: 0.75rem;
+              color: hsl(var(--muted-foreground));
+              opacity: 0.7;
+          }
+          .editor-tokenComment { color: slategray; }
+          .editor-tokenPunctuation { color: #999; }
+          .editor-tokenProperty { color: #905; }
+          .editor-tokenSelector { color: #690; }
+          .editor-tokenOperator { color: #9a6e3a; }
+          .editor-tokenAttr { color: #07a; }
+          .editor-tokenVariable { color: #e90; }
+          .editor-tokenFunction { color: #dd4a68; }
+
+          /* Ensure selection styling works in both modes */
+          .lexical-editor-content-editable::selection,
+          .lexical-editor-content-editable *::selection {
+            background-color: var(--primary-light);
+            color: var(--foreground);
+          }
+
+          /* Fix caret color */
+          .lexical-editor-content-editable {
+            caret-color: var(--foreground) !important;
+          }
+
+          .editor-root {
+            --caret-color: var(--foreground) !important;
+          }
+
+          /* Light/dark mode theme variables */
+          :root {
+            --primary-light: rgba(0, 122, 255, 0.3);
+            --border: #e2e8f0;
+          }
+
+          .dark {
+            --primary-light: rgba(66, 153, 225, 0.3);
+            --border: #2d3748;
+          }
+
+          /* Editor Focus (Removed Outline) */
+          /* .lexical-editor-content-editable:focus-visible {
+            outline: 2px solid var(--ring);
+            outline-offset: 2px;
+            border-radius: 3px; 
+          } */
+
+          /* Link Styling */
+          .editor-link {
+            color: hsl(var(--primary));
+            text-decoration: underline;
+            text-decoration-color: hsl(var(--primary) / 0.4);
+            transition: all 0.15s ease-out;
+            cursor: pointer;
+          }
+          .editor-link:hover {
+            color: hsl(var(--primary-hover)); /* Needs --primary-hover variable */
+            text-decoration-color: hsl(var(--primary));
+            /* background-color: hsl(var(--primary) / 0.05); Optional subtle highlight */
+          }
+
+          /* Checklist Item Styling */
+          .editor-list-li.checked {
+            text-decoration: line-through;
+            color: hsl(var(--muted-foreground));
+          }
+          .editor-list-li.unchecked .editor-list-li-checkbox {
+            border-color: hsl(var(--muted-foreground));
+          }
+          .editor-list-li-checkbox {
+            /* Add custom styling for checkboxes if needed */
+            /* Example: appearance: none; width: 16px; height: 16px; border: 1px solid; border-radius: 3px; ... */
+          }
+          .editor-list-li.checked .editor-list-li-checkbox {
+            /* Style for checked state */
+            /* Example: background-color: hsl(var(--primary)); border-color: hsl(var(--primary)); ... */
+          }
+        `}</style>
+      </LexicalComposer>
     </div>
   );
 }
@@ -938,12 +1739,14 @@ function areEqual(prevProps: EditorProps, nextProps: EditorProps) {
   // Let the stream listener handle updates internally
   
   return (
-    prevProps.content === nextProps.content &&
-    prevProps.status === nextProps.status &&
-    prevProps.isCurrentVersion === nextProps.isCurrentVersion &&
+    prevProps.suggestions === nextProps.suggestions &&
     prevProps.currentVersionIndex === nextProps.currentVersionIndex &&
+    prevProps.isCurrentVersion === nextProps.isCurrentVersion &&
+    // prevProps.status === nextProps.status && // Remove status check
+    prevProps.content === nextProps.content && // Still need content for initial load/external changes
+    prevProps.onSaveContent === nextProps.onSaveContent &&
+    prevProps.onSuggestionResolve === nextProps.onSuggestionResolve &&
     prevProps.saveState === nextProps.saveState &&
-    prevProps.lastSaveError === nextProps.lastSaveError &&
     prevProps.isNewDocument === nextProps.isNewDocument &&
     prevProps.onCreateDocument === nextProps.onCreateDocument
   );

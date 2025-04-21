@@ -868,13 +868,12 @@ export function AlwaysVisibleArtifact({
                         status={artifact.status}
                         isCurrentVersion={isCurrentVersion}
                         currentVersionIndex={currentVersionIndex}
-                        suggestions={[]}
-                        onSuggestionResolve={() => { } }
                         documentId={artifact.documentId}
                         saveState={isContentDirty ? 'saving' : 'idle'}
                         isNewDocument={artifact.documentId === 'init'}
-                        onCreateDocument={handleCreateDocumentFromEditor}
-                 />
+                        onCreateDocument={handleCreateDocumentFromEditor} onSuggestionResolve={function (suggestionId: string, shouldApply: boolean): void {
+                          throw new Error('Function not implemented.');
+                        } } suggestions={undefined}                 />
               </div>
             ) : (
               // Show loader while waiting for the correct document content to load
