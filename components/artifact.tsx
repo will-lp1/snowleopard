@@ -12,7 +12,7 @@ import {
 } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 import { useWindowSize } from 'usehooks-ts';
-import type { Document, Suggestion } from '@/lib/db/schema';
+import type { Document } from '@/lib/db/schema';
 import { fetcher } from '@/lib/utils';
 import { MultimodalInput } from './chat/multimodal-input';
 import { Toolbar } from './toolbar';
@@ -57,7 +57,6 @@ interface ArtifactContent<M = any> {
   isCurrentVersion: boolean;
   currentVersionIndex: number;
   status: 'streaming' | 'idle';
-  suggestions: Array<Suggestion>;
   onSaveContent: (updatedContent: string, debounce: boolean) => void;
   isInline: boolean;
   getDocumentContentById: (index: number) => string;
@@ -596,7 +595,6 @@ export function PureArtifact({
                 mode={mode}
                 status={artifact.status}
                 currentVersionIndex={currentVersionIndex}
-                suggestions={[]}
                 onSaveContent={saveContent}
                 isInline={false}
                 isCurrentVersion={isCurrentVersion}

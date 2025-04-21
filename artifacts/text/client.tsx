@@ -80,12 +80,8 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
           <LexicalEditor
             content={content}
             onSaveContent={onSaveContent}
-            status={status}
-            isCurrentVersion={isCurrentVersion}
-            currentVersionIndex={currentVersionIndex}
-            documentId={documentId} suggestions={[]} onSuggestionResolve={function (suggestionId: string, shouldApply: boolean): void {
-              throw new Error('Function not implemented.');
-            } }          />
+            documentId={documentId}
+          />
         ) : (
           <div className="prose dark:prose-invert">
             {content.split('\n').map((line, index) => (
@@ -145,17 +141,5 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
       },
     },
   ],
-  toolbar: [
-    {
-      icon: <PenIcon />,
-      description: 'Add final polish',
-      onClick: ({ appendMessage }) => {
-        appendMessage({
-          role: 'user',
-          content:
-            'Please add final polish and check for grammar, add section titles for better structure, and ensure everything reads smoothly.',
-        });
-      },
-    },
-  ],
+  toolbar: [],
 });

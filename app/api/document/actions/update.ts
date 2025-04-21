@@ -9,7 +9,6 @@ import {
   getChatExists,
   getLatestDocumentById // To return the final state
 } from '@/lib/db/queries'; 
-import type { ArtifactKind } from '@/components/artifact';
 import { Document } from '@/lib/db/schema'; // Import Document type for return
 
 const VERSION_THRESHOLD_MINUTES = 10; // Same threshold as old logic
@@ -43,14 +42,12 @@ export async function updateDocument(request: NextRequest, body: any): Promise<N
     
     const title = inputTitle || 'Untitled Document'; // Ensure title is never null/undefined
     const content = inputContent;
-    const kind = inputKind as ArtifactKind;
     
     console.log(`[Document API - UPDATE] User ${userId} updating document: ${documentId}`);
     console.log('[Document API - UPDATE] Received:', { 
       id: documentId, 
       title, 
       contentLength: content?.length || 0,
-      kind,
       chatId: inputChatId || 'none'
     });
     
@@ -85,7 +82,7 @@ export async function updateDocument(request: NextRequest, body: any): Promise<N
         
         // Directly use the Date objects for comparison
         const minutesSinceLastUpdate = differenceInMinutes(new Date(), currentVersion.updatedAt);
-        const metadataMatches = currentVersion.title === title && currentVersion.kind === kind;
+        const metadataMatches = currentVersion.title === title && currentVersion.kind === inputKind;
         
          console.log(`[Document API - UPDATE] Time Check - Now: ${new Date().toISOString()}, UpdatedAt: ${currentVersion.updatedAt.toISOString()}`); // Log actual dates used
 
@@ -135,7 +132,7 @@ export async function updateDocument(request: NextRequest, body: any): Promise<N
           userId: userId,
           title: title,
           content: content,
-          kind: kind,
+          kind: inputKind,
           chatId: finalChatId, // Pass verified or null chatId
         });
          if (!updatedOrCreatedDocument) {

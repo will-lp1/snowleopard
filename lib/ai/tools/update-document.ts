@@ -1,8 +1,7 @@
 import { tool, generateText } from 'ai';
-import { Session } from '@supabase/auth-helpers-nextjs';
+import { Session } from '@/lib/auth';
 import { z } from 'zod';
 import { getDocumentById } from '@/lib/db/queries';
-import { documentHandlersByArtifactKind } from '@/lib/artifacts/server';
 import type { Document } from '@/lib/db/schema';
 import { myProvider } from '@/lib/ai/providers';
 
