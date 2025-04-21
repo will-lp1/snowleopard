@@ -83,8 +83,9 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
             status={status}
             isCurrentVersion={isCurrentVersion}
             currentVersionIndex={currentVersionIndex}
-            documentId={documentId}
-          />
+            documentId={documentId} suggestions={[]} onSuggestionResolve={function (suggestionId: string, shouldApply: boolean): void {
+              throw new Error('Function not implemented.');
+            } }          />
         ) : (
           <div className="prose dark:prose-invert">
             {content.split('\n').map((line, index) => (

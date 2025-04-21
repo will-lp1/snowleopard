@@ -65,10 +65,9 @@ function PureChatHeader({
         className,
       )}
     >
-      {/* Only show sidebar toggle when we're in mobile view */}
       {isMobile && <SidebarToggle />}
 
-      {/* Simplified New Chat Button */}
+
       <Button
         variant="ghost"
         size="icon"
