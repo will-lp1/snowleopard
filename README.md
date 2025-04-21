@@ -47,9 +47,8 @@ Modern writing tools often lack deep AI integration or are closed-source. Snow L
 3.  **Database Setup**
     *   Ensure Docker is running.
     *   Start the local PostgreSQL container:
-        ```bash
-        # Add a docker-compose.yml if you don't have one, or use a specific command
-        docker compose up -d # Assuming you have a docker-compose.yml for postgres
+    bash
+        docker compose up -d
         ```
     *   Push the database schema (this applies migrations defined by Drizzle Kit based on `lib/db/schema.ts`):
         ```bash

@@ -113,7 +113,28 @@ export async function getChatById({ id }: { id: string }): Promise<Chat | null> 
 // This function assumes `messages` are prepared correctly according to the Drizzle schema.
 export async function saveMessages({ messages }: { messages: Array<typeof schema.Message.$inferInsert> }) {
    try {
-    await db.insert(schema.Message).values(messages);
+    // Ensure content is correctly formatted as JSON string before insertion
+    const formattedMessages = messages.map(msg => {
+        let finalContent: string | null = null;
+        if (typeof msg.content === 'string') {
+          // If it's already a string, assume it's simple text and wrap it
+          finalContent = JSON.stringify([{ type: 'text', content: msg.content, order: 0 }]);
+        } else if (typeof msg.content === 'object' && msg.content !== null) {
+           // If it's an object (like from AI SDK for tool calls/results), stringify it
+          finalContent = JSON.stringify(msg.content);
+        } else {
+          console.warn(`[DB Query - saveMessages] Unexpected message content type for msg ID (if exists) ${msg.id}:`, typeof msg.content);
+          // Handle unexpected types, maybe stringify or set to null/empty array string
+          finalContent = JSON.stringify([]);
+        }
+
+        return {
+            ...msg,
+            content: finalContent // Store as JSON string
+        };
+    });
+
+    await db.insert(schema.Message).values(formattedMessages);
   } catch (error) {
     console.error('Error saving messages:', error);
     throw error;
@@ -131,28 +152,43 @@ export async function getMessagesByChatId({ id }: { id: string }): Promise<Messa
       .where(eq(schema.Message.chatId, id))
       .orderBy(asc(schema.Message.createdAt));
 
-    // TODO: Add logic here to parse message.content (JSON) if needed
-    // The previous logic using MessageContent relation is removed.
-    /* Example of parsing JSON content if needed:
-    return data.map((message: Message) => { 
-      let parsedContent = {};
+    // Parse the JSON content field
+    return data.map((message) => {
+      let parsedContent: string | object = ''; // Default to empty string
       try {
-        // Assuming message.content is a valid JSON string or object
-        parsedContent = typeof message.content === 'string' 
-          ? JSON.parse(message.content) 
-          : message.content;
+        if (message.content) {
+          // Assuming content is stored as a JSON string representing an array
+          const contentArray = typeof message.content === 'string'
+            ? JSON.parse(message.content)
+            : message.content;
+
+          // Handle different content structures (adjust as needed based on actual usage)
+          if (Array.isArray(contentArray) && contentArray.length > 0) {
+            const firstElement = contentArray[0];
+            if (firstElement.type === 'text' && typeof firstElement.content === 'string') {
+              parsedContent = firstElement.content; // Extract text content
+            } else {
+               // Keep structured content for tool calls/results etc.
+               // Or handle other types as needed
+              parsedContent = contentArray; // Keep as array/object if not simple text
+            }
+          } else if (typeof contentArray === 'object' && contentArray !== null) {
+            // Handle case where content is a single object (e.g., tool call/result)
+             parsedContent = contentArray;
+          }
+          // Add more specific parsing logic if other types/structures exist
+        }
       } catch (e) {
-        console.error('Failed to parse message content:', e);
-        // Handle error, maybe return message with raw content or default
+        console.error(`[DB Query - getMessagesByChatId] Failed to parse message content for msg ${message.id}:`, e, 'Raw content:', message.content);
+        // Fallback or default behavior if parsing fails
+        parsedContent = '[Error parsing content]';
       }
       return {
         ...message,
-        content: parsedContent, // Replace raw content with parsed content
+        content: parsedContent as any, // Assign parsed content (string or object)
       };
     });
-    */
 
-    return data;
   } catch (error) {
     console.error('Error fetching messages:', error);
     return [];

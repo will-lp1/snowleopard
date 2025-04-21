@@ -18,6 +18,7 @@ import { useArtifact } from '@/hooks/use-artifact';
 import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
 import { DataStreamHandler } from '@/components/data-stream-handler';
 import { motion } from 'framer-motion';
+import { Loader2 } from 'lucide-react';
 
 export interface ChatProps {
   id?: string;
@@ -41,6 +42,8 @@ export function Chat({
   const [selectedChatModel, setSelectedChatModel] = useState(
     () => initialSelectedChatModel || DEFAULT_CHAT_MODEL
   );
+  const [isLoadingChat, setIsLoadingChat] = useState(false);
+  const [requestedChatLoadId, setRequestedChatLoadId] = useState<string | null>(null);
 
   // Callback function to update the model state
   const handleModelChange = (newModelId: string) => {
@@ -118,53 +121,84 @@ export function Chat({
     };
   }, [chatId, initialMessages, setInput, messages, setMessages]);
 
+  // Effect to load chat history when chatId changes
   useEffect(() => {
-    const handleLoadChat = async (event: CustomEvent<{ chatId: string }>) => {
-      const detail = event.detail;
-      
-      if (!detail || !detail.chatId) return;
-      
-      if (detail.chatId === chatId) {
-        console.log(`[Chat] Received load-chat event for current chat ${chatId}, ignoring.`);
-        return;
-      }
-      
-      console.log(`[Chat] Received load-chat event for ${detail.chatId}. Current: ${chatId}`);
-      
+    const loadHistory = async (idToLoad: string) => {
+      // Basic validation - avoid fetching for invalid/initial states unnecessarily
+      // Removed the initial check - now relies on requestedChatLoadId
+
+      console.log(`[Chat useEffect] Starting load for explicitly requested chatId: ${idToLoad}`);
+      setIsLoadingChat(true);
+      console.time(`[Chat useEffect] Load ${idToLoad}`);
+
       try {
-        const chatResponse = await fetch(`/api/chat?id=${detail.chatId}`);
-        if (!chatResponse.ok) throw new Error('Failed to fetch chat');
-        
+        // Reset request ID immediately to prevent re-fetching on re-renders during load
+        setRequestedChatLoadId(null);
+
+        console.time(`[Chat useEffect] Fetch ${idToLoad}`);
+        const chatResponse = await fetch(`/api/chat?id=${idToLoad}`);
+        console.timeEnd(`[Chat useEffect] Fetch ${idToLoad}`);
+        // console.log(`[Chat useEffect] Fetch response status for ${idToLoad}: ${chatResponse.status}, ok: ${chatResponse.ok}`); // Removed verbose log
+
+        if (!chatResponse.ok) {
+          const errorText = await chatResponse.text();
+          console.error(`[Chat useEffect] Fetch failed for ${idToLoad}. Status: ${chatResponse.status}. Body: ${errorText}`);
+          throw new Error(`Failed to fetch chat: ${chatResponse.statusText}`);
+        }
+
         const chatData = await chatResponse.json();
+        // console.log(`[Chat useEffect] Parsed chatData for ${idToLoad}:`, chatData ? { messageCount: chatData.messages?.length } : 'null/undefined'); // Removed verbose log
+
         if (!chatData || !chatData.messages) {
+          console.error(`[Chat useEffect] Invalid chat data received for ${idToLoad}. Data:`, chatData);
           throw new Error('Invalid chat data received');
         }
-        
-        setMessages([]);
-        setInput('');
-        
-        const oldChatId = chatId;
-        setChatId(detail.chatId); 
-        
-        setMessages(chatData.messages);
-        
-        window.dispatchEvent(new CustomEvent('chat-id-changed', { 
-          detail: { oldChatId: oldChatId, newChatId: detail.chatId }
-        }));
 
-        console.log(`[Chat] Successfully loaded chat ${detail.chatId} with ${chatData.messages.length} messages`);
+        // console.log(`[Chat useEffect] Resetting input and calling setMessages for ${idToLoad} with ${chatData.messages.length} messages.`); // Removed verbose log
+        setInput(''); // Reset input
+        setMessages(chatData.messages); // Set messages using the setter from useChat
+
+        // console.log(`[Chat useEffect] Successfully loaded chat ${idToLoad}`); // Removed verbose log
+
       } catch (error) {
-        console.error('Error loading chat:', error);
-        toast.error('Failed to load chat history');
+        console.error(`[Chat useEffect] CATCH BLOCK - Error loading chat ${idToLoad}:`, error);
+        // toast.error(`Failed to load chat history for ${idToLoad}`); // Removed toast
+        setMessages(initialMessages); // Revert to initial messages on error?
+        setInput('');
+      } finally {
+        setIsLoadingChat(false);
+        console.timeEnd(`[Chat useEffect] Load ${idToLoad}`);
       }
     };
-    
-    window.addEventListener('load-chat', handleLoadChat as unknown as EventListener);
-    
-    return () => {
-      window.removeEventListener('load-chat', handleLoadChat as unknown as EventListener);
+
+    // Only load history if an ID has been explicitly requested
+    if (requestedChatLoadId) {
+      loadHistory(requestedChatLoadId);
+    }
+
+  }, [requestedChatLoadId, setMessages, setInput, initialMessages]); // Depend on requestedChatLoadId
+
+  // Existing event listener for 'load-chat' - NOW ONLY SETS THE CHAT ID
+  useEffect(() => {
+    const handleLoadChatEvent = (event: CustomEvent<{ chatId: string }>) => {
+      const detail = event.detail;
+      if (!detail || !detail.chatId) return;
+
+      // console.log(`[Chat EventListener] Received load-chat event for ${detail.chatId}. Current state chatId: ${chatId}. Setting new chatId.`); // Removed verbose log
+
+      // Set the chat ID for useChat hook AND trigger the fetch effect
+      if (detail.chatId !== chatId) {
+          setChatId(detail.chatId);
+          setRequestedChatLoadId(detail.chatId); // Set the requested ID
+      }
     };
-  }, [chatId, setInput, setMessages]);
+
+    window.addEventListener('load-chat', handleLoadChatEvent as unknown as EventListener);
+
+    return () => {
+      window.removeEventListener('load-chat', handleLoadChatEvent as unknown as EventListener);
+    };
+  }, [chatId]); // Dependency needed to compare detail.chatId !== chatId correctly
 
   useEffect(() => {
     const handleChatIdChanged = (event: CustomEvent<{ oldChatId: string, newChatId: string }>) => {
@@ -262,16 +296,22 @@ export function Chat({
         </motion.div>
       )}
 
-      <div className="flex-1 overflow-y-auto">
-        <Messages
-          chatId={chatId}
-          status={status}
-          messages={messages}
-          setMessages={setMessages}
-          reload={reload}
-          isReadonly={isReadonly}
-          isArtifactVisible={false}
-        />
+      <div className="flex-1 overflow-y-auto relative">
+        {isLoadingChat ? (
+           <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm z-10">
+             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+           </div>
+         ) : (
+          <Messages
+            chatId={chatId}
+            status={status}
+            messages={messages}
+            setMessages={setMessages}
+            reload={reload}
+            isReadonly={isReadonly}
+            isArtifactVisible={false}
+          />
+         )}
       </div>
 
       {!isReadonly && (
