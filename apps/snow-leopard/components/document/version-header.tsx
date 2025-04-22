@@ -7,7 +7,7 @@ import { RotateCcw, Clock, Calendar, Loader2 } from 'lucide-react';
 import { format, formatDistance, isToday, isYesterday, differenceInDays } from 'date-fns';
 import { toast } from 'sonner';
 
-import type { Document } from '@/packages/db/src/schema';
+import type { Document } from '@snow-leopard/db';
 import { getDocumentTimestampByIndex } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 

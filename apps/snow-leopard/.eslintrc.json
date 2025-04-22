@@ -9,12 +9,18 @@
   "plugins": ["tailwindcss"],
   "rules": {
     "tailwindcss/no-custom-classname": "off",
-    "tailwindcss/classnames-order": "off"
+    "tailwindcss/classnames-order": "off",
+    "import/no-unresolved": "error" // Keep this commented out for now
   },
   "settings": {
     "import/resolver": {
+      // Add the node resolver
+      "node": {
+        "extensions": [".js", ".jsx", ".ts", ".tsx"]
+      },
       "typescript": {
-        "alwaysTryTypes": true
+        "alwaysTryTypes": true,
+        "project": ["./tsconfig.json"]
       }
     }
   },

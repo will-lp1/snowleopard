@@ -12,7 +12,7 @@ import {
 } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 import { useWindowSize } from 'usehooks-ts';
-import type { Document } from '@/packages/db/src/schema';
+import type { Document } from '@snow-leopard/db';
 import { fetcher } from '@/lib/utils';
 import { MultimodalInput } from './chat/multimodal-input';
 import { Toolbar } from './toolbar';

@@ -10,7 +10,7 @@ import type {
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-import type { Message as DBMessage, Document } from '@/packages/db/src/schema';
+import type { Message as DBMessage, Document } from '@snow-leopard/db';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));

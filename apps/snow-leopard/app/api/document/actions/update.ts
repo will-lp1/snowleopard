@@ -8,8 +8,8 @@ import {
   createNewDocumentVersion,
   getChatExists,
   getLatestDocumentById // To return the final state
-} from '@/lib/db/queries'; 
-import { Document } from '@/packages/db/src/schema'; // Import Document type for return
+} from '@/lib/db/queries';
+import { Document } from '@snow-leopard/db'; // <-- Corrected import path
 
 const VERSION_THRESHOLD_MINUTES = 10; // Same threshold as old logic
 
