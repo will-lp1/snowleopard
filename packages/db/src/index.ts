@@ -9,7 +9,7 @@ if (!process.env.DATABASE_URL) {
 
 const connectionOptions = {
   max: 1, // Suitable for serverless or local dev
-  // ssl: 'require', // Uncomment this if your Render DB requires SSL and it's not in the URL
+  ssl: 'require' as const,
 };
 
 // Log the URL being used (without credentials for safety)

@@ -41,7 +41,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar';
-import type { Document } from '@/packages/db/src/schema';
+import type { Document } from '@snow-leopard/db';
 import { useArtifact } from '@/hooks/use-artifact';
 import { ArtifactKind } from '@/components/artifact';
 import { useDocumentUtils } from '@/hooks/use-document-utils';

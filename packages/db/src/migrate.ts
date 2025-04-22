@@ -3,20 +3,26 @@ import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import postgres from 'postgres';
 import * as dotenv from 'dotenv';
 
-dotenv.config({ path: '.env.local' });
+// Ensure loading from .env in the current directory (packages/db)
+dotenv.config({ path: ['.env', '.env.local'] });
 
 const runMigrate = async () => {
   if (!process.env.DATABASE_URL) {
-    throw new Error('DATABASE_URL environment variable is required');
+    throw new Error('DATABASE_URL environment variable is required in packages/db/.env');
   }
 
-  const migrationClient = postgres(process.env.DATABASE_URL, { max: 1 });
+  // Configure postgres client for SSL connection required by Render
+  const migrationClient = postgres(process.env.DATABASE_URL, {
+    max: 1,
+    ssl: 'require' // Explicitly require SSL for the connection
+  });
 
   console.log('⏳ Running migrations...');
 
   const start = Date.now();
 
-  await migrate(drizzle(migrationClient), { migrationsFolder: 'lib/db/migrations' });
+  // Correct migrations folder path based on drizzle.config.ts ('./migrations')
+  await migrate(drizzle(migrationClient), { migrationsFolder: 'migrations' });
 
   const end = Date.now();
 

@@ -7,14 +7,10 @@
     "build": "pnpm --filter @snow-leopard/app build",
     "start": "pnpm --filter @snow-leopard/app start",
     "lint:app": "pnpm --filter @snow-leopard/app lint",
-    "db:generate": "pnpm --filter @snow-leopard/db generate",
-    "db:migrate": "pnpm --filter @snow-leopard/db migrate",
-    "db:studio": "pnpm --filter @snow-leopard/db studio",
-    "db:push": "pnpm --filter @snow-leopard/db migrate",
     "lint": "pnpm lint:app && biome lint --write --unsafe",
     "lint:fix": "pnpm --filter @snow-leopard/app lint --fix && biome lint --write --unsafe",
     "format": "biome format --write",
-    "test": "pnpm --filter @snow-leopard/app test"
+    "test": "export PLAYWRIGHT=True && pnpm exec playwright test --workers=4"
   },
   "dependencies": {
     "@ai-sdk/fireworks": "0.1.12",
@@ -86,7 +82,6 @@
     "ollama-ai-provider": "^1.2.0",
     "orderedmap": "^2.1.1",
     "papaparse": "^5.5.2",
-    "pg": "^8.14.1",
     "postgres": "^3.4.5",
     "prosemirror-commands": "^1.7.0",
     "prosemirror-example-setup": "^1.2.3",
