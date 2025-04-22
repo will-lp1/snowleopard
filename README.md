@@ -7,9 +7,9 @@ Snow Leopard is an intelligent writing environment designed to enhance your writ
 Modern writing tools often lack deep AI integration or are closed-source. Snow Leopard aims to provide:
 
 ✅ **Open-Source & Extensible** – Transparent development and easy integration.
-🦾 **AI Driven** - Enhance your writing with AI suggestions, generation, and chat context.
+🦾 **AI Driven** - Enhance your writing with AI suggestions, generation, and chat context. Using Vercel's AI SDK. 
 🔒 **Data Privacy Focused** – Your documents, your data. Designed with privacy in mind.
-⚙️ **Self-Hosting Option** – Flexibility to run your own instance (details TBD).
+⚙️ **Self-Hosting Option** – Flexibility to run your own instance.
 📄 **Rich Document Editing** – Supports various content types and formats.
 🎨 **Modern UI & UX** – Clean, intuitive interface built with Shadcn UI and TailwindCSS.
 🚀 **Developer-Friendly** – Built with Next.js and Drizzle for easy customization.
@@ -31,55 +31,66 @@ Modern writing tools often lack deep AI integration or are closed-source. Snow L
 *   **pnpm:** v8 or higher (Recommended package manager)
 *   **Docker & Docker Compose:** v20 or higher
 
-### Setup
+### Setup (Monorepo)
 
-1.  **Clone the Repository & Install Dependencies**
+This project uses a monorepo structure managed by pnpm workspaces:
+*   `apps/snow-leopard`: The Next.js web application.
+*   `packages/db`: Shared database schema, client, and migration logic.
+
+1.  **Clone the Repository & Install Dependencies (from Root)**
     ```bash
     git clone <your-repo-url> # Replace with your repository URL
     cd <your-repo-directory>
-    pnpm install
+    pnpm install # Run from the root directory!
     ```
+    This installs dependencies for all apps and packages and links them together.
 
-2.  **Set Up Environment Variables**
-    *   Copy `.env.example` to `.env` in the project root:
+2.  **Set Up Environment Variables (Two Files)**
+    *   Copy the example environment files:
         ```bash
-        cp .env.example .env
+        # For the Next.js app
+        cp apps/snow-leopard/.env.example apps/snow-leopard/.env
+        
+        # For Drizzle Kit migrations/generation
+        cp packages/db/.env.example packages/db/.env 
         ```
-    *   **Crucially, update `DATABASE_URL` in `.env`** to match the Docker Compose setup:
+    *   **Crucially, edit BOTH `.env` files** and ensure the `DATABASE_URL` matches the Docker Compose setup:
         ```dotenv
-        # .env
+        # In BOTH apps/snow-leopard/.env AND packages/db/.env
         DATABASE_URL="postgresql://user:password@localhost:5432/cursorforwriting_db"
         ```
-    *   Configure other necessary variables (like `BETTER_AUTH_SECRET`, `RESEND_API_KEY`, AI provider keys, etc.) as described in the **Environment Variables** section below.
+    *   Configure other necessary variables (like `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `RESEND_API_KEY`, AI provider keys, etc.) **only** in `apps/snow-leopard/.env` as described in the **Environment Variables** section below.
 
-3.  **Start the Database**
+3.  **Start the Database (from Root)**
     *   Ensure Docker is running.
-    *   Start the PostgreSQL database service defined in `docker-compose.yml`:
+    *   Start the PostgreSQL database service defined in the root `docker-compose.yml`:
         ```bash
         docker compose up -d db
         ```
     *   Wait a few moments for the database container to initialize.
 
-4.  **Apply Database Schema**
-    *   Push the schema defined in `lib/db/schema.ts` to the running database:
+4.  **Apply Database Schema (from Root)**
+    *   Push the schema defined in `packages/db/src/schema.ts` to the running database using the root script:
         ```bash
         pnpm db:push
         ```
-    *   This command uses Drizzle Kit to synchronize your database schema with your code definition.
+    *   This command now filters to the `packages/db` package and runs its migration script.
 
-5.  **Start the Development Server**
-    ```bash
-    pnpm dev
-    ```
+5.  **Start the Development Server (from Root)**
+    *   Start the Next.js app using the root script:
+        ```bash
+        pnpm dev
+        ```
+    *   This command now filters to the `apps/snow-leopard` package and runs its `dev` script.
 
 6.  **Open in Browser**
     Visit [http://localhost:3000](http://localhost:3000)
 
 ### Environment Variables
-Configure the following in your `.env` file:
+Configure the following primarily in your **`apps/snow-leopard/.env`** file:
 
 ```dotenv
-# Database (Required - Ensure this matches your docker-compose.yml)
+# Database (Required for App - Ensure this matches your docker-compose.yml & packages/db/.env)
 DATABASE_URL="postgresql://user:password@localhost:5432/cursorforwriting_db"
 
 # Better Auth (Required)
@@ -90,32 +101,32 @@ BETTER_AUTH_URL="http://localhost:3000" # Base URL of your app
 RESEND_API_KEY="" # Your Resend API key
 
 # AI Provider(s) (Required for AI features - add/remove as needed)
-# Example for OpenAI:
-# OPENAI_API_KEY=""
+
 # Example for Groq:
 # GROQ_API_KEY="" # Get your key at https://console.groq.com/keys
-# Example for Fireworks:
-# FIREWORKS_API_KEY=""
 
-# Add other necessary environment variables
+
+# Add other necessary environment variables for the app
 ```
+
+**Note:** The `packages/db/.env` file only needs the `DATABASE_URL` for Drizzle Kit commands.
 
 ### Database
 
-*   **Start Local DB:** `docker compose up -d db`
-*   **Stop Local DB:** `docker compose down`
-*   **Connect String:** Ensure `DATABASE_URL` in `.env` points to your PostgreSQL instance.
-*   **Apply Schema/Migrations:** `pnpm db:push` (for simple schema sync based on `schema.ts`).
-*   **For production or more complex changes, use migrations:**
-    *   Generate Migration Files: `pnpm db:generate` (Run after changing `lib/db/schema.ts`).
-    *   Apply Migrations: `pnpm db:migrate` (Runs migration files).
-*   **DB Studio (Optional):** `pnpm db:studio` (Opens Drizzle Studio web UI).
+*   **Location:** Schema (`src/schema.ts`), Client (`src/index.ts`), and Migrations (`migrations/`) are located in the `packages/db` directory.
+*   **Start Local DB:** `docker compose up -d db` (from root)
+*   **Stop Local DB:** `docker compose down` (from root)
+*   **Apply Schema/Migrations (from Root):** `pnpm db:push` (for simple schema sync based on `schema.ts`).
+*   **For production or more complex changes, use migrations (run from Root):**
+    *   Generate Migration Files: `pnpm db:generate` (Run after changing `packages/db/src/schema.ts`).
+    *   Apply Migrations: `pnpm db:migrate` (Runs migration files in `packages/db/migrations`).
+*   **DB Studio (Optional - from Root):** `pnpm db:studio` (Opens Drizzle Studio web UI connected via `packages/db/.env`).
 
 ### Authentication (Better Auth)
 
-*   **Secret:** Set a strong `BETTER_AUTH_SECRET` in your `.env` file (see Environment Variables section for generation methods).
-*   **Adapter:** Configured in `lib/auth.ts` to use the Drizzle adapter with PostgreSQL.
-*   **Schema:** Better Auth requires specific tables (`user`, `session`, `account`, `verification`). These are already defined in `lib/db/schema.ts`. Running `pnpm db:push` (as part of the setup steps) uses Drizzle Kit to push this combined schema (your app's tables + Better Auth tables) to the database. You do not need to use the `@better-auth/cli` for schema management when using the Drizzle adapter with a pre-defined schema like this. For more details, see the Better Auth documentation: [https://www.better-auth.com/docs/installation](https://www.better-auth.com/docs/installation)
+*   **Secret & URL:** Set `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` in your `apps/snow-leopard/.env` file.
+*   **Adapter:** Configured in `apps/snow-leopard/lib/auth.ts` to use the Drizzle adapter, importing the `db` client from `@snow-leopard/db`.
+*   **Schema:** Better Auth requires specific tables (`user`, `session`, `account`, `verification`). These should be defined in `packages/db/src/schema.ts`. Running `pnpm db:push` (from the root) uses Drizzle Kit within the `packages/db` context to push the combined schema to the database.
 
 ## Contributing
 

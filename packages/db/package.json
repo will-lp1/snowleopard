@@ -1,0 +1,24 @@
+{
+  "name": "@snow-leopard/db",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "migrate": "drizzle-kit push:pg",
+    "generate": "drizzle-kit generate:pg",
+    "studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "postgres": "^3.4.4",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.25.0",
+    "drizzle-orm": "^0.34.1",
+    "typescript": "^5.6.3"
+  },
+  "peerDependencies": {
+    "drizzle-orm": "^0.34.1"
+  }
+} 
