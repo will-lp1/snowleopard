@@ -836,7 +836,6 @@ function PureLexicalEditor({
           root.append(paragraphNode);
         });
         if (root.isEmpty()) root.append($createParagraphNode());
-        root.selectEnd();
       }, { tag: 'history-merge' });
 
       lastSyncedPropContentRef.current = currentPropContent;
@@ -878,15 +877,15 @@ function PureLexicalEditor({
     const currentDocId = documentId;
     if (saveState !== 'saving') {
       saveTimeoutRef.current = setTimeout(() => {
-        if (currentDocId !== documentId) return; // Ensure doc ID hasn't changed since timeout was set
+        if (currentDocId !== documentId) return;
         if (contentChangedRef.current && editorRef.current) {
           const contentToSave = lastContentRef.current;
           editorRef.current.update(() => { $addUpdateTag('skip-dom-selection'); });
           onSaveContent(contentToSave, true);
-          contentChangedRef.current = false; // Reset flag after scheduling save
+          contentChangedRef.current = false;
         }
-        saveTimeoutRef.current = null; // Clear timeout ref after execution
-      }, 800); // Debounce time
+        saveTimeoutRef.current = null;
+      }, 800);
     }
   }, [documentId, onSaveContent, saveState, isNewDocument, onCreateDocument]);
 
@@ -902,7 +901,7 @@ function PureLexicalEditor({
         saveOnUnmount(); // Also save on component unmount
         window.removeEventListener('beforeunload', saveOnUnmount);
     };
-  }, [onSaveContent, saveState, documentId]); // Dependencies ensure correct behavior
+  }, [onSaveContent, saveState, documentId]);
 
   useEffect(() => {
     const handleManualSave = (e: KeyboardEvent) => {
@@ -921,7 +920,7 @@ function PureLexicalEditor({
     };
     window.addEventListener('keydown', handleManualSave);
     return () => window.removeEventListener('keydown', handleManualSave);
-  }, [onSaveContent]); // Dependency on onSaveContent
+  }, [onSaveContent]);
 
   useEffect(() => {
     const handleApplySuggestion = (event: CustomEvent) => {
@@ -950,20 +949,18 @@ function PureLexicalEditor({
             selection.insertText(suggestion);
             toast.success("Suggestion applied");
 
-            // Trigger immediate save after applying suggestion
-            lastContentRef.current = ''; // Force update
+            lastContentRef.current = '';
             contentChangedRef.current = true;
             if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-            saveTimeoutRef.current = null;
-            // Schedule an immediate save (no debounce)
-            setTimeout(() => {
+            saveTimeoutRef.current = setTimeout(() => {
               if (contentChangedRef.current && editorRef.current) {
                 const contentToSave = editorRef.current.getEditorState().read(() => $getRoot().getTextContent());
                 editorRef.current.update(() => $addUpdateTag('skip-dom-selection'));
-                onSaveContent(contentToSave, false); // Save immediately
+                onSaveContent(contentToSave, false);
                 contentChangedRef.current = false;
               }
-            }, 50); // Small delay to ensure update completes
+              saveTimeoutRef.current = null;
+            }, 50);
           } else {
             console.warn('[LexicalEditor apply-suggestion] Suggestion not applied: Selection changed.');
             toast.warning("Selection changed, suggestion not applied.");
@@ -976,7 +973,7 @@ function PureLexicalEditor({
 
     window.addEventListener('apply-suggestion', handleApplySuggestion as EventListener);
     return () => window.removeEventListener('apply-suggestion', handleApplySuggestion as EventListener);
-  }, [documentId, onSaveContent]); // Keep onSaveContent dependency
+  }, [documentId, onSaveContent]); // Keep onSaveContent dependency for the immediate save
 
   const handleAcceptSuggestion = useCallback((suggestion: string) => {
       if (!editorRef.current || !selectedText) return;
@@ -1034,66 +1031,6 @@ function PureLexicalEditor({
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleShowSuggestionOverlay]);
-  
-  // Effect for handling 'apply-document-update' events (Added from previous state)
-  useEffect(() => {
-    const handleApplyUpdate = (event: CustomEvent) => {
-      if (!editorRef.current || !event.detail) return;
-
-      const { documentId: updateDocId, newContent } = event.detail;
-
-      // Ignore if event is for a different document
-      if (updateDocId !== documentId) {
-        console.warn('[LexicalEditor apply-document-update] Event ignored: Document ID mismatch.');
-        return;
-      }
-
-      console.log(`[LexicalEditor apply-document-update] Event received for doc: ${documentId}`);
-      
-      // Update the editor content by replacing everything
-      editorRef.current.update(() => {
-        const root = $getRoot();
-        root.clear();
-        // Split content by double newlines to try and preserve paragraph structure
-        const paragraphs = newContent.split(/\n\n+/); 
-        paragraphs.forEach((paragraphText: string) => {
-          const paragraphNode = $createParagraphNode();
-          if (paragraphText.trim()) { // Avoid creating nodes for empty lines between paragraphs
-            paragraphNode.append($createTextNode(paragraphText));
-          }
-          root.append(paragraphNode);
-        });
-        // Ensure editor isn't empty if newContent was empty or whitespace
-        if (root.isEmpty()) {
-           root.append($createParagraphNode());
-        }
-         // Optionally, move cursor to the end after update
-        // root.selectEnd(); 
-      }, { tag: 'history-merge' }); // Merge this change into history
-
-      // Update internal refs and trigger immediate save
-      lastContentRef.current = newContent; // Update internal state
-      lastSyncedPropContentRef.current = newContent; // Sync with prop state assumption
-      contentChangedRef.current = true; // Mark as changed
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current); // Clear any pending debounced save
-      saveTimeoutRef.current = null;
-
-      // Schedule an immediate save (no debounce)
-      setTimeout(() => {
-          if (contentChangedRef.current && editorRef.current) {
-              const contentToSave = editorRef.current.getEditorState().read(() => $getRoot().getTextContent());
-              editorRef.current.update(() => $addUpdateTag('skip-dom-selection'));
-              onSaveContent(contentToSave, false); // Save immediately
-              contentChangedRef.current = false; // Reset flag
-          }
-      }, 50); // Small delay
-
-      toast.success("Document updated");
-    };
-
-    window.addEventListener('apply-document-update', handleApplyUpdate as EventListener);
-    return () => window.removeEventListener('apply-document-update', handleApplyUpdate as EventListener);
-  }, [documentId, onSaveContent]); // Dependencies: documentId and onSaveContent
 
   return (
     <div className="relative">
@@ -1233,8 +1170,7 @@ function areEqual(prevProps: Readonly<EditorProps>, nextProps: Readonly<EditorPr
   if (prevProps.documentId !== nextProps.documentId) return false;
   if (prevProps.content !== nextProps.content) return false;
   if (prevProps.isNewDocument !== nextProps.isNewDocument) return false;
-  // Optimization: Check saveState only if relevant? Might cause subtle bugs if not included.
-  // if (prevProps.saveState !== nextProps.saveState) return false; 
+
   return true;
 }
 

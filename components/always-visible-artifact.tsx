@@ -301,24 +301,20 @@ export function AlwaysVisibleArtifact({
     const mostRecentDocument = documents[documents.length - 1];
     if (!mostRecentDocument) return;
 
-    console.log(`[Document - useEffect[documents]] Processing ${documents.length} versions for ${mostRecentDocument.id}. Current artifact ID: ${artifact.documentId}, Target initialDocumentId: ${initialDocumentId}`);
+    // *** CRITICAL CHECK: Only update artifact if the loaded doc matches the target ID ***
+    if (mostRecentDocument.id !== initialDocumentId) {
+      console.log(`[Document] Ignoring fetched data for ${mostRecentDocument.id} as target is ${initialDocumentId}`);
+      return; // Don't update state with stale data
+    }
     
     // Update local document state
     setDocument(mostRecentDocument);
     setCurrentVersionIndex(documents.length - 1);
     
-    // Determine if artifact state needs update
-    const needsUpdate = 
-        !artifact.content || 
-        artifact.content !== mostRecentDocument.content || 
-        artifact.title !== mostRecentDocument.title ||
-        artifact.documentId !== mostRecentDocument.id;
-
     // Only update content if it's not already loaded or has changed
-    if (needsUpdate) { // Use the combined check
-      console.log(`[Document - useEffect[documents]] Updating artifact state for ${mostRecentDocument.id}. Needs update: ${needsUpdate}`);
-      console.log(`[Document - useEffect[documents]] Old state: ID=${artifact.documentId}, Title=${artifact.title}, Content Length=${artifact.content?.length}`);
-      console.log(`[Document - useEffect[documents]] New state: ID=${mostRecentDocument.id}, Title=${mostRecentDocument.title}, Content Length=${mostRecentDocument.content?.length}`);
+    if (!artifact.content || 
+        artifact.content !== mostRecentDocument.content || 
+        artifact.title !== mostRecentDocument.title) {
       
       // Update artifact state with document data
       setArtifact((currentArtifact: any) => ({
@@ -326,7 +322,7 @@ export function AlwaysVisibleArtifact({
         content: mostRecentDocument.content ?? '',
         title: mostRecentDocument.title,
         documentId: mostRecentDocument.id,
-        kind: 'text', // Assuming text for now, maybe fetch kind too?
+        kind: 'text',
       }));
       
       // Also update the document context for other components
@@ -338,11 +334,9 @@ export function AlwaysVisibleArtifact({
       );
       
       lastDocumentIdRef.current = mostRecentDocument.id;
-      console.log('[Document - useEffect[documents]] Artifact state updated for document content loaded:', mostRecentDocument.id);
-    } else {
-       console.log(`[Document - useEffect[documents]] Artifact state for ${mostRecentDocument.id} doesn't need update. Content/Title/ID match.`);
+      console.log('[Document] Document content loaded:', mostRecentDocument.id);
     }
-  }, [documents, setArtifact, artifact.content, artifact.title, artifact.documentId, updateDocument, initialDocumentId]);
+  }, [documents, setArtifact, artifact.content, artifact.title, updateDocument, initialDocumentId]);
   
   // Ensure we always stay on the latest version when in edit mode
   useEffect(() => {

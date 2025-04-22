@@ -224,7 +224,8 @@ export async function getDocumentsById({ ids, userId }: { ids: string[], userId:
       .where(and(
         eq(schema.Document.userId, userId),
         inArray(schema.Document.id, ids)
-      ));
+      ))
+      .orderBy(asc(schema.Document.createdAt));
     return data || [];
   } catch (error) {
     console.error('Error fetching documents by IDs:', error);
@@ -576,6 +577,7 @@ export async function updateCurrentDocumentVersion({
       .update(schema.Document)
       .set({ 
         content: content, 
+        updatedAt: new Date(),
       })
       .where(and(
         eq(schema.Document.id, documentId),
