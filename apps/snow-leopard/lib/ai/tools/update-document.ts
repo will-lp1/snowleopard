@@ -2,7 +2,7 @@ import { tool, generateText } from 'ai';
 import { Session } from '@/lib/auth';
 import { z } from 'zod';
 import { getDocumentById } from '@/lib/db/queries';
-import type { Document } from '@/packages/db/src/schema';
+import type { Document } from '@snow-leopard/db';
 import { myProvider } from '@/lib/ai/providers';
 
 interface UpdateDocumentProps {
