@@ -1,0 +1,343 @@
+'use client';
+
+import type { Attachment, Message, ChatRequestOptions } from 'ai';
+import { useChat } from '@ai-sdk/react';
+import { useState, useEffect } from 'react';
+import useSWR, { useSWRConfig } from 'swr';
+import { ChatHeader } from '@/components/chat/chat-header';
+import { fetcher, generateUUID } from '@/lib/utils';
+import { MultimodalInput } from './multimodal-input';
+import { Messages } from './messages';
+import { toast } from 'sonner';
+import { FileText } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useDocumentContext } from '@/hooks/use-document-context';
+import { MentionedDocument } from './multimodal-input';
+import { FileIcon } from '../icons';
+import { useArtifact } from '@/hooks/use-artifact';
+import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
+import { DataStreamHandler } from '@/components/data-stream-handler';
+import { motion } from 'framer-motion';
+import { Loader2 } from 'lucide-react';
+
+export interface ChatProps {
+  id?: string;
+  initialMessages: Array<Message>;
+  selectedChatModel?: string;
+  isReadonly?: boolean;
+}
+
+export function Chat({
+  id: initialId,
+  initialMessages,
+  selectedChatModel: initialSelectedChatModel,
+  isReadonly = false,
+}: ChatProps) {
+  const { mutate } = useSWRConfig();
+  const { documentId, documentTitle, documentContent } = useDocumentContext();
+  const [documentContextActive, setDocumentContextActive] = useState(false);
+  const { artifact } = useArtifact();
+  const [chatId, setChatId] = useState(() => initialId || generateUUID());
+  
+  const [selectedChatModel, setSelectedChatModel] = useState(
+    () => initialSelectedChatModel || DEFAULT_CHAT_MODEL
+  );
+  const [isLoadingChat, setIsLoadingChat] = useState(false);
+  const [requestedChatLoadId, setRequestedChatLoadId] = useState<string | null>(null);
+
+  // Callback function to update the model state
+  const handleModelChange = (newModelId: string) => {
+    setSelectedChatModel(newModelId);
+    console.log('[Chat] Model changed to:', newModelId);
+  };
+
+  const [confirmedMentions, setConfirmedMentions] = useState<MentionedDocument[]>([]);
+
+  useEffect(() => {
+    const hasDocumentContext = documentId !== 'init' && documentContent;
+    setDocumentContextActive(Boolean(hasDocumentContext));
+    
+    if (hasDocumentContext) {
+      console.log('[Chat] Using document context in chat:', {
+        documentId,
+        title: documentTitle,
+        contentLength: documentContent.length
+      });
+    }
+  }, [documentId, documentContent, documentTitle]);
+
+  const {
+    messages,
+    setMessages,
+    handleSubmit,
+    input,
+    setInput,
+    append,
+    status,
+    stop,
+    reload,
+    data,
+    error
+  } = useChat({
+    api: '/api/chat',
+    id: chatId,
+    initialMessages,
+    body: {
+      id: chatId,
+      selectedChatModel: selectedChatModel,
+    },
+    onResponse: (res) => {
+      if (res.status === 401) {
+        console.error('Chat Unauthorized');
+      }
+    },
+    onError: (err) => {
+      console.error('Chat Error:', err);
+    },
+  });
+
+  const [attachments, setAttachments] = useState<Array<Attachment>>([]);
+
+  const handleMentionsChange = (mentions: MentionedDocument[]) => {
+    setConfirmedMentions(mentions);
+  };
+
+  useEffect(() => {
+    const handleResetChatInput = (event: CustomEvent) => {
+      const detail = event.detail as { chatId: string } | undefined;
+      
+      if (detail && detail.chatId === chatId) {
+        setInput('');
+        if (messages.length > initialMessages.length) {
+          setMessages(initialMessages);
+        }
+      }
+    };
+
+    window.addEventListener('reset-chat-input', handleResetChatInput as EventListener);
+    
+    return () => {
+      window.removeEventListener('reset-chat-input', handleResetChatInput as EventListener);
+    };
+  }, [chatId, initialMessages, setInput, messages, setMessages]);
+
+  // Effect to load chat history when chatId changes
+  useEffect(() => {
+    const loadHistory = async (idToLoad: string) => {
+      // Basic validation - avoid fetching for invalid/initial states unnecessarily
+      // Removed the initial check - now relies on requestedChatLoadId
+
+      console.log(`[Chat useEffect] Starting load for explicitly requested chatId: ${idToLoad}`);
+      setIsLoadingChat(true);
+      console.time(`[Chat useEffect] Load ${idToLoad}`);
+
+      try {
+        // Reset request ID immediately to prevent re-fetching on re-renders during load
+        setRequestedChatLoadId(null);
+
+        console.time(`[Chat useEffect] Fetch ${idToLoad}`);
+        const chatResponse = await fetch(`/api/chat?id=${idToLoad}`);
+        console.timeEnd(`[Chat useEffect] Fetch ${idToLoad}`);
+        // console.log(`[Chat useEffect] Fetch response status for ${idToLoad}: ${chatResponse.status}, ok: ${chatResponse.ok}`); // Removed verbose log
+
+        if (!chatResponse.ok) {
+          const errorText = await chatResponse.text();
+          console.error(`[Chat useEffect] Fetch failed for ${idToLoad}. Status: ${chatResponse.status}. Body: ${errorText}`);
+          throw new Error(`Failed to fetch chat: ${chatResponse.statusText}`);
+        }
+
+        const chatData = await chatResponse.json();
+        // console.log(`[Chat useEffect] Parsed chatData for ${idToLoad}:`, chatData ? { messageCount: chatData.messages?.length } : 'null/undefined'); // Removed verbose log
+
+        if (!chatData || !chatData.messages) {
+          console.error(`[Chat useEffect] Invalid chat data received for ${idToLoad}. Data:`, chatData);
+          throw new Error('Invalid chat data received');
+        }
+
+        // console.log(`[Chat useEffect] Resetting input and calling setMessages for ${idToLoad} with ${chatData.messages.length} messages.`); // Removed verbose log
+        setInput(''); // Reset input
+        setMessages(chatData.messages); // Set messages using the setter from useChat
+
+        // console.log(`[Chat useEffect] Successfully loaded chat ${idToLoad}`); // Removed verbose log
+
+      } catch (error) {
+        console.error(`[Chat useEffect] CATCH BLOCK - Error loading chat ${idToLoad}:`, error);
+        // toast.error(`Failed to load chat history for ${idToLoad}`); // Removed toast
+        setMessages(initialMessages); // Revert to initial messages on error?
+        setInput('');
+      } finally {
+        setIsLoadingChat(false);
+        console.timeEnd(`[Chat useEffect] Load ${idToLoad}`);
+      }
+    };
+
+    // Only load history if an ID has been explicitly requested
+    if (requestedChatLoadId) {
+      loadHistory(requestedChatLoadId);
+    }
+
+  }, [requestedChatLoadId, setMessages, setInput, initialMessages]); // Depend on requestedChatLoadId
+
+  // Existing event listener for 'load-chat' - NOW ONLY SETS THE CHAT ID
+  useEffect(() => {
+    const handleLoadChatEvent = (event: CustomEvent<{ chatId: string }>) => {
+      const detail = event.detail;
+      if (!detail || !detail.chatId) return;
+
+      // console.log(`[Chat EventListener] Received load-chat event for ${detail.chatId}. Current state chatId: ${chatId}. Setting new chatId.`); // Removed verbose log
+
+      // Set the chat ID for useChat hook AND trigger the fetch effect
+      if (detail.chatId !== chatId) {
+          setChatId(detail.chatId);
+          setRequestedChatLoadId(detail.chatId); // Set the requested ID
+      }
+    };
+
+    window.addEventListener('load-chat', handleLoadChatEvent as unknown as EventListener);
+
+    return () => {
+      window.removeEventListener('load-chat', handleLoadChatEvent as unknown as EventListener);
+    };
+  }, [chatId]); // Dependency needed to compare detail.chatId !== chatId correctly
+
+  useEffect(() => {
+    const handleChatIdChanged = (event: CustomEvent<{ oldChatId: string, newChatId: string }>) => {
+      const { oldChatId, newChatId } = event.detail;
+      
+      if (oldChatId === chatId) {
+        console.log(`[Chat] Changing chat ID from ${oldChatId} to ${newChatId}`);
+      }
+    };
+    
+    window.addEventListener('chat-id-changed', handleChatIdChanged as unknown as EventListener);
+    
+    return () => {
+      window.removeEventListener('chat-id-changed', handleChatIdChanged as unknown as EventListener);
+    };
+  }, [chatId]);
+
+  useEffect(() => {
+    const handleReset = () => {
+      console.log('[Chat Component] Received reset-chat-state event');
+      const newChatId = generateUUID();
+      setMessages([]);
+      setInput('');
+      setChatId(newChatId);
+      console.log('[Chat Component] Chat state reset. New ID:', newChatId);
+    };
+
+    window.addEventListener('reset-chat-state', handleReset);
+
+    return () => {
+      window.removeEventListener('reset-chat-state', handleReset);
+    };
+  }, [setMessages, setInput, setChatId]);
+
+  const wrappedSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    
+    if (documentContextActive && messages.length === initialMessages.length) {
+      toast.success(`Using document context: ${documentTitle}`, {
+        icon: <FileText className="size-4" />,
+        duration: 3000,
+        id: `doc-context-${documentId}`
+      });
+    }
+    
+    console.log('[Chat] Submitting with Model:', selectedChatModel);
+
+    const contextData: { 
+      activeDocumentId?: string | null;
+      mentionedDocumentIds?: string[]; 
+    } = {};
+    
+    const currentDocId = artifact.documentId;
+    if (currentDocId && currentDocId !== 'init') {
+      contextData.activeDocumentId = currentDocId;
+    } else {
+      contextData.activeDocumentId = null;
+    }
+    
+    if (confirmedMentions.length > 0) {
+      contextData.mentionedDocumentIds = confirmedMentions.map(doc => doc.id);
+    }
+    
+    const options: ChatRequestOptions = {
+      data: contextData,
+    };
+
+    handleSubmit(e, options);
+
+    setConfirmedMentions([]);
+  };
+
+  return (
+    <div className="flex flex-col h-full overflow-hidden">
+      <ChatHeader
+        chatId={chatId}
+        selectedModelId={selectedChatModel}
+        isReadonly={isReadonly}
+        onModelChange={handleModelChange}
+      />
+
+      {documentContextActive ? (
+        <div className="px-3 py-1 text-xs text-muted-foreground text-center border-b border-zinc-200 dark:border-zinc-700 bg-muted/20">
+          Active Document: <span className="font-medium text-foreground">{documentTitle}</span>
+        </div>
+      ) : (
+        <motion.div
+          key="no-messages"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 10 }}
+          className="px-3 py-1 text-xs text-muted-foreground text-center border-b border-zinc-200 dark:border-zinc-700 bg-muted/20"
+        >
+          No messages in this chat yet.
+        </motion.div>
+      )}
+
+      <div className="flex-1 overflow-y-auto relative">
+        {isLoadingChat ? (
+           <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm z-10">
+             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+           </div>
+         ) : (
+          <Messages
+            chatId={chatId}
+            status={status}
+            messages={messages}
+            setMessages={setMessages}
+            reload={reload}
+            isReadonly={isReadonly}
+            isArtifactVisible={false}
+          />
+         )}
+      </div>
+
+      {!isReadonly && (
+        <div className="p-4 border-t border-zinc-200 dark:border-zinc-700">
+          
+          <form onSubmit={wrappedSubmit}>
+            <MultimodalInput
+              chatId={chatId}
+              input={input}
+              setInput={setInput}
+              handleSubmit={handleSubmit}
+              status={status}
+              stop={stop}
+              attachments={attachments}
+              setAttachments={setAttachments}
+              messages={messages}
+              setMessages={setMessages}
+              append={append}
+              confirmedMentions={confirmedMentions}
+              onMentionsChange={handleMentionsChange}
+            />
+          </form>
+        </div>
+      )}
+
+      <DataStreamHandler id={chatId} />
+    </div>
+  );
+}
