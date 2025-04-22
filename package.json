@@ -133,6 +133,7 @@
     "dotenv": "^16.4.5",
     "dotenv-cli": "^8.0.0",
     "drizzle-kit": "^0.25.0",
+    "drizzle-orm": "^0.34.1",
     "eslint": "^8.57.0",
     "eslint-config-next": "14.2.5",
     "eslint-config-prettier": "^9.1.0",

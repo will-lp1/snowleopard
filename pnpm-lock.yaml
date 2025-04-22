@@ -347,6 +347,9 @@ importers:
       drizzle-kit:
         specifier: ^0.25.0
         version: 0.25.0
+      drizzle-orm:
+        specifier: ^0.34.1
+        version: 0.34.1(@opentelemetry/api@1.9.0)(@types/pg@8.11.13)(@types/react@18.3.20)(kysely@0.27.6)(postgres@3.4.5)(react@19.0.0-rc-45804af1-20241021)
       eslint:
         specifier: ^8.57.0
         version: 8.57.1
@@ -408,6 +411,9 @@ importers:
       '@types/react-dom':
         specifier: ^18
         version: 18.3.6(@types/react@18.3.20)
+      drizzle-orm:
+        specifier: ^0.34.1
+        version: 0.34.1(@opentelemetry/api@1.9.0)(@types/pg@8.11.13)(@types/react@18.3.20)(kysely@0.27.6)(postgres@3.4.5)(react@19.0.0-rc-45804af1-20241021)
       eslint:
         specifier: ^8
         version: 8.57.1
