@@ -817,13 +817,6 @@ function PureLexicalEditor({
     if (editor && (needsSyncDueToDocId || propContentDiffersFromEditor)) {
       console.log(`[Editor Sync Effect] Syncing editor for ${documentId}. Reason: ${needsSyncDueToDocId ? 'Doc ID change' : 'Content prop value changed & differs from editor state'}`);
 
-      // Clear any pending save timeout before overwriting editor state
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-        saveTimeoutRef.current = null;
-        console.log(`[Editor Sync Effect] Cleared pending save timeout for ${documentId}`);
-      }
-
       editor.update(() => {
         const root = $getRoot();
         root.clear();
@@ -836,6 +829,7 @@ function PureLexicalEditor({
           root.append(paragraphNode);
         });
         if (root.isEmpty()) root.append($createParagraphNode());
+        root.selectEnd();
       }, { tag: 'history-merge' });
 
       lastSyncedPropContentRef.current = currentPropContent;
@@ -974,6 +968,66 @@ function PureLexicalEditor({
     window.addEventListener('apply-suggestion', handleApplySuggestion as EventListener);
     return () => window.removeEventListener('apply-suggestion', handleApplySuggestion as EventListener);
   }, [documentId, onSaveContent]); // Keep onSaveContent dependency for the immediate save
+
+  // Effect for handling 'apply-document-update' events
+  useEffect(() => {
+    const handleApplyUpdate = (event: CustomEvent) => {
+      if (!editorRef.current || !event.detail) return;
+
+      const { documentId: updateDocId, newContent } = event.detail;
+
+      // Ignore if event is for a different document
+      if (updateDocId !== documentId) {
+        console.warn('[LexicalEditor apply-document-update] Event ignored: Document ID mismatch.');
+        return;
+      }
+
+      console.log(`[LexicalEditor apply-document-update] Event received for doc: ${documentId}`);
+      
+      // Update the editor content by replacing everything
+      editorRef.current.update(() => {
+        const root = $getRoot();
+        root.clear();
+        // Split content by double newlines to try and preserve paragraph structure
+        const paragraphs = newContent.split(/\n\n+/); 
+        paragraphs.forEach((paragraphText: string) => {
+          const paragraphNode = $createParagraphNode();
+          if (paragraphText.trim()) { // Avoid creating nodes for empty lines between paragraphs
+            paragraphNode.append($createTextNode(paragraphText));
+          }
+          root.append(paragraphNode);
+        });
+        // Ensure editor isn't empty if newContent was empty or whitespace
+        if (root.isEmpty()) {
+           root.append($createParagraphNode());
+        }
+         // Move cursor to the end after update
+        root.selectEnd(); 
+      }, { tag: 'history-merge' }); // Merge this change into history
+
+      // Update internal refs and trigger immediate save
+      lastContentRef.current = newContent; // Update internal state
+      lastSyncedPropContentRef.current = newContent; // Sync with prop state assumption
+      contentChangedRef.current = true; // Mark as changed
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current); // Clear any pending debounced save
+      saveTimeoutRef.current = null;
+
+      // Schedule an immediate save (no debounce)
+      setTimeout(() => {
+          if (contentChangedRef.current && editorRef.current) {
+              const contentToSave = editorRef.current.getEditorState().read(() => $getRoot().getTextContent());
+              editorRef.current.update(() => $addUpdateTag('skip-dom-selection'));
+              onSaveContent(contentToSave, false); // Save immediately
+              contentChangedRef.current = false; // Reset flag
+          }
+      }, 50); // Small delay
+
+      toast.success("Document updated");
+    };
+
+    window.addEventListener('apply-document-update', handleApplyUpdate as EventListener);
+    return () => window.removeEventListener('apply-document-update', handleApplyUpdate as EventListener);
+  }, [documentId, onSaveContent]); // Dependencies: documentId and onSaveContent
 
   const handleAcceptSuggestion = useCallback((suggestion: string) => {
       if (!editorRef.current || !selectedText) return;

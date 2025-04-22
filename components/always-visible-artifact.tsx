@@ -72,7 +72,6 @@ export function AlwaysVisibleArtifact({
     {
       revalidateOnFocus: false,
       dedupingInterval: 5000,
-      refreshInterval: 60000,
       onSuccess: (data) => {
         if (data && data.length > 0) {
           console.log(`[Document] Loaded ${data.length} document versions for ID: ${initialDocumentId}`);
@@ -380,22 +379,6 @@ export function AlwaysVisibleArtifact({
       return;
     }
 
-    // Update local content state immediately for better UX
-    if (artifact.content !== updatedContent) {
-      setArtifact((curr: any) => ({
-        ...curr,
-        content: updatedContent
-      }));
-      
-      // Also update document context
-      updateDocument(
-        artifact.documentId,
-        artifact.title,
-        updatedContent,
-        artifact.kind
-      );
-    }
-    
     // Set saving indicator state
     setIsContentDirty(true);
     setSaveState('saving');
@@ -424,9 +407,50 @@ export function AlwaysVisibleArtifact({
       const updatedDocumentData: Document = await response.json();
 
       // Update SWR cache with the returned data
-      // Instead of manual merging, simply revalidate the SWR cache.
-      // This will trigger a fresh fetch from the API, ensuring we get the absolute latest version list.
-      await mutateDocuments(); 
+      // Find the existing document in the cache to update it, or update the whole array if needed
+      mutateDocuments((currentData) => {
+        if (!currentData) return [updatedDocumentData]; // If cache is empty, initialize with new data
+        
+        // Find the index of the document version to update (usually the last one)
+        const indexToUpdate = currentData.findIndex(doc => 
+          doc.id === updatedDocumentData.id && 
+          doc.createdAt === updatedDocumentData.createdAt
+        );
+        
+        if (indexToUpdate !== -1) {
+          // Update the specific version in the array
+          const newData = [...currentData];
+          newData[indexToUpdate] = updatedDocumentData;
+          return newData;
+        } else {
+          // If the exact version wasn't found (e.g., it was a new version created),
+          // find the latest version for the same ID and replace it, or append.
+          // This logic assumes the API returns the *single* latest version state.
+          const latestIndexForId = currentData.reduce((latestIdx, doc, currentIdx) => {
+            if (doc.id === updatedDocumentData.id && (latestIdx === -1 || new Date(doc.createdAt) > new Date(currentData[latestIdx].createdAt))) {
+              return currentIdx;
+            }
+            return latestIdx;
+          }, -1);
+
+          if (latestIndexForId !== -1) {
+             const newData = [...currentData];
+             // Check if the returned data represents a NEWER version or just an UPDATE to the latest
+             if (new Date(updatedDocumentData.createdAt) > new Date(newData[latestIndexForId].createdAt)) {
+               // It's a newer version, append it (or replace if ID matches but createdAt differs)
+               newData.push(updatedDocumentData);
+               // Remove older versions if necessary (or handle based on desired history view)
+             } else {
+               // It's an update to the latest known version
+               newData[latestIndexForId] = updatedDocumentData;
+             }
+             return newData;
+          } else {
+             // Document ID not found at all, append as new
+             return [...currentData, updatedDocumentData];
+          }
+        }
+      }, { revalidate: false }); // Update cache, don't trigger immediate refetch
       
       // Clear save indicator after successful save
       setIsContentDirty(false);
@@ -839,10 +863,10 @@ export function AlwaysVisibleArtifact({
                         content={isCurrentVersion ? artifact.content : getDocumentContentById(currentVersionIndex)}
                         onSaveContent={saveContent}
                         documentId={artifact.documentId}
-                        saveState={saveState} // Renamed from isContentDirty for clarity
+                        saveState={isContentDirty ? 'saving' : 'idle'}
                         isNewDocument={artifact.documentId === 'init'}
-                        onCreateDocument={handleCreateDocumentFromEditor}
-                 />
+                        onCreateDocument={handleCreateDocumentFromEditor} 
+                />
               </div>
             ) : (
               // Show loader while waiting for the correct document content to load
