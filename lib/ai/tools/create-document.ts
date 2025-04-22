@@ -1,7 +1,7 @@
 import { generateUUID } from '@/lib/utils';
 import { DataStreamWriter, tool } from 'ai';
 import { z } from 'zod';
-import { Session } from '@supabase/auth-helpers-nextjs';
+import { Session } from '@/lib/auth';
 import {
   artifactKinds,
   documentHandlersByArtifactKind,
