@@ -22,8 +22,8 @@ class AuthPage {
 
   async register(email: string, password: string) {
     await this.gotoRegister();
-    await this.page.getByPlaceholder('user@acme.com').click();
-    await this.page.getByPlaceholder('user@acme.com').fill(email);
+    await this.page.getByLabel('Email').click();
+    await this.page.getByLabel('Email').fill(email);
     await this.page.getByLabel('Password').click();
     await this.page.getByLabel('Password').fill(password);
     await this.page.getByRole('button', { name: 'Sign Up' }).click();
@@ -31,15 +31,15 @@ class AuthPage {
 
   async login(email: string, password: string) {
     await this.gotoLogin();
-    await this.page.getByPlaceholder('user@acme.com').click();
-    await this.page.getByPlaceholder('user@acme.com').fill(email);
+    await this.page.getByLabel('Email').click();
+    await this.page.getByLabel('Email').fill(email);
     await this.page.getByLabel('Password').click();
     await this.page.getByLabel('Password').fill(password);
     await this.page.getByRole('button', { name: 'Sign In' }).click();
   }
 
-  async expectToastToContain(text: string) {
-    await expect(this.page.getByTestId('toast')).toContainText(text);
+  async expectToastToContain(text: string, timeout = 5000) {
+    await expect(this.page.locator('[data-sonner-toast]')).toContainText(text, { timeout });
   }
 }
 
@@ -52,26 +52,28 @@ test.describe
     });
 
     test('redirect to login page when unauthenticated', async ({ page }) => {
-      await page.goto('/');
+      await page.goto('/documents');
+      await expect(page).toHaveURL(/.*\/login/);
       await expect(page.getByRole('heading')).toContainText('Sign In');
     });
 
     test('register a test account', async ({ page }) => {
       await authPage.register(testEmail, testPassword);
-      await expect(page).toHaveURL('/');
-      await authPage.expectToastToContain('Account created successfully!');
+      await page.waitForURL('/documents', { timeout: 10000 });
+      await expect(page).toHaveURL('/documents');
+      await expect(page.locator('textarea[placeholder*="Send a message"]')).toBeVisible();
     });
 
     test('register test account with existing email', async () => {
       await authPage.register(testEmail, testPassword);
-      await authPage.expectToastToContain('Account already exists!');
+      await authPage.expectToastToContain('Account already exists');
     });
 
     test('log into account', async ({ page }) => {
       await authPage.login(testEmail, testPassword);
 
-      await page.waitForURL('/');
-      await expect(page).toHaveURL('/');
-      await expect(page.getByPlaceholder('Send a message...')).toBeVisible();
+      await page.waitForURL('/documents', { timeout: 10000 });
+      await expect(page).toHaveURL('/documents');
+      await expect(page.locator('textarea[placeholder*="Send a message"]')).toBeVisible();
     });
   });

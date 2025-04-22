@@ -3,7 +3,6 @@
 import { useChat } from '@ai-sdk/react';
 import { useEffect, useRef } from 'react';
 import { artifactDefinitions, ArtifactKind } from './artifact';
-import { Suggestion } from '@/lib/db/schema';
 import { initialArtifactData, useArtifact } from '@/hooks/use-artifact';
 
 export type DataStreamDelta = {
@@ -14,21 +13,16 @@ export type DataStreamDelta = {
     | 'image-delta'
     | 'title'
     | 'id'
-    | 'suggestion'
-    | 'suggestion-delta'
-    | 'original'
     | 'clear'
     | 'finish'
     | 'kind'
     | 'artifactUpdate';
-  content: string | Suggestion;
+  content: string;
 };
 
-// Define interface for metadata with our new fields
-interface SuggestionMetadata {
-  originalContent?: string;
-  pendingSuggestion?: string;
-  suggestions?: Suggestion[];
+// Define interface for metadata - remove suggestion fields
+interface StreamMetadata {
+  originalContent?: string; 
   [key: string]: any;
 }
 
@@ -90,23 +84,6 @@ export function DataStreamHandler({ id }: { id: string }) {
               status: 'streaming',
             };
             
-          case 'original':
-            // Store original content in metadata for diff view
-            setMetadata((prevMetadata: SuggestionMetadata) => ({
-              ...prevMetadata,
-              originalContent: delta.content as string,
-              pendingSuggestion: ''
-            }));
-            return draftArtifact;
-            
-          case 'suggestion-delta':
-            // Accumulate the suggestion in metadata for direct overlay
-            setMetadata((prevMetadata: SuggestionMetadata) => ({
-              ...prevMetadata,
-              pendingSuggestion: (prevMetadata.pendingSuggestion || '') + (delta.content as string)
-            }));
-            return draftArtifact;
-
           case 'finish':
             return {
               ...draftArtifact,
@@ -140,6 +117,8 @@ export function DataStreamHandler({ id }: { id: string }) {
             return draftArtifact;
 
           default:
+            // Handle text-delta, code-delta etc. via artifactDefinition.onStreamPart
+            // If no handler handles it, just return current state
             return draftArtifact;
         }
       });

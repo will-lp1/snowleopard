@@ -9,16 +9,19 @@ setup('authenticate', async ({ page }) => {
   const testEmail = `test-${getUnixTime(new Date())}@playwright.com`;
   const testPassword = generateId(16);
 
-  await page.goto('http://localhost:3000/register');
-  await page.getByPlaceholder('user@acme.com').click();
-  await page.getByPlaceholder('user@acme.com').fill(testEmail);
+  await page.goto('/register');
+  await page.getByLabel('Email').click();
+  await page.getByLabel('Email').fill(testEmail);
   await page.getByLabel('Password').click();
   await page.getByLabel('Password').fill(testPassword);
   await page.getByRole('button', { name: 'Sign Up' }).click();
 
-  await expect(page.getByTestId('toast')).toContainText(
-    'Account created successfully!',
+  await expect(page.locator('[data-sonner-toast]')).toContainText(
+    'Account created! Redirecting...',
+    { timeout: 10000 }
   );
+
+  await page.waitForURL('/documents', { timeout: 10000 });
 
   await page.context().storageState({ path: authFile });
 });

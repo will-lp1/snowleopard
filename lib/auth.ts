@@ -65,10 +65,10 @@ export const auth = betterAuth({
   //   }
   // },
 
-  // Remove plugins for simplification
-  // plugins: [
-  //  nextCookies(),
-  // ],
+  // Add back the plugins array with nextCookies
+  plugins: [
+   nextCookies(),
+  ],
   
   // Remove model name mappings for simplification
   // user: { modelName: "user" },

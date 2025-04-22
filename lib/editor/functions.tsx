@@ -8,7 +8,6 @@ import { renderToString } from 'react-dom/server';
 import { Markdown } from '@/components/markdown';
 
 import { documentSchema } from './config';
-import { createSuggestionWidget, type UISuggestion } from './suggestions';
 
 export const buildDocumentFromContent = (content: string) => {
   const parser = DOMParser.fromSchema(documentSchema);
@@ -22,46 +21,6 @@ export const buildContentFromDocument = (doc: Node) => {
   return defaultMarkdownSerializer.serialize(doc);
 
   
-};
-
-export const createDecorations = (
-  suggestions: Array<UISuggestion>,
-  view: EditorView,
-  onReject?: (suggestion: UISuggestion) => void
-) => {
-  const decorations: Array<Decoration> = [];
-
-  for (const suggestion of suggestions) {
-    decorations.push(
-      Decoration.inline(
-        suggestion.selectionStart,
-        suggestion.selectionEnd,
-        {
-          class: 'suggestion-highlight',
-        },
-        {
-          suggestionId: suggestion.id,
-          type: 'highlight',
-        },
-      ),
-    );
-
-    decorations.push(
-      Decoration.widget(
-        suggestion.selectionStart,
-        (view) => {
-          const { dom } = createSuggestionWidget(suggestion, view, onReject);
-          return dom;
-        },
-        {
-          suggestionId: suggestion.id,
-          type: 'widget',
-        },
-      ),
-    );
-  }
-
-  return DecorationSet.create(view.state.doc, decorations);
 };
 
 // Find the position of text in a document
