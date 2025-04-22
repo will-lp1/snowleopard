@@ -9,8 +9,9 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "react": "^18",
-    "react-dom": "^18",
+    "react": "19.0.0-rc-45804af1-20241021",
+    "react-dom": "19.0.0-rc-45804af1-20241021",
+    "next": "15.2.2-canary.1",
     "@snow-leopard/db": "workspace:*"
   },
   "devDependencies": {
