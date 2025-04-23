@@ -241,59 +241,31 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
     // Handler for document creation
     const handleDocumentCreated = (event: CustomEvent) => {
       console.log('[SidebarDocuments] Document created event received', event.detail);
-      
+
       if (event.detail?.document) {
-        // Optimistically update the list with the new document
-        mutate((currentDocs) => {
-          if (!currentDocs) return currentDocs;
-          
-          // Check if document already exists to avoid duplicates
-          const existingDocIndex = currentDocs.findIndex(doc => doc.id === event.detail.document.id);
-          
-          // Create a copy of the document from the event
-          const newDoc = {
-            ...event.detail.document,
-            createdAt: event.detail.document.createdAt || new Date().toISOString()
-          };
-          
-          if (existingDocIndex >= 0) {
-            // Update existing document
-            const updatedDocs = [...currentDocs];
-            updatedDocs[existingDocIndex] = newDoc;
-            return updatedDocs;
-          } else {
-            // Add to the front of the list (most recent)
-            return [newDoc, ...currentDocs];
-          }
-        }, false); // false means don't revalidate immediately
-        
-        // Revalidate after a short delay to get server state
-        setTimeout(() => mutate(), 500);
+        // Trigger revalidation immediately to fetch the latest list from the server
+        mutate();
       }
     };
-    
+
     // Handler for document renaming
     const handleDocumentRenamed = (event: CustomEvent) => {
       console.log('[SidebarDocuments] Document renamed event received', event.detail);
-      
+
       if (event.detail?.documentId && event.detail?.newTitle) {
         // Optimistically update the document title
         mutate((currentDocs) => {
           if (!currentDocs) return currentDocs;
-          
+
           // Update the document title in the list
           return currentDocs.map(doc => {
-            // Update the matching document with the new title
             if (doc.id === event.detail.documentId) {
               return { ...doc, title: event.detail.newTitle };
             }
             return doc;
           });
-        }, true); // true to immediately revalidate with the server
-        
-        // Force rerender - this seems to help in some cases
-        setForceUpdate(prev => prev + 1);
-        
+        }, false); // Set revalidate to false - optimistic update only
+
         // Broadcast a document update event for other components
         try {
           const updateEvent = new CustomEvent('document-updated', {
@@ -308,17 +280,17 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
         }
       }
     };
-    
+
     // Add event listeners
     window.addEventListener('document-created', handleDocumentCreated as EventListener);
     window.addEventListener('document-renamed', handleDocumentRenamed as EventListener);
-    
+
     // Clean up
     return () => {
       window.removeEventListener('document-created', handleDocumentCreated as EventListener);
       window.removeEventListener('document-renamed', handleDocumentRenamed as EventListener);
     };
-  }, [mutate]);
+  }, [mutate]); // Removed setForceUpdate dependency
 
   // Listen for document updates
   useEffect(() => {

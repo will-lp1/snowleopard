@@ -34,19 +34,16 @@ export async function updateDocument(request: NextRequest, body: any): Promise<N
     // --- Input Validation --- 
     const { 
       id: documentId, // Rename for clarity
-      title: inputTitle, // Rename for clarity
       content: inputContent = '', // Default to empty string
       kind: inputKind = 'text', // Default to text
       chatId: inputChatId // Optional chatId
     } = body;
     
-    const title = inputTitle || 'Untitled Document'; // Ensure title is never null/undefined
     const content = inputContent;
     
     console.log(`[Document API - UPDATE] User ${userId} updating document: ${documentId}`);
     console.log('[Document API - UPDATE] Received:', { 
       id: documentId, 
-      title, 
       contentLength: content?.length || 0,
       chatId: inputChatId || 'none'
     });
@@ -73,18 +70,16 @@ export async function updateDocument(request: NextRequest, body: any): Promise<N
       
       // 2. Decide whether to update the current version or create a new one
       let shouldUpdateCurrent = false;
+      let titleForNewVersion = 'Untitled Document'; // Default title if needed
+
       if (currentVersion && currentVersion.updatedAt) {
-        // --- Remove Logging ---
-        // const now = new Date();
-        // const updatedAtDate = new Date(currentVersion.updatedAt); // No longer needed, it's already a Date
-        // console.log(`[Document API - UPDATE] Time Check - Now: ${now.toISOString()}, UpdatedAt Raw: ${currentVersion.updatedAt}, UpdatedAt Parsed: ${updatedAtDate.toISOString()}`);
-        // --- End Logging ---
+        // Use the title from the *actual* current version in the DB
+        titleForNewVersion = currentVersion.title;
         
-        // Directly use the Date objects for comparison
         const minutesSinceLastUpdate = differenceInMinutes(new Date(), currentVersion.updatedAt);
-        const metadataMatches = currentVersion.title === title && currentVersion.kind === inputKind;
+        const metadataMatches = currentVersion.kind === inputKind; // NEW - Only check kind
         
-         console.log(`[Document API - UPDATE] Time Check - Now: ${new Date().toISOString()}, UpdatedAt: ${currentVersion.updatedAt.toISOString()}`); // Log actual dates used
+        console.log(`[Document API - UPDATE] Time Check - Now: ${new Date().toISOString()}, UpdatedAt: ${currentVersion.updatedAt.toISOString()}`); // Log actual dates used
 
         if (minutesSinceLastUpdate < VERSION_THRESHOLD_MINUTES && metadataMatches) {
           shouldUpdateCurrent = true;
@@ -94,7 +89,14 @@ export async function updateDocument(request: NextRequest, body: any): Promise<N
                      `Threshold: ${VERSION_THRESHOLD_MINUTES}m. Metadata matches: ${metadataMatches}. ` +
                      `Decision: ${shouldUpdateCurrent ? 'UPDATE current' : 'CREATE new'}`);
       } else {
-          console.log(`[Document API - UPDATE] No current version found for ${documentId} or missing updatedAt. Creating new version.`);
+          // If no current version exists, try fetching the latest known version to get its title
+          const latestVersionForTitle = await getLatestDocumentById({ id: documentId });
+          if (latestVersionForTitle) {
+             titleForNewVersion = latestVersionForTitle.title;
+             console.log(`[Document API - UPDATE] No current version found for ${documentId}, using title "${titleForNewVersion}" from latest version.`);
+          } else {
+             console.log(`[Document API - UPDATE] No current or latest version found for ${documentId}. Creating new version with default title.`);
+          }
       }
 
       // 3. Perform Update or Create
@@ -130,7 +132,7 @@ export async function updateDocument(request: NextRequest, body: any): Promise<N
         updatedOrCreatedDocument = await createNewDocumentVersion({
           id: documentId,
           userId: userId,
-          title: title,
+          title: titleForNewVersion, // NEW - use title fetched from DB or default
           content: content,
           kind: inputKind,
           chatId: finalChatId, // Pass verified or null chatId
