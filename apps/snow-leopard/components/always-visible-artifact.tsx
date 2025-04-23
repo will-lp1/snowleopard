@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, SetStateAction, Dispatch } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDistance } from 'date-fns';
 import { Loader2, FileText, PlusIcon, MessageSquareIcon, PencilIcon, CheckIcon, XIcon, ChevronUp, ChevronDown } from 'lucide-react';
@@ -56,6 +56,9 @@ export function AlwaysVisibleArtifact({
   const titleInputRef = useRef<HTMLInputElement>(null);
   const documentIdFromUrlRef = useRef<string | null>(null);
   
+  // State for document switching loading indicator
+  const [isSwitchingDocument, setIsSwitchingDocument] = useState(false);
+
   const {
     data: documents,
     isLoading: isDocumentsFetching,
@@ -186,35 +189,59 @@ export function AlwaysVisibleArtifact({
   
   // Use the provided initialDocumentId if available and update when it changes
   useEffect(() => {
+    // Only trigger switch logic if the initialDocumentId prop actually changes
+    // and is different from the currently tracked artifact ID.
     if (initialDocumentId && 
         initialDocumentId !== 'init' && 
-        initialDocumentId !== documentIdFromUrlRef.current && 
-        artifact.documentId !== initialDocumentId) {
-      console.log('[Document] Updating document ID from props:', initialDocumentId);
+        initialDocumentId !== artifact.documentId) {
+      console.log('[Document] Switching document ID from props:', initialDocumentId);
+      
+      // *** START SWITCH ***
+      setIsSwitchingDocument(true); // Show loader
       documentIdFromUrlRef.current = initialDocumentId;
       
-      setArtifact((curr: any) => ({
+      // Reset artifact state - crucially clear content
+      setArtifact((curr: any) => ({ 
         ...curr,
         documentId: initialDocumentId,
-        content: '', // Reset content to ensure we load fresh from the server
-        status: 'idle'
+        content: '', // Clear content immediately
+        title: 'Loading...', // Show loading title
+        status: 'loading' 
       }));
       
-      // Reset document state
+      // Reset local document state for versions etc.
       setDocument(null);
       setCurrentVersionIndex(-1);
       
-      // Force reload of documents with the new ID
+      // Force reload of documents data via SWR
+      // SWR's onSuccess or the useEffect below will handle setting isSwitchingDocument to false
       setTimeout(() => {
         mutateDocuments();
-      }, 100);
-      
-      // Update URL with the document ID for future refreshes
-      const currentUrl = new URL(window.location.href);
-      currentUrl.searchParams.set('document', initialDocumentId);
-      window.history.replaceState({}, '', currentUrl.toString());
+      }, 50); // Small delay might help ensure state reset occurs before fetch starts
+
+      // Update URL (optional, might already be handled by navigation)
+      // const currentUrl = new URL(window.location.href);
+      // currentUrl.searchParams.set('document', initialDocumentId);
+      // window.history.replaceState({}, '', currentUrl.toString());
+    } else if (!initialDocumentId || initialDocumentId === 'init') {
+       // Handle switching BACK to the 'init' state (e.g., clicking New Chat)
+       if (artifact.documentId !== 'init') {
+           console.log('[Document] Switching back to init state.');
+           setIsSwitchingDocument(true); // Show loader briefly for clean transition
+           setArtifact((curr: any) => ({ 
+             ...curr,
+             documentId: 'init',
+             content: '',
+             title: 'Document',
+             status: 'idle' 
+           }));
+           setDocument(null);
+           setCurrentVersionIndex(-1);
+           // No need to mutate documents here
+           setTimeout(() => setIsSwitchingDocument(false), 50); // Hide loader quickly
+       }
     }
-  }, [initialDocumentId, artifact.documentId, setArtifact, mutateDocuments]);
+  }, [initialDocumentId]); // Only trigger on prop change
   
   // Monitor URL for document ID changes
   useEffect(() => {
@@ -295,47 +322,61 @@ export function AlwaysVisibleArtifact({
   
   // Load document data when documents change
   useEffect(() => {
-    if (!documents || documents.length === 0) return;
-    
-    const mostRecentDocument = documents[documents.length - 1];
-    if (!mostRecentDocument) return;
-
-    // *** CRITICAL CHECK: Only update artifact if the loaded doc matches the target ID ***
-    if (mostRecentDocument.id !== initialDocumentId) {
-      console.log(`[Document] Ignoring fetched data for ${mostRecentDocument.id} as target is ${initialDocumentId}`);
-      return; // Don't update state with stale data
+    if (!documents || documents.length === 0) {
+      // If the fetch returns no documents for a specific ID, stop loading
+      if (artifact.documentId !== 'init') {
+        setIsSwitchingDocument(false); 
+      }
+      return;
     }
+    
+    // FIRST: Get the potential most recent document
+    const mostRecentDocument = documents[documents.length - 1];
+    
+    // SECOND: Check if it actually exists
+    if (!mostRecentDocument) {
+      setIsSwitchingDocument(false); // Stop loading if data is invalid
+      return;
+    }
+
+    // THIRD: Check if it matches the *currently targeted* artifact ID
+    if (mostRecentDocument.id !== artifact.documentId) {
+      console.log(`[Document] Ignoring fetched data for ${mostRecentDocument.id} as target is ${artifact.documentId}`);
+      // Don't stop loading here, wait for the correct data for the *targeted* ID
+      return; 
+    }
+    
+    // --- Data matches target ID, process it --- 
+    console.log('[Document] Correct document data loaded:', mostRecentDocument.id);
     
     // Update local document state
     setDocument(mostRecentDocument);
     setCurrentVersionIndex(documents.length - 1);
     
-    // Only update content if it's not already loaded or has changed
-    if (!artifact.content || 
-        artifact.content !== mostRecentDocument.content || 
-        artifact.title !== mostRecentDocument.title) {
-      
-      // Update artifact state with document data
-      setArtifact((currentArtifact: any) => ({
-        ...currentArtifact,
-        content: mostRecentDocument.content ?? '',
-        title: mostRecentDocument.title,
-        documentId: mostRecentDocument.id,
-        kind: 'text',
-      }));
-      
-      // Also update the document context for other components
-      updateDocument(
-        mostRecentDocument.id,
-        mostRecentDocument.title || 'Untitled Document',
-        mostRecentDocument.content || '',
-        mostRecentDocument.kind as ArtifactKind || 'text'
-      );
-      
-      lastDocumentIdRef.current = mostRecentDocument.id;
-      console.log('[Document] Document content loaded:', mostRecentDocument.id);
-    }
-  }, [documents, setArtifact, artifact.content, artifact.title, updateDocument, initialDocumentId]);
+    // Update artifact state with the actual document data
+    setArtifact((currentArtifact: any) => ({ 
+      ...currentArtifact,
+      content: mostRecentDocument.content ?? '',
+      title: mostRecentDocument.title,
+      documentId: mostRecentDocument.id,
+      kind: mostRecentDocument.kind as ArtifactKind || 'text',
+      status: 'idle' // Mark as idle now that content is loaded
+    }));
+    
+    // Update the separate document context (if still used)
+    updateDocument(
+      mostRecentDocument.id,
+      mostRecentDocument.title || 'Untitled Document',
+      mostRecentDocument.content || '',
+      mostRecentDocument.kind as ArtifactKind || 'text'
+    );
+    
+    lastDocumentIdRef.current = mostRecentDocument.id;
+    
+    // *** END SWITCH ***
+    setIsSwitchingDocument(false); // Hide loader now that correct data is processed
+
+  }, [documents, artifact.documentId, setArtifact, updateDocument]); // Add artifact.documentId dependency
   
   // Ensure we always stay on the latest version when in edit mode
   useEffect(() => {
@@ -527,14 +568,6 @@ export function AlwaysVisibleArtifact({
     artifact.documentId !== 'undefined' && 
     artifact.documentId !== 'null';
   
-  // Check if we should show the no document state
-  const showNoDocumentState = 
-    !isLoadingValidDocument && 
-    !document && 
-    (artifact.documentId === 'init' || 
-     artifact.documentId === 'undefined' || 
-     artifact.documentId === 'null');
-  
   // Update the status display in the UI
   const getSaveStatusDisplay = () => {
     if (saveState === 'saving') {
@@ -561,15 +594,12 @@ export function AlwaysVisibleArtifact({
       return "Start typing to create";
     }
     
-    // Use updatedAt if available, otherwise fallback to createdAt
-    // Ensure document and timestamps are valid Date objects or parseable strings
     let lastSavedDate: Date | null = null;
     if (document?.updatedAt) {
         try {
             lastSavedDate = new Date(document.updatedAt);
         } catch (e) { /* Ignore invalid date */ }
     }
-    // Fallback to createdAt if updatedAt is missing or invalid
     if (!lastSavedDate && document?.createdAt) {
          try {
             lastSavedDate = new Date(document.createdAt);
@@ -585,17 +615,14 @@ export function AlwaysVisibleArtifact({
         },
       )}`
     ) : (
-      // Show skeleton loader if no valid date found yet
       <div className="w-32 h-3 bg-muted-foreground/20 rounded-md animate-pulse" /> 
     );
   };
   
-  // Add this new function to handle creating a document with specific ID
   const handleCreateDocumentWithId = async (id: string) => {
     if (isCreatingDocument) return;
     
     try {
-      // Create a document with the requested ID
       const document = await createDocument({
         title: 'Document',
         content: '',
@@ -614,7 +641,6 @@ export function AlwaysVisibleArtifact({
     }
   };
   
-  // Add this new function to handle creating a document initiated from the editor
   const handleCreateDocumentFromEditor = async (initialContent: string) => {
     if (isCreatingDocument || artifact.documentId !== 'init') return;
     
@@ -626,7 +652,7 @@ export function AlwaysVisibleArtifact({
         title: 'Untitled Document', // Start with a default title
         content: initialContent,
         kind: 'text',
-        chatId: null, // No chat initially
+        chatId: null, 
         navigateAfterCreate: true, // Navigate after creation
         providedId: newDocId // Use the generated ID
       });
@@ -799,7 +825,11 @@ export function AlwaysVisibleArtifact({
           )}
         </AnimatePresence>
 
-        {isLoadingValidDocument ? (
+        {isSwitchingDocument ? (
+          <div className="flex justify-center items-center h-full">
+            <Loader2 className="size-8 animate-spin text-primary" />
+          </div>
+        ) : isLoadingValidDocument ? (
           <div className="flex justify-center items-center h-full">
             <Loader2 className="size-8 animate-spin text-primary" />
           </div>
@@ -837,61 +867,28 @@ export function AlwaysVisibleArtifact({
               </Button>
             </div>
           </div>
-        ) : showNoDocumentState ? (
-          // Modified existing "no document" UI to be cleaner
-          <div className="flex flex-col justify-center items-center h-full gap-4 text-muted-foreground">
-            <FileText className="size-16 opacity-50" />
-            <div className="text-center">
-              <h3 className="text-lg font-medium mb-1">No Document Selected</h3>
-              <p className="text-sm mb-4">Create a new document to get started.</p>
-            </div>
-            <div className="flex gap-3">
-              <Button 
-                onClick={() => {
-                  // Create a new document and navigate to it
-                  createNewDocument();
-                }}
-                variant="default"
-                className="gap-2"
-                disabled={isCreatingDocument}
-              >
-                {isCreatingDocument ? 
-                  <Loader2 className="h-4 w-4 animate-spin" /> : 
-                  <PlusIcon className="h-4 w-4" />}
-                Create New Document
-              </Button>
-            </div>
-          </div>
         ) : (
           <>
-            {/* Only render editor when data is loaded and synced */} 
-            {!isDocumentsFetching && artifact.documentId === initialDocumentId ? (
-              <div className="px-8 py-6 mx-auto max-w-3xl">
-                <Editor
-                  key={artifact.documentId} // Key ensures reset on ID change
-                  content={isCurrentVersion ? artifact.content : getDocumentContentById(currentVersionIndex)}
-                  onSaveContent={saveContent}
-                  // Pass necessary props for Editor
-                  status={'idle'} // Default status, adjust if streaming state exists
-                  isCurrentVersion={isCurrentVersion}
-                  currentVersionIndex={currentVersionIndex}
-                  // Added documentId prop
-                  documentId={artifact.documentId}
-                  // Removed props specific to LexicalEditor
-                  // saveState={isContentDirty ? 'saving' : 'idle'}
-                  // isNewDocument={artifact.documentId === 'init'}
-                  // onCreateDocument={handleCreateDocumentFromEditor}
-                />
-              </div>
-            ) : (
-              // Show loader while waiting for the correct document content to load
-              <div className="flex justify-center items-center h-full">
-                <Loader2 className="size-8 animate-spin text-primary" />
-              </div>
-            )}
+            <div className="px-8 py-6 mx-auto max-w-3xl">
+              <Editor
+                key={artifact.documentId}
+                content={
+                  artifact.documentId === 'init' 
+                    ? '' 
+                    : isCurrentVersion 
+                      ? artifact.content 
+                      : getDocumentContentById(currentVersionIndex)
+                }
+                onSaveContent={saveContent}
+                status={'idle'}
+                isCurrentVersion={artifact.documentId === 'init' ? true : isCurrentVersion}
+                currentVersionIndex={artifact.documentId === 'init' ? -1 : currentVersionIndex}
+                documentId={artifact.documentId}
+              />
+            </div>
             
             <AnimatePresence>
-              {isCurrentVersion && (
+              {artifact.documentId !== 'init' && isCurrentVersion && (
                 <Toolbar
                   isToolbarVisible={isToolbarVisible}
                   setIsToolbarVisible={setIsToolbarVisible}

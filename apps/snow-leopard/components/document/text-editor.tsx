@@ -6,6 +6,7 @@ import { EditorState, Transaction } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
 import React, { memo, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
+import placeholder from '@gulibs/prosemirror-plugin-placeholder';
 
 import {
   documentSchema,
@@ -203,6 +204,8 @@ function PureEditor({
       const state = EditorState.create({
         doc: buildDocumentFromContent(content),
         plugins: [
+          // Use the NEW placeholder plugin instance
+          placeholder('Start typing...'),
           ...exampleSetup({ schema: documentSchema, menuBar: false }),
           inputRules({
             rules: [
@@ -442,6 +445,19 @@ function PureEditor({
           /* margin-left: 1px; */ /* Avoid margin if possible */
           /* Add vertical-align if needed */
           vertical-align: initial; 
+        }
+
+        /* Placeholder for empty editor */
+        .ProseMirror:focus {
+          outline: none; /* Remove default focus outline if needed */
+        }
+        /* CORRECTED SELECTOR based on prosemirror-placeholder behavior */
+        .ProseMirror p.is-editor-empty:first-child::before {
+          content: attr(data-placeholder);
+          float: left;
+          color: #adb5bd; /* Or your preferred placeholder color */
+          pointer-events: none;
+          height: 0;
         }
       `}</style>
     </>
