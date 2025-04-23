@@ -2,7 +2,7 @@
 
 import { exampleSetup } from 'prosemirror-example-setup';
 import { inputRules } from 'prosemirror-inputrules';
-import { EditorState } from 'prosemirror-state';
+import { EditorState, Transaction } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
 import React, { memo, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
@@ -19,6 +19,16 @@ import {
 
 // Import the new state functions
 import { setActiveEditorView } from '@/lib/editor/editor-state';
+import { useAiOptions } from '@/hooks/ai-options'; // Import AI options hook
+
+// Import the plugin and related constants
+import {
+  inlineSuggestionPlugin,
+  inlineSuggestionPluginKey,
+  START_SUGGESTION_LOADING,
+  SET_SUGGESTION,
+  CLEAR_SUGGESTION
+} from '@/lib/editor/inline-suggestion-plugin';
 
 type EditorProps = {
   content: string;
@@ -39,8 +49,145 @@ function PureEditor({
 }: EditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<EditorView | null>(null);
+  
+  // --- Removed Inline Suggestion State --- 
+  // const [inlineSuggestion, setInlineSuggestion] = useState<string>('');
+  // const [isSuggestionLoading, setIsSuggestionLoading] = useState<boolean>(false);
+  // const suggestionSpanRef = useRef<HTMLSpanElement | null>(null); // For the visual display
+  const abortControllerRef = useRef<AbortController | null>(null); 
+  const { suggestionLength, customInstructions } = useAiOptions(); 
+  
+  // --- Removed Span Creation/Removal Effect --- 
+  // useEffect(() => { ... }, []);
+
+  // --- Removed updateSuggestionPosition --- 
+  // const updateSuggestionPosition = useCallback(() => { ... }, [inlineSuggestion]);
+
+  // --- Removed React State Clear/Accept Functions --- 
+  // const clearInlineSuggestion = useCallback(() => { ... }, []);
+  // const acceptInlineSuggestion = useCallback(() => { ... }, [...]);
+
+  // --- Request Suggestion (Modified) --- 
+  // This function is now passed as a callback to the plugin
+  // It gets the state *at the time of request* from the plugin
+  const requestInlineSuggestionCallback = useCallback(async (state: EditorState) => {
+    const editor = editorRef.current;
+    // Check isLoading via plugin state if needed, though plugin prevents calling if already loading
+    // const pluginState = editor ? inlineSuggestionPluginKey.getState(editor.state) : null;
+    // if (!editor || pluginState?.isLoading) return;
+    if (!editor) return;
+
+    // Abort previous request
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    // Note: isLoading state is now managed by the plugin via START_SUGGESTION_LOADING meta
+
+    try {
+      const { selection } = state;
+      const { head } = selection; 
+
+      const $head = state.doc.resolve(head);
+      const startOfNode = $head.start();
+      const contextBefore = state.doc.textBetween(startOfNode, head, '\n');
+      const endOfNode = $head.end();
+      const contextAfter = state.doc.textBetween(head, endOfNode, '\n');
+      const fullContent = state.doc.textContent;
+
+      if (contextBefore.length < 3) {
+        // If not enough context, dispatch clear action to reset loading state
+        if (editorRef.current) {
+           editorRef.current.dispatch(editorRef.current.state.tr.setMeta(CLEAR_SUGGESTION, true));
+        }
+        return;
+      }
+
+      console.log('[Editor Component] Requesting inline suggestion via plugin callback...');
+      const response = await fetch('/api/inline-suggestion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          documentId,
+          currentContent: contextBefore,
+          contextAfter,
+          fullContent,
+          nodeType: 'paragraph', 
+          aiOptions: { 
+            suggestionLength,
+            customInstructions,
+          }
+        }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok || !response.body) {
+        throw new Error(`API error: ${response.statusText}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulatedSuggestion = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done || controller.signal.aborted) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(5));
+              if (data.type === 'suggestion-delta') {
+                accumulatedSuggestion += data.content;
+                // Dispatch meta action to update plugin state with new text
+                if (editorRef.current) {
+                   editorRef.current.dispatch(
+                       editorRef.current.state.tr.setMeta(SET_SUGGESTION, { text: accumulatedSuggestion })
+                   );
+                }
+              } else if (data.type === 'error') {
+                throw new Error(data.content);
+              } else if (data.type === 'finish') {
+                 // No explicit action needed on finish, plugin handles isLoading state
+                break; 
+              }
+            } catch (err) {
+              console.warn('Error parsing SSE line:', line, err);
+            }
+          }
+        }
+      }
+      if (controller.signal.aborted) {
+         console.log('[Editor Component] Suggestion request aborted.');
+         // Ensure loading state is cleared if aborted during fetch
+         if (editorRef.current) {
+             editorRef.current.dispatch(editorRef.current.state.tr.setMeta(CLEAR_SUGGESTION, true));
+         }
+      }
+
+    } catch (error: any) {
+      if (error.name !== 'AbortError') {
+        console.error('[Editor Component] Error fetching inline suggestion:', error);
+        toast.error(`Suggestion error: ${error.message}`);
+        // Dispatch clear action on error
+        if (editorRef.current) {
+           editorRef.current.dispatch(editorRef.current.state.tr.setMeta(CLEAR_SUGGESTION, true));
+        }
+      }
+    } finally {
+      // isLoading state is managed by the plugin
+      if (abortControllerRef.current === controller) {
+         abortControllerRef.current = null; 
+      }
+    }
+  // Dependencies now include AI options from hook
+  }, [editorRef, documentId, suggestionLength, customInstructions]);
 
   useEffect(() => {
+    let view: EditorView | null = null; 
     if (containerRef.current && !editorRef.current) {
       const state = EditorState.create({
         doc: buildDocumentFromContent(content),
@@ -48,18 +195,16 @@ function PureEditor({
           ...exampleSetup({ schema: documentSchema, menuBar: false }),
           inputRules({
             rules: [
-              headingRule(1),
-              headingRule(2),
-              headingRule(3),
-              headingRule(4),
-              headingRule(5),
-              headingRule(6),
+              headingRule(1), headingRule(2), headingRule(3),
+              headingRule(4), headingRule(5), headingRule(6),
             ],
           }),
+          // Add the inline suggestion plugin instance
+          inlineSuggestionPlugin({ requestSuggestion: requestInlineSuggestionCallback })
         ],
       });
-
-      const view = new EditorView(containerRef.current, {
+      
+      view = new EditorView(containerRef.current, {
         state,
         handleDOMEvents: {
           focus: (view) => {
@@ -72,14 +217,44 @@ function PureEditor({
             return false;
           }
         },
-        dispatchTransaction: (transaction) => {
+        dispatchTransaction: (transaction: Transaction) => {
           if (!editorRef.current) return;
-          handleTransaction({
-            transaction,
-            editorRef,
-            onSaveContent,
-          });
-        }
+          const editorView = editorRef.current;
+          
+          // Apply the transaction to update the state FIRST
+          const newState = editorView.state.apply(transaction);
+          editorView.updateState(newState);
+          
+          // --- Plugin handles suggestion clearing/positioning internally via its apply method --- 
+          // Remove explicit suggestion clearing/positioning from here
+          // // let suggestionCleared = false;
+          // // if (transaction.docChanged || (!transaction.selectionSet || !newState.selection.empty)) {
+          // //     if(inlineSuggestion) { ... clearInlineSuggestion(); ... }
+          // // }
+          // // if (transaction.selectionSet && !suggestionCleared) {
+          // //   requestAnimationFrame(updateSuggestionPosition); 
+          // // }
+          
+          // --- Handle Saving (Keep this) --- 
+          if (transaction.docChanged && !transaction.getMeta('no-save')) {
+            const updatedContent = buildContentFromDocument(newState.doc);
+            // Check if the change came from the suggestion plugin accepting
+            // We might want immediate save after accepting a suggestion
+            // The plugin's handleKeyDown dispatches the insertion transaction,
+            // so this dispatchTransaction will run right after.
+            const pluginState = inlineSuggestionPluginKey.getState(newState);
+            const oldPluginState = inlineSuggestionPluginKey.getState(editorView.state); // State *before* apply
+            const justAccepted = oldPluginState?.suggestionText && !pluginState?.suggestionText; // Suggestion existed before, now gone
+
+            if (transaction.getMeta('no-debounce') || justAccepted) {
+              onSaveContent(updatedContent, false); // Save immediately
+            } else {
+              onSaveContent(updatedContent, true); // Debounce other user edits
+            }
+          }
+        },
+        // --- Remove Keydown Handling from here (moved to plugin) --- 
+        // handleKeyDown: (view, event) => { ... },
       });
 
       editorRef.current = view;
@@ -95,7 +270,7 @@ function PureEditor({
     };
     // NOTE: we only want to run this effect once
     // eslint-disable-next-line
-  }, []);
+  }, [requestInlineSuggestionCallback]);
 
   useEffect(() => {
     if (editorRef.current && content) {
@@ -230,7 +405,27 @@ function PureEditor({
   }, [documentId, onSaveContent]); // Depend on documentId and onSaveContent
 
   return (
-    <div className="relative prose dark:prose-invert" ref={containerRef} />
+    <>
+      <div className="relative prose dark:prose-invert" ref={containerRef} />
+      {/* Add CSS for the inline decoration pseudo-element */}
+      <style jsx global>{`
+        /* Style for the widget decoration span itself (optional) */
+        .suggestion-decoration-inline {
+          display: inline; /* Ensure it behaves like inline element */
+          position: relative; /* Needed for potential pseudo-element adjustments */
+        }
+        /* Style for the pseudo-element showing the suggestion text */
+        .suggestion-decoration-inline::after {
+          content: attr(data-suggestion); /* Get text from data attribute */
+          color: var(--muted-foreground);
+          opacity: 0.6;
+          pointer-events: none;
+          user-select: none;
+          /* Optional: Adjust spacing if needed */
+          margin-left: 1px; 
+        }
+      `}</style>
+    </>
   );
 }
 
