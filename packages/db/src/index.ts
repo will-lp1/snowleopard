@@ -9,7 +9,7 @@ if (!process.env.DATABASE_URL) {
 
 const connectionOptions = {
   max: 1, // Suitable for serverless or local dev
-  ssl: 'require' as const,
+  ssl: process.env.NODE_ENV === 'development' ? undefined : ('require' as const), // Only require SSL outside of development
 };
 
 // Log the URL being used (without credentials for safety)

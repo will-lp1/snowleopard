@@ -61,9 +61,9 @@ export function SuggestionOverlayProvider({ children }: { children: ReactNode })
 
     // Only proceed if there was text selected when the overlay opened.
     if (selectedText && selectedText.trim() !== '') {
-      console.log('[Provider] Dispatching apply-suggestion event for:', selectedText);
-      // Dispatch the custom event for the Lexical editor to handle
-      const event = new CustomEvent('apply-suggestion', {
+      console.log('[Provider] Dispatching apply-suggestion-prosemirror event for:', selectedText);
+      // Dispatch the custom event for the ProseMirror editor to handle
+      const event = new CustomEvent('apply-suggestion-prosemirror', {
         detail: {
           originalText: selectedText,
           suggestion: suggestion,
@@ -72,8 +72,6 @@ export function SuggestionOverlayProvider({ children }: { children: ReactNode })
       });
       window.dispatchEvent(event);
       
-      // Remove direct artifact update here
-      // toast.success("Suggestion dispatched to editor"); // Optional: change toast message
       closeSuggestionOverlay(); 
     } else {
       toast.warning("Cannot apply suggestion: No text was selected");
