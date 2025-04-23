@@ -164,32 +164,17 @@ export function useDocumentUtils() {
    */
   const renameDocument = async (newTitle: string) => {
     if (isRenamingDocument || !artifact.documentId || artifact.documentId === 'init') return;
-    
+
     if (!newTitle.trim()) {
       toast.error('Document title cannot be empty');
       return;
     }
-    
-    setIsRenamingDocument(true);
-    
-    try {
-      // Update local state immediately for better UX
-      setArtifact(current => ({
-        ...current,
-        title: newTitle
-      }));
 
-      // Dispatch an event to notify all components to update immediately
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('document-renamed', {
-          detail: {
-            documentId: artifact.documentId,
-            newTitle: newTitle
-          }
-        }));
-      }
-      
-      // Send the update to the server using POST (which will route to the rename action)
+    const originalTitle = artifact.title; // Store original title for potential revert
+    setIsRenamingDocument(true);
+
+    try {
+      // Send the update to the server using POST
       const response = await fetch(`/api/document`, {
         method: 'POST',
         headers: {
@@ -198,47 +183,57 @@ export function useDocumentUtils() {
         body: JSON.stringify({
           id: artifact.documentId,
           title: newTitle,
-          // No content or other fields, so it's detected as a rename operation
         }),
       });
-      
+
       if (!response.ok) {
-        // If server update fails, revert the title
-        setArtifact(current => ({
-          ...current,
-          title: artifact.title // Revert to previous title
-        }));
-        
-        // Dispatch event to revert the title in other components
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('document-renamed', {
-            detail: {
-              documentId: artifact.documentId,
-              newTitle: artifact.title
-            }
-          }));
-        }
-        
-        throw new Error('Failed to rename document');
+        // No state was changed yet, just throw error
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error during rename' }));
+        throw new Error(`Failed to rename document: ${errorData.error || response.statusText}`);
       }
-      
-      // Add to document cache for immediate access
+
+      // --- Success Case: Update state and dispatch event AFTER successful API call ---
+      const updatedDocumentData = await response.json(); // Get potentially updated data
+
+      // Update local artifact state
+      setArtifact(current => ({
+        ...current,
+        // Use title from response if available, otherwise use the requested newTitle
+        title: updatedDocumentData?.title || newTitle
+      }));
+
+      // Dispatch the event now that the server has confirmed
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('document-renamed', {
+          detail: {
+            documentId: artifact.documentId,
+            newTitle: updatedDocumentData?.title || newTitle
+          }
+        }));
+      }
+      // Note: SWR mutations for list and specific item could also be triggered here
+      // For example: mutate('/api/document'); mutate(`/api/document?id=${artifact.documentId}`);
+
+      // Add to document cache (if still using manual cache alongside SWR)
       if (typeof window !== 'undefined' && (window as any).__DOCUMENT_CACHE) {
         const cachedDoc = (window as any).__DOCUMENT_CACHE.get(artifact.documentId);
         if (cachedDoc) {
           (window as any).__DOCUMENT_CACHE.set(artifact.documentId, {
             ...cachedDoc,
-            title: newTitle
+            title: updatedDocumentData?.title || newTitle
           });
         }
       }
-      
+
       toast.success('Document renamed', {
         duration: 2000
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error renaming document:', error);
-      toast.error('Failed to rename document');
+      toast.error('Failed to rename document', {
+        description: error.message
+      });
+      // No need to revert state as it wasn't changed optimistically
     } finally {
       setIsRenamingDocument(false);
     }
