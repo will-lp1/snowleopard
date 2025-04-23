@@ -27,7 +27,8 @@ import {
   inlineSuggestionPluginKey,
   START_SUGGESTION_LOADING,
   SET_SUGGESTION,
-  CLEAR_SUGGESTION
+  CLEAR_SUGGESTION,
+  FINISH_SUGGESTION_LOADING
 } from '@/lib/editor/inline-suggestion-plugin';
 
 type EditorProps = {
@@ -128,6 +129,7 @@ function PureEditor({
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let accumulatedSuggestion = '';
+      let receivedAnyData = false; // Track if we got any delta
 
       while (true) {
         const { done, value } = await reader.read();
@@ -142,6 +144,7 @@ function PureEditor({
               const data = JSON.parse(line.slice(5));
               if (data.type === 'suggestion-delta') {
                 accumulatedSuggestion += data.content;
+                receivedAnyData = true; // Mark that we received suggestion data
                 // Dispatch meta action to update plugin state with new text
                 if (editorRef.current) {
                    editorRef.current.dispatch(
@@ -160,7 +163,15 @@ function PureEditor({
           }
         }
       }
-      if (controller.signal.aborted) {
+      if (!controller.signal.aborted && editorRef.current) {
+         console.log('[Editor Component] Stream finished, dispatching FINISH_SUGGESTION_LOADING');
+         editorRef.current.dispatch(editorRef.current.state.tr.setMeta(FINISH_SUGGESTION_LOADING, true));
+         
+         // Optional: If no suggestion data was received at all, clear immediately?
+         // if (!receivedAnyData) {
+         //    editorRef.current.dispatch(editorRef.current.state.tr.setMeta(CLEAR_SUGGESTION, true));
+         // }
+      } else if (controller.signal.aborted) {
          console.log('[Editor Component] Suggestion request aborted.');
          // Ensure loading state is cleared if aborted during fetch
          if (editorRef.current) {
@@ -409,20 +420,28 @@ function PureEditor({
       <div className="relative prose dark:prose-invert" ref={containerRef} />
       {/* Add CSS for the inline decoration pseudo-element */}
       <style jsx global>{`
-        /* Style for the widget decoration span itself (optional) */
+        /* Style for the widget decoration span itself */
         .suggestion-decoration-inline {
-          display: inline; /* Ensure it behaves like inline element */
-          position: relative; /* Needed for potential pseudo-element adjustments */
+          /* Make the container itself have no layout impact */
+          display: contents;
         }
         /* Style for the pseudo-element showing the suggestion text */
         .suggestion-decoration-inline::after {
           content: attr(data-suggestion); /* Get text from data attribute */
-          color: var(--muted-foreground);
-          opacity: 0.6;
+          color: inherit; /* Inherit color from editor text */
+          opacity: 0.5;   /* Adjust opacity for ghost effect */
           pointer-events: none;
           user-select: none;
+          /* Inherit editor font styles */
+          font-family: inherit;
+          font-size: inherit;
+          line-height: inherit;
+          /* Handle whitespace correctly */
+          white-space: pre-wrap; 
           /* Optional: Adjust spacing if needed */
-          margin-left: 1px; 
+          /* margin-left: 1px; */ /* Avoid margin if possible */
+          /* Add vertical-align if needed */
+          vertical-align: initial; 
         }
       `}</style>
     </>

@@ -22,6 +22,7 @@ const initialState: InlineSuggestionState = {
 export const START_SUGGESTION_LOADING = 'startSuggestionLoading';
 export const SET_SUGGESTION = 'setSuggestion';
 export const CLEAR_SUGGESTION = 'clearSuggestion';
+export const FINISH_SUGGESTION_LOADING = 'finishSuggestionLoading';
 
 // --- Plugin Definition --- 
 export function inlineSuggestionPlugin(options: {
@@ -39,23 +40,37 @@ export function inlineSuggestionPlugin(options: {
                 const metaStartLoading = tr.getMeta(START_SUGGESTION_LOADING);
                 const metaSetSuggestion = tr.getMeta(SET_SUGGESTION);
                 const metaClearSuggestion = tr.getMeta(CLEAR_SUGGESTION);
+                const metaFinishLoading = tr.getMeta(FINISH_SUGGESTION_LOADING);
 
                 if (metaStartLoading) {
                     // Use selection head at the time loading starts
                     const pos = newState.selection.head;
                     console.log('[Plugin] Meta: Start Loading at pos:', pos);
-                    return { ...initialState, isLoading: true, suggestionPos: pos };
+                    // Ensure any previous suggestion is cleared before starting
+                    return { suggestionText: null, isLoading: true, suggestionPos: pos };
                 }
 
                 if (metaSetSuggestion) {
                     const { text } = metaSetSuggestion as { text: string };
-                     console.log('[Plugin] Meta: Set Suggestion:', text, 'at pos:', pluginState.suggestionPos);
-                    // Only set text if still loading and position matches
-                    if (pluginState.isLoading && pluginState.suggestionPos !== null) {
-                        return { ...pluginState, suggestionText: text || null, isLoading: false }; // Clear loading flag
+                    // Update text if we are currently loading and the position still matches.
+                    if (pluginState.isLoading && pluginState.suggestionPos === newState.selection.head) {
+                         console.log('[Plugin] Meta: Updating Suggestion Text:', text);
+                        // Keep isLoading true, just update the text
+                        return { ...pluginState, suggestionText: text || null }; 
                     }
-                    // If not loading or pos mismatch, ignore stale suggestion
+                    // Ignore if not loading or cursor moved away
+                    console.log('[Plugin] Meta: Ignored SET_SUGGESTION (not loading or cursor moved)');
                     return pluginState; 
+                }
+
+                if (metaFinishLoading) {
+                    console.log('[Plugin] Meta: Finish Loading');
+                    // If we were loading and have some text, keep it but mark loading as false.
+                    if (pluginState.isLoading && pluginState.suggestionPos !== null) {
+                        return { ...pluginState, isLoading: false };
+                    }
+                    // Otherwise (e.g., cleared before finish), reset fully
+                    return initialState;
                 }
                 
                 if (metaClearSuggestion) {
@@ -66,22 +81,24 @@ export function inlineSuggestionPlugin(options: {
                 // --- Auto-clear logic based on editor changes --- 
                 let nextState = pluginState;
 
-                // Clear suggestion if the document changed OR selection moved away/became non-empty
-                if (pluginState.suggestionText && pluginState.suggestionPos !== null) {
+                // Clear suggestion OR loading if the document changed 
+                // OR selection became non-empty 
+                // OR cursor moved away from suggestion insertion point
+                if (pluginState.suggestionPos !== null && (pluginState.isLoading || pluginState.suggestionText)) {
                     if (tr.docChanged || 
                         !newState.selection.empty || 
-                        newState.selection.head !== pluginState.suggestionPos // Cursor moved from suggestion point
+                        newState.selection.head !== pluginState.suggestionPos 
                     ) {
-                        console.log('[Plugin] Auto-clearing suggestion due to edit/selection change.');
+                        console.log('[Plugin] Auto-clearing suggestion/loading due to edit/selection change.');
                         nextState = initialState; 
                     }
                 }
                 
-                // If loading was aborted by user action, reset loading state
-                if(nextState.isLoading && (tr.docChanged || !newState.selection.empty)) {
-                    console.log('[Plugin] Clearing loading state due to edit/selection change.');
-                    nextState = {...nextState, isLoading: false, suggestionPos: null };
-                }
+                // // Simplified auto-clear (previous version)
+                // if(nextState.isLoading && (tr.docChanged || !newState.selection.empty)) {
+                //     console.log('[Plugin] Clearing loading state due to edit/selection change.');
+                //     nextState = {...nextState, isLoading: false, suggestionPos: null };
+                // }
 
                 return nextState;
             },
@@ -91,18 +108,20 @@ export function inlineSuggestionPlugin(options: {
             // Add decorations for the inline suggestion text
             decorations(state: EditorState): DecorationSet | null {
                 const pluginState = inlineSuggestionPluginKey.getState(state);
-                if (!pluginState?.suggestionText || pluginState.suggestionPos === null) {
+                // Show decoration as long as text exists, even if loading
+                // The pseudo-element content will update as text streams in
+                if (!pluginState?.suggestionText || pluginState.suggestionPos === null) { 
                     return null;
                 }
                 
-                // Create an inline decoration right at the suggestion position
-                // Use a widget decoration with a pseudo-element for the text
+                // Create an inline widget decoration right at the suggestion position
                 const decoration = Decoration.widget(pluginState.suggestionPos, () => {
                     const span = document.createElement('span');
                     span.className = 'suggestion-decoration-inline'; // CSS class for styling
-                    span.setAttribute('data-suggestion', pluginState.suggestionText || ''); // Pass text via data attribute
+                    // Ensure data-suggestion is always updated with the latest text
+                    span.setAttribute('data-suggestion', pluginState.suggestionText || ''); 
                     return span;
-                }, { side: 1 }); // Place it right after the position
+                }, { side: 1 }); 
 
                 return DecorationSet.create(state.doc, [decoration]);
             },
