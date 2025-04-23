@@ -3,7 +3,7 @@
 import { Artifact } from '@/components/create-artifact';
 import { DiffView } from '@/components/document/diffview';
 import { DocumentSkeleton } from '@/components/document/document-skeleton';
-import { LexicalEditor } from '@/components/document/lexical-editor';
+import { Editor } from '@/components/document/text-editor';
 import {
   CheckIcon,
   ClockRewind,
@@ -77,11 +77,10 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
     return (
       <div className="px-8 py-10 max-w-4xl mx-auto">
         {isCurrentVersion && mode === 'edit' ? (
-          <LexicalEditor
+          <Editor
             content={content}
             onSaveContent={onSaveContent}
-            documentId={documentId}
-          />
+            documentId={documentId} status={'streaming'} isCurrentVersion={false} currentVersionIndex={0}          />
         ) : (
           <div className="prose dark:prose-invert">
             {content.split('\n').map((line, index) => (
