@@ -2,9 +2,9 @@
 
 import { exampleSetup } from 'prosemirror-example-setup';
 import { inputRules } from 'prosemirror-inputrules';
-import { EditorState, TextSelection } from 'prosemirror-state';
+import { EditorState } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
-import React, { memo, useEffect, useRef } from 'react';
+import React, { memo, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 
 import {
@@ -16,6 +16,9 @@ import {
   buildContentFromDocument,
   buildDocumentFromContent,
 } from '@/lib/editor/functions';
+
+// Import the new state functions
+import { setActiveEditorView } from '@/lib/editor/editor-state';
 
 type EditorProps = {
   content: string;
@@ -56,132 +59,175 @@ function PureEditor({
         ],
       });
 
-      editorRef.current = new EditorView(containerRef.current, {
+      const view = new EditorView(containerRef.current, {
         state,
-      });
-    }
-
-    return () => {
-      if (editorRef.current) {
-        editorRef.current.destroy();
-        editorRef.current = null;
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [documentId]);
-
-  useEffect(() => {
-    if (editorRef.current && content && documentId !== 'init') {
-      const currentEditorContent = buildContentFromDocument(
-        editorRef.current.state.doc,
-      );
-
-      if (currentEditorContent !== content && status !== 'streaming') {
-        const newDocument = buildDocumentFromContent(content);
-        const transaction = editorRef.current.state.tr.replaceWith(
-          0,
-          editorRef.current.state.doc.content.size,
-          newDocument.content,
-        );
-        transaction.setMeta('no-save', true);
-        editorRef.current.dispatch(transaction);
-      }
-    }
-  }, [content, status, documentId]);
-
-  useEffect(() => {
-    if (editorRef.current) {
-      editorRef.current.setProps({
+        handleDOMEvents: {
+          focus: (view) => {
+            console.log('[Editor] Focus event');
+            setActiveEditorView(view);
+            return false;
+          },
+          blur: (view) => {
+            console.log('[Editor] Blur event');
+            return false;
+          }
+        },
         dispatchTransaction: (transaction) => {
+          if (!editorRef.current) return;
           handleTransaction({
             transaction,
             editorRef,
             onSaveContent,
           });
-        },
-      });
-    }
-  }, [onSaveContent]);
-
-  useEffect(() => {
-    const handleApplySuggestion = (event: CustomEvent) => {
-      if (!editorRef.current) return;
-
-      const { originalText, suggestion, documentId: eventDocId } = event.detail;
-
-      if (eventDocId !== documentId) return;
-
-      console.log(`[ProseMirror Editor] Applying suggestion for doc ${documentId}: "${originalText}" -> "${suggestion}"`);
-
-      const view = editorRef.current;
-      const { state, dispatch } = view;
-      let transaction = state.tr;
-      let found = false;
-
-      state.doc.descendants((node, pos) => {
-        if (found || !node.isText) return false;
-
-        const text = node.text;
-        if (!text) return true;
-
-        const index = text.indexOf(originalText);
-        if (index !== -1) {
-          const from = pos + index;
-          const to = from + originalText.length;
-          console.log(`[ProseMirror Editor] Found text at ${from}-${to}. Replacing...`);
-          transaction = transaction.replaceWith(from, to, state.schema.text(suggestion));
-          found = true;
-          return false;
         }
-        return true;
       });
 
-      if (found) {
-        dispatch(transaction);
-        toast.success("Suggestion applied");
-      } else {
-        console.warn(`[ProseMirror Editor] Could not find text "${originalText}" to apply suggestion.`);
-        toast.warning("Could not apply suggestion: Original text not found.");
+      editorRef.current = view;
+      setActiveEditorView(view);
+    }
+
+    return () => {
+      if (editorRef.current) {
+        setActiveEditorView(null);
+        editorRef.current.destroy();
+        editorRef.current = null;
       }
     };
-
-    window.addEventListener('apply-suggestion-prosemirror', handleApplySuggestion as EventListener);
-    return () => window.removeEventListener('apply-suggestion-prosemirror', handleApplySuggestion as EventListener);
-  }, [documentId, onSaveContent]);
+    // NOTE: we only want to run this effect once
+    // eslint-disable-next-line
+  }, []);
 
   useEffect(() => {
-    const handleApplyUpdate = (event: CustomEvent) => {
-      if (!editorRef.current) return;
+    if (editorRef.current && content) {
+      const currentContent = buildContentFromDocument(
+        editorRef.current.state.doc,
+      );
 
-      const { documentId: eventDocId, newContent } = event.detail;
+      if (status === 'streaming') {
+        const newDocument = buildDocumentFromContent(content);
 
-      if (eventDocId !== documentId) return;
-
-      console.log(`[ProseMirror Editor] Applying full document update for doc ${documentId}`);
-
-      const view = editorRef.current;
-      const { state, dispatch } = view;
-      
-      try {
-        const newDocument = buildDocumentFromContent(newContent); 
-        const transaction = state.tr.replaceWith(
+        const transaction = editorRef.current.state.tr.replaceWith(
           0,
-          state.doc.content.size,
+          editorRef.current.state.doc.content.size,
           newDocument.content,
         );
+
+        transaction.setMeta('no-save', true);
+        editorRef.current.dispatch(transaction);
+        return;
+      }
+
+      if (currentContent !== content) {
+        const newDocument = buildDocumentFromContent(content);
+
+        const transaction = editorRef.current.state.tr.replaceWith(
+          0,
+          editorRef.current.state.doc.content.size,
+          newDocument.content,
+        );
+
+        transaction.setMeta('no-save', true);
+        editorRef.current.dispatch(transaction);
+      }
+    }
+  }, [content, status]);
+
+  // --- Event Listener for Apply Suggestion --- 
+  useEffect(() => {
+    const handleApplySuggestion = (event: CustomEvent) => {
+      if (!editorRef.current || !event.detail) return;
+      const editorView = editorRef.current;
+      const { state, dispatch } = editorView;
+
+      // Expect from, to, suggestion, documentId from event
+      const { from, to, suggestion, documentId: suggestionDocId } = event.detail;
+
+      // Ignore if event is for a different document
+      if (suggestionDocId !== documentId) {
+        console.warn(`[Editor apply-suggestion] Event ignored: Document ID mismatch. Expected ${documentId}, got ${suggestionDocId}.`);
+        return;
+      }
+
+      // --- Validate Range --- 
+      // Check if from/to are valid numbers and within current doc bounds
+      if (
+        typeof from !== 'number' || 
+        typeof to !== 'number' || 
+        from < 0 || 
+        to > state.doc.content.size || 
+        from > to
+      ) {
+        console.error(`[Editor apply-suggestion] Invalid range received: [${from}, ${to}]. Document size: ${state.doc.content.size}`);
+        toast.error("Cannot apply suggestion: Invalid text range.");
+        return;
+      }
+      // Optional: Check if the text currently at from/to roughly matches originalText?
+      // const currentTextInRange = state.doc.textBetween(from, to, ' ');
+      // if (currentTextInRange !== originalText) { ... warn ... }
+
+      console.log(`[Editor apply-suggestion] Event received for doc: ${documentId}`);
+      console.log(`[Editor apply-suggestion] Applying suggestion "${suggestion}" at range [${from}, ${to}]`);
+
+      try {
+        // Use the provided range directly
+        const transaction = state.tr.replaceWith(from, to, state.schema.text(suggestion));
         
         dispatch(transaction);
         
-        toast.success('Document updated');
+        // Trigger save immediately after applying suggestion
+        const updatedContent = buildContentFromDocument(editorView.state.doc);
+        onSaveContent(updatedContent, false);
+        toast.success("Suggestion applied");
+
       } catch (error) {
-        console.error("[ProseMirror Editor] Error building document from new content:", error);
-        toast.error("Failed to apply document update: Invalid content format.");
+        console.error(`[Editor apply-suggestion] Error applying transaction:`, error);
+        toast.error("Failed to apply suggestion.");
       }
     };
 
-    window.addEventListener('apply-document-update-prosemirror', handleApplyUpdate as EventListener);
-    return () => window.removeEventListener('apply-document-update-prosemirror', handleApplyUpdate as EventListener);
+    window.addEventListener('apply-suggestion', handleApplySuggestion as EventListener);
+    return () => window.removeEventListener('apply-suggestion', handleApplySuggestion as EventListener);
   }, [documentId, onSaveContent]);
+
+  // --- Event Listener for Apply Document Update --- 
+  useEffect(() => {
+    const handleApplyUpdate = (event: CustomEvent) => {
+      if (!editorRef.current || !event.detail) return;
+      const editorView = editorRef.current;
+      const { state, dispatch } = editorView;
+
+      const { documentId: updateDocId, newContent } = event.detail;
+
+      // Ignore if event is for a different document
+      if (updateDocId !== documentId) {
+        console.warn(`[Editor apply-document-update] Event ignored: Document ID mismatch. Expected ${documentId}, got ${updateDocId}.`);
+        return;
+      }
+
+      console.log(`[Editor apply-document-update] Event received for doc: ${documentId}. Replacing entire content.`);
+
+      try {
+        // Build a new document node from the incoming content string
+        const newDocumentNode = buildDocumentFromContent(newContent);
+        // Create a transaction to replace the entire document content
+        const transaction = state.tr.replaceWith(0, state.doc.content.size, newDocumentNode.content);
+
+        dispatch(transaction);
+        
+        // Trigger save immediately after applying the full update
+        const updatedContent = buildContentFromDocument(editorView.state.doc); // Get content from the *new* state
+        onSaveContent(updatedContent, false);
+        toast.success("Document updated");
+
+      } catch (error) {
+          console.error('[Editor apply-document-update] Error processing update:', error);
+          toast.error('Failed to apply document update.');
+      }
+    };
+
+    window.addEventListener('apply-document-update', handleApplyUpdate as EventListener);
+    return () => window.removeEventListener('apply-document-update', handleApplyUpdate as EventListener);
+  }, [documentId, onSaveContent]); // Depend on documentId and onSaveContent
 
   return (
     <div className="relative prose dark:prose-invert" ref={containerRef} />

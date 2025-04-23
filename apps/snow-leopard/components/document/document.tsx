@@ -57,8 +57,8 @@ function PureDocumentToolResult({
   const handleApplyUpdate = useCallback(() => {
     if (!result.newContent || !result.id) return;
     
-    console.log(`[DocumentToolResult] Dispatching apply-document-update-prosemirror for ${result.id}`);
-    const event = new CustomEvent('apply-document-update-prosemirror', {
+    console.log(`[DocumentToolResult] Dispatching apply-document-update for ${result.id}`);
+    const event = new CustomEvent('apply-document-update', {
       detail: {
         documentId: result.id,
         newContent: result.newContent,
@@ -66,6 +66,7 @@ function PureDocumentToolResult({
     });
     window.dispatchEvent(event);
     setIsApplied(true);
+    toast.success('Changes applied to the editor.');
   }, [result.id, result.newContent]);
 
   const handleOpenDocument = useCallback((event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {

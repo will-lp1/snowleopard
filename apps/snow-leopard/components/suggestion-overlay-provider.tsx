@@ -4,6 +4,7 @@ import { createContext, useContext, ReactNode, useState, useCallback, useEffect 
 import SuggestionOverlay from './suggestion-overlay';
 import { useArtifact } from '@/hooks/use-artifact';
 import { toast } from 'sonner';
+import { getActiveEditorView } from '@/lib/editor/editor-state';
 
 // Define interface for Vue-enhanced elements
 interface VueElement extends Element {
@@ -20,6 +21,8 @@ interface SuggestionOverlayContextType {
   openSuggestionOverlay: (options: {
     position?: { x: number; y: number };
     selectedText?: string;
+    from?: number;
+    to?: number;
   }) => void;
   closeSuggestionOverlay: () => void;
 }
@@ -30,20 +33,39 @@ export function SuggestionOverlayProvider({ children }: { children: ReactNode })
   const [isOpen, setIsOpen] = useState(false);
   const [selectedText, setSelectedText] = useState('');
   const [position, setPosition] = useState({ x: 100, y: 100 });
+  const [selectionRange, setSelectionRange] = useState<{ from: number; to: number } | null>(null);
   const { artifact } = useArtifact();
 
   const openSuggestionOverlay = useCallback(
-    ({ selectedText, position }: { selectedText?: string; position?: { x: number; y: number } }) => {
+    ({
+      selectedText,
+      position,
+      from,
+      to,
+    }: {
+      selectedText?: string;
+      position?: { x: number; y: number };
+      from?: number;
+      to?: number;
+    }) => {
       if (selectedText) {
         setSelectedText(selectedText);
       } else {
         setSelectedText('');
       }
-      
+
+      if (typeof from === 'number' && typeof to === 'number') {
+        setSelectionRange({ from, to });
+      } else {
+        setSelectionRange(null);
+      }
+
       if (position) {
         setPosition(position);
+      } else {
+        setPosition({ x: window.innerWidth / 2 - 200, y: window.innerHeight / 3 });
       }
-      
+
       setIsOpen(true);
     },
     []
@@ -51,6 +73,8 @@ export function SuggestionOverlayProvider({ children }: { children: ReactNode })
 
   const closeSuggestionOverlay = useCallback(() => {
     setIsOpen(false);
+    setSelectedText('');
+    setSelectionRange(null);
   }, []);
 
   const handleAcceptSuggestion = useCallback((suggestion: string) => {
@@ -59,56 +83,67 @@ export function SuggestionOverlayProvider({ children }: { children: ReactNode })
       return;
     }
 
-    // Only proceed if there was text selected when the overlay opened.
-    if (selectedText && selectedText.trim() !== '') {
-      console.log('[Provider] Dispatching apply-suggestion-prosemirror event for:', selectedText);
-      // Dispatch the custom event for the ProseMirror editor to handle
-      const event = new CustomEvent('apply-suggestion-prosemirror', {
+    if (selectedText && selectedText.trim() !== '' && selectionRange) {
+      console.log(`[Provider] Dispatching apply-suggestion event for range [${selectionRange.from}, ${selectionRange.to}]`);
+      const event = new CustomEvent('apply-suggestion', {
         detail: {
-          originalText: selectedText,
+          from: selectionRange.from,
+          to: selectionRange.to,
           suggestion: suggestion,
-          documentId: artifact.documentId
+          documentId: artifact.documentId,
+          originalText: selectedText,
         }
       });
       window.dispatchEvent(event);
-      
-      closeSuggestionOverlay(); 
+      closeSuggestionOverlay();
     } else {
-      toast.warning("Cannot apply suggestion: No text was selected");
+      if (!selectionRange) {
+        toast.warning("Cannot apply suggestion: Text range not captured.");
+      } else {
+        toast.warning("Cannot apply suggestion: No text was selected.");
+      }
     }
-  }, [artifact.documentId, selectedText, closeSuggestionOverlay]);
+  }, [artifact.documentId, selectedText, selectionRange, closeSuggestionOverlay]);
 
   // Setup global keyboard shortcut for cmd+k
   useEffect(() => {
     const handleCommandK = (e: KeyboardEvent) => {
-      // If command+k (or ctrl+k) is pressed
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
-        
-        // Get selected text if any
-        const selection = window.getSelection();
-        const selectedText = selection?.toString() || '';
-        
-        // Find position near the cursor
-        const range = selection?.getRangeAt(0);
-        let position = { x: 100, y: 100 }; // Default fallback
-        
-        if (range && selectedText) {
-          const rect = range.getBoundingClientRect();
-          position = {
-            x: rect.right,
-            y: rect.bottom + 10
-          };
+
+        const activeEditorView = getActiveEditorView();
+
+        if (activeEditorView && activeEditorView.state) {
+          const { state } = activeEditorView;
+          const { from, to, empty } = state.selection;
+
+          if (!empty) {
+            const text = state.doc.textBetween(from, to, ' \n\n ');
+            let pos = { x: 100, y: 100 };
+            const domSelection = window.getSelection();
+            const range = domSelection?.getRangeAt(0);
+            if (range) {
+              const rect = range.getBoundingClientRect();
+              pos = { x: rect.left, y: rect.bottom + 10 }; 
+            }
+
+            console.log(`[Provider] Opening overlay via Cmd+K from editor state. Range: [${from}, ${to}]`);
+            openSuggestionOverlay({
+              position: pos,
+              selectedText: text,
+              from,
+              to,
+            });
+          } else {
+            toast.info("Select text in the editor before pressing Cmd+K.");
+          }
+        } else {
+          console.warn('[Provider] Cmd+K pressed, but no active editor view found.');
+          toast.error("Cannot open suggestion overlay: Editor not active.");
         }
-        
-        // Open the overlay
-        openSuggestionOverlay({ 
-          position,
-          selectedText 
-        });
       }
     };
-    
+
     window.addEventListener('keydown', handleCommandK);
     return () => window.removeEventListener('keydown', handleCommandK);
   }, [openSuggestionOverlay]);

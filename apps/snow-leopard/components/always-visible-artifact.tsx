@@ -868,14 +868,16 @@ export function AlwaysVisibleArtifact({
             {!isDocumentsFetching && artifact.documentId === initialDocumentId ? (
               <div className="px-8 py-6 mx-auto max-w-3xl">
                 <Editor
-                        key={artifact.documentId} // Key ensures reset on ID change
-                        content={isCurrentVersion ? artifact.content : getDocumentContentById(currentVersionIndex)}
-                        onSaveContent={saveContent}
-                        // Pass necessary props for Editor
-                        status={'idle'} // Default status, adjust if streaming state exists
-                        isCurrentVersion={isCurrentVersion}
-                        currentVersionIndex={currentVersionIndex} documentId={''}                  // Removed props specific to LexicalEditor
-                  // documentId={artifact.documentId}
+                  key={artifact.documentId} // Key ensures reset on ID change
+                  content={isCurrentVersion ? artifact.content : getDocumentContentById(currentVersionIndex)}
+                  onSaveContent={saveContent}
+                  // Pass necessary props for Editor
+                  status={'idle'} // Default status, adjust if streaming state exists
+                  isCurrentVersion={isCurrentVersion}
+                  currentVersionIndex={currentVersionIndex}
+                  // Added documentId prop
+                  documentId={artifact.documentId}
+                  // Removed props specific to LexicalEditor
                   // saveState={isContentDirty ? 'saving' : 'idle'}
                   // isNewDocument={artifact.documentId === 'init'}
                   // onCreateDocument={handleCreateDocumentFromEditor}
