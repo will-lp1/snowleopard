@@ -12,7 +12,7 @@ import { useArtifact } from '@/hooks/use-artifact';
 import { ArtifactActions } from '@/components/artifact-actions';
 import { VersionHeader } from '@/components/document/version-header';
 import { Toolbar } from '@/components/toolbar';
-import { LexicalEditor } from '@/components/document/lexical-editor';
+import { Editor } from '@/components/document/text-editor';
 import { useDocumentUtils } from '@/hooks/use-document-utils';
 import useSWR from 'swr';
 import { Button } from '@/components/ui/button';
@@ -371,11 +371,20 @@ export function AlwaysVisibleArtifact({
   
   // Save content to the server when it changes
   const saveContent = async (updatedContent: string, debounce: boolean) => {
+    // --- Handle initial document creation ---
+    // Check if this is the first save attempt for an 'init' document
+    if (artifact.documentId === 'init') {
+      console.log('[Document] First save attempt for a new document, calling creation handler...');
+      // Call the creation handler instead of the update API
+      await handleCreateDocumentFromEditor(updatedContent);
+      // Return early, creation handler will update state and trigger navigation/SWR update
+      return; 
+    }
+    // --- End Handle initial document creation ---
+
     // Don't attempt to save if there's no valid document ID
-    if (artifact.documentId === 'init' || 
-        artifact.documentId === 'undefined' || 
-        artifact.documentId === 'null') {
-      console.log('[Document] Cannot save content - no valid document ID');
+    if (artifact.documentId === 'undefined' || artifact.documentId === 'null') {
+      console.log('[Document] Cannot save content - invalid document ID');
       return;
     }
 
@@ -858,14 +867,20 @@ export function AlwaysVisibleArtifact({
             {/* Only render editor when data is loaded and synced */} 
             {!isDocumentsFetching && artifact.documentId === initialDocumentId ? (
               <div className="px-8 py-6 mx-auto max-w-3xl">
-                <LexicalEditor
-                        key={artifact.documentId} // Key ensures reset on ID change
-                        content={isCurrentVersion ? artifact.content : getDocumentContentById(currentVersionIndex)}
-                        onSaveContent={saveContent}
-                        documentId={artifact.documentId}
-                        saveState={isContentDirty ? 'saving' : 'idle'}
-                        isNewDocument={artifact.documentId === 'init'}
-                        onCreateDocument={handleCreateDocumentFromEditor} 
+                <Editor
+                  key={artifact.documentId} // Key ensures reset on ID change
+                  content={isCurrentVersion ? artifact.content : getDocumentContentById(currentVersionIndex)}
+                  onSaveContent={saveContent}
+                  // Pass necessary props for Editor
+                  status={'idle'} // Default status, adjust if streaming state exists
+                  isCurrentVersion={isCurrentVersion}
+                  currentVersionIndex={currentVersionIndex}
+                  // Added documentId prop
+                  documentId={artifact.documentId}
+                  // Removed props specific to LexicalEditor
+                  // saveState={isContentDirty ? 'saving' : 'idle'}
+                  // isNewDocument={artifact.documentId === 'init'}
+                  // onCreateDocument={handleCreateDocumentFromEditor}
                 />
               </div>
             ) : (
