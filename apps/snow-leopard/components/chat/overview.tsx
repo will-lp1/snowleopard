@@ -18,21 +18,17 @@ export const Overview = () => {
         <h2 className="text-xl font-medium">Welcome to Snow Leopard</h2>
         
         <p className="text-muted-foreground">
-          A modern, artifact-centered writing tool designed to enhance your creative process. 
+          A modern, writing tool designed to enhance your creative process. 
           Write, edit, and collaborate with AI assistance - all in one integrated environment.
         </p>
         
         <div className="flex flex-col gap-2">
           <p className="text-sm text-muted-foreground">
-            This is an{' '}
-            <Link
-              className="font-medium underline underline-offset-4 text-primary"
-              href="https://github.com/will-lp1/cursorforwriting"
-              target="_blank"
-            >
-              open source
-            </Link>{' '}
-            project built with Next.js, Vercel AI SDK, and Groq inference.
+          Press TAB to generate a suggestion
+
+          Or highlight text and press CMD/CTRL + K to generate a suggestion
+
+          Or send a message here
           </p>
           
           <p className="text-sm text-muted-foreground">
