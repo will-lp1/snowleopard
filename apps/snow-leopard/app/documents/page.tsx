@@ -1,55 +1,45 @@
 import { redirect } from 'next/navigation';
-// Remove Supabase client import
-// import { createClient } from '@/lib/supabase/server';
-// Import Better Auth session helper
 import { getSession } from '@/app/(auth)/auth'; 
-import { AlwaysVisibleArtifact } from '@/components/always-visible-artifact';
+import { DocumentsView } from '@/components/documents-view'; 
 
-// This page now acts as a placeholder entry point to the documents view.
-// It renders the AlwaysVisibleArtifact in its initial state when no specific document ID is in the URL.
+// This page acts as the entry point for the documents section.
+// It handles server-side auth and subscription checks.
 
 export default async function Page() {
-  // Use Better Auth helper to get session
   const session = await getSession();
 
-  // Unauthenticated users are redirected by middleware, but check again just in case
-  if (!session || !session.user) {
-    redirect('/'); // Redirect to landing page if no session
+  if (!session?.user?.id) {
+    // Redirect to landing or login if not authenticated
+    // Middleware should ideally handle this, but double-check
+    redirect('/'); 
+    // return null; // Stop further execution
   }
 
-  // Render the artifact component in its initial/empty state.
-  // AlwaysVisibleArtifact will handle showing the "Start typing..." placeholder.
+  // 2. Check subscription status from the session object
+  // The better-auth Stripe plugin injects subscription data here.
+  const subscription = session.subscription;
+  
+  // Determine subscription status. If Stripe is not enabled, always treat as active.
+  const hasActiveSubscription = process.env.STRIPE_ENABLED !== 'true' || 
+                                subscription?.status === 'active' || 
+                                subscription?.status === 'trialing';
+
+  // 3. Render the client component, passing necessary data
+  // The client component will handle showing the paywall or the document view.
+  return (
+    <DocumentsView 
+      userId={session.user.id} // Pass user ID for potential client-side needs
+      hasActiveSubscription={hasActiveSubscription} // Pass the determined status
+    />
+  );
+
+  /* 
+  // --- OLD LOGIC (Rendering artifact directly) --- 
   return (
     <AlwaysVisibleArtifact 
       chatId="placeholder-documents-page" // Provide a stable placeholder ID or determine appropriately
       initialDocumentId="init" 
     />
   );
-
-  /* 
-  // --- OLD LOGIC (Removed) --- 
-  // Create a new document with a unique ID
-  const documentId = generateUUID();
-  
-  // Get current user
-  const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  
-  if (!session || !session.user) {
-    // If not logged in, redirect to auth page
-    redirect('/'); // Updated redirect target
-  }
-  
-  // Create a new empty document
-  await saveDocument({
-    id: documentId,
-    title: 'Untitled Document',
-    kind: 'text',
-    content: '',
-    userId: session.user.id
-  });
-  
-  // Redirect to the newly created document
-  redirect(`/documents/${documentId}`);
   */
 } 

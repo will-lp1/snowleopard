@@ -1,6 +1,7 @@
 import { createAuthClient } from "better-auth/react";
 // Import client-side plugins if you use any server-side plugins that have client components
 // import { twoFactorClient } from "better-auth/client/plugins"; 
+import { stripeClient } from "@better-auth/stripe/client"; // Import Stripe client plugin
 
 // Import the server auth type ONLY for type inference if needed
 // import type { auth } from "./auth";
@@ -13,11 +14,16 @@ import { createAuthClient } from "better-auth/react";
 // we can omit the baseURL.
 export const authClient = createAuthClient({
   // If using plugins with client-side aspects, configure them here:
-  // plugins: [
-  //   twoFactorClient({
-  //     twoFactorPage: "/two-factor" // Example for 2FA plugin
-  //   })
-  // ],
+  plugins: [
+    // Add the stripe client plugin
+    stripeClient({ 
+        subscription: true // Enable client-side subscription methods
+    }),
+    // Example for 2FA plugin:
+    // twoFactorClient({
+    //   twoFactorPage: "/two-factor" 
+    // })
+  ],
 
   // If using additional user/session fields defined on the server,
   // infer them for type safety (requires server/client in same project/monorepo):

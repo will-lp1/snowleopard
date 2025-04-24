@@ -22,6 +22,7 @@ export const user = pgTable("user", {
   image: text('image'),
   createdAt: timestamp('created_at').notNull(),
   updatedAt: timestamp('updated_at').notNull(),
+  stripeCustomerId: text('stripe_customer_id'),
 });
 
 export const session = pgTable("session", {
@@ -115,11 +116,29 @@ export const Document = pgTable(
 
 export type Document = InferSelectModel<typeof Document>;
 
+export const subscription = pgTable("subscription", {
+  id: text('id').primaryKey(),
+  plan: text('plan').notNull(),
+  referenceId: text('reference_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  stripeCustomerId: text('stripe_customer_id'),
+  stripeSubscriptionId: text('stripe_subscription_id').unique(),
+  status: text('status').notNull(),
+  periodStart: timestamp('period_start', { mode: 'date' }),
+  periodEnd: timestamp('period_end', { mode: 'date' }),
+  cancelAtPeriodEnd: boolean('cancel_at_period_end'),
+  seats: integer('seats'),
+  trialStart: timestamp('trial_start', { mode: 'date' }),
+  trialEnd: timestamp('trial_end', { mode: 'date' }),
+  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull().$onUpdate(() => new Date()),
+});
+
 export const userRelations = relations(user, ({ many }) => ({
 	accounts: many(account),
   sessions: many(session),
   documents: many(Document),
   chats: many(Chat),
+  subscriptions: many(subscription),
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({
@@ -160,5 +179,12 @@ export const messageRelations = relations(Message, ({ one }) => ({
 	chat: one(Chat, {
 		fields: [Message.chatId],
 		references: [Chat.id],
+	}),
+}));
+
+export const subscriptionRelations = relations(subscription, ({ one }) => ({
+	user: one(user, {
+		fields: [subscription.referenceId],
+		references: [user.id],
 	}),
 }));

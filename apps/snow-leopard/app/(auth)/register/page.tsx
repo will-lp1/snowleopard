@@ -10,29 +10,29 @@ import { SubmitButton } from '@/components/submit-button';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [isEmailLoading, setIsEmailLoading] = useState(false);
-  const [isEmailSuccessful, setIsEmailSuccessful] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSuccessful, setIsSuccessful] = useState(false);
   const [email, setEmail] = useState('');
 
   const handleEmailSignup = async (formData: FormData) => {
-    const email = formData.get('email') as string;
+    const emailValue = formData.get('email') as string;
     const password = formData.get('password') as string;
-    const name = email.split('@')[0] || 'User';
-    setEmail(email);
+    const name = emailValue.split('@')[0] || 'User';
+    setEmail(emailValue);
+    setIsLoading(true);
+    setIsSuccessful(false);
 
     await authClient.signUp.email({
-      email,
+      email: emailValue,
       password,
       name,
       callbackURL: "/documents" 
     }, {
       onRequest: () => {
-        setIsEmailLoading(true);
-        setIsEmailSuccessful(false);
       },
       onSuccess: (ctx) => {
-        setIsEmailLoading(false);
-        setIsEmailSuccessful(true);
+        setIsLoading(false);
+        setIsSuccessful(true);
         toast({
           type: 'success',
           description: 'Account created! Redirecting...'
@@ -40,8 +40,8 @@ export default function RegisterPage() {
         router.refresh();
       },
       onError: (ctx) => {
-        setIsEmailLoading(false);
-        setIsEmailSuccessful(false);
+        setIsLoading(false);
+        setIsSuccessful(false);
         console.error("Email Signup Error:", ctx.error);
         toast({
           type: 'error',
@@ -64,7 +64,7 @@ export default function RegisterPage() {
         <div className="px-8">
           <AuthForm action={handleEmailSignup} defaultEmail={email}>
             <SubmitButton 
-              isSuccessful={isEmailSuccessful}
+              isSuccessful={isSuccessful}
             >
               Sign Up
             </SubmitButton>
