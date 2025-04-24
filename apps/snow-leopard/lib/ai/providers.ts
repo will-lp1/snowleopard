@@ -4,26 +4,9 @@ import {
   wrapLanguageModel,
 } from 'ai';
 import { groq } from '@ai-sdk/groq';
-import { isTestEnvironment } from '../constants';
-import {
-  artifactModel,
-  chatModel,
-  reasoningModel,
-  titleModel,
-} from './models.test';
 
-export const myProvider = isTestEnvironment
-  ? customProvider({
-      languageModels: {
-        'chat-model-small': chatModel,
-        'chat-model-large': chatModel,
-        'chat-model-reasoning': reasoningModel,
-        'title-model': titleModel,
-        'artifact-model': artifactModel,
-      },
-    })
-  : customProvider({
-      languageModels: {
+export const myProvider = customProvider({
+  languageModels: {
         'chat-model-small': groq('llama-3.1-8b-instant'),
         'chat-model-large': groq('llama-3.3-70b-versatile'),
         'chat-model-reasoning': wrapLanguageModel({
