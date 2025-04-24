@@ -3,8 +3,6 @@ import {
   extractReasoningMiddleware,
   wrapLanguageModel,
 } from 'ai';
-import { openai } from '@ai-sdk/openai';
-import { fireworks } from '@ai-sdk/fireworks';
 import { groq } from '@ai-sdk/groq';
 import { isTestEnvironment } from '../constants';
 import {
@@ -34,9 +32,5 @@ export const myProvider = isTestEnvironment
         }),
         'title-model': groq('llama-3.1-8b-instant'),
         'artifact-model': groq('llama-3.1-8b-instant'),
-      },
-      imageModels: {
-        'small-model': openai.image('dall-e-2'),
-        'large-model': openai.image('dall-e-3'),
       },
     });
