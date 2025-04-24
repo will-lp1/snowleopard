@@ -29,10 +29,6 @@ export const Overview = () => {
           <p>Send a message in the chat input below.</p>
         </div>
 
-        <div className="flex flex-col items-center gap-2 mt-3">
-          <p className="text-xs text-muted-foreground">
-            Get started by creating a new document or selecting one.
-          </p>
           <Button
             variant="ghost"
             className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5"
@@ -44,8 +40,6 @@ export const Overview = () => {
             </Link>
           </Button>
         </div>
-
-      </div>
     </motion.div>
   );
 };
