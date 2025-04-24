@@ -54,7 +54,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
       </SidebarContent>
       
       <SidebarFooter>
-        <div className="px-2 pb-2 flex flex-col space-y-1">
+        <div className="px-2 pb-2 flex flex-col space-y-2">
           {user && (
             <>
               <FeedbackWidget/>

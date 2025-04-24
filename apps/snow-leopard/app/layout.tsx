@@ -4,6 +4,7 @@ import { Toaster } from 'sonner';
 import { ThemeProvider } from '@/components/theme-provider';
 import { SuggestionOverlayProvider } from '@/components/suggestion-overlay-provider';
 import { DocumentProvider } from '@/hooks/use-document-context';
+import { Analytics } from "@vercel/analytics/react"
 
 import './globals.css';
 
@@ -68,6 +69,7 @@ export default async function RootLayout({
             <DocumentProvider>
               <Toaster position="top-center" />
               {children}
+              <Analytics />
             </DocumentProvider>
           </SuggestionOverlayProvider>
         </ThemeProvider>

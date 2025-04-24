@@ -78,7 +78,7 @@ console.log('-----------------------------------------\n'); // Added newline for
 // --- Initialize SDKs ---
 // Conditionally initialize Stripe client only if enabled
 const stripeClient = process.env.STRIPE_ENABLED === 'true' && process.env.STRIPE_SECRET_KEY
-  ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2025-03-31.basil" })
+  ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2024-06-20" })
   : null; // Initialize as null if not enabled or secret key is missing
 
 // ---> Conditionally initialize Resend client <---
