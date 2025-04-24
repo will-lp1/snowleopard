@@ -6,7 +6,6 @@ import { EditorState, Transaction } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
 import React, { memo, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
-import placeholder from '@gulibs/prosemirror-plugin-placeholder';
 
 import {
   documentSchema,
@@ -204,8 +203,6 @@ function PureEditor({
       const state = EditorState.create({
         doc: buildDocumentFromContent(content),
         plugins: [
-          // Use the NEW placeholder plugin instance
-          placeholder('Start typing...'),
           ...exampleSetup({ schema: documentSchema, menuBar: false }),
           inputRules({
             rules: [
