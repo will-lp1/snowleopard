@@ -47,7 +47,7 @@ const displayPlans = [
       'Priority Support',
       'Access all features',
     ],
-    stripePriceId: process.env.NEXT_PUBLIC_STRIPE_PRO_MONTHLY_PRICE_ID || 'monthly_placeholder',
+    stripePriceId: process.env.STRIPE_PRO_MONTHLY_PRICE_ID || 'monthly_placeholder',
     annual: false,
   },
   {
@@ -61,7 +61,7 @@ const displayPlans = [
       'Significant cost savings',
       'Priority support',
     ],
-    stripePriceId: process.env.NEXT_PUBLIC_STRIPE_PRO_YEARLY_PRICE_ID || 'yearly_placeholder',
+    stripePriceId: process.env.STRIPE_PRO_YEARLY_PRICE_ID || 'yearly_placeholder',
     annual: true,
   },
 ];

@@ -26,18 +26,29 @@ export default function RegisterPage() {
       email: emailValue,
       password,
       name,
-      callbackURL: "/documents" 
     }, {
       onRequest: () => {
       },
       onSuccess: (ctx) => {
         setIsLoading(false);
-        setIsSuccessful(true);
-        toast({
-          type: 'success',
-          description: 'Account created! Redirecting...'
-        });
-        router.refresh();
+
+        const isVerificationEnabled = process.env.NEXT_PUBLIC_EMAIL_VERIFY_ENABLED === 'true';
+
+        if (isVerificationEnabled) {
+          setIsSuccessful(false);
+          toast({
+            type: 'success',
+            description: 'Account created! Check your email to verify.'
+          });
+          router.push('/login');
+        } else {
+          setIsSuccessful(true);
+          toast({
+            type: 'success',
+            description: 'Account created! Redirecting...'
+          });
+          router.push('/documents');
+        }
       },
       onError: (ctx) => {
         setIsLoading(false);
@@ -71,16 +82,18 @@ export default function RegisterPage() {
           </AuthForm>
         </div>
         
-        <p className="text-center text-sm text-gray-600 dark:text-zinc-400">
-          {'Already have an account? '}
-          <Link
-            href="/login"
-            className="font-semibold text-gray-800 hover:underline dark:text-zinc-200"
-          >
-            Sign in
-          </Link>
-          {' instead.'}
-        </p>
+        <div className="text-center">
+          <p className="text-sm text-gray-600 dark:text-zinc-400">
+            {'Already have an account? '}
+            <Link
+              href="/login"
+              className="font-semibold text-gray-800 hover:underline dark:text-zinc-200"
+            >
+              Sign in
+            </Link>
+            {' instead.'}
+          </p>
+        </div>
       </div>
     </div>
   );

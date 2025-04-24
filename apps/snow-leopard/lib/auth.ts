@@ -26,9 +26,15 @@ if (process.env.STRIPE_ENABLED === 'true') {
   if (!process.env.STRIPE_PRO_YEARLY_PRICE_ID) throw new Error('Missing STRIPE_PRO_YEARLY_PRICE_ID but STRIPE_ENABLED is true'); // Add check for yearly price ID
 }
 
-// Check other mandatory variables
-if (!process.env.RESEND_API_KEY) throw new Error('Missing RESEND_API_KEY');
-if (!process.env.EMAIL_FROM) throw new Error('Missing EMAIL_FROM'); // Email address to send verification from
+// ---> Add check for email verification enabled <---
+const emailVerificationEnabled = process.env.EMAIL_VERIFY_ENABLED === 'true';
+console.log(`Email Verification Enabled: ${emailVerificationEnabled}`);
+
+// Check Resend/Email From keys ONLY if verification is enabled
+if (emailVerificationEnabled) {
+  if (!process.env.RESEND_API_KEY) throw new Error('Missing RESEND_API_KEY because EMAIL_VERIFY_ENABLED is true');
+  if (!process.env.EMAIL_FROM) throw new Error('Missing EMAIL_FROM because EMAIL_VERIFY_ENABLED is true');
+}
 
 // Environment Variable Checks (Ensure all required vars are present)
 if (process.env.STRIPE_ENABLED === 'true') {
@@ -75,14 +81,18 @@ const stripeClient = process.env.STRIPE_ENABLED === 'true' && process.env.STRIPE
   ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2025-03-31.basil" })
   : null; // Initialize as null if not enabled or secret key is missing
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// ---> Conditionally initialize Resend client <---
+const resend = emailVerificationEnabled && process.env.RESEND_API_KEY
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null;
 
 // --- Define Subscription Plans (only relevant if Stripe is enabled) ---
 const plans = process.env.STRIPE_ENABLED === 'true' ? [
   {
-    name: "snowleopard", // Plan name used in client.subscription.upgrade({ plan: "pro" })
-    monthlyPriceId: process.env.STRIPE_PRO_MONTHLY_PRICE_ID!, // Monthly Price ID
-    yearlyPriceId: process.env.STRIPE_PRO_YEARLY_PRICE_ID!, // Yearly Price ID (example)
+    name: "snowleopard", // Plan name used in client.subscription.upgrade
+    // Use keys expected by better-auth/stripe plugin documentation:
+    priceId: process.env.STRIPE_PRO_MONTHLY_PRICE_ID!,         // Standard/Monthly Price ID
+    annualDiscountPriceId: process.env.STRIPE_PRO_YEARLY_PRICE_ID!, // Annual Price ID
     freeTrial: {
       days: 3,
     },
@@ -151,17 +161,16 @@ export const auth = betterAuth({
   // Enable email/password auth -- RE-ENABLE THIS
   emailAndPassword: {    
       enabled: true,
-      // Require verification only in production
-      requireEmailVerification: process.env.NODE_ENV === 'production', 
+      // ---> Use environment variable for email verification requirement <---
+      requireEmailVerification: emailVerificationEnabled, 
   },
 
   // *** Use dedicated emailVerification block ***
   emailVerification: {
-    // Automatically send verification email on signup only in production
-    sendOnSignUp: process.env.NODE_ENV === 'production',
-    // Function to send the email using Resend
-    // Use pre-defined basic HookUser type
-    sendVerificationEmail: async ({ user, url, token }: { user: HookUser, url: string, token: string }, request?: Request) => {
+    // ---> Use environment variable for sending on sign up <---
+    sendOnSignUp: emailVerificationEnabled,
+    // ---> Conditionally define sendVerificationEmail function <--- 
+    sendVerificationEmail: emailVerificationEnabled && resend ? async ({ user, url, token }: { user: HookUser, url: string, token: string }, request?: Request) => {
        if (!user.email) {
             console.error('Missing user email in sendVerificationEmail hook');
             return;
@@ -188,7 +197,7 @@ export const auth = betterAuth({
           console.error('Failed to send verification email:', err);
           // Handle error appropriately
         }
-    },
+    } : undefined, // Set to undefined if verification is disabled or Resend is unavailable
     // Optional: Automatically sign in user after they click the link
     // autoSignInAfterVerification: true, 
   },
