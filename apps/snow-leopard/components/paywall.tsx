@@ -8,8 +8,14 @@ import { authClient } from '@/lib/auth-client';
 import { Button } from '@/components/ui/button'; 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { toast } from '@/components/toast';
-import { CheckCircle, X, Loader2, Check } from 'lucide-react';
+import { CheckCircle, X, Loader2, Check, MoreHorizontal } from 'lucide-react';
 import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface PaywallProps {
   isOpen: boolean;
@@ -181,7 +187,29 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
              </div>
           </div>
 
-          <div className="p-8 md:p-10 flex flex-col">
+          <div className="p-8 md:p-10 flex flex-col relative">
+            {/* Sign Out Dropdown Menu - Top Right */}
+            <div className="absolute top-4 right-4 z-20">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-foreground">
+                    <MoreHorizontal className="size-4" />
+                    <span className="sr-only">Options</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem 
+                    onSelect={handleSignOut} 
+                    disabled={isSigningOut}
+                    className="text-destructive focus:bg-destructive/10 focus:text-destructive cursor-pointer"
+                  >
+                    {isSigningOut ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
             <div className="flex-grow">
               <DialogHeader className="mb-8 text-left">
                 <DialogTitle className="text-2xl sm:text-3xl font-semibold">Join the Pack</DialogTitle>
@@ -221,45 +249,21 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
               </div>
             </div>
 
-            <DialogFooter className="mt-8 pt-4 flex justify-between items-center">
-              <p className="text-xs text-muted-foreground">
+            <DialogFooter className="mt-8 pt-4 border-t flex items-center">
+              <p className="text-xs text-muted-foreground flex-shrink-0">
                   * A plan is required to continue.
               </p>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline" 
-                  size="icon"
-                  className="size-7 opacity-70 hover:opacity-100"
-                  asChild
-                >
-                  <Link href="https://github.com/will-lp1/snowleopard" target="_blank" rel="noopener noreferrer">
-                    <Image src="/images/github-logo.png" alt="Github" width={14} height={14} />
-                  </Link>
-                </Button>
-
-                <Button
-                  variant="outline" 
-                  size="icon"
-                  className="size-7 opacity-70 hover:opacity-100"
-                  asChild
-                >
-                  <Link href="https://discord.gg/yourinvite" target="_blank" rel="noopener noreferrer">
-                    <Image src="/images/discord-logo.png" alt="Discord" width={24} height={24} />
-                  </Link>
-                </Button>
-
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="text-xs text-muted-foreground hover:text-foreground h-7 px-2 ml-2"
-                  onClick={handleSignOut}
-                  disabled={isSigningOut}
-                >
-                  {isSigningOut ? <Loader2 className="mr-1 size-3 animate-spin" /> : null}
-                  Sign Out
-                </Button>
-              </div>
+              <div className="flex-grow"></div>
+              <Button
+                variant="ghost"
+                className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5" // Style from overview.tsx
+                asChild
+              >
+                <Link href="https://discord.gg/TwG73aHE" target="_blank" rel="noopener noreferrer">
+                  <Image src="/images/discord-logo.png" alt="Discord" width={16} height={16} />
+                  Join the Discord
+                </Link>
+              </Button>
             </DialogFooter>
           </div>
         </div>
@@ -267,9 +271,3 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
     </Dialog>
   );
 }
-
-// Helper function placeholder (replace with actual Stripe.js loading)
-// async function getStripe() { 
-//   // Load Stripe.js asynchronously
-//   return null; 
-// } 

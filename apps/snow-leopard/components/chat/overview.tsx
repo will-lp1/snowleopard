@@ -1,5 +1,7 @@
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import Image from 'next/image';
+import { Button } from '@/components/ui/button';
 import { FileText, PenLine, MessageSquare } from 'lucide-react';
 
 export const Overview = () => {
@@ -12,29 +14,37 @@ export const Overview = () => {
       exit={{ opacity: 0, scale: 0.98 }}
       transition={{ delay: 0.3 }}
     >
-      <div className="rounded-xl p-6 flex flex-col gap-8 leading-relaxed text-center max-w-xl bg-card/50 border shadow-sm dark:border-white/10">
-
+      <div className="rounded-xl p-6 flex flex-col gap-4 leading-relaxed text-center max-w-md bg-card/50 border shadow-sm dark:border-white/10">
         
         <h2 className="text-xl font-medium">Welcome to Snow Leopard</h2>
         
-        <p className="text-muted-foreground">
-          A modern, writing tool designed to enhance your creative process. 
+        <p className="text-sm text-muted-foreground">
+          A modern writing tool designed to enhance your creative process. 
           Write, edit, and collaborate with AI assistance - all in one integrated environment.
         </p>
         
-        <div className="flex flex-col gap-2">
-          <p className="text-sm text-muted-foreground">
-          Press TAB to generate a suggestion
-
-          Or highlight text and press CMD/CTRL + K to generate a suggestion
-
-          Or send a message here
-          </p>
-          
-          <p className="text-sm text-muted-foreground">
-            Get started by creating a new document or selecting an existing one from the sidebar.
-          </p>
+        <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+          <p>Press <kbd className="px-1.5 py-0.5 text-xs font-semibold text-foreground bg-background border border-border rounded-md">TAB</kbd> to generate a suggestion.</p>
+          <p>Highlight text and press <kbd className="px-1.5 py-0.5 text-xs font-semibold text-foreground bg-background border border-border rounded-md">⌘/Ctrl + K</kbd> to edit.</p>
+          <p>Send a message in the chat input below.</p>
         </div>
+
+        <div className="flex flex-col items-center gap-2 mt-3">
+          <p className="text-xs text-muted-foreground">
+            Get started by creating a new document or selecting one.
+          </p>
+          <Button
+            variant="ghost"
+            className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5"
+            asChild
+          >
+            <Link href="https://discord.gg/TwG73aHE" target="_blank" rel="noopener noreferrer">
+              <Image src="/images/discord-logo.png" alt="Discord" width={16} height={16} />
+              Join the Discord
+            </Link>
+          </Button>
+        </div>
+
       </div>
     </motion.div>
   );
