@@ -648,22 +648,51 @@ export async function createNewDocumentVersion({
   chatId?: string | null;
 }): Promise<(typeof schema.Document.$inferSelect)> {
    try {
-    await setOlderVersionsNotCurrent({ userId, documentId: id });
-    
-    const newDocument = await saveDocument({
-      id: id,
-      title: title,
-      content: content,
-      kind: kind,
-      userId: userId,
-      chatId: chatId, 
+    // Wrap operations in a transaction
+    const newDocument = await db.transaction(async (tx) => {
+      // 1. Set older versions to not current using the transaction client (tx)
+      await tx
+        .update(schema.Document)
+        .set({ is_current: false })
+        .where(and(
+          eq(schema.Document.id, id),
+          eq(schema.Document.userId, userId)
+        ));
+      console.log(`[DB Query - TX] Marked older versions of doc ${id} for user ${userId} as not current.`);
+
+      // 2. Prepare and insert the new version using the transaction client (tx)
+      const now = new Date();
+      const newVersionData = {
+        id,
+        title,
+        kind: kind as typeof schema.artifactKindEnum.enumValues[number],
+        content,
+        userId,
+        chatId: chatId || null,
+        is_current: true,
+        createdAt: now,
+        updatedAt: now,
+      };
+      const inserted = await tx
+        .insert(schema.Document)
+        .values(newVersionData)
+        .returning();
+
+      console.log(`[DB Query - TX] Saved new version for doc ${id}, user ${userId}`);
+      if (!inserted || inserted.length === 0) {
+          throw new Error("Failed to insert new document version or retrieve the inserted data within transaction.");
+      }
+      
+      // Return the newly inserted document from the transaction
+      return inserted[0];
     });
     
-    console.log(`[DB Query - createNewDocumentVersion] Successfully created new version for doc ${id}, user ${userId}`);
+    console.log(`[DB Query - createNewDocumentVersion] Successfully created new version for doc ${id}, user ${userId} (Transaction committed)`);
     return newDocument;
     
   } catch (error) {
     console.error(`[DB Query - createNewDocumentVersion] Error creating new version for doc ${id}, user ${userId}:`, error);
+    // Log if it's a transaction rollback? Drizzle might do this automatically.
     throw new Error(`Failed to create new document version: ${error instanceof Error ? error.message : String(error)}`);
   }
 }

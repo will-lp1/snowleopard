@@ -7,9 +7,17 @@ if (!process.env.DATABASE_URL) {
   console.error('🔴 DATABASE_URL environment variable is not set in the runtime environment.');
 }
 
-const connectionOptions = {
+// --- Start Debug Logging ---
+console.log(`[DB Connection] NODE_ENV: ${process.env.NODE_ENV}`);
+const isProduction = process.env.NODE_ENV === 'production';
+const sslSetting = isProduction ? ('require' as const) : undefined;
+console.log(`[DB Connection] SSL Setting: ${sslSetting === undefined ? 'undefined (disabled)' : sslSetting}`);
+// --- End Debug Logging ---
+
+const connectionOptions: postgres.Options<Record<string, postgres.PostgresType>> = {
   max: 1, // Suitable for serverless or local dev
-  ssl: process.env.NODE_ENV === 'development' ? undefined : ('require' as const), // Only require SSL outside of development
+  // Only require SSL in production, allow non-SSL for local dev/other environments
+  ssl: sslSetting
 };
 
 // Log the URL being used (without credentials for safety)

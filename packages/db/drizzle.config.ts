@@ -13,8 +13,7 @@ export default {
   out: './migrations', // Output migrations directly in packages/db/migrations
   dialect: 'postgresql',
   dbCredentials: {
-    url: `${process.env.DATABASE_URL}?sslmode=require`,
-    ssl: 'require',
+    url: process.env.DATABASE_URL,
   },
   verbose: true,
   strict: true,
