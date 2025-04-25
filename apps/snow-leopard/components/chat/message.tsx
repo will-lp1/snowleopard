@@ -14,6 +14,7 @@ import { Button } from '../ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { MessageEditor } from './message-editor';
 import { MessageReasoning } from './message-reasoning';
+import Image from 'next/image';
 
 function formatMessageWithMentions(content: string) {
   if (!content) return content;
@@ -100,10 +101,14 @@ const PurePreviewMessage = ({
           )}
         >
           {message.role === 'assistant' && (
-            <div className="size-8 flex items-center rounded-full justify-center ring-1 shrink-0 ring-border bg-background">
-              <div className="translate-y-px">
-                <SparklesIcon size={14} />
-              </div>
+            <div className="size-8 flex items-center justify-center rounded-full ring-1 shrink-0 ring-border bg-background overflow-hidden relative">
+              <Image
+                src="/images/leopardprintbw.svg"
+                alt="Snow Leopard"
+                fill
+                className="object-cover dark:invert"
+                style={{ transform: 'scale(2.5)' }}
+              />
             </div>
           )}
 
@@ -286,8 +291,14 @@ export const ThinkingMessage = () => {
           },
         )}
       >
-        <div className="size-8 flex items-center rounded-full justify-center ring-1 shrink-0 ring-border">
-          <SparklesIcon size={14} />
+        <div className="size-8 flex items-center justify-center rounded-full ring-1 shrink-0 ring-border overflow-hidden relative">
+          <Image
+            src="/images/leopardprintbw.svg"
+            alt="Snow Leopard"
+            fill
+            className="object-cover dark:invert"
+            style={{ transform: 'scale(2.5)' }}
+          />
         </div>
 
         <div className="flex flex-col gap-2 w-full">

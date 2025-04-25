@@ -10,38 +10,49 @@ import { SubmitButton } from '@/components/submit-button';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [isEmailLoading, setIsEmailLoading] = useState(false);
-  const [isEmailSuccessful, setIsEmailSuccessful] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSuccessful, setIsSuccessful] = useState(false);
   const [email, setEmail] = useState('');
 
   const handleEmailSignup = async (formData: FormData) => {
-    const email = formData.get('email') as string;
+    const emailValue = formData.get('email') as string;
     const password = formData.get('password') as string;
-    const name = email.split('@')[0] || 'User';
-    setEmail(email);
+    const name = emailValue.split('@')[0] || 'User';
+    setEmail(emailValue);
+    setIsLoading(true);
+    setIsSuccessful(false);
 
     await authClient.signUp.email({
-      email,
+      email: emailValue,
       password,
       name,
-      callbackURL: "/documents" 
     }, {
       onRequest: () => {
-        setIsEmailLoading(true);
-        setIsEmailSuccessful(false);
       },
       onSuccess: (ctx) => {
-        setIsEmailLoading(false);
-        setIsEmailSuccessful(true);
-        toast({
-          type: 'success',
-          description: 'Account created! Redirecting...'
-        });
-        router.refresh();
+        setIsLoading(false);
+
+        const isVerificationEnabled = process.env.NEXT_PUBLIC_EMAIL_VERIFY_ENABLED === 'true';
+
+        if (isVerificationEnabled) {
+          setIsSuccessful(false);
+          toast({
+            type: 'success',
+            description: 'Account created! Check your email to verify.'
+          });
+          router.push('/login');
+        } else {
+          setIsSuccessful(true);
+          toast({
+            type: 'success',
+            description: 'Account created! Redirecting...'
+          });
+          router.push('/documents');
+        }
       },
       onError: (ctx) => {
-        setIsEmailLoading(false);
-        setIsEmailSuccessful(false);
+        setIsLoading(false);
+        setIsSuccessful(false);
         console.error("Email Signup Error:", ctx.error);
         toast({
           type: 'error',
@@ -64,23 +75,25 @@ export default function RegisterPage() {
         <div className="px-8">
           <AuthForm action={handleEmailSignup} defaultEmail={email}>
             <SubmitButton 
-              isSuccessful={isEmailSuccessful}
+              isSuccessful={isSuccessful}
             >
               Sign Up
             </SubmitButton>
           </AuthForm>
         </div>
         
-        <p className="text-center text-sm text-gray-600 dark:text-zinc-400">
-          {'Already have an account? '}
-          <Link
-            href="/login"
-            className="font-semibold text-gray-800 hover:underline dark:text-zinc-200"
-          >
-            Sign in
-          </Link>
-          {' instead.'}
-        </p>
+        <div className="text-center">
+          <p className="text-sm text-gray-600 dark:text-zinc-400">
+            {'Already have an account? '}
+            <Link
+              href="/login"
+              className="font-semibold text-gray-800 hover:underline dark:text-zinc-200"
+            >
+              Sign in
+            </Link>
+            {' instead.'}
+          </p>
+        </div>
       </div>
     </div>
   );

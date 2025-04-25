@@ -4,6 +4,7 @@ import { Toaster } from 'sonner';
 import { ThemeProvider } from '@/components/theme-provider';
 import { SuggestionOverlayProvider } from '@/components/suggestion-overlay-provider';
 import { DocumentProvider } from '@/hooks/use-document-context';
+import { Analytics } from "@vercel/analytics/react"
 
 import './globals.css';
 
@@ -13,7 +14,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport = {
-  maximumScale: 1, // Disable auto-zoom on mobile Safari
+  maximumScale: 1, 
 };
 
 const LIGHT_THEME_COLOR = 'hsl(0 0% 100%)';
@@ -44,10 +45,6 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      // `next-themes` injects an extra classname to the body element to avoid
-      // visual flicker before hydration. Hence the `suppressHydrationWarning`
-      // prop is necessary to avoid the React hydration mismatch warning.
-      // https://github.com/pacocoursey/next-themes?tab=readme-ov-file#with-app
       suppressHydrationWarning
     >
       <head>
@@ -67,7 +64,11 @@ export default async function RootLayout({
           <SuggestionOverlayProvider>
             <DocumentProvider>
               <Toaster position="top-center" />
-              {children}
+              
+              {/* Render children ALWAYS */}
+              {children} 
+
+              <Analytics />
             </DocumentProvider>
           </SuggestionOverlayProvider>
         </ThemeProvider>

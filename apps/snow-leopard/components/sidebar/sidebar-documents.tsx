@@ -152,7 +152,6 @@ const PureDocumentItem = ({
           </DropdownMenuTrigger>
 
           <DropdownMenuContent side="bottom" align="end">
-            <DropdownMenuSeparator />
             <DropdownMenuItem
               className="cursor-pointer text-destructive focus:bg-destructive/15 focus:text-destructive dark:text-red-500"
               onSelect={() => onDelete(document.id)}

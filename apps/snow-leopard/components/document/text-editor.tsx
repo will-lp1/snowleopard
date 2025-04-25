@@ -6,7 +6,6 @@ import { EditorState, Transaction } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
 import React, { memo, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
-import placeholder from '@gulibs/prosemirror-plugin-placeholder';
 
 import {
   documentSchema,
@@ -31,6 +30,9 @@ import {
   CLEAR_SUGGESTION,
   FINISH_SUGGESTION_LOADING
 } from '@/lib/editor/inline-suggestion-plugin';
+
+// Import the custom placeholder plugin
+import { placeholderPlugin } from '@/lib/editor/placeholder-plugin';
 
 type EditorProps = {
   content: string;
@@ -204,8 +206,8 @@ function PureEditor({
       const state = EditorState.create({
         doc: buildDocumentFromContent(content),
         plugins: [
-          // Use the NEW placeholder plugin instance
-          placeholder('Start typing...'),
+          // Add the custom placeholder plugin instance
+          placeholderPlugin('Start typing...'),
           ...exampleSetup({ schema: documentSchema, menuBar: false }),
           inputRules({
             rules: [
@@ -447,7 +449,23 @@ function PureEditor({
           vertical-align: initial; 
         }
 
-        /* Placeholder for empty editor */
+        /* Updated CSS for placeholder using Node Decoration */
+        /* Target the paragraph (or other block node) with the class */
+        .ProseMirror .is-placeholder-empty::before {
+          content: attr(data-placeholder); /* Get text from node's data attribute */
+          position: absolute; /* Position relative to the paragraph */
+          left: 0; /* Adjust based on ProseMirror padding */
+          top: 0; /* Adjust based on ProseMirror padding */
+          color: #adb5bd; /* Text color */
+          font-family: inherit;
+          font-size: inherit;
+          line-height: inherit;
+          pointer-events: none; /* Ignore clicks */
+          user-select: none;
+        }
+
+        /* Keep the CSS for the old placeholder plugin in case it's needed elsewhere */
+        /* Or if PM View adds this class automatically */
         .ProseMirror:focus {
           outline: none; /* Remove default focus outline if needed */
         }
@@ -458,6 +476,11 @@ function PureEditor({
           color: #adb5bd; /* Or your preferred placeholder color */
           pointer-events: none;
           height: 0;
+        }
+
+        /* IMPORTANT: Ensure the direct parent (editor div) has relative positioning */
+        div.ProseMirror {
+          position: relative; /* Needed for absolute positioning of ::before */
         }
       `}</style>
     </>

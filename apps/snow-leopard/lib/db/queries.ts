@@ -715,4 +715,38 @@ export async function getLatestDocumentById({ id }: { id: string }): Promise<(ty
   }
 }
 
+// --- Subscription Queries --- //
 
+// Define the type for the subscription based on your schema
+type Subscription = typeof schema.subscription.$inferSelect;
+
+/**
+ * Fetches the active or trialing subscription for a given user ID.
+ * @param userId - The ID of the user.
+ * @returns The subscription object or null if none found or error.
+ */
+export async function getActiveSubscriptionByUserId({ userId }: { userId: string }): Promise<Subscription | null> {
+  if (!userId) {
+    console.warn('[DB Query - getActiveSubscriptionByUserId] No userId provided.');
+    return null;
+  }
+
+  try {
+    const data = await db
+      .select()
+      .from(schema.subscription)
+      .where(
+        and(
+          eq(schema.subscription.referenceId, userId),
+          inArray(schema.subscription.status, ['active', 'trialing'])
+        )
+      )
+      .orderBy(desc(schema.subscription.createdAt))
+      .limit(1);
+
+    return data[0] || null;
+  } catch (error) {
+    console.error(`[DB Query - getActiveSubscriptionByUserId] Error fetching active subscription for user ${userId}:`, error);
+    return null;
+  }
+}

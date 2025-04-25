@@ -116,11 +116,9 @@ export function convertToUIMessages(
                   (inv) => inv.toolCallId === toolCallId
                 );
                 if (invocationIndex !== -1) {
-                  // Update the state and result of the found invocation
                   const invocationToUpdate = assistantMessage.toolInvocations[invocationIndex] as ExtendedToolInvocation;
                   invocationToUpdate.state = 'result';
                   invocationToUpdate.result = resultData;
-                  // Found and updated, break inner loop
                   break;
                 }
               }
@@ -128,11 +126,10 @@ export function convertToUIMessages(
           }
         }
       }
-      // Skip adding the 'tool' role message itself to the output
+
       continue;
     }
 
-    // --- Process other roles (user, assistant) --- 
     let textContent = '';
     let reasoning: string | undefined = undefined;
     const toolInvocations: Array<ExtendedToolInvocation> = [];
@@ -142,11 +139,11 @@ export function convertToUIMessages(
     } else if (Array.isArray(message.content)) {
       for (const content of message.content) {
         if (content.type === 'text') {
-          textContent += content.text;
+          textContent += content.content;
         } else if (content.type === 'tool_call') {
           toolInvocations.push({
             state: 'call',
-            toolCallId: content.toolCallId || content.content.toolCallId,
+            toolCallId: content.toolCallId || content.content?.toolCallId,
             toolName: content.toolName || content.content.toolName,
             args: content.args || content.content.args,
           });

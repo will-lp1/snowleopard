@@ -10,27 +10,27 @@ import { SubmitButton } from '@/components/submit-button';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [isEmailLoading, setIsEmailLoading] = useState(false);
-  const [isEmailSuccessful, setIsEmailSuccessful] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSuccessful, setIsSuccessful] = useState(false);
   const [email, setEmail] = useState('');
 
   const handleEmailLogin = async (formData: FormData) => {
-    const email = formData.get('email') as string;
+    const currentEmail = formData.get('email') as string;
     const password = formData.get('password') as string;
-    setEmail(email);
+    setEmail(currentEmail);
 
     await authClient.signIn.email({
-      email,
+      email: currentEmail,
       password,
       callbackURL: "/documents"
     }, {
       onRequest: () => {
-        setIsEmailLoading(true);
-        setIsEmailSuccessful(false);
+        setIsLoading(true);
+        setIsSuccessful(false);
       },
       onSuccess: (ctx) => {
-        setIsEmailLoading(false);
-        setIsEmailSuccessful(true);
+        setIsLoading(false);
+        setIsSuccessful(true);
         toast({
           type: 'success',
           description: 'Signed in successfully! Redirecting...'
@@ -38,8 +38,8 @@ export default function LoginPage() {
         router.refresh();
       },
       onError: (ctx) => {
-        setIsEmailLoading(false);
-        setIsEmailSuccessful(false);
+        setIsLoading(false);
+        setIsSuccessful(false);
         console.error("Email Login Error:", ctx.error);
         toast({
           type: 'error',
@@ -62,7 +62,7 @@ export default function LoginPage() {
         <div className="px-8">
           <AuthForm action={handleEmailLogin} defaultEmail={email}> 
             <SubmitButton 
-              isSuccessful={isEmailSuccessful}
+              isSuccessful={isSuccessful}
             >
               Sign In
             </SubmitButton>

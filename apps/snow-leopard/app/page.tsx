@@ -5,7 +5,8 @@ import Image from 'next/image'
 import { Crimson_Text } from 'next/font/google'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { authClient } from '@/lib/auth-client' // Import Better Auth client
+import { authClient } from '@/lib/auth-client' 
+
 
 const crimson = Crimson_Text({
   weight: ['400', '700'],
@@ -15,10 +16,7 @@ const crimson = Crimson_Text({
 
 export default function Home() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [isLoading, setIsLoading] = useState(true) // Start loading until session check completes
   const router = useRouter()
-  // Remove Supabase client initialization
-  // const supabase = createClient()
 
   useEffect(() => {
     const checkSession = async () => {
@@ -29,48 +27,30 @@ export default function Home() {
         if (error) {
            console.error('Error fetching session:', error);
            // Stay on landing page if session check fails
-           setIsLoading(false);
            return;
         }
 
         if (session?.user) {
           // If user is logged in, redirect to documents
           router.push('/documents')
-          // No need to set isLoading to false here, as we are navigating away
         } else {
           // If user is not logged in, stop loading and show the landing page
-          setIsLoading(false)
         }
       } catch (error) {
         console.error('Error checking session unexpectedly:', error)
-        // Also stop loading on error to prevent infinite spinner
-        setIsLoading(false)
       }
     }
 
     checkSession()
-  }, [router]) // router is generally stable
+  }, [router]) 
 
   const handleBeginClick = async () => {
-    setIsLoading(true); // Show loading indicator on click
     const { data: session } = await authClient.getSession()
     if (session?.user) {
       router.push('/documents')
     } else {
-      // Redirect to login, keeping the intended destination
       router.push('/login?redirect=/documents') 
     }
-    // setIsLoading(false); // Loading stops on navigation or page load
-  }
-
-  // Don't render content while checking auth
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        {/* Simple loading indicator */}
-        <div className="size-8 border-2 border-gray-300 border-t-gray-800 rounded-full animate-spin"></div>
-      </div>
-    )
   }
 
   return (
@@ -199,15 +179,3 @@ export default function Home() {
     </div>
   )
 }
-
-// Add this to your globals.css
-/* 
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
-}
-
-.animate-blink {
-  animation: blink 1s step-end infinite;
-}
-*/

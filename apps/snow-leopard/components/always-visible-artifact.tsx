@@ -16,7 +16,6 @@ import { Editor } from '@/components/document/text-editor';
 import { useDocumentUtils } from '@/hooks/use-document-utils';
 import useSWR from 'swr';
 import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { toast } from 'sonner';
 import {
   DropdownMenu,
@@ -58,6 +57,10 @@ export function AlwaysVisibleArtifact({
   
   // State for document switching loading indicator
   const [isSwitchingDocument, setIsSwitchingDocument] = useState(false);
+  // State to prevent multiple creation attempts on first type
+  const [isCreatingInitialDocument, setIsCreatingInitialDocument] = useState(false);
+  // Ref for debouncing the initial creation trigger
+  const creationDebounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const {
     data: documents,
@@ -415,11 +418,38 @@ export function AlwaysVisibleArtifact({
     // --- Handle initial document creation ---
     // Check if this is the first save attempt for an 'init' document
     if (artifact.documentId === 'init') {
-      console.log('[Document] First save attempt for a new document, calling creation handler...');
-      // Call the creation handler instead of the update API
-      await handleCreateDocumentFromEditor(updatedContent);
-      // Return early, creation handler will update state and trigger navigation/SWR update
-      return; 
+      console.log('[Document] Save triggered in init state.');
+      // Clear any existing debounce timeout
+      if (creationDebounceTimeoutRef.current) {
+        clearTimeout(creationDebounceTimeoutRef.current);
+        console.log('[Document] Cleared existing creation debounce timeout.');
+      }
+
+      // Only set a new timeout if creation hasn't been initiated or previously failed
+      if (!isCreatingInitialDocument) {
+        // Set the flag immediately to block subsequent save attempts during debounce/creation
+        setIsCreatingInitialDocument(true);
+        console.log('[Document] Setting isCreatingInitialDocument = true, scheduling creation.');
+
+        creationDebounceTimeoutRef.current = setTimeout(() => {
+          console.log('[Document] Debounced creation trigger fired. Calling handleCreateDocumentFromEditor...');
+          // Ensure we are *still* in the init state when the timeout fires
+          // Check artifact ref or state directly if possible, using artifact.documentId from closure for now
+          if (artifact.documentId === 'init') { 
+            handleCreateDocumentFromEditor(updatedContent);
+          } else {
+             console.log('[Document] Debounce fired, but documentId is no longer init. Creation cancelled.');
+             // Reset the flag if the creation was cancelled before starting
+             setIsCreatingInitialDocument(false);
+          }
+          creationDebounceTimeoutRef.current = null; // Clear ref after firing or cancellation
+        }, 300); // 300ms delay
+      } else {
+        console.log('[Document] Debounce rescheduled or creation already in progress/initiated.');
+        // If creation is already running or flag is set, the new timeout replaces the old one,
+        // or does nothing if flag is true because creation is executing.
+      }
+      return; // Ignore subsequent saves while initial creation is pending
     }
     // --- End Handle initial document creation ---
 
@@ -671,15 +701,17 @@ export function AlwaysVisibleArtifact({
         updateDocument(document.id, document.title, document.content, document.kind);
         // Toast or confirmation if needed
         toast.success('Document created');
+        // Flag is reset by useEffect watching artifact.documentId changing from 'init'
         // Navigation is handled by createDocument utility if navigateAfterCreate is true
       } else {
         // Handle case where document creation failed but didn't throw
         toast.error('Failed to create document.');
+        // Flag is reset by useEffect watching artifact.documentId changing from 'init'
       }
     } catch (error) {
       console.error('Error creating document from editor:', error);
       toast.error('Failed to create document');
-      // Optionally reset editor state or provide retry mechanism
+      // Flag is reset by useEffect watching artifact.documentId changing from 'init'
     }
   };
   
@@ -724,6 +756,22 @@ export function AlwaysVisibleArtifact({
     };
   }, [artifact.documentId, artifact.content, artifact.kind, setArtifact, updateDocument, mutateDocuments]);
   
+  // Reset the creation flag if the document ID changes away from 'init'
+  useEffect(() => {
+    if (artifact.documentId !== 'init') {
+      setIsCreatingInitialDocument(false);
+    }
+  }, [artifact.documentId]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (creationDebounceTimeoutRef.current) {
+        clearTimeout(creationDebounceTimeoutRef.current);
+      }
+    };
+  }, []);
+
   return (
     <div className="flex flex-col h-dvh bg-background">
       {/* Header with document info or actions */}

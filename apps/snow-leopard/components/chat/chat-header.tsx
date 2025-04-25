@@ -61,7 +61,7 @@ function PureChatHeader({
   return (
     <header
       className={cn(
-        'flex sticky top-0 bg-background/80 backdrop-blur-sm z-10 border-b border-zinc-200 dark:border-zinc-700 items-center px-3 h-[45px] gap-2 transition-all duration-200',
+        'flex sticky top-0 bg-background/80 backdrop-blur-sm z-10 border-b border-border items-center px-3 h-[45px] gap-2 transition-all duration-200',
         className,
       )}
     >
@@ -106,7 +106,7 @@ function PureChatHeader({
           <Button
             variant="ghost"
             size="icon"
-            className="size-8 ml-auto opacity-70 hover:opacity-100"
+            className="size-8 ml-auto text-muted-foreground hover:text-foreground"
           >
             <ClockRewind size={16} />
           </Button>
@@ -187,9 +187,9 @@ function PureChatHeader({
 
       {/* GitHub Link */}
       <Button
-        variant="default"
+        variant="outline"
         size="icon"
-        className="size-8 opacity-100 hover:opacity-100"
+        className="size-8 shrink-0"
         asChild
       >
         <Link
@@ -198,10 +198,11 @@ function PureChatHeader({
           rel="noopener noreferrer"
         >
           <Image 
-            src="/images/github-white.svg" 
+            src="/images/github-logo.png" 
             alt="Github" 
             width={16} 
             height={16}
+            className="dark:invert"
           />
         </Link>
       </Button>

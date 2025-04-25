@@ -20,10 +20,9 @@
     "test": "export PLAYWRIGHT=True && pnpm exec playwright test --workers=4"
   },
   "dependencies": {
-    "@ai-sdk/fireworks": "0.1.12",
     "@ai-sdk/groq": "^1.1.13",
-    "@ai-sdk/openai": "1.2.0",
     "@ai-sdk/react": "^1.1.20",
+    "@better-auth/stripe": "^1.2.7",
     "@radix-ui/react-alert-dialog": "^1.1.2",
     "@radix-ui/react-checkbox": "^1.1.4",
     "@radix-ui/react-dialog": "^1.1.2",
@@ -76,7 +75,6 @@
     "prosemirror-commands": "^1.7.0",
     "prosemirror-example-setup": "^1.2.3",
     "prosemirror-history": "^1.4.1",
-    "@gulibs/prosemirror-plugin-placeholder": "^1.0.8",
     "prosemirror-inputrules": "^1.4.0",
     "prosemirror-keymap": "^1.2.2",
     "prosemirror-markdown": "^1.13.1",
@@ -96,6 +94,7 @@
     "resend": "^4.3.0",
     "server-only": "^0.0.1",
     "sonner": "^1.5.0",
+    "stripe": "^17.7.0",
     "swr": "^2.2.5",
     "tailwind-merge": "^2.5.2",
     "tailwindcss-animate": "^1.0.7",
