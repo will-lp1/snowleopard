@@ -25,6 +25,7 @@ export interface ChatProps {
   initialMessages: Array<Message>;
   selectedChatModel?: string;
   isReadonly?: boolean;
+  hasActiveSubscription?: boolean;
 }
 
 export function Chat({
@@ -32,6 +33,7 @@ export function Chat({
   initialMessages,
   selectedChatModel: initialSelectedChatModel,
   isReadonly = false,
+  hasActiveSubscription = true,
 }: ChatProps) {
   const { mutate } = useSWRConfig();
   const { documentId, documentTitle, documentContent } = useDocumentContext();
@@ -316,24 +318,29 @@ export function Chat({
 
       {!isReadonly && (
         <div className="p-4 border-t border-zinc-200 dark:border-zinc-700">
-          
-          <form onSubmit={wrappedSubmit}>
-            <MultimodalInput
-              chatId={chatId}
-              input={input}
-              setInput={setInput}
-              handleSubmit={handleSubmit}
-              status={status}
-              stop={stop}
-              attachments={attachments}
-              setAttachments={setAttachments}
-              messages={messages}
-              setMessages={setMessages}
-              append={append}
-              confirmedMentions={confirmedMentions}
-              onMentionsChange={handleMentionsChange}
-            />
-          </form>
+          {hasActiveSubscription ? (
+            <form onSubmit={wrappedSubmit}>
+              <MultimodalInput
+                chatId={chatId}
+                input={input}
+                setInput={setInput}
+                handleSubmit={handleSubmit}
+                status={status}
+                stop={stop}
+                attachments={attachments}
+                setAttachments={setAttachments}
+                messages={messages}
+                setMessages={setMessages}
+                append={append}
+                confirmedMentions={confirmedMentions}
+                onMentionsChange={handleMentionsChange}
+              />
+            </form>
+          ) : (
+            <div className="flex items-center justify-center h-[56px] text-sm text-muted-foreground bg-muted rounded-2xl border border-border">
+              Subscription required to send messages.
+            </div>
+          )}
         </div>
       )}
 

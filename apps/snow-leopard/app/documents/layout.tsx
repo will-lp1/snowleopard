@@ -1,23 +1,37 @@
 "use client"
 
 import { useState, useEffect, ReactNode } from 'react';
+import useSWR from 'swr';
 import { Chat } from '@/components/chat/chat';
 import { ResizablePanel } from '@/components/resizable-panel';
 
 import { AppSidebar } from '@/components/sidebar/app-sidebar';
 import { SidebarProvider, SidebarRail } from '@/components/ui/sidebar';
 import { authClient } from '@/lib/auth-client';
+import { fetcher } from '@/lib/utils';
 
 export const experimental_ppr = true;
 
 export default function DocumentsLayout({ children }: { children: ReactNode }) {
-  const { data: session, isPending } = authClient.useSession();
+  const { data: session, isPending: isSessionLoading } = authClient.useSession();
   const [isCollapsed, setIsCollapsed] = useState(true);
+
+  const shouldFetchSubscription = !isSessionLoading && !!session?.user?.id;
+  const { data: subscriptionData, isLoading: isSubscriptionLoading } = useSWR(
+    shouldFetchSubscription ? '/api/user/subscription-status' : null,
+    fetcher,
+    { revalidateOnFocus: false }
+  );
 
   useEffect(() => {
     const sidebarState = document.cookie.split('; ').find(row => row.startsWith('sidebar:state'));
     setIsCollapsed(sidebarState ? sidebarState.split('=')[1] !== 'true' : true);
   }, []);
+
+  const hasActiveSubscription = 
+    !isSubscriptionLoading && 
+    !!subscriptionData && 
+    subscriptionData.hasActiveSubscription;
 
   return (
     <SidebarProvider defaultOpen={!isCollapsed}>
@@ -40,6 +54,7 @@ export default function DocumentsLayout({ children }: { children: ReactNode }) {
           >
             <Chat
               initialMessages={[]}
+              hasActiveSubscription={hasActiveSubscription}
             />
           </ResizablePanel>
         </div>

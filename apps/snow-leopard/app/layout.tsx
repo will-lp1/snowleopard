@@ -5,9 +5,6 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { SuggestionOverlayProvider } from '@/components/suggestion-overlay-provider';
 import { DocumentProvider } from '@/hooks/use-document-context';
 import { Analytics } from "@vercel/analytics/react"
-import { Paywall } from '@/components/paywall';
-import { getSession } from '@/app/(auth)/auth';
-import { getActiveSubscriptionByUserId } from '@/lib/db/queries';
 
 import './globals.css';
 
@@ -45,21 +42,6 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const session = await getSession();
-  let hasActiveSubscription = true;
-  let showPaywall = false;
-
-  if (session?.user?.id && process.env.STRIPE_ENABLED === 'true') {
-    const subscription = await getActiveSubscriptionByUserId({ userId: session.user.id });
-    hasActiveSubscription = subscription?.status === 'active' || subscription?.status === 'trialing';
-    console.log(`[RootLayout] User: ${session.user.id}, Subscription Status: ${subscription?.status}, HasActive: ${hasActiveSubscription}`);
-    showPaywall = !hasActiveSubscription;
-  } else if (session?.user?.id && process.env.STRIPE_ENABLED !== 'true') {
-    console.log(`[RootLayout] User: ${session.user.id}, Stripe DISABLED, granting access.`);
-    hasActiveSubscription = true;
-    showPaywall = false;
-  }
-
   return (
     <html
       lang="en"
@@ -85,14 +67,6 @@ export default async function RootLayout({
               
               {/* Render children ALWAYS */}
               {children} 
-
-              {/* Conditionally render Paywall overlay on top */}
-              {showPaywall && (
-                <Paywall 
-                  isOpen={true} 
-                  required={true} 
-                />
-              )}
 
               <Analytics />
             </DocumentProvider>
