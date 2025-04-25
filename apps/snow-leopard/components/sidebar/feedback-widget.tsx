@@ -3,7 +3,7 @@
 import { useBreakpoint } from "@/hooks/use-breakpoint"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
-import { sendFeedbackEmail } from "@/lib/actions/feedback"
+import { sendFeedbackToDiscord } from "@/lib/actions/feedback"
 import { authClient } from "@/lib/auth-client"
 import {
   X,
@@ -65,14 +65,14 @@ export function FeedbackWidget({ className }: { className?: string }) {
     }
 
     try {
-      const result = await sendFeedbackEmail({
+      const result = await sendFeedbackToDiscord({
         feedbackContent: feedback,
         userId: userId,
         userEmail: userEmail,
       })
 
       if (!result.success) {
-        throw new Error(result.error || 'Failed to send feedback email.')
+        throw new Error(result.error || 'Failed to send feedback to Discord.')
       }
       
       await new Promise((resolve) => setTimeout(resolve, 1200))
@@ -82,7 +82,7 @@ export function FeedbackWidget({ className }: { className?: string }) {
       }, 2500)
     } catch (error: any) {
       console.error("Error submitting feedback:", error)
-      toast.error(`Error submitting feedback: ${error.message || 'Unknown error'}`)
+      toast.error(`Error submitting feedback: ${error.message || 'Unknown error sending to Discord'}`)
       setStatus("error")
     }
   }

@@ -13,7 +13,7 @@ import {
 import Link from 'next/link';
 import { useWindowSize } from 'usehooks-ts';
 import { SidebarDocuments } from '@/components/sidebar/sidebar-documents';
-import { FeedbackWidget } from '@/components/feedback-widget';
+import { FeedbackWidget } from '@/components/sidebar/feedback-widget';
 import { cn } from '@/lib/utils';
 import type { User } from '@/lib/auth';
 import { Crimson_Text } from 'next/font/google'
