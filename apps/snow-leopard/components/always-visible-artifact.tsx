@@ -486,26 +486,29 @@ export function AlwaysVisibleArtifact({
       
       const updatedDocumentData: Document = await response.json();
 
-      // Update SWR cache with the returned data
-      // Find the existing document in the cache to update it, or update the whole array if needed
+      // Update SWR cache only for metadata consistency
+      // This prevents re-triggering the Editor's content update useEffect
       mutateDocuments((currentData) => {
         if (!currentData) return [updatedDocumentData]; // If cache is empty, initialize with new data
         
-        // Find the index of the document version to update (usually the last one)
+        // Find the index of the document version to update based on ID and createdAt
         const indexToUpdate = currentData.findIndex(doc => 
           doc.id === updatedDocumentData.id && 
           doc.createdAt === updatedDocumentData.createdAt
         );
         
         if (indexToUpdate !== -1) {
-          // Update the specific version in the array
+          // Update the specific version in the array, keeping existing content if optimistic
           const newData = [...currentData];
-          newData[indexToUpdate] = updatedDocumentData;
+          newData[indexToUpdate] = {
+            ...updatedDocumentData, // Use latest metadata from server (title, updatedAt etc.)
+            // content: newData[indexToUpdate].content // OPTIONALLY keep the existing content from cache
+            // OR use updatedDocumentData.content if you MUST reflect server state exactly
+          };
           return newData;
         } else {
           // If the exact version wasn't found (e.g., it was a new version created),
-          // find the latest version for the same ID and replace it, or append.
-          // This logic assumes the API returns the *single* latest version state.
+          // find the latest version for the same ID and replace/append.
           const latestIndexForId = currentData.reduce((latestIdx, doc, currentIdx) => {
             if (doc.id === updatedDocumentData.id && (latestIdx === -1 || new Date(doc.createdAt) > new Date(currentData[latestIdx].createdAt))) {
               return currentIdx;
@@ -517,12 +520,14 @@ export function AlwaysVisibleArtifact({
              const newData = [...currentData];
              // Check if the returned data represents a NEWER version or just an UPDATE to the latest
              if (new Date(updatedDocumentData.createdAt) > new Date(newData[latestIndexForId].createdAt)) {
-               // It's a newer version, append it (or replace if ID matches but createdAt differs)
-               newData.push(updatedDocumentData);
-               // Remove older versions if necessary (or handle based on desired history view)
+               // It's a newer version, append it
+               newData.push(updatedDocumentData); 
              } else {
-               // It's an update to the latest known version
-               newData[latestIndexForId] = updatedDocumentData;
+               // It's an update to the latest known version, update metadata but keep content?
+               newData[latestIndexForId] = {
+                  ...updatedDocumentData,
+                  // content: newData[latestIndexForId].content // Decide if content needs updating here
+               };
              }
              return newData;
           } else {
@@ -531,6 +536,15 @@ export function AlwaysVisibleArtifact({
           }
         }
       }, { revalidate: false }); // Update cache, don't trigger immediate refetch
+      
+      // Update the *local document state* for displaying 'Last saved' time, etc.
+      // but crucially *do not* update artifact.content here.
+      setDocument(doc => ({
+        ...(doc ?? {}), // Keep existing state if available
+        ...updatedDocumentData, // Overwrite with latest data from server
+        // IMPORTANT: Do NOT update content here, rely on optimistic update in editor
+        content: doc?.content ?? updatedContent // Keep existing content
+      }));
       
       // Clear save indicator after successful save
       setIsContentDirty(false);

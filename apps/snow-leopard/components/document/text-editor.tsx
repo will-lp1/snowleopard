@@ -290,37 +290,41 @@ function PureEditor({
 
   useEffect(() => {
     if (editorRef.current && content) {
+      const editorView = editorRef.current; // Capture ref current value
       const currentContent = buildContentFromDocument(
-        editorRef.current.state.doc,
+        editorView.state.doc,
       );
 
-      if (status === 'streaming') {
-        const newDocument = buildDocumentFromContent(content);
-
-        const transaction = editorRef.current.state.tr.replaceWith(
-          0,
-          editorRef.current.state.doc.content.size,
-          newDocument.content,
-        );
-
-        transaction.setMeta('no-save', true);
-        editorRef.current.dispatch(transaction);
-        return;
-      }
-
+      // Only apply external content changes if they are different
+      // from the current editor state AND it's not a user-driven save result
+      // (which is now handled optimistically by the parent)
       if (currentContent !== content) {
-        const newDocument = buildDocumentFromContent(content);
-
-        const transaction = editorRef.current.state.tr.replaceWith(
-          0,
-          editorRef.current.state.doc.content.size,
-          newDocument.content,
-        );
-
-        transaction.setMeta('no-save', true);
-        editorRef.current.dispatch(transaction);
+        if (status === 'streaming') {
+          // Handle streaming updates immediately
+          console.log('[Editor] Applying streaming update.');
+          const newDocument = buildDocumentFromContent(content);
+          const transaction = editorView.state.tr.replaceWith(
+            0,
+            editorView.state.doc.content.size,
+            newDocument.content,
+          );
+          transaction.setMeta('no-save', true);
+          editorView.dispatch(transaction);
+        } else {
+          // Handle non-streaming external updates (e.g., initial load, version switch)
+          console.log('[Editor] Applying external content update (initial load/version switch).');
+          const newDocument = buildDocumentFromContent(content);
+          const transaction = editorView.state.tr.replaceWith(
+            0,
+            editorView.state.doc.content.size,
+            newDocument.content,
+          );
+          transaction.setMeta('no-save', true);
+          editorView.dispatch(transaction);
+        }
       }
     }
+    // No cleanup needed for timeout anymore
   }, [content, status]);
 
   // --- Event Listener for Apply Suggestion --- 
