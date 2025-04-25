@@ -5,6 +5,9 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { SuggestionOverlayProvider } from '@/components/suggestion-overlay-provider';
 import { DocumentProvider } from '@/hooks/use-document-context';
 import { Analytics } from "@vercel/analytics/react"
+import { Paywall } from '@/components/paywall';
+import { getSession } from '@/app/(auth)/auth';
+import { getActiveSubscriptionByUserId } from '@/lib/db/queries';
 
 import './globals.css';
 
@@ -14,7 +17,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport = {
-  maximumScale: 1, // Disable auto-zoom on mobile Safari
+  maximumScale: 1, 
 };
 
 const LIGHT_THEME_COLOR = 'hsl(0 0% 100%)';
@@ -42,13 +45,24 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await getSession();
+  let hasActiveSubscription = true;
+  let showPaywall = false;
+
+  if (session?.user?.id && process.env.STRIPE_ENABLED === 'true') {
+    const subscription = await getActiveSubscriptionByUserId({ userId: session.user.id });
+    hasActiveSubscription = subscription?.status === 'active' || subscription?.status === 'trialing';
+    console.log(`[RootLayout] User: ${session.user.id}, Subscription Status: ${subscription?.status}, HasActive: ${hasActiveSubscription}`);
+    showPaywall = !hasActiveSubscription;
+  } else if (session?.user?.id && process.env.STRIPE_ENABLED !== 'true') {
+    console.log(`[RootLayout] User: ${session.user.id}, Stripe DISABLED, granting access.`);
+    hasActiveSubscription = true;
+    showPaywall = false;
+  }
+
   return (
     <html
       lang="en"
-      // `next-themes` injects an extra classname to the body element to avoid
-      // visual flicker before hydration. Hence the `suppressHydrationWarning`
-      // prop is necessary to avoid the React hydration mismatch warning.
-      // https://github.com/pacocoursey/next-themes?tab=readme-ov-file#with-app
       suppressHydrationWarning
     >
       <head>
@@ -68,7 +82,18 @@ export default async function RootLayout({
           <SuggestionOverlayProvider>
             <DocumentProvider>
               <Toaster position="top-center" />
-              {children}
+              
+              {/* Render children ALWAYS */}
+              {children} 
+
+              {/* Conditionally render Paywall overlay on top */}
+              {showPaywall && (
+                <Paywall 
+                  isOpen={true} 
+                  required={true} 
+                />
+              )}
+
               <Analytics />
             </DocumentProvider>
           </SuggestionOverlayProvider>

@@ -19,7 +19,7 @@ import {
 
 interface PaywallProps {
   isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
+  onOpenChange?: (open: boolean) => void;
   required?: boolean;
 }
 
@@ -148,7 +148,7 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
     if (required && !open) {
       return;
     }
-    onOpenChange(open);
+    onOpenChange?.(open);
   };
   
   const handleInteractOutside = (event: Event) => {
