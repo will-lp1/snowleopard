@@ -169,21 +169,25 @@ export async function getMessagesByIds(ids: string[]): Promise<Message[]> {
 }
 
 
-export async function saveDocument({
+// Modified saveDocument to accept an optional transaction client
+async function saveDocumentInternal({
+  tx, // Optional transaction client
   id,
   title,
   kind,
   content,
   userId,
-  chatId, // Added optional chatId
+  chatId,
 }: {
+  tx?: typeof db | any; // Use 'any' for flexibility with transaction type
   id: string;
   title: string;
   kind: ArtifactKind;
   content: string;
   userId: string;
-  chatId?: string | null; // Make it optional
+  chatId?: string | null;
 }): Promise<(typeof schema.Document.$inferSelect)> {
+  const dbClient = tx || db; // Use transaction client if provided, else default db
   try {
     const now = new Date();
     const newVersionData = {
@@ -193,25 +197,37 @@ export async function saveDocument({
       content,
       userId,
       chatId: chatId || null,
-      is_current: true,
+      is_current: true, // Set is_current to true for new versions
       createdAt: now,
       updatedAt: now,
     };
 
-    const inserted = await db
+    const inserted = await dbClient
       .insert(schema.Document)
       .values(newVersionData)
       .returning();
 
-    console.log(`[DB Query - saveDocument] Saved new version for doc ${id}, user ${userId}`);
+    console.log(`[DB Query - saveDocumentInternal] Saved new version for doc ${id}, user ${userId}`);
     if (!inserted || inserted.length === 0) {
         throw new Error("Failed to insert new document version or retrieve the inserted data.");
     }
     return inserted[0];
   } catch (error) {
-    console.error(`[DB Query - saveDocument] Error saving new version for doc ${id}, user ${userId}:`, error);
+    console.error(`[DB Query - saveDocumentInternal] Error saving new version for doc ${id}, user ${userId}:`, error);
     throw new Error(`Failed to save document version: ${error instanceof Error ? error.message : String(error)}`);
   }
+}
+
+// Public saveDocument remains for potential external use (though createNewDocumentVersion is preferred)
+export async function saveDocument(params: {
+  id: string;
+  title: string;
+  kind: ArtifactKind;
+  content: string;
+  userId: string;
+  chatId?: string | null;
+}): Promise<(typeof schema.Document.$inferSelect)> {
+  return saveDocumentInternal(params); // Calls the internal function without tx
 }
 
 export async function getDocumentsById({ ids, userId }: { ids: string[], userId: string }): Promise<Document[]> {
@@ -484,26 +500,38 @@ export async function deleteDocumentByIdAndUserId({
   }
 }
 
-export async function setOlderVersionsNotCurrent({ 
-  userId, 
-  documentId 
-}: { 
-  userId: string; 
-  documentId: string 
+// Modified setOlderVersionsNotCurrent to accept an optional transaction client
+async function setOlderVersionsNotCurrentInternal({
+  tx, // Optional transaction client
+  userId,
+  documentId
+}: {
+  tx?: typeof db | any; // Use 'any' for flexibility with transaction type
+  userId: string;
+  documentId: string;
 }): Promise<void> {
+  const dbClient = tx || db; // Use transaction client if provided, else default db
   try {
-    await db
+    await dbClient
       .update(schema.Document)
       .set({ is_current: false })
       .where(and(
         eq(schema.Document.id, documentId),
         eq(schema.Document.userId, userId)
       ));
-    console.log(`[DB Query - setOlderVersionsNotCurrent] Marked older versions of doc ${documentId} for user ${userId} as not current.`);
+    console.log(`[DB Query - setOlderVersionsNotCurrentInternal] Marked older versions of doc ${documentId} for user ${userId} as not current.`);
   } catch (error) {
-    console.error(`[DB Query - setOlderVersionsNotCurrent] Error marking older versions for doc ${documentId}, user ${userId}:`, error);
+    console.error(`[DB Query - setOlderVersionsNotCurrentInternal] Error marking older versions for doc ${documentId}, user ${userId}:`, error);
     throw new Error(`Failed to mark older document versions as not current: ${error instanceof Error ? error.message : String(error)}`);
   }
+}
+
+// Public function remains for potential external use
+export async function setOlderVersionsNotCurrent(params: {
+  userId: string;
+  documentId: string;
+}): Promise<void> {
+  await setOlderVersionsNotCurrentInternal(params); // Calls the internal function without tx
 }
 
 export async function renameDocumentTitle({ 
@@ -647,23 +675,32 @@ export async function createNewDocumentVersion({
   userId: string;
   chatId?: string | null;
 }): Promise<(typeof schema.Document.$inferSelect)> {
-   try {
-    await setOlderVersionsNotCurrent({ userId, documentId: id });
-    
-    const newDocument = await saveDocument({
-      id: id,
-      title: title,
-      content: content,
-      kind: kind,
-      userId: userId,
-      chatId: chatId, 
+  try {
+    // Wrap the operations in a transaction
+    const newDocument = await db.transaction(async (tx) => {
+      // Step 1: Set older versions to not current (using the transaction client)
+      await setOlderVersionsNotCurrentInternal({ tx, userId, documentId: id });
+
+      // Step 2: Save the new version (using the transaction client)
+      const savedDoc = await saveDocumentInternal({
+        tx, // Pass the transaction client
+        id: id,
+        title: title,
+        content: content,
+        kind: kind,
+        userId: userId,
+        chatId: chatId,
+      });
+
+      return savedDoc; // Return the result from within the transaction
     });
-    
-    console.log(`[DB Query - createNewDocumentVersion] Successfully created new version for doc ${id}, user ${userId}`);
+
+    console.log(`[DB Query - createNewDocumentVersion] Successfully created new version for doc ${id} within transaction, user ${userId}`);
     return newDocument;
-    
+
   } catch (error) {
     console.error(`[DB Query - createNewDocumentVersion] Error creating new version for doc ${id}, user ${userId}:`, error);
+    // The transaction will automatically roll back on error
     throw new Error(`Failed to create new document version: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
