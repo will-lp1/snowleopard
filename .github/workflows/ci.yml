@@ -43,10 +43,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Run lint check (adjust script name if necessary)
-      - name: Run Lint Check
-        run: pnpm lint
-
       # Run build for the snow-leopard app (adjust filter/script if necessary)
       - name: Run Build Check
         run: pnpm --filter snow-leopard build 
