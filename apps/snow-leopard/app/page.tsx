@@ -51,11 +51,13 @@ export default function Home() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
       {/* Header */}
-      <header className="absolute top-0 w-full flex justify-between items-center px-8 py-6 z-10">
-        <h1 className="text-lg font-normal text-foreground/90">snow leopard</h1>
+      <header className="absolute top-0 w-full flex justify-between items-center px-6 py-4 z-10">
+        <h1 className="text-xl font-normal tracking-tighter text-foreground/90">
+          snow leopard
+        </h1>
         <button
           onClick={handleBeginClick}
-          className="px-6 py-2 rounded-full bg-card text-card-foreground border border-border shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:bg-muted transition-colors text-sm"
+          className="px-4 py-1.5 rounded-full bg-card text-card-foreground border border-border  hover:bg-muted transition-colors text-sm"
         >
           Begin
         </button>
@@ -64,18 +66,18 @@ export default function Home() {
       {/* Main Content */}
       <main className="min-h-screen flex flex-col items-center justify-center px-4 text-center">
         {/* Snow Leopard Left */}
-        <div className="fixed left-0 bottom-40 pointer-events-none select-none mix-blend-multiply">
+        {/* <div className="fixed left-0 bottom-40 pointer-events-none select-none">
           <Image
             src="/images/snow-leopard-left.png"
             alt=""
             width={400}
             height={400}
-            className="max-w-[300px] md:max-w-[400px] opacity-15"
+            className="max-w-[300px] md:max-w-[400px] "
           />
-        </div>
+        </div> */}
 
         {/* Snow Leopard Right */}
-        <div className="fixed right-0 bottom-40 pointer-events-none select-none mix-blend-multiply">
+        {/* <div className="fixed right-0 bottom-40 pointer-events-none select-none mix-blend-multiply">
           <Image
             src="/images/snow-leopard-right.png"
             alt=""
@@ -83,13 +85,13 @@ export default function Home() {
             height={400}
             className="max-w-[300px] md:max-w-[400px] opacity-15"
           />
-        </div>
+        </div> */}
 
-        <div className="space-y-6 max-w-4xl mb-32">
+        <div className="flex flex-col items-center max-w-4xl mb-32">
           {/* Video Preview Button */}
           <button
             onClick={() => setIsDialogOpen(true)}
-            className="group px-6 py-2 rounded-full bg-card text-card-foreground border border-border shadow-sm hover:bg-muted transition-all duration-200 text-sm flex items-center gap-2 hover:border-border/80 mx-auto mb-4"
+            className="group pr-4 pl-3 py-1.5 rounded-full bg-card text-card-foreground border border-border hover:bg-muted transition-all duration-200 text-sm flex items-center gap-2 hover:border-border/80 mx-auto mb-4"
           >
             <svg
               className="size-4 text-muted-foreground"
@@ -148,15 +150,15 @@ export default function Home() {
           <div className="space-y-0">
             <div className="relative">
               <h2
-                className={`text-[96px] ${crimson.className} tracking-[-0.08em] leading-[0.8] text-foreground`}
+                className={`text-6xl md:text-[128px] ${crimson.className} tracking-[-0.08em] leading-none text-foreground`}
               >
                 Tab, Tab, Apply
               </h2>
             </div>
 
-            <div className="relative mt-1">
+            <div className="relative mt-0">
               <h3
-                className={`text-[96px] ${crimson.className} tracking-[-0.01em] text-foreground font-bold`}
+                className={`text-6xl md:text-[128px] ${crimson.className} tracking-[-0.06em] leading-none text-foreground `}
               >
                 Brilliance
                 <span className="animate-blink ml-0.5 font-normal">|</span>
@@ -165,20 +167,19 @@ export default function Home() {
           </div>
 
           {/* Tagline */}
-          <p className="text-base text-muted-foreground max-w-md mx-auto font-light">
-            the most satisfying, intuitive ai writing tool,
-            <br />
-            and it&apos;s open source
+          <p className="text-xl text-muted-foreground mt-1 max-w-md text-balance mx-auto font-light">
+            The most satisfying, intuitive AI writing tool, and it&apos;s open
+            source.
           </p>
 
           {/* CTA Buttons */}
-          <div className="flex gap-3 justify-center mt-8">
+          <div className="flex gap-2 mt-6 justify-center">
             <Link
               href="/login"
-              className="group px-6 py-2 rounded-full bg-card text-card-foreground border border-border shadow-sm hover:bg-muted transition-all duration-200 text-sm flex items-center hover:border-border/80"
+              className="group px-4 py-1.5 rounded-full bg-card text-card-foreground border border-border shadow-sm hover:bg-muted transition-all duration-200 text-sm flex items-center hover:border-border/80"
             >
               Begin{" "}
-              <span className="inline-block ml-1 text-xs transition-transform group-hover:translate-x-0.5">
+              <span className="inline-block ml-2 text-xs transition-transform group-hover:translate-x-0.5">
                 ›
               </span>
             </Link>
@@ -186,10 +187,10 @@ export default function Home() {
               href="https://github.com/will-lp1/cursorforwriting"
               target="_blank"
               rel="noopener noreferrer"
-              className="group px-6 py-2 rounded-full bg-card text-card-foreground border border-border shadow-sm hover:bg-muted transition-all duration-200 text-sm flex items-center hover:border-border/80"
+              className="group px-4 py-1.5 rounded-full bg-secondary text-secondary-foreground  hover:bg-muted transition-all duration-200 text-sm flex items-center hover:border-border/80"
             >
-              GIT{" "}
-              <span className="inline-block ml-1 text-xs transition-transform group-hover:translate-x-0.5">
+              GitHub{" "}
+              <span className="inline-block ml-2 text-xs transition-transform group-hover:translate-x-0.5">
                 ›
               </span>
             </Link>
