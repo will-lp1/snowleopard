@@ -33,19 +33,16 @@ import { UseChatHelpers, UseChatOptions } from '@ai-sdk/react';
 import { useDocumentContext } from '@/hooks/use-document-context';
 import { cn, generateUUID } from '@/lib/utils';
 
-// Mention suggestion type definition for react-mentions
 interface DocumentSuggestion extends SuggestionDataItem {
   id: string;
-  display: string; // react-mentions uses 'display'
+  display: string;
 }
 
-// Store details of mentioned documents from the input - Export this
 export interface MentionedDocument {
   id: string;
-  title: string; // Store the title used in the input
+  title: string;
 }
 
-// Unified style configuration for react-mentions using CSS variables
 const mentionInputStyle: MentionsInputProps['style'] = {
   control: {
     fontSize: 14,
@@ -103,10 +100,9 @@ const mentionInputStyle: MentionsInputProps['style'] = {
     },
   },
 };
-
-// Style specifically for the highlighted mention text
+    
 const mentionStyleLight: React.CSSProperties = {
-  backgroundColor: '#dbeafe', // bg-blue-100
+  backgroundColor: '#dbeafe',
   padding: '1px 2px',
   borderRadius: '0.25rem',
   fontWeight: 500,
@@ -115,7 +111,7 @@ const mentionStyleLight: React.CSSProperties = {
 };
 
 const mentionStyleDark: React.CSSProperties = {
-  backgroundColor: 'rgba(59, 130, 246, 0.2)', // Lighter blue background for dark mode
+  backgroundColor: 'rgba(59, 130, 246, 0.2)',
   padding: '1px 2px',
   borderRadius: '0.25rem',
   fontWeight: 500,
@@ -155,39 +151,31 @@ function PureMultimodalInput({
   onMentionsChange: (mentions: MentionedDocument[]) => void;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const mentionInputRef = useRef<any>(null); // Ref for MentionsInput
+  const mentionInputRef = useRef<any>(null);
   const { width } = useWindowSize();
   const { documentId: activeDocumentId, documentTitle: activeDocumentTitle } = useDocumentContext();
   
-  // Suggestions state
   const [fileSuggestions, setFileSuggestions] = useState<DocumentSuggestion[]>([]);
   const [isSuggestionLoading, setIsSuggestionLoading] = useState(false);
-  const [currentMentionValue, setCurrentMentionValue] = useState(''); // Store raw mention input value
+  const [currentMentionValue, setCurrentMentionValue] = useState('');
   
-  // Manage input value locally for react-mentions
-  const [inputValue, setInputValue] = useState(input); // Plain text
-  const [markupValue, setMarkupValue] = useState(''); // Value with markup
+  const [inputValue, setInputValue] = useState(input);
+  const [markupValue, setMarkupValue] = useState('');
 
-  // Sync initial input and localStorage
   const [localStorageInput, setLocalStorageInput] = useLocalStorage('input', '');
   useEffect(() => {
     const initialVal = localStorageInput || '';
     setInputValue(initialVal);
-    // Attempt to reconstruct markup if needed (complex, skipping for now)
-    // setMarkupValue(reconstructMarkup(initialVal, initialMentions));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Update Vercel AI hook input and localStorage when local state changes
   useEffect(() => {
     setInput(inputValue);
     setLocalStorageInput(inputValue);
-    // Update confirmed mentions in PARENT component
     const mentions = parseMentionsFromMarkup(markupValue);
-    onMentionsChange(mentions); // Call prop function
+    onMentionsChange(mentions);
   }, [inputValue, markupValue, setInput, setLocalStorageInput, onMentionsChange]);
 
-  // Function to parse mention data from react-mentions markup
   const parseMentionsFromMarkup = (markup: string): MentionedDocument[] => {
     const mentionRegex = /@\[([^)]+)\]\\((\\S+)\\)/g;
     const mentions: MentionedDocument[] = [];
@@ -198,15 +186,14 @@ function PureMultimodalInput({
     return mentions;
   };
 
-  // Input change handler for MentionsInput
   const handleInputChange = (
-    event: any, // The event object
-    newValue: string, // The new plain text value
-    newPlainTextValue: string, // The new value with markup
+    event: any,
+    newValue: string,
+    newPlainTextValue: string,
     mentions: Array<{ id: string; display: string }>
   ) => {
-    setInputValue(newValue); // Update local plain text state
-    setMarkupValue(newPlainTextValue); // Update local markup state
+    setInputValue(newValue);
+    setMarkupValue(newPlainTextValue);
   };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -221,7 +208,6 @@ function PureMultimodalInput({
     if (activeDocumentId && activeDocumentId !== 'init') {
       contextData.activeDocumentId = activeDocumentId;
     }
-    // Use confirmed mentions from props
     if (confirmedMentions.length > 0) {
       contextData.mentionedDocumentIds = confirmedMentions.map(doc => doc.id);
     }
@@ -335,10 +321,7 @@ function PureMultimodalInput({
   // Determine styles based on theme (Keep as is)
   const [isDarkMode, setIsDarkMode] = useState(false);
   useEffect(() => {
-    // Check if dark class exists on the document element
     setIsDarkMode(document.documentElement.classList.contains('dark'));
-    // Optional: Set up a MutationObserver to watch for class changes if the theme can toggle dynamically
-    // This ensures the mention highlight style updates if the theme changes while the component is mounted.
     const observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         if (mutation.attributeName === 'class') {
@@ -347,13 +330,11 @@ function PureMultimodalInput({
       });
     });
     observer.observe(document.documentElement, { attributes: true });
-    return () => observer.disconnect(); // Cleanup observer on unmount
+    return () => observer.disconnect(); 
   }, []);
 
-  // Apply the correct *mention* highlight style based on theme
   const currentMentionStyle = isDarkMode ? mentionStyleDark : mentionStyleLight;
 
-  // Custom suggestion renderer (simplified, no icon)
   const renderSuggestion = (suggestion: SuggestionDataItem, search: string, highlightedDisplay: React.ReactNode, index: number, focused: boolean) => {
     return (
       <div className={cn("px-1 py-1", { "bg-accent text-accent-foreground": focused })}>
@@ -362,21 +343,15 @@ function PureMultimodalInput({
     );
   };
 
-  // Form submission wrapper to handle Enter key
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    // Check if Enter is pressed without Shift, and not during IME composition
     if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
-      // Prevent the default Enter behavior (inserting a newline)
-      // We assume react-mentions handles Enter correctly if a suggestion is selected.
       event.preventDefault();
 
-      // Check if the input is not empty and the chat is ready to send
       if (status === 'ready' && inputValue.trim() !== '') {
         submitForm();
       } else if (status !== 'ready') {
          toast.error('Please wait for the model to finish its response!');
       }
-      // If input is empty or status is not ready, Enter does nothing (except prevent newline)
     }
   };
 
@@ -401,14 +376,13 @@ function PureMultimodalInput({
       <div className="relative">
         <MentionsInput
           inputRef={mentionInputRef}
-          style={mentionInputStyle} // Use the single, theme-aware style object
+          style={mentionInputStyle} 
           value={inputValue}
           onChange={handleInputChange}
           placeholder="Send a message... (type @ to mention documents)"
           allowSpaceInQuery
-          className={cx(className)} // Keep base className prop
+          className={cx(className)} 
           classNames={{
-            // Use theme variables via Tailwind for placeholder
             input: 'placeholder:text-muted-foreground',
           }}
           a11ySuggestionsListLabel={"Suggested documents for mention"}

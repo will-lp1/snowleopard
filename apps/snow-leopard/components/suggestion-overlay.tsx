@@ -14,7 +14,6 @@ export interface HighlightedTextProps {
   endIndex: number;
 }
 
-// Define interface for metadata with our suggestion fields
 interface SuggestionMetadata {
   originalContent?: string;
   pendingSuggestion?: string;

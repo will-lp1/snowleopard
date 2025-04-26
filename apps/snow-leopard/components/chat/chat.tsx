@@ -123,24 +123,19 @@ export function Chat({
     };
   }, [chatId, initialMessages, setInput, messages, setMessages]);
 
-  // Effect to load chat history when chatId changes
   useEffect(() => {
     const loadHistory = async (idToLoad: string) => {
-      // Basic validation - avoid fetching for invalid/initial states unnecessarily
-      // Removed the initial check - now relies on requestedChatLoadId
 
       console.log(`[Chat useEffect] Starting load for explicitly requested chatId: ${idToLoad}`);
       setIsLoadingChat(true);
       console.time(`[Chat useEffect] Load ${idToLoad}`);
 
       try {
-        // Reset request ID immediately to prevent re-fetching on re-renders during load
         setRequestedChatLoadId(null);
 
         console.time(`[Chat useEffect] Fetch ${idToLoad}`);
         const chatResponse = await fetch(`/api/chat?id=${idToLoad}`);
         console.timeEnd(`[Chat useEffect] Fetch ${idToLoad}`);
-        // console.log(`[Chat useEffect] Fetch response status for ${idToLoad}: ${chatResponse.status}, ok: ${chatResponse.ok}`); // Removed verbose log
 
         if (!chatResponse.ok) {
           const errorText = await chatResponse.text();
@@ -149,23 +144,20 @@ export function Chat({
         }
 
         const chatData = await chatResponse.json();
-        // console.log(`[Chat useEffect] Parsed chatData for ${idToLoad}:`, chatData ? { messageCount: chatData.messages?.length } : 'null/undefined'); // Removed verbose log
-
         if (!chatData || !chatData.messages) {
           console.error(`[Chat useEffect] Invalid chat data received for ${idToLoad}. Data:`, chatData);
           throw new Error('Invalid chat data received');
         }
 
-        // console.log(`[Chat useEffect] Resetting input and calling setMessages for ${idToLoad} with ${chatData.messages.length} messages.`); // Removed verbose log
-        setInput(''); // Reset input
-        setMessages(chatData.messages); // Set messages using the setter from useChat
+        setInput('');
+        setMessages(chatData.messages);
 
-        // console.log(`[Chat useEffect] Successfully loaded chat ${idToLoad}`); // Removed verbose log
+        console.log(`[Chat useEffect] Successfully loaded chat ${idToLoad}`);
 
       } catch (error) {
         console.error(`[Chat useEffect] CATCH BLOCK - Error loading chat ${idToLoad}:`, error);
-        // toast.error(`Failed to load chat history for ${idToLoad}`); // Removed toast
-        setMessages(initialMessages); // Revert to initial messages on error?
+        toast.error(`Failed to load chat history for ${idToLoad}`);
+        setMessages(initialMessages);
         setInput('');
       } finally {
         setIsLoadingChat(false);
@@ -173,25 +165,22 @@ export function Chat({
       }
     };
 
-    // Only load history if an ID has been explicitly requested
     if (requestedChatLoadId) {
       loadHistory(requestedChatLoadId);
     }
 
-  }, [requestedChatLoadId, setMessages, setInput, initialMessages]); // Depend on requestedChatLoadId
+  }, [requestedChatLoadId, setMessages, setInput, initialMessages]);
 
-  // Existing event listener for 'load-chat' - NOW ONLY SETS THE CHAT ID
   useEffect(() => {
     const handleLoadChatEvent = (event: CustomEvent<{ chatId: string }>) => {
       const detail = event.detail;
       if (!detail || !detail.chatId) return;
 
-      // console.log(`[Chat EventListener] Received load-chat event for ${detail.chatId}. Current state chatId: ${chatId}. Setting new chatId.`); // Removed verbose log
+      console.log(`[Chat EventListener] Received load-chat event for ${detail.chatId}. Current state chatId: ${chatId}. Setting new chatId.`);
 
-      // Set the chat ID for useChat hook AND trigger the fetch effect
       if (detail.chatId !== chatId) {
           setChatId(detail.chatId);
-          setRequestedChatLoadId(detail.chatId); // Set the requested ID
+          setRequestedChatLoadId(detail.chatId);
       }
     };
 
@@ -200,7 +189,7 @@ export function Chat({
     return () => {
       window.removeEventListener('load-chat', handleLoadChatEvent as unknown as EventListener);
     };
-  }, [chatId]); // Dependency needed to compare detail.chatId !== chatId correctly
+  }, [chatId]);
 
   useEffect(() => {
     const handleChatIdChanged = (event: CustomEvent<{ oldChatId: string, newChatId: string }>) => {

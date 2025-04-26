@@ -81,8 +81,6 @@ const PureDocumentItem = ({
   onToggleSelect: (documentId: string, isSelected: boolean) => void;
 }) => {
   const handleDocumentClick = useCallback((e: React.MouseEvent) => {
-    // When clicking on a document that's already active, don't trigger navigation
-    // This prevents unnecessary re-renders and flickering during rapid clicking
     if (isActive && !isSelectionMode) {
       e.preventDefault();
       return;
@@ -93,10 +91,8 @@ const PureDocumentItem = ({
       return;
     }
     
-    // Mark this document as being selected to handle race conditions
     if (typeof window !== 'undefined') {
       (window as any).__LAST_SELECTED_DOCUMENT = document.id;
-      // Update cache if available
       if ((window as any).__DOCUMENT_CACHE) {
         (window as any).__DOCUMENT_CACHE.set(document.id, document);
       }
@@ -108,7 +104,6 @@ const PureDocumentItem = ({
 
   const router = useRouter();
 
-  // Handler for starting a chat with a document
   const handleStartChatWithDocument = (documentId: string) => {
     router.push(`/documents/${documentId}`);
   };
@@ -197,21 +192,17 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
   } = useSWR<Array<Document>>(user ? '/api/document' : null, fetcher, {
     fallbackData: [],
     revalidateOnFocus: false,
-    dedupingInterval: 10000, // Don't revalidate too often
+    dedupingInterval: 10000,
   });
 
-  // Refresh documents when component mounts
   useEffect(() => {
     mutate();
   }, [mutate]);
 
-  // Get document path from the current URL
   const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
   
-  // Keep track of the active document
   useEffect(() => {
-    // Extract document ID from pathname
     const match = pathname.match(/\/documents\/([^/?]+)/);
     const newActiveId = match ? match[1] : null;
     
@@ -219,7 +210,6 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
       setActiveDocumentId(newActiveId);
     }
     
-    // Set up a listener to track URL changes for highlighting
     const updateActiveDocument = () => {
       const newPathname = window.location.pathname;
       const newMatch = newPathname.match(/\/documents\/([^/?]+)/);
@@ -235,37 +225,30 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
     };
   }, [pathname, activeDocumentId]);
 
-  // Listen for document creation and rename events
   useEffect(() => {
-    // Handler for document creation
     const handleDocumentCreated = (event: CustomEvent) => {
       console.log('[SidebarDocuments] Document created event received', event.detail);
 
       if (event.detail?.document) {
-        // Trigger revalidation immediately to fetch the latest list from the server
         mutate();
       }
     };
 
-    // Handler for document renaming
     const handleDocumentRenamed = (event: CustomEvent) => {
       console.log('[SidebarDocuments] Document renamed event received', event.detail);
 
       if (event.detail?.documentId && event.detail?.newTitle) {
-        // Optimistically update the document title
         mutate((currentDocs) => {
           if (!currentDocs) return currentDocs;
 
-          // Update the document title in the list
           return currentDocs.map(doc => {
             if (doc.id === event.detail.documentId) {
               return { ...doc, title: event.detail.newTitle };
             }
             return doc;
           });
-        }, false); // Set revalidate to false - optimistic update only
+        }, false);
 
-        // Broadcast a document update event for other components
         try {
           const updateEvent = new CustomEvent('document-updated', {
             detail: {
@@ -280,26 +263,21 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
       }
     };
 
-    // Add event listeners
     window.addEventListener('document-created', handleDocumentCreated as EventListener);
     window.addEventListener('document-renamed', handleDocumentRenamed as EventListener);
 
-    // Clean up
     return () => {
       window.removeEventListener('document-created', handleDocumentCreated as EventListener);
       window.removeEventListener('document-renamed', handleDocumentRenamed as EventListener);
     };
-  }, [mutate]); // Removed setForceUpdate dependency
+  }, [mutate]);
 
-  // Listen for document updates
   useEffect(() => {
-    // Force document list to refresh every time documentId changes
     if (activeDocumentId) {
       console.log('[SidebarDocuments] Active document changed, refreshing list');
       mutate();
     }
     
-    // Add a global listener for any document updates from anywhere in the app
     const handleDocumentUpdate = () => {
       console.log('[SidebarDocuments] Document updated, refreshing list');
       mutate();
@@ -338,10 +316,8 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
     if (documents) {
       const filteredDocuments = filterDocuments(documents);
       if (selectedDocuments.size === filteredDocuments.length) {
-        // Deselect all
         setSelectedDocuments(new Set());
       } else {
-        // Select all
         setSelectedDocuments(new Set(filteredDocuments.map(doc => doc.id)));
       }
     }
@@ -352,56 +328,47 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
     
     setShowDeleteDialog(false);
     
-    // Check if we're deleting the current document
     const url = new URL(window.location.href);
     const documentFromUrl = url.searchParams.get('document');
     const isCurrentDocument = documentFromUrl === deleteId;
     
-    // Prepare redirection URL only if needed
     const redirectUrl = isCurrentDocument ? `/documents/${deleteId}` : '';
     
-    // Delete the document
     const success = await deleteDocument(deleteId, {
       redirectUrl: redirectUrl
     });
     
     if (success) {
-      // Update local state immediately, before any redirects
       mutate((docs) => {
         if (docs) {
           return docs.filter((d) => d.id !== deleteId);
         }
         return docs;
-      }, false); // false means don't revalidate immediately
+      }, false);
     }
   };
   
   const handleDeleteMultiple = async () => {
     const selectedDocumentIds = Array.from(selectedDocuments);
     
-    // Close dialog first to prevent UI flickering
     setShowMultiDeleteDialog(false);
     
-    // Check if current document is selected for deletion
     const url = new URL(window.location.href);
     const documentFromUrl = url.searchParams.get('document');
     const isCurrentDocumentSelected = documentFromUrl && selectedDocuments.has(documentFromUrl);
     
     try {
-      // Update local state immediately for better UX
       mutate((docs) => {
         if (docs) {
           return docs.filter(d => !selectedDocuments.has(d.id));
         }
         return docs;
-      }, false); // false means don't revalidate immediately
+      }, false);
       
-      // If current document is being deleted, navigate first
       if (isCurrentDocumentSelected) {
         router.replace(`/documents/${documentFromUrl}`);
       }
       
-      // Delete each document
       const deletePromises = selectedDocumentIds.map(documentId => 
         deleteDocument(documentId, { redirectUrl: '' })
       );
@@ -416,12 +383,10 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
       console.error('[SidebarDocuments] Error deleting multiple documents:', error);
       toast.error('Failed to delete some documents');
       
-      // Revalidate to ensure UI is in sync with actual state
       mutate();
     }
   };
   
-  // Handle document selection
   const handleDocumentSelect = useCallback(async (documentId: string) => {
     try {
       if (documentId === 'init' || !documentId) {
@@ -429,21 +394,17 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
         return;
       }
       
-      // Prevent re-selecting the already active document
       if (documentId === activeDocumentId) {
         console.log('[SidebarDocuments] Document already active, skipping select.');
-        setOpenMobile(false); // Still close mobile sidebar
+        setOpenMobile(false);
         return;
       }
 
-      // 1. Find the document in the current SWR cache
       const selectedDocData = documents?.find(doc => doc.id === documentId);
 
-      // 2. Update artifact state IMMEDIATELY with cached/placeholder data
       setArtifact((curr: any) => {
-        const newTitle = selectedDocData?.title || 'Loading...'; // Use cached title or placeholder
+        const newTitle = selectedDocData?.title || 'Loading...';
         const newKind = (selectedDocData?.kind as ArtifactKind) || 'text';
-        // Keep existing content briefly if ID matches to reduce flicker, otherwise clear for loading
         const newContent = curr.documentId === documentId ? curr.content : ''; 
         
         console.log(`[SidebarDocuments] Optimistically setting artifact: ID=${documentId}, Title=${newTitle}`);
@@ -453,26 +414,22 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
           title: newTitle,
           content: newContent,
           kind: newKind,
-          status: 'loading', // Set status to loading
+          status: 'loading',
         };
       });
       
-      // 4. Navigate
       console.log('[SidebarDocuments] Navigating to:', `/documents/${documentId}`);
       router.push(`/documents/${documentId}`);
 
-      // 5. Close mobile sidebar
       setOpenMobile(false);
 
     } catch (error) {
       console.error('[SidebarDocuments] Error selecting document:', error);
       toast.error('Failed to load document');
-       setArtifact((curr: any) => ({ ...curr, status: 'idle' })); // Reset status on error
+      setArtifact((curr: any) => ({ ...curr, status: 'idle' }));
     }
-  // Removed updateDocument from dependencies as it's no longer called here
   }, [documents, setArtifact, router, setOpenMobile, activeDocumentId]);
 
-  // Filter documents based on search term
   const filterDocuments = (docs: Document[]) => {
     if (!searchTerm.trim()) return docs;
     
@@ -482,7 +439,6 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
     );
   };
 
-  // Group documents by date
   const groupDocumentsByDate = (docs: Document[]): GroupedDocuments => {
     const now = new Date();
     const oneWeekAgo = subWeeks(now, 1);
@@ -516,7 +472,6 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
     );
   };
 
-  // Handle document not found scenario
   if (!user) {
     return (
       <SidebarGroup>
@@ -529,7 +484,6 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
     );
   }
 
-  // Loading state
   if (isLoading) {
     return (
       <SidebarGroup>
@@ -559,7 +513,6 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
     );
   }
 
-  // Empty state
   const filteredDocuments = filterDocuments(documents || []);
   if (filteredDocuments.length === 0 && !searchTerm) {
     return (
@@ -592,7 +545,6 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
     );
   }
 
-  // Regular view with documents
   return (
     <>
       <SidebarGroup>
@@ -704,7 +656,6 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
             <SidebarGroupContent>
               <SidebarMenu>
                 {searchTerm.trim() ? (
-                  // Search results view
                   filteredDocuments.length === 0 ? (
                     <div className="px-2 text-zinc-500 text-sm text-center py-4">
                       No documents found matching &quot;{searchTerm}&quot;
@@ -728,7 +679,6 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
                     ))
                   )
                 ) : (
-                  // Grouped by date view
                   (() => {
                     const groupedDocuments = groupDocumentsByDate(filteredDocuments);
                     return (

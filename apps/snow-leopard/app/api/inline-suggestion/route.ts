@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { streamText, smoothStream } from 'ai';
 import { getDocumentById } from '@/lib/db/queries';
 import { myProvider } from '@/lib/ai/providers';
-import { auth } from "@/lib/auth"; // Import Better Auth
-import { headers } from 'next/headers'; // Import headers
+import { auth } from "@/lib/auth";
+import { headers } from 'next/headers';
 
 async function handleInlineSuggestionRequest(
   documentId: string,
@@ -11,33 +11,28 @@ async function handleInlineSuggestionRequest(
   contextAfter: string,
   fullContent: string,
   nodeType: string,
-  userId: string, // Pass userId for validation
+  userId: string,
   aiOptions: { suggestionLength?: 'short' | 'medium' | 'long', customInstructions?: string }
 ) {
-  // Validate document
   const document = await getDocumentById({ id: documentId });
 
   if (!document) {
     throw new Error('Document not found');
   }
 
-  // Use passed userId for authorization check
   if (document.userId !== userId) { 
     throw new Error('Unauthorized');
   }
 
-  // Create transform stream for sending server-sent events
   const stream = new TransformStream();
   const writer = stream.writable.getWriter();
   const encoder = new TextEncoder();
   let writerClosed = false;
 
-  // Start processing in the background
   (async () => {
     try {
       console.log("Starting to process inline suggestion stream");
       
-      // Process the suggestion
       await streamInlineSuggestion({
         document,
         currentContent,
@@ -55,12 +50,10 @@ async function handleInlineSuggestionRequest(
             })}\n\n`));
           } catch (error) {
             console.error('Error writing to stream:', error);
-            // Don't rethrow - just stop writing
           }
         }
       });
 
-      // Signal completion
       if (!writerClosed) {
         try {
           await writer.write(encoder.encode(`data: ${JSON.stringify({
@@ -69,7 +62,6 @@ async function handleInlineSuggestionRequest(
           })}\n\n`));
         } catch (error) {
           console.error('Error writing finish event:', error);
-          // Don't rethrow - just stop writing
         }
       }
     } catch (e: any) {
@@ -82,7 +74,6 @@ async function handleInlineSuggestionRequest(
           })}\n\n`));
         } catch (error) {
           console.error('Error writing error event:', error);
-          // Don't rethrow - just stop writing
         }
       }
     } finally {
@@ -92,13 +83,11 @@ async function handleInlineSuggestionRequest(
           await writer.close();
         } catch (error) {
           console.error('Error closing writer:', error);
-          // Don't rethrow - just allow processing to complete
         }
       }
     }
   })();
 
-  // Handle client disconnect through stream cleanup
   try {
     return new Response(stream.readable, {
       headers: {
@@ -139,11 +128,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
     }
 
-    // Pass userId to handler
     return handleInlineSuggestionRequest(documentId, currentContent, contextAfter, fullContent, nodeType, userId, aiOptions);
   } catch (error: any) {
     console.error('Inline suggestion route error:', error);
-    // Return NextResponse with error message
     return NextResponse.json({ error: error.message || 'An error occurred' }, { status: 400 });
   }
 }
@@ -318,5 +305,5 @@ function shouldStopGeneration(delta: string, currentSuggestion: string, contentT
          combined.includes('\n') ||
          combined.includes(';') ||
          combined.includes(':') ||
-         wordCount > 15; // Stop after a good number of words
+         wordCount > 15;
 } 

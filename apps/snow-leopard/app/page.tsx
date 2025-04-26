@@ -21,20 +21,16 @@ export default function Home() {
   useEffect(() => {
     const checkSession = async () => {
       try {
-        // Use Better Auth client to get session
         const { data: session, error } = await authClient.getSession();
         
         if (error) {
            console.error('Error fetching session:', error);
-           // Stay on landing page if session check fails
            return;
         }
 
         if (session?.user) {
-          // If user is logged in, redirect to documents
           router.push('/documents')
         } else {
-          // If user is not logged in, stop loading and show the landing page
         }
       } catch (error) {
         console.error('Error checking session unexpectedly:', error)

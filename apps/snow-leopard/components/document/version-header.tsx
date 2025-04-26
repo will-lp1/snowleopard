@@ -35,15 +35,12 @@ export const VersionHeader = ({
   const dragging = useRef<boolean>(false);
   const [hasPlayed, setHasPlayed] = useState(false);
   
-  // For haptic-like subtle pulse animations
   const pulseTimeline = useRef<HTMLDivElement>(null);
   const [pulseTick, setPulseTick] = useState<number | null>(null);
   
-  // Initialize Framer motion values for smooth animation
   const x = useMotionValue(0);
   const springX = useSpring(x, { damping: 50, stiffness: 400 });
   
-  // Define the callback before any potential early returns
   const handleCommitVersion = useCallback(() => {
     if (activeIndex !== currentVersionIndex) {
       if (activeIndex < currentVersionIndex) {
@@ -58,12 +55,10 @@ export const VersionHeader = ({
     }
   }, [activeIndex, currentVersionIndex, handleVersionChange]);
   
-  // When documents or currentVersionIndex changes, update the activeIndex and slider position
   useEffect(() => {
     if (!documents || documents.length === 0) return;
     setActiveIndex(currentVersionIndex);
     
-    // Calculate and set the position of the slider
     if (trackRef.current) {
       const trackWidth = trackRef.current.offsetWidth;
       const segmentWidth = trackWidth / Math.max(1, documents.length - 1);
@@ -72,7 +67,6 @@ export const VersionHeader = ({
     }
   }, [documents, currentVersionIndex, x]);
   
-  // When the slider position changes, update the activeIndex
   useEffect(() => {
     if (!documents || documents.length <= 1) return;
     
@@ -82,24 +76,20 @@ export const VersionHeader = ({
       const trackWidth = trackRef.current.offsetWidth;
       const segmentWidth = trackWidth / Math.max(1, documents.length - 1);
       
-      // Calculate which version is closest to the current slider position
       const exactIndex = Math.round((documents.length - 1) - (value / segmentWidth));
       const clampedIndex = Math.max(0, Math.min(documents.length - 1, exactIndex));
       
       if (clampedIndex !== activeIndex) {
         setActiveIndex(clampedIndex);
         
-        // Create a pulse at the tick mark when dragging between versions
         if (dragging.current) {
           setPulseTick(clampedIndex);
           setTimeout(() => setPulseTick(null), 300);
           
-          // Add haptic feedback if available
           if (window.navigator && window.navigator.vibrate) {
             try {
-              window.navigator.vibrate(8); // Subtle vibration for 8ms
+              window.navigator.vibrate(8);
             } catch (e) {
-              // Ignore errors if vibration is not supported
             }
           }
         }
@@ -109,10 +99,8 @@ export const VersionHeader = ({
     return unsubscribe;
   }, [documents, activeIndex, springX]);
   
-  // Early return check
   if (!documents || documents.length === 0) return null;
 
-  // When we finish dragging, commit to the active version
   const onDragEnd = () => {
     setIsDragging(false);
     dragging.current = false;
@@ -124,13 +112,13 @@ export const VersionHeader = ({
     if (isYesterday(date)) return "Yesterday";
     
     const days = differenceInDays(new Date(), date);
-    if (days < 7) return format(date, 'EEE'); // Day name (Mon, Tue)
-    if (days < 60) return format(date, 'MMM d'); // Month day (Jan 5)
-    return format(date, 'MMM yyyy'); // Month year (Jan 2023)
+    if (days < 7) return format(date, 'EEE');
+    if (days < 60) return format(date, 'MMM d');
+    return format(date, 'MMM yyyy');
   };
   
   const formatVersionTime = (date: Date) => {
-    return format(date, 'h:mm a'); // 3:45 PM
+    return format(date, 'h:mm a');
   };
   
   const currentDoc = documents[activeIndex];
@@ -143,11 +131,9 @@ export const VersionHeader = ({
 
     setIsMutating(true);
     try {
-      // Get the content of the version we're restoring
       const versionToRestore = documents[activeIndex];
       const timestamp = getDocumentTimestampByIndex(documents, activeIndex);
       
-      // Make the API call to restore the version
       const response = await fetch(`/api/document`, {
         method: 'POST',
         headers: {
@@ -165,20 +151,16 @@ export const VersionHeader = ({
         throw new Error(`Failed to restore version: ${response.status}`);
       }
       
-      // Update the SWR cache with the new document list
       await mutate(`/api/document?id=${artifact.documentId}`);
       
-      // Update the artifact content directly with the restored content
       setArtifact(current => ({
         ...current,
         content: versionToRestore.content || '',
         title: versionToRestore.title || current.title
       }));
       
-      // Navigate back to the latest version in edit mode
       handleVersionChange('latest');
       
-      // Emit a custom event to notify other components about the version restore
       const event = new CustomEvent('version-restored', {
         detail: {
           documentId: artifact.documentId,
@@ -202,7 +184,6 @@ export const VersionHeader = ({
   const timeString = formatVersionTime(new Date(currentDoc.createdAt));
   const relativeTimeString = formatDistance(new Date(currentDoc.createdAt), new Date(), { addSuffix: true });
   
-  // Initial entrance animation
   if (!hasPlayed && documents.length > 1) {
     setTimeout(() => setHasPlayed(true), 100);
   }
@@ -217,7 +198,6 @@ export const VersionHeader = ({
         transition={{ duration: 0.2 }}
       >
         <div className="px-4 py-2.5 flex flex-col gap-2">
-          {/* Version info and controls */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1.5 text-sm text-primary/90 font-medium">
@@ -272,12 +252,9 @@ export const VersionHeader = ({
             </div>
           </div>
           
-          {/* Timeline slider track */}
           {documents.length > 1 && (
             <div className="py-2 px-1 relative" ref={trackRef}>
-              {/* Track background */}
               <div className="h-[3px] bg-primary/10 rounded-full relative">
-                {/* Tick marks for each version */}
                 {documents.map((doc, i) => (
                   <AnimatePresence key={i}>
                     <motion.div 
@@ -296,7 +273,6 @@ export const VersionHeader = ({
                       transition={{ duration: 0.2 }}
                     />
                     
-                    {/* Pulse animation on tick when dragging between versions */}
                     {pulseTick === i && (
                       <motion.div
                         className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-primary/20 pointer-events-none"
@@ -315,7 +291,6 @@ export const VersionHeader = ({
                 ))}
               </div>
               
-              {/* Draggable handle */}
               <motion.div
                 className={cn(
                   "absolute top-0 left-0 w-full transition-opacity",
@@ -346,7 +321,6 @@ export const VersionHeader = ({
                 </motion.div>
               </motion.div>
               
-              {/* Date labels on first and last version */}
               <div className="flex justify-between mt-2 text-[10px] text-muted-foreground px-1">
                 <div>
                   {formatVersionLabel(new Date(documents[0].createdAt))}

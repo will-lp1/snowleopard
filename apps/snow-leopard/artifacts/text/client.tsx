@@ -79,8 +79,12 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
         {isCurrentVersion && mode === 'edit' ? (
           <Editor
             content={content}
-            onSaveContent={onSaveContent}
-            documentId={documentId} status={'streaming'} isCurrentVersion={false} currentVersionIndex={0}          />
+            documentId={documentId}
+            status={'idle'}
+            isCurrentVersion={isCurrentVersion}
+            currentVersionIndex={currentVersionIndex}
+            initialLastSaved={null}
+          />
         ) : (
           <div className="prose dark:prose-invert">
             {content.split('\n').map((line, index) => (

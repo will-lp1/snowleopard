@@ -6,9 +6,9 @@ import {
   checkDocumentOwnership, 
   setOlderVersionsNotCurrent, 
   getDocumentById 
-} from '@/lib/db/queries'; // Import Drizzle queries
+} from '@/lib/db/queries';
 import { generateUUID } from '@/lib/utils';
-import type { ArtifactKind } from '@/components/artifact'; // Import type if needed
+import type { ArtifactKind } from '@/components/artifact';
 
 /**
  * Handles document creation (POST)
@@ -57,10 +57,7 @@ export async function createDocument(request: NextRequest, body: any) {
 
     if (ownsExistingVersion) {
       console.log(`[Document API - CREATE] Document ${documentId} exists for user ${userId}. Setting older versions to not current.`);
-      // If it exists, mark older versions as not current *before* saving the new one
-      // Note: saveDocument will insert the new version with is_current=true
       await setOlderVersionsNotCurrent({ userId, documentId }); 
-      // Potential Optimization: Could combine finding latest and updating older in one query/transaction
     } else {
        console.log(`[Document API - CREATE] Document ${documentId} is new for user ${userId}.`);
     }
@@ -71,25 +68,19 @@ export async function createDocument(request: NextRequest, body: any) {
       id: documentId,
       title: title,
       content: content,
-      kind: kind as ArtifactKind, // Assert type if necessary
+      kind: kind as ArtifactKind,
       userId: userId,
-      // Pass chatId if needed by saveDocument schema (currently ignored by Drizzle schema)
-      // chatId: chatId, 
     });
 
-    // --- Fetch and Return Newly Created Document --- 
-    // Fetch the specific version we just created to return it
-    // (getDocumentById fetches the *latest*, which should be the one we just saved)
     const newDocumentVersion = await getDocumentById({ id: documentId }); 
     
     if (!newDocumentVersion) {
        console.error(`[Document API - CREATE] Failed to retrieve document ${documentId} immediately after saving.`);
-       // This case is unlikely but possible; return generic error or success without data
        return NextResponse.json({ error: 'Failed to retrieve created document data.'}, { status: 500 });
     }
 
     console.log(`[Document API - CREATE] Document version created successfully: ${documentId}`);
-    return NextResponse.json(newDocumentVersion); // Return the newly created version data
+    return NextResponse.json(newDocumentVersion);
 
   } catch (error: any) {
     console.error('[Document API - CREATE] Create error:', error);
