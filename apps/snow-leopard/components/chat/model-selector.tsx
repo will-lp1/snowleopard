@@ -1,10 +1,9 @@
 'use client';
 
-import { startTransition, useMemo, useOptimistic, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { CheckIcon } from '../icons';
-import { saveChatModelAsCookie } from '@/app/api/chat/actions/chat';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,20 +36,10 @@ export function ModelSelector({
   onModelChange: (newModelId: string) => void;
 } & React.ComponentProps<typeof Button>) {
   const [open, setOpen] = useState(false);
-  const [optimisticModelId, setOptimisticModelId] =
-    useOptimistic(selectedModelId);
-
-  useEffect(() => {
-    if (selectedModelId) {
-      startTransition(() => {
-        setOptimisticModelId(selectedModelId);
-      });
-    }
-  }, [selectedModelId, setOptimisticModelId]);
 
   const selectedChatModel = useMemo(
-    () => chatModels.find((chatModel) => chatModel.id === optimisticModelId),
-    [optimisticModelId],
+    () => chatModels.find((chatModel) => chatModel.id === selectedModelId),
+    [selectedModelId],
   );
 
   return (
@@ -81,14 +70,9 @@ export function ModelSelector({
               key={id}
               onSelect={() => {
                 setOpen(false);
-
-                startTransition(() => {
-                  setOptimisticModelId(id);
-                  saveChatModelAsCookie(id);
-                  onModelChange(id);
-                });
+                onModelChange(id);
               }}
-              data-active={id === optimisticModelId}
+              data-active={id === selectedModelId}
               asChild
             >
               <button
