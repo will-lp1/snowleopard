@@ -88,13 +88,13 @@ export default function Home() {
 
         <div className="flex flex-col items-center max-w-4xl mb-32">
           {/* START ADD: Add Snow Leopard GIF */}
-          <div className="mb-8 w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl">
+          <div className="mb-8 w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl p-1 bg-muted/30 rounded-xl border border-border/50 shadow-inner">
             <Image
               src="/demo.gif"
               alt="Snow Leopard demo"
               width={600}
               height={400}
-              className="rounded-xl border border-border/50 shadow-sm object-contain w-full h-auto"
+              className="rounded-lg object-contain w-full h-auto"
               unoptimized
             />
           </div>
