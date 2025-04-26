@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Crimson_Text } from "next/font/google";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 
@@ -14,7 +14,6 @@ const crimson = Crimson_Text({
 });
 
 export default function Home() {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -88,63 +87,18 @@ export default function Home() {
         </div> */}
 
         <div className="flex flex-col items-center max-w-4xl mb-32">
-          {/* Video Preview Button */}
-          <button
-            onClick={() => setIsDialogOpen(true)}
-            className="group pr-4 pl-3 py-1.5 rounded-full bg-card text-card-foreground border border-border hover:bg-muted transition-all duration-200 text-sm flex items-center gap-2 hover:border-border/80 mx-auto mb-4"
-          >
-            <svg
-              className="size-4 text-muted-foreground"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path d="M8 5v14l11-7z" />
-            </svg>
-            Watch demo
-          </button>
-
-          {/* Video Dialog */}
-          <dialog
-            open={isDialogOpen}
-            className="fixed inset-0 size-full bg-transparent p-0 m-0 max-w-none max-h-none z-50"
-          >
-            <div
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm"
-              onClick={() => setIsDialogOpen(false)}
+          {/* START ADD: Add Snow Leopard GIF */}
+          <div className="mb-8 w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl">
+            <Image
+              src="/demo.gif"
+              alt="Snow Leopard demo"
+              width={600}
+              height={400}
+              className="rounded-xl border border-border/50 shadow-sm object-contain w-full h-auto"
+              unoptimized
             />
-            <div className="fixed inset-0 flex items-center justify-center p-4">
-              <div className="relative w-full max-w-4xl bg-card rounded-2xl shadow-2xl overflow-hidden">
-                {/* Close button */}
-                <button
-                  onClick={() => setIsDialogOpen(false)}
-                  className="absolute top-4 right-4 z-10 size-8 flex items-center justify-center rounded-full bg-black/10 hover:bg-black/20 transition-colors"
-                >
-                  <svg
-                    className="size-5 text-white"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-
-                {/* Video container with 16:9 aspect ratio */}
-                <div className="relative pt-[56.25%] bg-black">
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <p className="text-muted-foreground text-sm">
-                      Video content will go here
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </dialog>
+          </div>
+          {/* END ADD: Add Snow Leopard GIF */}
 
           {/* Title Group */}
           <div className="space-y-0">
