@@ -45,8 +45,8 @@ Follow these steps **from the project root directory**:
 
 1.  **Clone & Install Dependencies**
     ```bash
-    git clone <your-repo-url> # Replace with your repository URL
-    cd <your-repo-directory>
+    git clone <https://github.com/will-lp1/snowleopard.git> # Replace with your repository URL
+    cd <snowleopard>
     pnpm install # Installs dependencies for all packages/apps
     ```
 
