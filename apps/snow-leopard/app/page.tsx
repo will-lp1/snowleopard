@@ -140,7 +140,7 @@ export default function Home() {
             </div>
             
             <div className="relative mt-1">
-              <h3 className={`text-[80px] ${crimson.className} tracking-[-0.01em] text-foreground font-bold`}>
+              <h3 className={`text-[96px] ${crimson.className} tracking-[-0.01em] text-foreground font-bold`}>
                 Brilliance<span className="animate-blink ml-0.5 font-normal">|</span>
               </h3>
             </div>
