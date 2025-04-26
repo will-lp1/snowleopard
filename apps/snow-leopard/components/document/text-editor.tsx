@@ -58,7 +58,6 @@ function PureEditor({
   const currentDocumentIdRef = useRef(documentId);
   
   const abortControllerRef = useRef<AbortController | null>(null); 
-  const { suggestionLength, customInstructions } = useAiOptions(); 
   const savePromiseRef = useRef<Promise<Partial<SaveState> | void> | null>(null);
 
   useEffect(() => {
@@ -125,6 +124,9 @@ function PureEditor({
       }
 
       console.log('[Editor Component] Requesting inline suggestion via plugin callback...');
+      
+      const { suggestionLength, customInstructions } = useAiOptions.getState();
+      
       const response = await fetch('/api/inline-suggestion', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -204,7 +206,7 @@ function PureEditor({
          abortControllerRef.current = null; 
       }
     }
-  }, [editorRef, documentId, suggestionLength, customInstructions]);
+  }, [editorRef, documentId]);
 
   useEffect(() => {
     let view: EditorView | null = null; 
