@@ -184,7 +184,7 @@ export default function Home() {
               </span>
             </Link>
             <Link
-              href="https://github.com/will-lp1/cursorforwriting"
+              href="https://github.com/will-lp1/snowleopard"
               target="_blank"
               rel="noopener noreferrer"
               className="group px-4 py-1.5 rounded-full bg-secondary text-secondary-foreground  hover:bg-muted transition-all duration-200 text-sm flex items-center hover:border-border/80"
