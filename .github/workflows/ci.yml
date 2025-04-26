@@ -1,0 +1,52 @@
+name: CI Checks
+
+on:
+  # Run on pushes to the main branch
+  push:
+    branches: [ main ]
+  # Run on pull requests targeting the main branch
+  pull_request:
+    branches: [ main ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  build-and-lint:
+    name: Build & Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Read pnpm version from package.json
+      - name: Read pnpm version
+        id: pnpm-version
+        run: echo "PNPM_VERSION=$(jq -r '.packageManager // "pnpm@latest"' package.json | cut -d'@' -f2)" >> "$GITHUB_OUTPUT"
+
+      # Setup pnpm with caching
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ steps.pnpm-version.outputs.PNPM_VERSION }}
+          run_install: false # We run install manually later
+
+      # Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # Or your preferred Node.js version
+          cache: 'pnpm'
+
+      # Install dependencies
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Run lint check (adjust script name if necessary)
+      - name: Run Lint Check
+        run: pnpm lint
+
+      # Run build for the snow-leopard app (adjust filter/script if necessary)
+      - name: Run Build Check
+        run: pnpm --filter snow-leopard build 
