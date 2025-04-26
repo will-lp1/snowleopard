@@ -4,12 +4,11 @@ import { exampleSetup } from 'prosemirror-example-setup';
 import { inputRules } from 'prosemirror-inputrules';
 import { EditorState, Transaction } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
-import React, { memo, useEffect, useRef, useCallback } from 'react';
+import React, { memo, useEffect, useRef, useCallback, useState } from 'react';
 import { toast } from 'sonner';
 
 import {
   documentSchema,
-  handleTransaction,
   headingRule,
 } from '@/lib/editor/config';
 import {
@@ -34,59 +33,81 @@ import {
 // Import the custom placeholder plugin
 import { placeholderPlugin } from '@/lib/editor/placeholder-plugin';
 
+// Import the NEW save plugin
+import { savePlugin, savePluginKey, setSaveStatus, type SaveState, type SaveStatus } from '@/lib/editor/save-plugin';
+
 type EditorProps = {
   content: string;
-  onSaveContent: (updatedContent: string, debounce: boolean) => void;
   status: 'streaming' | 'idle';
   isCurrentVersion: boolean;
   currentVersionIndex: number;
   documentId: string;
+  initialLastSaved: Date | null;
+  onStatusChange?: (status: SaveState) => void;
 };
 
 function PureEditor({
   content,
-  onSaveContent,
   status,
   isCurrentVersion,
   currentVersionIndex,
   documentId,
+  initialLastSaved,
+  onStatusChange,
 }: EditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<EditorView | null>(null);
   
-  // --- Removed Inline Suggestion State --- 
-  // const [inlineSuggestion, setInlineSuggestion] = useState<string>('');
-  // const [isSuggestionLoading, setIsSuggestionLoading] = useState<boolean>(false);
-  // const suggestionSpanRef = useRef<HTMLSpanElement | null>(null); // For the visual display
   const abortControllerRef = useRef<AbortController | null>(null); 
   const { suggestionLength, customInstructions } = useAiOptions(); 
-  
-  // --- Removed Span Creation/Removal Effect --- 
-  // useEffect(() => { ... }, []);
+  const savePromiseRef = useRef<Promise<Partial<SaveState> | void> | null>(null);
 
-  // --- Removed updateSuggestionPosition --- 
-  // const updateSuggestionPosition = useCallback(() => { ... }, [inlineSuggestion]);
+  // Define the save function using useCallback
+  const performSave = useCallback(async (contentToSave: string): Promise<{ updatedAt: string | Date } | null> => {
+    // Do not save if documentId is invalid or still 'init'
+    if (!documentId || documentId === 'init' || documentId === 'undefined' || documentId === 'null') {
+      console.warn('[Editor Save Callback] Attempted to save with invalid or init documentId:', documentId);
+      // Returning null or throwing an error signals the plugin that save didn't happen/failed
+      // Throwing might be better for explicit error handling in the dispatchTransaction catch block.
+      throw new Error('Cannot save with invalid or initial document ID.');
+    }
 
-  // --- Removed React State Clear/Accept Functions --- 
-  // const clearInlineSuggestion = useCallback(() => { ... }, []);
-  // const acceptInlineSuggestion = useCallback(() => { ... }, [...]);
+    console.log(`[Editor Save Callback] Saving document ${documentId}...`);
+    try {
+      const response = await fetch(`/api/document`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: documentId,
+          content: contentToSave,
+          // Maybe fetch title/kind from parent/context if needed, or let API handle defaults
+        }),
+      });
 
-  // --- Request Suggestion (Modified) --- 
-  // This function is now passed as a callback to the plugin
-  // It gets the state *at the time of request* from the plugin
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown API error' }));
+        console.error(`[Editor Save Callback] Save failed: ${response.status}`, errorData);
+        throw new Error(`API Error: ${errorData.error || response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log(`[Editor Save Callback] Save successful for ${documentId}. UpdatedAt:`, result.updatedAt);
+      // Ensure we return an object with updatedAt for the plugin's success path
+      return { updatedAt: result.updatedAt || new Date().toISOString() }; 
+    } catch (error) {
+      console.error(`[Editor Save Callback] Error during save for ${documentId}:`, error);
+      // Re-throw the error so the catch block in dispatchTransaction can handle it
+      throw error;
+    }
+  }, [documentId]); // Dependency: documentId
+
   const requestInlineSuggestionCallback = useCallback(async (state: EditorState) => {
     const editor = editorRef.current;
-    // Check isLoading via plugin state if needed, though plugin prevents calling if already loading
-    // const pluginState = editor ? inlineSuggestionPluginKey.getState(editor.state) : null;
-    // if (!editor || pluginState?.isLoading) return;
     if (!editor) return;
 
-    // Abort previous request
     abortControllerRef.current?.abort();
     const controller = new AbortController();
     abortControllerRef.current = controller;
-
-    // Note: isLoading state is now managed by the plugin via START_SUGGESTION_LOADING meta
 
     try {
       const { selection } = state;
@@ -100,7 +121,6 @@ function PureEditor({
       const fullContent = state.doc.textContent;
 
       if (contextBefore.length < 3) {
-        // If not enough context, dispatch clear action to reset loading state
         if (editorRef.current) {
            editorRef.current.dispatch(editorRef.current.state.tr.setMeta(CLEAR_SUGGESTION, true));
         }
@@ -132,7 +152,7 @@ function PureEditor({
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let accumulatedSuggestion = '';
-      let receivedAnyData = false; // Track if we got any delta
+      let receivedAnyData = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -147,8 +167,7 @@ function PureEditor({
               const data = JSON.parse(line.slice(5));
               if (data.type === 'suggestion-delta') {
                 accumulatedSuggestion += data.content;
-                receivedAnyData = true; // Mark that we received suggestion data
-                // Dispatch meta action to update plugin state with new text
+                receivedAnyData = true;
                 if (editorRef.current) {
                    editorRef.current.dispatch(
                        editorRef.current.state.tr.setMeta(SET_SUGGESTION, { text: accumulatedSuggestion })
@@ -157,7 +176,6 @@ function PureEditor({
               } else if (data.type === 'error') {
                 throw new Error(data.content);
               } else if (data.type === 'finish') {
-                 // No explicit action needed on finish, plugin handles isLoading state
                 break; 
               }
             } catch (err) {
@@ -169,14 +187,8 @@ function PureEditor({
       if (!controller.signal.aborted && editorRef.current) {
          console.log('[Editor Component] Stream finished, dispatching FINISH_SUGGESTION_LOADING');
          editorRef.current.dispatch(editorRef.current.state.tr.setMeta(FINISH_SUGGESTION_LOADING, true));
-         
-         // Optional: If no suggestion data was received at all, clear immediately?
-         // if (!receivedAnyData) {
-         //    editorRef.current.dispatch(editorRef.current.state.tr.setMeta(CLEAR_SUGGESTION, true));
-         // }
       } else if (controller.signal.aborted) {
          console.log('[Editor Component] Suggestion request aborted.');
-         // Ensure loading state is cleared if aborted during fetch
          if (editorRef.current) {
              editorRef.current.dispatch(editorRef.current.state.tr.setMeta(CLEAR_SUGGESTION, true));
          }
@@ -186,38 +198,41 @@ function PureEditor({
       if (error.name !== 'AbortError') {
         console.error('[Editor Component] Error fetching inline suggestion:', error);
         toast.error(`Suggestion error: ${error.message}`);
-        // Dispatch clear action on error
         if (editorRef.current) {
            editorRef.current.dispatch(editorRef.current.state.tr.setMeta(CLEAR_SUGGESTION, true));
         }
       }
     } finally {
-      // isLoading state is managed by the plugin
       if (abortControllerRef.current === controller) {
          abortControllerRef.current = null; 
       }
     }
-  // Dependencies now include AI options from hook
   }, [editorRef, documentId, suggestionLength, customInstructions]);
 
   useEffect(() => {
     let view: EditorView | null = null; 
     if (containerRef.current && !editorRef.current) {
+      const plugins = [
+        placeholderPlugin('Start typing...'),
+        ...exampleSetup({ schema: documentSchema, menuBar: false }),
+        inputRules({
+          rules: [
+            headingRule(1), headingRule(2), headingRule(3),
+            headingRule(4), headingRule(5), headingRule(6),
+          ],
+        }),
+        inlineSuggestionPlugin({ requestSuggestion: requestInlineSuggestionCallback }),
+        // Add the save plugin instance here
+        savePlugin({
+          saveFunction: performSave, // Pass the memoized save function
+          initialLastSaved: initialLastSaved,
+          debounceMs: 1500, // Or adjust as needed
+        })
+      ];
+      
       const state = EditorState.create({
         doc: buildDocumentFromContent(content),
-        plugins: [
-          // Add the custom placeholder plugin instance
-          placeholderPlugin('Start typing...'),
-          ...exampleSetup({ schema: documentSchema, menuBar: false }),
-          inputRules({
-            rules: [
-              headingRule(1), headingRule(2), headingRule(3),
-              headingRule(4), headingRule(5), headingRule(6),
-            ],
-          }),
-          // Add the inline suggestion plugin instance
-          inlineSuggestionPlugin({ requestSuggestion: requestInlineSuggestionCallback })
-        ],
+        plugins: plugins,
       });
       
       view = new EditorView(containerRef.current, {
@@ -237,40 +252,59 @@ function PureEditor({
           if (!editorRef.current) return;
           const editorView = editorRef.current;
           
-          // Apply the transaction to update the state FIRST
           const newState = editorView.state.apply(transaction);
           editorView.updateState(newState);
           
-          // --- Plugin handles suggestion clearing/positioning internally via its apply method --- 
-          // Remove explicit suggestion clearing/positioning from here
-          // // let suggestionCleared = false;
-          // // if (transaction.docChanged || (!transaction.selectionSet || !newState.selection.empty)) {
-          // //     if(inlineSuggestion) { ... clearInlineSuggestion(); ... }
-          // // }
-          // // if (transaction.selectionSet && !suggestionCleared) {
-          // //   requestAnimationFrame(updateSuggestionPosition); 
-          // // }
-          
-          // --- Handle Saving (Keep this) --- 
-          if (transaction.docChanged && !transaction.getMeta('no-save')) {
-            const updatedContent = buildContentFromDocument(newState.doc);
-            // Check if the change came from the suggestion plugin accepting
-            // We might want immediate save after accepting a suggestion
-            // The plugin's handleKeyDown dispatches the insertion transaction,
-            // so this dispatchTransaction will run right after.
-            const pluginState = inlineSuggestionPluginKey.getState(newState);
-            const oldPluginState = inlineSuggestionPluginKey.getState(editorView.state); // State *before* apply
-            const justAccepted = oldPluginState?.suggestionText && !pluginState?.suggestionText; // Suggestion existed before, now gone
+          // --- Save Plugin Status Handling --- 
+          const newSaveState = savePluginKey.getState(newState);
+          const oldSaveState = savePluginKey.getState(editorView.state);
 
-            if (transaction.getMeta('no-debounce') || justAccepted) {
-              onSaveContent(updatedContent, false); // Save immediately
-            } else {
-              onSaveContent(updatedContent, true); // Debounce other user edits
-            }
+          // Notify parent if save state changed
+          if (newSaveState && newSaveState !== oldSaveState) {
+            onStatusChange?.(newSaveState);
           }
+
+          // Check if the plugin's debounce timer has finished and we should trigger a save
+          // The plugin itself sets the status to 'debouncing'. We trigger the actual save here.
+          if (oldSaveState?.status === 'debouncing' && newSaveState?.status === 'debouncing' && newSaveState.isDirty && !savePromiseRef.current) {
+              console.log('[Editor Dispatch] Debounce finished, initiating save...');
+              
+              // Update status to 'saving' via meta transaction
+              setSaveStatus(editorView, { status: 'saving', isDirty: false }); // isDirty becomes false once saving starts
+              onStatusChange?.(savePluginKey.getState(editorView.state)!); // Notify parent immediately
+
+              const contentToSave = buildContentFromDocument(newState.doc);
+              
+              // Call the actual save function (passed in via props eventually, or defined here)
+              savePromiseRef.current = performSave(contentToSave)
+                .then((result: { updatedAt: string | Date } | null) => {
+                  savePromiseRef.current = null; // Clear the promise ref
+                  console.log('[Editor Dispatch] Save successful via promise.');
+                  const finalState: Partial<SaveState> = { 
+                      status: 'saved', 
+                      lastSaved: result?.updatedAt ? new Date(result.updatedAt) : new Date(), // Use updatedAt from result
+                      errorMessage: null,
+                      isDirty: false // Not dirty after successful save
+                  };
+                  setSaveStatus(editorView, finalState);
+                  onStatusChange?.(savePluginKey.getState(editorView.state)!); // Notify parent
+                  // Return value isn't strictly needed here unless chaining promises
+                })
+                .catch((error: Error) => {
+                  savePromiseRef.current = null; // Clear the promise ref
+                  console.error('[Editor Dispatch] Save failed via promise:', error);
+                  const finalState: Partial<SaveState> = { 
+                      status: 'error', 
+                      errorMessage: error.message || 'Unknown save error',
+                      isDirty: true // Still dirty if save failed
+                  };
+                  setSaveStatus(editorView, finalState);
+                  onStatusChange?.(savePluginKey.getState(editorView.state)!); // Notify parent
+                  // Consider re-throwing or handling the error further if needed
+                });
+          }
+          
         },
-        // --- Remove Keydown Handling from here (moved to plugin) --- 
-        // handleKeyDown: (view, event) => { ... },
       });
 
       editorRef.current = view;
@@ -284,67 +318,57 @@ function PureEditor({
         editorRef.current = null;
       }
     };
-    // NOTE: we only want to run this effect once
-    // eslint-disable-next-line
-  }, [requestInlineSuggestionCallback]);
+  }, [requestInlineSuggestionCallback, onStatusChange]);
 
+  // Handle external content updates (e.g., from version switching or initial load)
   useEffect(() => {
-    if (editorRef.current && content) {
-      const editorView = editorRef.current; // Capture ref current value
-      const currentContent = buildContentFromDocument(
-        editorView.state.doc,
-      );
+    if (editorRef.current) {
+      const editorView = editorRef.current;
+      const currentDoc = editorView.state.doc;
+      const currentContent = buildContentFromDocument(currentDoc);
 
-      // Only apply external content changes if they are different
-      // from the current editor state AND it's not a user-driven save result
-      // (which is now handled optimistically by the parent)
-      if (currentContent !== content) {
-        if (status === 'streaming') {
-          // Handle streaming updates immediately
-          console.log('[Editor] Applying streaming update.');
-          const newDocument = buildDocumentFromContent(content);
-          const transaction = editorView.state.tr.replaceWith(
-            0,
-            editorView.state.doc.content.size,
-            newDocument.content,
-          );
-          transaction.setMeta('no-save', true);
-          editorView.dispatch(transaction);
-        } else {
-          // Handle non-streaming external updates (e.g., initial load, version switch)
-          console.log('[Editor] Applying external content update (initial load/version switch).');
-          const newDocument = buildDocumentFromContent(content);
-          const transaction = editorView.state.tr.replaceWith(
-            0,
-            editorView.state.doc.content.size,
-            newDocument.content,
-          );
-          transaction.setMeta('no-save', true);
-          editorView.dispatch(transaction);
+      // Only apply update if the incoming content is different
+      if (content !== currentContent) {
+        // Check the save plugin state
+        const saveState = savePluginKey.getState(editorView.state);
+        
+        // If the editor has unsaved changes, log and skip the external update
+        if (saveState?.isDirty) {
+          console.warn('[Editor] External content update received, but editor is dirty. Ignoring update.');
+          return; 
         }
+
+        // Apply the external update if the editor is not dirty
+        console.log('[Editor] Applying external content update.');
+        const newDocument = buildDocumentFromContent(content);
+        const transaction = editorView.state.tr.replaceWith(
+            0,
+            currentDoc.content.size,
+            newDocument.content
+        );
+        // Mark the transaction as external to prevent triggering the save plugin's dirty state
+        transaction.setMeta('external', true); 
+        transaction.setMeta('addToHistory', false); // Prevent this state change from being undoable
+        editorView.dispatch(transaction);
       }
     }
-    // No cleanup needed for timeout anymore
-  }, [content, status]);
+  // Run this effect when the external content prop changes, or status changes (e.g., streaming)
+  // Also re-run if the editor instance is created (editorRef.current changes)
+  }, [content, status, editorRef]); // Removed the setTimeout logic
 
-  // --- Event Listener for Apply Suggestion --- 
   useEffect(() => {
     const handleApplySuggestion = (event: CustomEvent) => {
       if (!editorRef.current || !event.detail) return;
       const editorView = editorRef.current;
       const { state, dispatch } = editorView;
 
-      // Expect from, to, suggestion, documentId from event
       const { from, to, suggestion, documentId: suggestionDocId } = event.detail;
 
-      // Ignore if event is for a different document
       if (suggestionDocId !== documentId) {
         console.warn(`[Editor apply-suggestion] Event ignored: Document ID mismatch. Expected ${documentId}, got ${suggestionDocId}.`);
         return;
       }
 
-      // --- Validate Range --- 
-      // Check if from/to are valid numbers and within current doc bounds
       if (
         typeof from !== 'number' || 
         typeof to !== 'number' || 
@@ -356,22 +380,15 @@ function PureEditor({
         toast.error("Cannot apply suggestion: Invalid text range.");
         return;
       }
-      // Optional: Check if the text currently at from/to roughly matches originalText?
-      // const currentTextInRange = state.doc.textBetween(from, to, ' ');
-      // if (currentTextInRange !== originalText) { ... warn ... }
 
       console.log(`[Editor apply-suggestion] Event received for doc: ${documentId}`);
       console.log(`[Editor apply-suggestion] Applying suggestion "${suggestion}" at range [${from}, ${to}]`);
 
       try {
-        // Use the provided range directly
         const transaction = state.tr.replaceWith(from, to, state.schema.text(suggestion));
         
         dispatch(transaction);
         
-        // Trigger save immediately after applying suggestion
-        const updatedContent = buildContentFromDocument(editorView.state.doc);
-        onSaveContent(updatedContent, false);
         toast.success("Suggestion applied");
 
       } catch (error) {
@@ -382,9 +399,8 @@ function PureEditor({
 
     window.addEventListener('apply-suggestion', handleApplySuggestion as EventListener);
     return () => window.removeEventListener('apply-suggestion', handleApplySuggestion as EventListener);
-  }, [documentId, onSaveContent]);
+  }, [documentId]); // Removed onStatusChange dependency
 
-  // --- Event Listener for Apply Document Update --- 
   useEffect(() => {
     const handleApplyUpdate = (event: CustomEvent) => {
       if (!editorRef.current || !event.detail) return;
@@ -393,7 +409,6 @@ function PureEditor({
 
       const { documentId: updateDocId, newContent } = event.detail;
 
-      // Ignore if event is for a different document
       if (updateDocId !== documentId) {
         console.warn(`[Editor apply-document-update] Event ignored: Document ID mismatch. Expected ${documentId}, got ${updateDocId}.`);
         return;
@@ -402,16 +417,11 @@ function PureEditor({
       console.log(`[Editor apply-document-update] Event received for doc: ${documentId}. Replacing entire content.`);
 
       try {
-        // Build a new document node from the incoming content string
         const newDocumentNode = buildDocumentFromContent(newContent);
-        // Create a transaction to replace the entire document content
         const transaction = state.tr.replaceWith(0, state.doc.content.size, newDocumentNode.content);
 
         dispatch(transaction);
         
-        // Trigger save immediately after applying the full update
-        const updatedContent = buildContentFromDocument(editorView.state.doc); // Get content from the *new* state
-        onSaveContent(updatedContent, false);
         toast.success("Document updated");
 
       } catch (error) {
@@ -422,69 +432,54 @@ function PureEditor({
 
     window.addEventListener('apply-document-update', handleApplyUpdate as EventListener);
     return () => window.removeEventListener('apply-document-update', handleApplyUpdate as EventListener);
-  }, [documentId, onSaveContent]); // Depend on documentId and onSaveContent
+  }, [documentId]); // Removed onStatusChange dependency
 
   return (
     <>
       <div className="relative prose dark:prose-invert" ref={containerRef} />
-      {/* Add CSS for the inline decoration pseudo-element */}
       <style jsx global>{`
-        /* Style for the widget decoration span itself */
         .suggestion-decoration-inline {
-          /* Make the container itself have no layout impact */
           display: contents;
         }
-        /* Style for the pseudo-element showing the suggestion text */
         .suggestion-decoration-inline::after {
-          content: attr(data-suggestion); /* Get text from data attribute */
-          color: inherit; /* Inherit color from editor text */
-          opacity: 0.5;   /* Adjust opacity for ghost effect */
+          content: attr(data-suggestion);
+          color: inherit;
+          opacity: 0.5;
           pointer-events: none;
           user-select: none;
-          /* Inherit editor font styles */
           font-family: inherit;
           font-size: inherit;
           line-height: inherit;
-          /* Handle whitespace correctly */
-          white-space: pre-wrap; 
-          /* Optional: Adjust spacing if needed */
-          /* margin-left: 1px; */ /* Avoid margin if possible */
-          /* Add vertical-align if needed */
+          white-space: pre-wrap;
           vertical-align: initial; 
         }
 
-        /* Updated CSS for placeholder using Node Decoration */
-        /* Target the paragraph (or other block node) with the class */
         .ProseMirror .is-placeholder-empty::before {
-          content: attr(data-placeholder); /* Get text from node's data attribute */
-          position: absolute; /* Position relative to the paragraph */
-          left: 0; /* Adjust based on ProseMirror padding */
-          top: 0; /* Adjust based on ProseMirror padding */
-          color: #adb5bd; /* Text color */
+          content: attr(data-placeholder);
+          position: absolute;
+          left: 0;
+          top: 0;
+          color: #adb5bd;
           font-family: inherit;
           font-size: inherit;
           line-height: inherit;
-          pointer-events: none; /* Ignore clicks */
+          pointer-events: none;
           user-select: none;
         }
 
-        /* Keep the CSS for the old placeholder plugin in case it's needed elsewhere */
-        /* Or if PM View adds this class automatically */
         .ProseMirror:focus {
-          outline: none; /* Remove default focus outline if needed */
+          outline: none;
         }
-        /* CORRECTED SELECTOR based on prosemirror-placeholder behavior */
         .ProseMirror p.is-editor-empty:first-child::before {
           content: attr(data-placeholder);
           float: left;
-          color: #adb5bd; /* Or your preferred placeholder color */
+          color: #adb5bd;
           pointer-events: none;
           height: 0;
         }
 
-        /* IMPORTANT: Ensure the direct parent (editor div) has relative positioning */
         div.ProseMirror {
-          position: relative; /* Needed for absolute positioning of ::before */
+          position: relative;
         }
       `}</style>
     </>
@@ -498,7 +493,8 @@ function areEqual(prevProps: EditorProps, nextProps: EditorProps) {
     prevProps.isCurrentVersion === nextProps.isCurrentVersion &&
     !(prevProps.status === 'streaming' && nextProps.status === 'streaming') &&
     prevProps.content === nextProps.content &&
-    prevProps.onSaveContent === nextProps.onSaveContent
+    prevProps.initialLastSaved === nextProps.initialLastSaved &&
+    prevProps.onStatusChange === nextProps.onStatusChange
   );
 }
 
