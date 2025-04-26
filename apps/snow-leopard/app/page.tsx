@@ -1,62 +1,59 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
-import Image from 'next/image'
-import { Crimson_Text } from 'next/font/google'
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { authClient } from '@/lib/auth-client' 
-
+import Link from "next/link";
+import Image from "next/image";
+import { Crimson_Text } from "next/font/google";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
 
 const crimson = Crimson_Text({
-  weight: ['400', '700'],
-  subsets: ['latin'],
-  display: 'swap',
-})
+  weight: ["400", "700"],
+  subsets: ["latin"],
+  display: "swap",
+});
 
 export default function Home() {
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const router = useRouter()
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     const checkSession = async () => {
       try {
         const { data: session, error } = await authClient.getSession();
-        
+
         if (error) {
-           console.error('Error fetching session:', error);
-           return;
+          console.error("Error fetching session:", error);
+          return;
         }
 
         if (session?.user) {
-          router.push('/documents')
+          router.push("/documents");
         } else {
         }
       } catch (error) {
-        console.error('Error checking session unexpectedly:', error)
+        console.error("Error checking session unexpectedly:", error);
       }
-    }
+    };
 
-    checkSession()
-  }, [router]) 
+    checkSession();
+  }, [router]);
 
   const handleBeginClick = async () => {
-    const { data: session } = await authClient.getSession()
+    const { data: session } = await authClient.getSession();
     if (session?.user) {
-      router.push('/documents')
+      router.push("/documents");
     } else {
-      router.push('/login?redirect=/documents') 
+      router.push("/login?redirect=/documents");
     }
-  }
+  };
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
       {/* Header */}
       <header className="absolute top-0 w-full flex justify-between items-center px-8 py-6 z-10">
-        <h1 className="text-lg font-normal text-foreground/90">
-          snow leopard
-        </h1>
-        <button 
+        <h1 className="text-lg font-normal text-foreground/90">snow leopard</h1>
+        <button
           onClick={handleBeginClick}
           className="px-6 py-2 rounded-full bg-card text-card-foreground border border-border shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:bg-muted transition-colors text-sm"
         >
@@ -90,41 +87,57 @@ export default function Home() {
 
         <div className="space-y-6 max-w-4xl mb-32">
           {/* Video Preview Button */}
-          <button 
+          <button
             onClick={() => setIsDialogOpen(true)}
             className="group px-6 py-2 rounded-full bg-card text-card-foreground border border-border shadow-sm hover:bg-muted transition-all duration-200 text-sm flex items-center gap-2 hover:border-border/80 mx-auto mb-4"
           >
-            <svg className="size-4 text-muted-foreground" fill="currentColor" viewBox="0 0 24 24">
+            <svg
+              className="size-4 text-muted-foreground"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path d="M8 5v14l11-7z" />
             </svg>
             Watch demo
           </button>
 
           {/* Video Dialog */}
-          <dialog 
-            open={isDialogOpen} 
+          <dialog
+            open={isDialogOpen}
             className="fixed inset-0 size-full bg-transparent p-0 m-0 max-w-none max-h-none z-50"
           >
-            <div 
+            <div
               className="fixed inset-0 bg-black/60 backdrop-blur-sm"
               onClick={() => setIsDialogOpen(false)}
             />
             <div className="fixed inset-0 flex items-center justify-center p-4">
               <div className="relative w-full max-w-4xl bg-card rounded-2xl shadow-2xl overflow-hidden">
                 {/* Close button */}
-                <button 
+                <button
                   onClick={() => setIsDialogOpen(false)}
                   className="absolute top-4 right-4 z-10 size-8 flex items-center justify-center rounded-full bg-black/10 hover:bg-black/20 transition-colors"
                 >
-                  <svg className="size-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  <svg
+                    className="size-5 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
                   </svg>
                 </button>
-                
+
                 {/* Video container with 16:9 aspect ratio */}
                 <div className="relative pt-[56.25%] bg-black">
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <p className="text-muted-foreground text-sm">Video content will go here</p>
+                    <p className="text-muted-foreground text-sm">
+                      Video content will go here
+                    </p>
                   </div>
                 </div>
               </div>
@@ -134,14 +147,19 @@ export default function Home() {
           {/* Title Group */}
           <div className="space-y-0">
             <div className="relative">
-              <h2 className={`text-[96px] ${crimson.className} tracking-[-0.02em] leading-[0.8] text-foreground`}>
+              <h2
+                className={`text-[96px] ${crimson.className} tracking-[-0.06em] leading-[0.8] text-foreground`}
+              >
                 Tab, Tab, Apply
               </h2>
             </div>
-            
+
             <div className="relative mt-1">
-              <h3 className={`text-[96px] ${crimson.className} tracking-[-0.01em] text-foreground font-bold`}>
-                Brilliance<span className="animate-blink ml-0.5 font-normal">|</span>
+              <h3
+                className={`text-[96px] ${crimson.className} tracking-[-0.01em] text-foreground font-bold`}
+              >
+                Brilliance
+                <span className="animate-blink ml-0.5 font-normal">|</span>
               </h3>
             </div>
           </div>
@@ -152,26 +170,32 @@ export default function Home() {
             <br />
             and it&apos;s open source
           </p>
-          
+
           {/* CTA Buttons */}
           <div className="flex gap-3 justify-center mt-8">
-            <Link 
+            <Link
               href="/login"
               className="group px-6 py-2 rounded-full bg-card text-card-foreground border border-border shadow-sm hover:bg-muted transition-all duration-200 text-sm flex items-center hover:border-border/80"
             >
-              Begin <span className="inline-block ml-1 text-xs transition-transform group-hover:translate-x-0.5">›</span>
+              Begin{" "}
+              <span className="inline-block ml-1 text-xs transition-transform group-hover:translate-x-0.5">
+                ›
+              </span>
             </Link>
-            <Link 
+            <Link
               href="https://github.com/will-lp1/cursorforwriting"
               target="_blank"
               rel="noopener noreferrer"
               className="group px-6 py-2 rounded-full bg-card text-card-foreground border border-border shadow-sm hover:bg-muted transition-all duration-200 text-sm flex items-center hover:border-border/80"
             >
-              GIT <span className="inline-block ml-1 text-xs transition-transform group-hover:translate-x-0.5">›</span>
+              GIT{" "}
+              <span className="inline-block ml-1 text-xs transition-transform group-hover:translate-x-0.5">
+                ›
+              </span>
             </Link>
           </div>
         </div>
       </main>
     </div>
-  )
+  );
 }
