@@ -620,8 +620,10 @@ export function AlwaysVisibleArtifact({
                 documentId={artifact.documentId}
                 initialLastSaved={document ? new Date(document.updatedAt) : null}
                 onStatusChange={(newSaveState) => {
-                  console.log('[Artifact] Editor save status changed:', newSaveState);
+                  // Optional: Update local state based on save status if needed
+                  // console.log('[Artifact] Editor save status changed:', newSaveState);
                 }}
+                onCreateDocumentRequest={handleCreateDocumentFromEditor}
               />
             </div>
             

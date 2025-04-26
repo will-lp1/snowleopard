@@ -12,6 +12,8 @@ export interface SaveState {
   lastSaved: Date | null;
   errorMessage: string | null;
   isDirty: boolean; // Explicitly track if changes are waiting for debounce/save
+  createDocument?: boolean; // Flag for creation request
+  initialContent?: string; // Content for creation
 }
 
 interface SavePluginOptions {
@@ -21,12 +23,15 @@ interface SavePluginOptions {
   debounceMs?: number;
   // Initial last saved timestamp
   initialLastSaved?: Date | null;
+  // Current Document ID (can be 'init')
+  documentId: string; 
 }
 
 export function savePlugin({
   saveFunction,
   debounceMs = 1500, // Default debounce time
   initialLastSaved = null,
+  documentId, // Added documentId
 }: SavePluginOptions): Plugin<SaveState> {
   let debounceTimeout: NodeJS.Timeout | null = null;
   let inflightRequest: Promise<any> | null = null; // Prevent concurrent saves
@@ -41,13 +46,19 @@ export function savePlugin({
           lastSaved: initialLastSaved,
           errorMessage: null,
           isDirty: false,
+          // Initialize creation flags
+          createDocument: false,
+          initialContent: '',
         };
       },
       apply(tr, pluginState, oldState, newState): SaveState {
         // Handle state updates triggered by meta transactions from this plugin
         const meta = tr.getMeta(savePluginKey);
         if (meta) {
-          // console.log('[SavePlugin] Applying meta:', meta);
+          // If meta includes createDocument being reset, handle it
+          if (meta.createDocument === false) {
+            return { ...pluginState, ...meta, initialContent: '' }; // Clear content when flag is reset
+          }
           return { ...pluginState, ...meta };
         }
 
@@ -56,7 +67,23 @@ export function savePlugin({
           return pluginState;
         }
 
-        // Document changed - mark as dirty and start debouncing
+        // --- Check for initial creation trigger ---
+        // Only trigger if documentId is 'init', doc changed, and previous doc was empty
+        const wasEmpty = oldState.doc.content.size <= 2; // Empty doc usually has size 2 (doc, paragraph)
+        if (documentId === 'init' && tr.docChanged && wasEmpty && newState.doc.textContent.trim().length > 0) {
+          console.log('[SavePlugin] Initial input detected for "init" document. Triggering creation.');
+          // Return state indicating creation request
+          return {
+            ...pluginState,
+            status: 'idle', // Keep idle, creation handled externally
+            isDirty: false, // Not dirty in the traditional save sense
+            createDocument: true,
+            initialContent: newState.doc.textContent,
+            errorMessage: null,
+          };
+        }
+        
+        // --- Proceed with normal debounced save logic ---
         // console.log('[SavePlugin] Doc changed, debouncing...');
         if (debounceTimeout) {
           clearTimeout(debounceTimeout);
@@ -146,6 +173,7 @@ export function savePlugin({
     },
     view(editorView) {
        editorViewInstance = editorView; // Store the view instance when the plugin view is created
+       console.log(`[SavePlugin] View created for documentId: ${documentId}`); // Log documentId on view creation
        // Cleanup timeout on view destroy
        return {
          destroy() {
@@ -161,6 +189,10 @@ export function savePlugin({
 
 // Helper function to dispatch state updates for the plugin
 export function setSaveStatus(view: EditorView, statusUpdate: Partial<SaveState>) {
-  // console.log('[SavePlugin] Dispatching meta update:', statusUpdate);
-  view.dispatch(view.state.tr.setMeta(savePluginKey, statusUpdate));
+  // If resetting the create flag, ensure content is also cleared
+  const update = statusUpdate.createDocument === false 
+                 ? { ...statusUpdate, initialContent: '' } 
+                 : statusUpdate;
+  // console.log('[SavePlugin] Dispatching meta update:', update);
+  view.dispatch(view.state.tr.setMeta(savePluginKey, update));
 } 

@@ -40,6 +40,7 @@ type EditorProps = {
   documentId: string;
   initialLastSaved: Date | null;
   onStatusChange?: (status: SaveState) => void;
+  onCreateDocumentRequest?: (initialContent: string) => void;
 };
 
 function PureEditor({
@@ -50,27 +51,34 @@ function PureEditor({
   documentId,
   initialLastSaved,
   onStatusChange,
+  onCreateDocumentRequest,
 }: EditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<EditorView | null>(null);
+  const currentDocumentIdRef = useRef(documentId);
   
   const abortControllerRef = useRef<AbortController | null>(null); 
   const { suggestionLength, customInstructions } = useAiOptions(); 
   const savePromiseRef = useRef<Promise<Partial<SaveState> | void> | null>(null);
 
+  useEffect(() => {
+    currentDocumentIdRef.current = documentId;
+  }, [documentId]);
+
   const performSave = useCallback(async (contentToSave: string): Promise<{ updatedAt: string | Date } | null> => {
-    if (!documentId || documentId === 'init' || documentId === 'undefined' || documentId === 'null') {
-      console.warn('[Editor Save Callback] Attempted to save with invalid or init documentId:', documentId);
+    const docId = currentDocumentIdRef.current;
+    if (!docId || docId === 'init' || docId === 'undefined' || docId === 'null') {
+      console.warn('[Editor Save Callback] Attempted to save with invalid or init documentId:', docId);
       throw new Error('Cannot save with invalid or initial document ID.');
     }
 
-    console.log(`[Editor Save Callback] Saving document ${documentId}...`);
+    console.log(`[Editor Save Callback] Saving document ${docId}...`);
     try {
       const response = await fetch(`/api/document`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: documentId,
+          id: docId,
           content: contentToSave,
         }),
       });
@@ -82,13 +90,13 @@ function PureEditor({
       }
 
       const result = await response.json();
-      console.log(`[Editor Save Callback] Save successful for ${documentId}. UpdatedAt:`, result.updatedAt);
+      console.log(`[Editor Save Callback] Save successful for ${docId}. UpdatedAt:`, result.updatedAt);
       return { updatedAt: result.updatedAt || new Date().toISOString() }; 
     } catch (error) {
-      console.error(`[Editor Save Callback] Error during save for ${documentId}:`, error);
+      console.error(`[Editor Save Callback] Error during save for ${docId}:`, error);
       throw error;
     }
-  }, [documentId]);
+  }, []);
 
   const requestInlineSuggestionCallback = useCallback(async (state: EditorState) => {
     const editor = editorRef.current;
@@ -201,8 +209,9 @@ function PureEditor({
   useEffect(() => {
     let view: EditorView | null = null; 
     if (containerRef.current && !editorRef.current) {
+      console.log(`[Editor] Initializing for documentId: ${documentId}`);
       const plugins = [
-        placeholderPlugin('Start typing...'),
+        placeholderPlugin(documentId === 'init' ? 'Start typing' : 'Start typing...'),
         ...exampleSetup({ schema: documentSchema, menuBar: false }),
         inputRules({
           rules: [
@@ -215,6 +224,7 @@ function PureEditor({
           saveFunction: performSave,
           initialLastSaved: initialLastSaved,
           debounceMs: 200,
+          documentId: documentId,
         })
       ];
       
@@ -249,24 +259,87 @@ function PureEditor({
           
           const newSaveState = savePluginKey.getState(newState);
 
-          if (newSaveState && newSaveState !== oldSaveState) {
-            onStatusChange?.(newSaveState);
+          if (onStatusChange && newSaveState && newSaveState !== oldSaveState) {
+             onStatusChange(newSaveState);
+          }
+          
+          if (newSaveState?.createDocument && newSaveState.initialContent && onCreateDocumentRequest) {
+             console.log('[Editor] Detected createDocument flag from plugin state.');
+             onCreateDocumentRequest(newSaveState.initialContent);
+             setTimeout(() => {
+               if (editorView) {
+                 setSaveStatus(editorView, { createDocument: false });
+               }
+             }, 0);
           }
         },
       });
 
       editorRef.current = view;
       setActiveEditorView(view);
+      
+      const initialSaveState = savePluginKey.getState(view.state);
+      if (onStatusChange && initialSaveState) {
+         onStatusChange(initialSaveState);
+      }
+    } else if (editorRef.current) {
+       const currentView = editorRef.current;
+       const currentDocId = currentDocumentIdRef.current;
+       
+       if (documentId !== currentDocId) {
+         console.log(`[Editor] Document ID changed from ${currentDocId} to ${documentId}. Re-initializing editor.`);
+         currentView.destroy();
+         editorRef.current = null;
+         return; 
+       }
+       
+       if (isCurrentVersion) {
+         const currentContent = buildContentFromDocument(currentView.state.doc);
+         if (content !== currentContent) {
+           console.log('[Editor] External content update detected. Applying...');
+           const newDoc = buildDocumentFromContent(content);
+           const newState = EditorState.create({
+             doc: newDoc,
+             plugins: currentView.state.plugins,
+           });
+           currentView.updateState(newState);
+         }
+       } else {
+          const currentContent = buildContentFromDocument(currentView.state.doc);
+          if (content !== currentContent) {
+             console.log('[Editor] Diff view content update detected. Applying...');
+             const newDoc = buildDocumentFromContent(content);
+             const newState = EditorState.create({
+                doc: newDoc,
+                plugins: currentView.state.plugins,
+             });
+             currentView.updateState(newState);
+          }
+       }
+       
+       currentView.setProps({
+          editable: () => isCurrentVersion
+       });
     }
-
+    
     return () => {
-      if (editorRef.current) {
-        setActiveEditorView(null);
-        editorRef.current.destroy();
-        editorRef.current = null;
+      if (editorRef.current && !view) {
+        // console.log('[Editor] Destroying view on cleanup (not re-init)');
+        // editorRef.current.destroy();
+        // editorRef.current = null;
+      } else if (view) {
+          console.log('[Editor] Destroying view on effect re-run/unmount');
+          view.destroy();
+          if (editorRef.current === view) {
+            editorRef.current = null;
+          }
+      }
+      if (abortControllerRef.current) {
+         abortControllerRef.current.abort();
+         abortControllerRef.current = null;
       }
     };
-  }, [requestInlineSuggestionCallback, onStatusChange]);
+  }, [content, documentId, initialLastSaved, isCurrentVersion, performSave, onStatusChange, onCreateDocumentRequest, requestInlineSuggestionCallback]);
 
   useEffect(() => {
     if (editorRef.current) {
@@ -434,7 +507,8 @@ function areEqual(prevProps: EditorProps, nextProps: EditorProps) {
     !(prevProps.status === 'streaming' && nextProps.status === 'streaming') &&
     prevProps.content === nextProps.content &&
     prevProps.initialLastSaved === nextProps.initialLastSaved &&
-    prevProps.onStatusChange === nextProps.onStatusChange
+    prevProps.onStatusChange === nextProps.onStatusChange &&
+    prevProps.onCreateDocumentRequest === nextProps.onCreateDocumentRequest
   );
 }
 
