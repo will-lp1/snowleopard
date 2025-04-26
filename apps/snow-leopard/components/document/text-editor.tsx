@@ -16,11 +16,9 @@ import {
   buildDocumentFromContent,
 } from '@/lib/editor/functions';
 
-// Import the new state functions
 import { setActiveEditorView } from '@/lib/editor/editor-state';
-import { useAiOptions } from '@/hooks/ai-options'; // Import AI options hook
+import { useAiOptions } from '@/hooks/ai-options';
 
-// Import the plugin and related constants
 import {
   inlineSuggestionPlugin,
   inlineSuggestionPluginKey,
@@ -30,10 +28,8 @@ import {
   FINISH_SUGGESTION_LOADING
 } from '@/lib/editor/inline-suggestion-plugin';
 
-// Import the custom placeholder plugin
 import { placeholderPlugin } from '@/lib/editor/placeholder-plugin';
 
-// Import the NEW save plugin
 import { savePlugin, savePluginKey, setSaveStatus, type SaveState, type SaveStatus } from '@/lib/editor/save-plugin';
 
 type EditorProps = {
@@ -62,13 +58,9 @@ function PureEditor({
   const { suggestionLength, customInstructions } = useAiOptions(); 
   const savePromiseRef = useRef<Promise<Partial<SaveState> | void> | null>(null);
 
-  // Define the save function using useCallback
   const performSave = useCallback(async (contentToSave: string): Promise<{ updatedAt: string | Date } | null> => {
-    // Do not save if documentId is invalid or still 'init'
     if (!documentId || documentId === 'init' || documentId === 'undefined' || documentId === 'null') {
       console.warn('[Editor Save Callback] Attempted to save with invalid or init documentId:', documentId);
-      // Returning null or throwing an error signals the plugin that save didn't happen/failed
-      // Throwing might be better for explicit error handling in the dispatchTransaction catch block.
       throw new Error('Cannot save with invalid or initial document ID.');
     }
 
@@ -80,7 +72,6 @@ function PureEditor({
         body: JSON.stringify({
           id: documentId,
           content: contentToSave,
-          // Maybe fetch title/kind from parent/context if needed, or let API handle defaults
         }),
       });
 
@@ -92,14 +83,12 @@ function PureEditor({
 
       const result = await response.json();
       console.log(`[Editor Save Callback] Save successful for ${documentId}. UpdatedAt:`, result.updatedAt);
-      // Ensure we return an object with updatedAt for the plugin's success path
       return { updatedAt: result.updatedAt || new Date().toISOString() }; 
     } catch (error) {
       console.error(`[Editor Save Callback] Error during save for ${documentId}:`, error);
-      // Re-throw the error so the catch block in dispatchTransaction can handle it
       throw error;
     }
-  }, [documentId]); // Dependency: documentId
+  }, [documentId]);
 
   const requestInlineSuggestionCallback = useCallback(async (state: EditorState) => {
     const editor = editorRef.current;
@@ -222,11 +211,10 @@ function PureEditor({
           ],
         }),
         inlineSuggestionPlugin({ requestSuggestion: requestInlineSuggestionCallback }),
-        // Add the save plugin instance here
         savePlugin({
-          saveFunction: performSave, // Pass the memoized save function
+          saveFunction: performSave,
           initialLastSaved: initialLastSaved,
-          debounceMs: 1500, // Or adjust as needed
+          debounceMs: 200,
         })
       ];
       
@@ -252,58 +240,18 @@ function PureEditor({
           if (!editorRef.current) return;
           const editorView = editorRef.current;
           
+          const oldEditorState = editorView.state;
+          const oldSaveState = savePluginKey.getState(oldEditorState);
+          
           const newState = editorView.state.apply(transaction);
+          
           editorView.updateState(newState);
           
-          // --- Save Plugin Status Handling --- 
           const newSaveState = savePluginKey.getState(newState);
-          const oldSaveState = savePluginKey.getState(editorView.state);
 
-          // Notify parent if save state changed
           if (newSaveState && newSaveState !== oldSaveState) {
             onStatusChange?.(newSaveState);
           }
-
-          // Check if the plugin's debounce timer has finished and we should trigger a save
-          // The plugin itself sets the status to 'debouncing'. We trigger the actual save here.
-          if (oldSaveState?.status === 'debouncing' && newSaveState?.status === 'debouncing' && newSaveState.isDirty && !savePromiseRef.current) {
-              console.log('[Editor Dispatch] Debounce finished, initiating save...');
-              
-              // Update status to 'saving' via meta transaction
-              setSaveStatus(editorView, { status: 'saving', isDirty: false }); // isDirty becomes false once saving starts
-              onStatusChange?.(savePluginKey.getState(editorView.state)!); // Notify parent immediately
-
-              const contentToSave = buildContentFromDocument(newState.doc);
-              
-              // Call the actual save function (passed in via props eventually, or defined here)
-              savePromiseRef.current = performSave(contentToSave)
-                .then((result: { updatedAt: string | Date } | null) => {
-                  savePromiseRef.current = null; // Clear the promise ref
-                  console.log('[Editor Dispatch] Save successful via promise.');
-                  const finalState: Partial<SaveState> = { 
-                      status: 'saved', 
-                      lastSaved: result?.updatedAt ? new Date(result.updatedAt) : new Date(), // Use updatedAt from result
-                      errorMessage: null,
-                      isDirty: false // Not dirty after successful save
-                  };
-                  setSaveStatus(editorView, finalState);
-                  onStatusChange?.(savePluginKey.getState(editorView.state)!); // Notify parent
-                  // Return value isn't strictly needed here unless chaining promises
-                })
-                .catch((error: Error) => {
-                  savePromiseRef.current = null; // Clear the promise ref
-                  console.error('[Editor Dispatch] Save failed via promise:', error);
-                  const finalState: Partial<SaveState> = { 
-                      status: 'error', 
-                      errorMessage: error.message || 'Unknown save error',
-                      isDirty: true // Still dirty if save failed
-                  };
-                  setSaveStatus(editorView, finalState);
-                  onStatusChange?.(savePluginKey.getState(editorView.state)!); // Notify parent
-                  // Consider re-throwing or handling the error further if needed
-                });
-          }
-          
         },
       });
 
@@ -320,25 +268,20 @@ function PureEditor({
     };
   }, [requestInlineSuggestionCallback, onStatusChange]);
 
-  // Handle external content updates (e.g., from version switching or initial load)
   useEffect(() => {
     if (editorRef.current) {
       const editorView = editorRef.current;
       const currentDoc = editorView.state.doc;
       const currentContent = buildContentFromDocument(currentDoc);
 
-      // Only apply update if the incoming content is different
       if (content !== currentContent) {
-        // Check the save plugin state
         const saveState = savePluginKey.getState(editorView.state);
         
-        // If the editor has unsaved changes, log and skip the external update
         if (saveState?.isDirty) {
           console.warn('[Editor] External content update received, but editor is dirty. Ignoring update.');
           return; 
         }
 
-        // Apply the external update if the editor is not dirty
         console.log('[Editor] Applying external content update.');
         const newDocument = buildDocumentFromContent(content);
         const transaction = editorView.state.tr.replaceWith(
@@ -346,15 +289,12 @@ function PureEditor({
             currentDoc.content.size,
             newDocument.content
         );
-        // Mark the transaction as external to prevent triggering the save plugin's dirty state
         transaction.setMeta('external', true); 
-        transaction.setMeta('addToHistory', false); // Prevent this state change from being undoable
+        transaction.setMeta('addToHistory', false);
         editorView.dispatch(transaction);
       }
     }
-  // Run this effect when the external content prop changes, or status changes (e.g., streaming)
-  // Also re-run if the editor instance is created (editorRef.current changes)
-  }, [content, status, editorRef]); // Removed the setTimeout logic
+  }, [content, status, editorRef]);
 
   useEffect(() => {
     const handleApplySuggestion = (event: CustomEvent) => {
@@ -399,7 +339,7 @@ function PureEditor({
 
     window.addEventListener('apply-suggestion', handleApplySuggestion as EventListener);
     return () => window.removeEventListener('apply-suggestion', handleApplySuggestion as EventListener);
-  }, [documentId]); // Removed onStatusChange dependency
+  }, [documentId]);
 
   useEffect(() => {
     const handleApplyUpdate = (event: CustomEvent) => {
@@ -432,7 +372,7 @@ function PureEditor({
 
     window.addEventListener('apply-document-update', handleApplyUpdate as EventListener);
     return () => window.removeEventListener('apply-document-update', handleApplyUpdate as EventListener);
-  }, [documentId]); // Removed onStatusChange dependency
+  }, [documentId]);
 
   return (
     <>

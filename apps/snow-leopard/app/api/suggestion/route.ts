@@ -3,64 +3,54 @@ import { streamText, smoothStream } from 'ai';
 import { getDocumentById } from '@/lib/db/queries';
 import { myProvider } from '@/lib/ai/providers';
 import { updateDocumentPrompt } from '@/lib/ai/prompts';
-import { auth } from "@/lib/auth"; // Import Better Auth
-import { headers } from 'next/headers'; // Import headers
+import { auth } from "@/lib/auth";
+import { headers } from 'next/headers';
 
-// Common function to handle streaming the response
 async function handleSuggestionRequest(
   documentId: string,
   description: string,
-  userId: string, // Pass userId for validation
+  userId: string,
   selectedText?: string
 ) {
-  // Validate document
   const document = await getDocumentById({ id: documentId });
 
   if (!document) {
     throw new Error('Document not found');
   }
 
-  // Use passed userId for authorization check
   if (document.userId !== userId) { 
     throw new Error('Unauthorized');
   }
 
-  // Create transform stream for sending server-sent events
   const stream = new TransformStream();
   const writer = stream.writable.getWriter();
   const encoder = new TextEncoder();
 
-  // Start processing in the background
   (async () => {
     try {
       console.log("Starting to process suggestion stream");
       
-      // Send initial document info
       await writer.write(encoder.encode(`data: ${JSON.stringify({
         type: 'id',
         content: documentId
       })}\n\n`));
 
-      // Handle partial edit vs full document
       const isPartialEdit = !!selectedText;
       
       if (isPartialEdit) {
         console.log("Processing partial edit with selected text");
-        // Send original content
         await writer.write(encoder.encode(`data: ${JSON.stringify({
           type: 'original',
           content: selectedText
         })}\n\n`));
       } else {
         console.log("Processing full document edit");
-        // Clear current content if editing the whole document
         await writer.write(encoder.encode(`data: ${JSON.stringify({
           type: 'clear',
           content: ''
         })}\n\n`));
       }
 
-      // Process the suggestion
       console.log("Starting to stream suggestion with prompt:", description);
       await streamSuggestion({
         document,
@@ -74,7 +64,6 @@ async function handleSuggestionRequest(
         }
       });
 
-      // Signal completion
       console.log("Finished processing suggestion, sending finish event");
       await writer.write(encoder.encode(`data: ${JSON.stringify({
         type: 'finish',
@@ -82,7 +71,6 @@ async function handleSuggestionRequest(
       })}\n\n`));
     } catch (e: any) {
       console.error('Error in stream processing:', e);
-      // Send error message to client
       await writer.write(encoder.encode(`data: ${JSON.stringify({
         type: 'error',
         content: e.message || 'An error occurred'
@@ -102,10 +90,8 @@ async function handleSuggestionRequest(
   });
 }
 
-// GET handler for EventSource streaming
 export async function GET(request: Request) {
   try {
-    // --- Authentication --- 
     const readonlyHeaders = await headers();
     const requestHeaders = new Headers(readonlyHeaders);
     const session = await auth.api.getSession({ headers: requestHeaders });
@@ -115,7 +101,6 @@ export async function GET(request: Request) {
     }
     const userId = session.user.id;
 
-    // Get params from URL
     const url = new URL(request.url);
     const documentId = url.searchParams.get('documentId');
     const description = url.searchParams.get('description');
@@ -125,19 +110,15 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
     }
 
-    // Pass userId to handler
     return handleSuggestionRequest(documentId, description, userId, selectedText);
   } catch (error: any) {
     console.error('Suggestion GET route error:', error);
-    // Return NextResponse with error message
     return NextResponse.json({ error: error.message || 'An error occurred' }, { status: 400 });
   }
 }
 
-// POST handler for backward compatibility
 export async function POST(request: Request) {
   try {
-    // --- Authentication --- 
     const readonlyHeaders = await headers();
     const requestHeaders = new Headers(readonlyHeaders);
     const session = await auth.api.getSession({ headers: requestHeaders });
@@ -157,11 +138,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
     }
 
-    // Pass userId to handler
     return handleSuggestionRequest(documentId, description, userId, selectedText);
   } catch (error: any) {
     console.error('Suggestion POST route error:', error);
-    // Return NextResponse with error message
     return NextResponse.json({ error: error.message || 'An error occurred' }, { status: 400 });
   }
 }
@@ -209,7 +188,6 @@ async function streamSuggestion({
       draftContent += textDelta;
       chunkCount++;
 
-      // Log progress every 10 chunks
       if (chunkCount % 10 === 0) {
         console.log(`Stream progress: ${draftContent.length} characters processed (${chunkCount} chunks)`);
       }

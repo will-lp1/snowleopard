@@ -1,10 +1,10 @@
 import { createAuthClient } from "better-auth/react";
-import { stripeClient } from "@better-auth/stripe/client"; // Import Stripe client plugin
+import { stripeClient } from "@better-auth/stripe/client";
 
 export const authClient = createAuthClient({
   plugins: [
     stripeClient({ 
-        subscription: true // Enable client-side subscription methods
+        subscription: true 
     }),
   ],
 });

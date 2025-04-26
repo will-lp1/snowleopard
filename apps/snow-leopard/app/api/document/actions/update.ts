@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from "@/lib/auth"; // Use Better Auth
+import { auth } from "@/lib/auth";
 import { headers } from 'next/headers'; 
-import { differenceInMinutes } from 'date-fns'; // Import date-fns function
+import { differenceInMinutes } from 'date-fns';
 import {
   getCurrentDocumentVersion,
   updateCurrentDocumentVersion,
@@ -9,9 +9,9 @@ import {
   getChatExists,
   getLatestDocumentById // To return the final state
 } from '@/lib/db/queries';
-import { Document } from '@snow-leopard/db'; // <-- Corrected import path
+import { Document } from '@snow-leopard/db';
 
-const VERSION_THRESHOLD_MINUTES = 10; // Same threshold as old logic
+const VERSION_THRESHOLD_MINUTES = 10;
 
 /**
  * Handles document update operations (POST)
@@ -33,10 +33,10 @@ export async function updateDocument(request: NextRequest, body: any): Promise<N
     
     // --- Input Validation --- 
     const { 
-      id: documentId, // Rename for clarity
-      content: inputContent = '', // Default to empty string
-      kind: inputKind = 'text', // Default to text
-      chatId: inputChatId // Optional chatId
+      id: documentId,
+      content: inputContent = '',
+      kind: inputKind = 'text',
+      chatId: inputChatId
     } = body;
     
     const content = inputContent;
@@ -65,19 +65,16 @@ export async function updateDocument(request: NextRequest, body: any): Promise<N
     let updatedOrCreatedDocument: typeof Document.$inferSelect | null = null;
 
     try {
-      // 1. Fetch the currently active version of the document for the user
       const currentVersion = await getCurrentDocumentVersion({ userId, documentId });
       
-      // 2. Decide whether to update the current version or create a new one
       let shouldUpdateCurrent = false;
-      let titleForNewVersion = 'Untitled Document'; // Default title if needed
+      let titleForNewVersion = 'Untitled Document';
 
       if (currentVersion && currentVersion.updatedAt) {
-        // Use the title from the *actual* current version in the DB
         titleForNewVersion = currentVersion.title;
         
         const minutesSinceLastUpdate = differenceInMinutes(new Date(), currentVersion.updatedAt);
-        const metadataMatches = currentVersion.kind === inputKind; // NEW - Only check kind
+        const metadataMatches = currentVersion.kind === inputKind;
         
         console.log(`[Document API - UPDATE] Time Check - Now: ${new Date().toISOString()}, UpdatedAt: ${currentVersion.updatedAt.toISOString()}`); // Log actual dates used
 
@@ -109,8 +106,6 @@ export async function updateDocument(request: NextRequest, body: any): Promise<N
           content,
         });
          if (!updatedOrCreatedDocument) {
-            // This case is handled inside updateCurrentDocumentVersion by throwing an error
-            // If it returns null unexpectedly, treat as failure
             throw new Error('updateCurrentDocumentVersion returned null unexpectedly.');
         }
       } else {
@@ -132,32 +127,21 @@ export async function updateDocument(request: NextRequest, body: any): Promise<N
         updatedOrCreatedDocument = await createNewDocumentVersion({
           id: documentId,
           userId: userId,
-          title: titleForNewVersion, // NEW - use title fetched from DB or default
+          title: titleForNewVersion,
           content: content,
           kind: inputKind,
-          chatId: finalChatId, // Pass verified or null chatId
+          chatId: finalChatId,
         });
          if (!updatedOrCreatedDocument) {
-            // createNewDocumentVersion should throw on failure, but handle null just in case
             throw new Error('createNewDocumentVersion returned null unexpectedly.');
         }
       }
 
-      // --- Fetch Final State and Respond --- 
-      // Regardless of update/create, fetch the latest state to return consistency
-      // Although update/create functions return data, refetching ensures we get the absolute latest
-      // Note: Using getLatestDocumentById here as per original logic desire to return latest state
-      // const finalDocumentState = await getLatestDocumentById({ id: documentId });
-      
-      // OPTIMIZATION: Return the data directly from the update/create operation
-      // The functions `updateCurrentDocumentVersion` and `createNewDocumentVersion` 
-      // already return the affected row.
       const finalDocumentState = updatedOrCreatedDocument;
       
       if (!finalDocumentState) {
           console.error(`[Document API - UPDATE] Failed to retrieve document ${documentId} after operation.`);
-          // Attempt to fetch the latest version as a fallback before failing entirely
-           const fallbackState = await getLatestDocumentById({ id: documentId });
+          const fallbackState = await getLatestDocumentById({ id: documentId });
            if (fallbackState) {
                console.warn('[Document API - UPDATE] Returning fallback state after initial retrieval failed.')
                return NextResponse.json(fallbackState);
@@ -171,10 +155,9 @@ export async function updateDocument(request: NextRequest, body: any): Promise<N
 
     } catch (dbError: any) {
       console.error(`[Document API - UPDATE] Database operation error for doc ${documentId}:`, dbError);
-      // Specific handling for not found/unauthorized errors from queries
-       if (dbError.message === 'Document not found or unauthorized.') {
-           return NextResponse.json({ error: 'Document not found or unauthorized' }, { status: 404 });
-       }
+      if (dbError.message === 'Document not found or unauthorized.') {
+          return NextResponse.json({ error: 'Document not found or unauthorized' }, { status: 404 });
+      }
       return NextResponse.json({ 
         error: `Database operation failed: ${dbError.message || String(dbError)}`
       }, { status: 500 });
@@ -182,7 +165,6 @@ export async function updateDocument(request: NextRequest, body: any): Promise<N
 
   } catch (error: any) {
     console.error('[Document API - UPDATE] General update error:', error);
-    // Handle potential errors during auth or header processing before DB ops
     return NextResponse.json({ 
       error: `Failed to update document: ${error.message || String(error)}`
     }, { status: 500 });

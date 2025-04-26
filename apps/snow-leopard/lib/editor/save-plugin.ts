@@ -30,6 +30,7 @@ export function savePlugin({
 }: SavePluginOptions): Plugin<SaveState> {
   let debounceTimeout: NodeJS.Timeout | null = null;
   let inflightRequest: Promise<any> | null = null; // Prevent concurrent saves
+  let editorViewInstance: EditorView | null = null; // Store the view instance
 
   return new Plugin<SaveState>({
     key: savePluginKey,
@@ -63,52 +64,75 @@ export function savePlugin({
         
         let newStatus: SaveStatus = 'debouncing';
         
-        // Prevent debouncing if already saving (shouldn't happen often with debounce)
-        if (pluginState.status === 'saving') {
-            newStatus = 'saving'; // Maintain saving status
+        // Prevent debouncing if already saving
+        if (pluginState.status === 'saving' && inflightRequest) {
+            console.log('[SavePlugin] Doc changed while saving, keeping saving status.');
+            newStatus = 'saving'; // Maintain saving status but mark as dirty
+        } else {
+             // If not saving, clear any previous errors on new changes
+             pluginState = { ...pluginState, errorMessage: null };
         }
 
         debounceTimeout = setTimeout(() => {
-          // Don't trigger if no longer mounted or state changed drastically
-          // We rely on the view being up-to-date here
-          const currentState = savePluginKey.getState(newState);
-          if (!currentState || currentState.status !== 'debouncing' || !currentState.isDirty) {
-             console.log('[SavePlugin] Debounce fired, but state changed or not dirty. Skipping save.');
-             // Reset status if it was debouncing but no longer dirty (e.g., undone)
-             if (currentState && currentState.status === 'debouncing' && !currentState.isDirty) {
-                 // Need access to the view to dispatch a meta transaction here...
-                 // This logic might be better handled elsewhere or need view access.
+          if (!editorViewInstance) {
+              console.warn('[SavePlugin] Debounce fired, but editor view is not available.');
+              return;
+          }
+          // Use the stored view instance
+          const view = editorViewInstance;
+          const currentState = savePluginKey.getState(view.state);
+          
+          // Don't trigger if no longer dirty (e.g., undone, or save completed)
+          if (!currentState || !currentState.isDirty) {
+             console.log('[SavePlugin] Debounce fired, but state is no longer dirty. Skipping save.');
+             // If status was debouncing but no longer dirty, reset to idle
+             if (currentState && currentState.status === 'debouncing') {
+                 setSaveStatus(view, { status: 'idle' });
              }
             return;
           }
 
-          // Check for in-flight requests
+          // Check for in-flight requests again (safety)
           if (inflightRequest) {
-            console.warn('[SavePlugin] Save triggered, but another save is already in progress.');
-            return; // Or queue? For now, just skip.
+            console.warn('[SavePlugin] Debounce fired, but another save is already in progress.');
+            return; 
           }
 
           console.log('[SavePlugin] Debounce finished, triggering save.');
           
           // Dispatch meta transaction to update status to 'saving'
-          // This requires access to the view, which we don't have directly here.
-          // We'll handle this in dispatchTransaction in the Editor component for now.
+          setSaveStatus(view, { status: 'saving', isDirty: false }); // Mark as not dirty *before* saving
           
-          const contentToSave = buildContentFromDocument(newState.doc);
+          const contentToSave = buildContentFromDocument(view.state.doc);
 
           inflightRequest = saveFunction(contentToSave)
             .then(result => {
               inflightRequest = null; // Clear inflight status
-               console.log('[SavePlugin] Save successful.');
-              // Need view.dispatch to update plugin state via meta
-              // We'll pass necessary info back to dispatchTransaction
-              return { status: 'saved', lastSaved: result?.updatedAt ? new Date(result.updatedAt) : new Date() };
+              console.log('[SavePlugin] Save successful.');
+              // Update state via meta transaction
+              setSaveStatus(view, { 
+                  status: 'saved', // Or 'idle'? Let's use 'saved' briefly
+                  lastSaved: result?.updatedAt ? new Date(result.updatedAt) : new Date(),
+                  errorMessage: null,
+                  isDirty: false // Ensure dirty flag is cleared
+              });
+              // Optional: Transition back to 'idle' after a short delay?
+              // setTimeout(() => {
+              //    const finalStateCheck = savePluginKey.getState(view.state);
+              //    if (finalStateCheck?.status === 'saved') {
+              //        setSaveStatus(view, { status: 'idle' });
+              //    }
+              // }, 1000); // Show 'saved' for 1 sec
             })
             .catch(error => {
                inflightRequest = null; // Clear inflight status
               console.error('[SavePlugin] Save failed:', error);
-              // Need view.dispatch to update plugin state via meta
-              return { status: 'error', errorMessage: error instanceof Error ? error.message : 'Unknown save error' };
+              // Update state via meta transaction
+              setSaveStatus(view, { 
+                  status: 'error', 
+                  errorMessage: error instanceof Error ? error.message : 'Unknown save error',
+                  isDirty: true // Mark as dirty again on error, allowing retry on next change/debounce
+              });
             });
 
         }, debounceMs);
@@ -117,16 +141,15 @@ export function savePlugin({
           ...pluginState,
           status: newStatus,
           isDirty: true, // Mark as dirty because doc changed
-          errorMessage: null, // Clear previous errors on new changes
         };
       },
     },
-    // We need access to the view to dispatch meta transactions from the debounced save
-    // and to coordinate the status updates. We'll enhance dispatchTransaction in Editor.
     view(editorView) {
+       editorViewInstance = editorView; // Store the view instance when the plugin view is created
        // Cleanup timeout on view destroy
        return {
          destroy() {
+           editorViewInstance = null; // Clear the stored view instance
            if (debounceTimeout) {
              clearTimeout(debounceTimeout);
            }
