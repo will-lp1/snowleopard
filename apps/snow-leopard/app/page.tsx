@@ -148,7 +148,7 @@ export default function Home() {
           <div className="space-y-0">
             <div className="relative">
               <h2
-                className={`text-[96px] ${crimson.className} tracking-[-0.06em] leading-[0.8] text-foreground`}
+                className={`text-[96px] ${crimson.className} tracking-[-0.08em] leading-[0.8] text-foreground`}
               >
                 Tab, Tab, Apply
               </h2>
