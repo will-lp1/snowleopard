@@ -6,7 +6,8 @@ import { updateDocumentPrompt } from '@/lib/ai/prompts';
 export const textDocumentHandler = createDocumentHandler<'text'>({
   kind: 'text',
   onCreateDocument: async ({ title, dataStream }) => {
-    let draftContent = '';
+    // No need to track draft content - we're just streaming to the client
+    // Editor's auto-save will handle saving later
 
     const { fullStream } = streamText({
       model: myProvider.languageModel('artifact-model'),
@@ -22,8 +23,7 @@ export const textDocumentHandler = createDocumentHandler<'text'>({
       if (type === 'text-delta') {
         const { textDelta } = delta;
 
-        draftContent += textDelta;
-
+        // Stream the content - no need to accumulate it
         dataStream.writeData({
           type: 'text-delta',
           content: textDelta,
@@ -31,7 +31,7 @@ export const textDocumentHandler = createDocumentHandler<'text'>({
       }
     }
 
-    return draftContent;
+    // No return value needed
   },
   onUpdateDocument: async ({ document, description, dataStream }) => {
     let draftContent = '';

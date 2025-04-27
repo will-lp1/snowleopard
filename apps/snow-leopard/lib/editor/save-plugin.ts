@@ -14,6 +14,7 @@ export interface SaveState {
   isDirty: boolean; // Explicitly track if changes are waiting for debounce/save
   createDocument?: boolean; // Flag for creation request
   initialContent?: string; // Content for creation
+  triggerSave?: boolean; // Flag to force a save check
 }
 
 interface SavePluginOptions {
@@ -54,17 +55,32 @@ export function savePlugin({
       apply(tr, pluginState, oldState, newState): SaveState {
         // Handle state updates triggered by meta transactions from this plugin
         const meta = tr.getMeta(savePluginKey);
+        let shouldTriggerSave = false;
         if (meta) {
+          // Explicitly check if meta is triggering a save
+          if (meta.triggerSave === true) {
+            shouldTriggerSave = true;
+            // Reset the trigger flag in the state update
+            meta.triggerSave = false; 
+          }
           // If meta includes createDocument being reset, handle it
           if (meta.createDocument === false) {
             return { ...pluginState, ...meta, initialContent: '' }; // Clear content when flag is reset
           }
-          return { ...pluginState, ...meta };
+          // Apply other meta changes
+          pluginState = { ...pluginState, ...meta };
         }
 
-        // If the document didn't change, keep the state as is
-        if (!tr.docChanged) {
+        // If the document didn't change AND we are not explicitly triggering a save, keep the state as is
+        if (!tr.docChanged && !shouldTriggerSave) {
           return pluginState;
+        }
+
+        // If we are triggering a save, but the document is identical, 
+        // we might skip if not dirty? Or just proceed to save? Let's proceed.
+        // If we ARE explicitly triggering save, log it
+        if (shouldTriggerSave) {
+          console.log('[SavePlugin] Explicit save triggered via meta.');
         }
 
         // --- Check for initial creation trigger ---
@@ -83,8 +99,8 @@ export function savePlugin({
           };
         }
         
-        // --- Proceed with normal debounced save logic ---
-        // console.log('[SavePlugin] Doc changed, debouncing...');
+        // --- Proceed with normal debounced save logic (or triggered save) ---
+        // console.log('[SavePlugin] Doc changed or save triggered, debouncing...');
         if (debounceTimeout) {
           clearTimeout(debounceTimeout);
         }
@@ -93,12 +109,15 @@ export function savePlugin({
         
         // Prevent debouncing if already saving
         if (pluginState.status === 'saving' && inflightRequest) {
-            console.log('[SavePlugin] Doc changed while saving, keeping saving status.');
+            console.log('[SavePlugin] Doc changed/triggered while saving, keeping saving status.');
             newStatus = 'saving'; // Maintain saving status but mark as dirty
         } else {
-             // If not saving, clear any previous errors on new changes
+             // If not saving, clear any previous errors on new changes/triggers
              pluginState = { ...pluginState, errorMessage: null };
         }
+
+        // Mark as dirty only if the document actually changed
+        const docActuallyChanged = tr.docChanged;
 
         debounceTimeout = setTimeout(() => {
           if (!editorViewInstance) {
@@ -109,14 +128,11 @@ export function savePlugin({
           const view = editorViewInstance;
           const currentState = savePluginKey.getState(view.state);
           
-          // Don't trigger if no longer dirty (e.g., undone, or save completed)
-          if (!currentState || !currentState.isDirty) {
-             console.log('[SavePlugin] Debounce fired, but state is no longer dirty. Skipping save.');
-             // If status was debouncing but no longer dirty, reset to idle
-             if (currentState && currentState.status === 'debouncing') {
-                 setSaveStatus(view, { status: 'idle' });
-             }
-            return;
+          // If state is missing or status is not 'debouncing', something is wrong, bail out.
+          if (!currentState || currentState.status !== 'debouncing') {
+             console.log(`[SavePlugin] Debounce fired, but state is invalid or status is not debouncing (${currentState?.status}). Skipping save.`);
+             // If status was saved/error/idle, it shouldn't be debouncing anyway
+             return;
           }
 
           // Check for in-flight requests again (safety)
@@ -167,7 +183,7 @@ export function savePlugin({
         return {
           ...pluginState,
           status: newStatus,
-          isDirty: true, // Mark as dirty because doc changed
+          isDirty: pluginState.isDirty || docActuallyChanged, // Become dirty if doc changed, otherwise keep existing dirty status
         };
       },
     },

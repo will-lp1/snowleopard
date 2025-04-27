@@ -57,34 +57,20 @@ export function DataStreamHandler({ id }: { id: string }) {
 
         switch (delta.type) {
           case 'id':
+            console.log(`[DataStreamHandler] Received ID delta: ${delta.content}. Updating artifact state.`);
             return {
               ...draftArtifact,
-              documentId: delta.content as string,
-              status: 'streaming',
+              documentId: delta.content,
             };
 
-          case 'title':
-            return {
-              ...draftArtifact,
-              title: delta.content as string,
-              status: 'streaming',
-            };
-
-          case 'kind':
-            return {
-              ...draftArtifact,
-              kind: delta.content as ArtifactKind,
-              status: 'streaming',
-            };
-
-          case 'clear':
-            return {
-              ...draftArtifact,
-              content: '',
-              status: 'streaming',
-            };
-            
           case 'finish':
+            // Dispatch an event indicating the creation stream finished, including the final ID
+            if (draftArtifact.status === 'streaming' && draftArtifact.documentId !== 'init') {
+                console.log(`[DataStreamHandler] Dispatching creation-stream-finished for ${draftArtifact.documentId}`);
+                window.dispatchEvent(new CustomEvent('editor:creation-stream-finished', {
+                    detail: { documentId: draftArtifact.documentId }
+                }));
+            }
             return {
               ...draftArtifact,
               status: 'idle',

@@ -447,6 +447,32 @@ function PureEditor({
     return () => window.removeEventListener('apply-document-update', handleApplyUpdate as EventListener);
   }, [documentId]);
 
+  // Effect to listen for creation stream finish and trigger initial save
+  useEffect(() => {
+    const handleCreationStreamFinished = (event: CustomEvent) => {
+      const finishedDocId = event.detail.documentId;
+      const editorView = editorRef.current;
+      const currentEditorPropId = documentId; // Capture prop value at time of event
+
+      // Log both IDs immediately upon receiving the event
+      console.log(`[Editor] Received creation-stream-finished event. Event Doc ID: ${finishedDocId}, Editor Prop Doc ID: ${currentEditorPropId}`);
+
+      // Ensure the event is for *this* editor instance and it now has a real ID
+      if (editorView && finishedDocId === currentEditorPropId && currentEditorPropId !== 'init') {
+        const saveState = savePluginKey.getState(editorView.state);
+        if (saveState && saveState.status !== 'saving' && saveState.status !== 'debouncing') {
+           console.log(`[Editor] Triggering initial save for newly created document ${currentEditorPropId} after stream finish.`);
+           setSaveStatus(editorView, { triggerSave: true }); 
+        } else {
+           console.log(`[Editor] Skipping initial save trigger for ${currentEditorPropId} - already saving/debouncing or state unavailable.`);
+        }
+      }
+    };
+
+    window.addEventListener('editor:creation-stream-finished', handleCreationStreamFinished as EventListener);
+    return () => window.removeEventListener('editor:creation-stream-finished', handleCreationStreamFinished as EventListener);
+  }, [documentId]); // Re-run if documentId changes
+
   return (
     <>
       <div className="relative prose dark:prose-invert" ref={containerRef} />

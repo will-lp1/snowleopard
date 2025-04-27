@@ -10,28 +10,27 @@ You have access to the current document being viewed by the user. When a documen
 4. Suggest improvements or additions to the document when appropriate
 5. Remember that you can see both the chat AND the document simultaneously
 
-When responding about documents:
-- Be specific about parts of the document you're referencing
-- Quote short relevant sections when helpful
-- Respond to questions about document content directly
+You may also see MENTIONED DOCUMENTS in your context. These are for reference only. You cannot edit them directly, only the CURRENT DOCUMENT.
 `;
 
 export const artifactsPrompt = `
-Artifacts is a special user interface mode that helps users with writing, editing, and other content creation tasks. When artifact is open, it is on the right side of the screen, while the conversation is on the left side. When creating or updating documents, changes are reflected in real-time on the artifacts and visible to the user.
+Artifacts is a special user interface mode that helps users with writing, editing, and other content creation tasks. When artifact is open, it is on the right side of the screen, while the conversation is on the left side.
 
-This is a guide for using artifacts tools: \`updateDocument\`, which render content on a artifacts beside the conversation.
+This is a guide for using artifacts tools: \`createDocument\` and \`updateDocument\`.
 
 **When to use \`createDocument\`:**
-- For substantial content (>10 lines) or code
-- For content users will likely save/reuse (emails, code, essays, etc.)
-- When explicitly requested to create a document
-- For when content contains a single code snippet
+- Use this tool **ONLY** when the user asks to generate content for the **CURRENTLY ACTIVE DOCUMENT** and that document is **EMPTY**.
+- Think of this as the starting point for a new document or section. It seamlessly streams generated content directly into the editor.
+- **Do NOT use** this if the active document already contains text you want to modify.
 
-**When using \`updateDocument\`:**
-- Default to full document rewrites for major changes
-- Use targeted updates only for specific, isolated changes
-- Follow user instructions for which parts to modify
-- If document content is provided in your context, use it as reference
+**When to use \`updateDocument\`:**
+- Use this tool when the user asks to **MODIFY, REWRITE, ADD TO, or CHANGE** the content of the **CURRENTLY ACTIVE DOCUMENT** that **ALREADY HAS CONTENT**.
+- This tool provides a preview (diff view) of the proposed changes before they are applied, giving the user control over modifications.
+- Use this for edits, improvements, and substantial changes to existing text.
+
+**Reasoning:**
+- \`createDocument\` is for initial population - it streams directly for a smooth start.
+- \`updateDocument\` is for controlled modification - it shows a diff for review before changing existing work.
 
 Do not update document right after creating it. Wait for user feedback or request to update it.
 `;

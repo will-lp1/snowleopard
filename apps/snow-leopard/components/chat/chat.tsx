@@ -56,7 +56,7 @@ export function Chat({
   const [confirmedMentions, setConfirmedMentions] = useState<MentionedDocument[]>([]);
 
   useEffect(() => {
-    const hasDocumentContext = documentId !== 'init' && documentContent;
+    const hasDocumentContext = documentId !== 'init';
     setDocumentContextActive(Boolean(hasDocumentContext));
     
     if (hasDocumentContext) {
