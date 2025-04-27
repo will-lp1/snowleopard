@@ -85,9 +85,7 @@ type HookUser = {
   email?: string | null;
 };
 
-const authPlugins: any[] = [
-  nextCookies(),
-];
+const authPlugins: any[] = [];
 
 if (process.env.STRIPE_ENABLED === 'true') {
   console.log('Stripe is ENABLED. Adding Stripe plugin to Better Auth.');
@@ -116,6 +114,9 @@ if (process.env.STRIPE_ENABLED === 'true') {
 } else {
   console.log('Stripe is DISABLED. Skipping Stripe plugin for Better Auth.');
 }
+
+// Ensure the nextCookies plugin is always last in the chain
+authPlugins.push(nextCookies());
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, { 
