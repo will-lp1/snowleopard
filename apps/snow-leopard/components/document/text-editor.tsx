@@ -58,8 +58,13 @@ function PureEditor({
   const currentDocumentIdRef = useRef(documentId);
   
   const abortControllerRef = useRef<AbortController | null>(null); 
-  const { suggestionLength, customInstructions } = useAiOptions(); 
   const savePromiseRef = useRef<Promise<Partial<SaveState> | void> | null>(null);
+
+  const { suggestionLength, customInstructions } = useAiOptions();
+  const suggestionLengthRef = useRef(suggestionLength);
+  const customInstructionsRef = useRef(customInstructions);
+  useEffect(() => { suggestionLengthRef.current = suggestionLength; }, [suggestionLength]);
+  useEffect(() => { customInstructionsRef.current = customInstructions; }, [customInstructions]);
 
   useEffect(() => {
     currentDocumentIdRef.current = documentId;
@@ -134,9 +139,9 @@ function PureEditor({
           contextAfter,
           fullContent,
           nodeType: 'paragraph', 
-          aiOptions: { 
-            suggestionLength,
-            customInstructions,
+          aiOptions: {
+            suggestionLength: suggestionLengthRef.current,
+            customInstructions: customInstructionsRef.current,
           }
         }),
         signal: controller.signal,
@@ -204,7 +209,7 @@ function PureEditor({
          abortControllerRef.current = null; 
       }
     }
-  }, [editorRef, documentId, suggestionLength, customInstructions]);
+  }, [editorRef, documentId]);
 
   useEffect(() => {
     let view: EditorView | null = null; 
@@ -571,10 +576,7 @@ function areEqual(prevProps: EditorProps, nextProps: EditorProps) {
     prevProps.currentVersionIndex === nextProps.currentVersionIndex &&
     prevProps.isCurrentVersion === nextProps.isCurrentVersion &&
     !(prevProps.status === 'streaming' && nextProps.status === 'streaming') &&
-    prevProps.content === nextProps.content &&
-    prevProps.initialLastSaved === nextProps.initialLastSaved &&
-    prevProps.onStatusChange === nextProps.onStatusChange &&
-    prevProps.onCreateDocumentRequest === nextProps.onCreateDocumentRequest
+    prevProps.content === nextProps.content
   );
 }
 
