@@ -353,8 +353,6 @@ export async function POST(request: Request) {
           experimental_generateMessageId: generateUUID,
           tools: availableTools, 
           onFinish: async ({ response, reasoning }) => {
-            // console.log('[Chat API POST onFinish] Full response object:', JSON.stringify(response, null, 2)); // Removed verbose logging
-
             if (userId) {
               try {
                 const sanitizedResponseMessages = sanitizeResponseMessages({

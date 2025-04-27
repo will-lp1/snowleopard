@@ -104,7 +104,6 @@ export async function saveMessages({ messages }: { messages: Array<typeof schema
         };
     });
 
-    // Check if there are any messages to save before inserting
     if (formattedMessages.length > 0) {
       await db.insert(schema.Message).values(formattedMessages);
     } else {

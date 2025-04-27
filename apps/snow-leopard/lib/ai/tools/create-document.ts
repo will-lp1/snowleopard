@@ -35,6 +35,8 @@ export const createDocument = ({ session, dataStream }: CreateDocumentProps) =>
         session,
       });
 
+      dataStream.writeData({ type: 'force-save', content: '' });
+      
       dataStream.writeData({ type: 'finish', content: '' });
 
       return {

@@ -89,7 +89,6 @@ function PureDocumentToolResult({
            <FileIcon />
         </div>
         <div className="text-left">
-          {/* Use a static message indicating completion */}
           {'Document content generated.'}
         </div>
       </div>

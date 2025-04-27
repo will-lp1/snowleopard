@@ -447,17 +447,14 @@ function PureEditor({
     return () => window.removeEventListener('apply-document-update', handleApplyUpdate as EventListener);
   }, [documentId]);
 
-  // Effect to listen for creation stream finish and trigger initial save
   useEffect(() => {
     const handleCreationStreamFinished = (event: CustomEvent) => {
       const finishedDocId = event.detail.documentId;
       const editorView = editorRef.current;
-      const currentEditorPropId = documentId; // Capture prop value at time of event
+      const currentEditorPropId = documentId;
 
-      // Log both IDs immediately upon receiving the event
       console.log(`[Editor] Received creation-stream-finished event. Event Doc ID: ${finishedDocId}, Editor Prop Doc ID: ${currentEditorPropId}`);
 
-      // Ensure the event is for *this* editor instance and it now has a real ID
       if (editorView && finishedDocId === currentEditorPropId && currentEditorPropId !== 'init') {
         const saveState = savePluginKey.getState(editorView.state);
         if (saveState && saveState.status !== 'saving' && saveState.status !== 'debouncing') {
@@ -471,7 +468,50 @@ function PureEditor({
 
     window.addEventListener('editor:creation-stream-finished', handleCreationStreamFinished as EventListener);
     return () => window.removeEventListener('editor:creation-stream-finished', handleCreationStreamFinished as EventListener);
-  }, [documentId]); // Re-run if documentId changes
+  }, [documentId]);
+
+  useEffect(() => {
+    const handleForceSave = async (event: any) => {
+      const forceSaveDocId = event.detail.documentId;
+      const editorView = editorRef.current;
+      const currentEditorPropId = documentId;
+
+      if (!editorView || forceSaveDocId !== currentEditorPropId || currentEditorPropId === 'init') {
+        return;
+      }
+
+      try {
+        const content = buildContentFromDocument(editorView.state.doc);
+        
+        console.log(`[Editor] Force-saving document ${currentEditorPropId}`);
+        
+        const response = await fetch('/api/document', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: currentEditorPropId,
+            content: content,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`API error: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        setSaveStatus(editorView, { 
+          status: 'saved',
+          lastSaved: new Date(data.updatedAt || new Date().toISOString()),
+          isDirty: false
+        });
+      } catch (error) {
+        console.error(`[Editor] Force-save failed for ${currentEditorPropId}:`, error);
+      }
+    };
+
+    window.addEventListener('editor:force-save-document', handleForceSave as unknown as EventListener);
+    return () => window.removeEventListener('editor:force-save-document', handleForceSave as unknown as EventListener);
+  }, [documentId]);
 
   return (
     <>
