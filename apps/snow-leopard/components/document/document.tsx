@@ -14,7 +14,7 @@ const getActionText = (
 ) => {
   switch (type) {
     case 'create':
-      return tense === 'present' ? 'Creating' : 'Created';
+      return tense === 'present' ? 'Generating content for' : 'Created';
     case 'update':
       return tense === 'present' ? 'Updating' : 'Updated';
     case 'request-suggestions':
@@ -29,13 +29,14 @@ const getActionText = (
 interface DocumentToolResultProps {
   type: 'create' | 'update' | 'request-suggestions';
   result: {
-    id: string;
-    title: string;
-    kind: ArtifactKind;
+    id?: string;
+    title?: string;
+    kind?: ArtifactKind;
     originalContent?: string;
     newContent?: string;
     status?: string;
     error?: string;
+    content?: string;
   };
   isReadonly: boolean;
 }
@@ -55,7 +56,7 @@ function PureDocumentToolResult({
     result.originalContent !== result.newContent;
 
   const handleApplyUpdate = useCallback(() => {
-    if (!result.newContent || !result.id) return;
+    if (type !== 'update' || !result.newContent || !result.id) return;
     
     console.log(`[DocumentToolResult] Dispatching apply-document-update for ${result.id}`);
     const event = new CustomEvent('apply-document-update', {
@@ -67,32 +68,7 @@ function PureDocumentToolResult({
     window.dispatchEvent(event);
     setIsApplied(true);
     toast.success('Changes applied to the editor.');
-  }, [result.id, result.newContent]);
-
-  const handleOpenDocument = useCallback((event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
-    if (isReadonly) {
-      toast.error('Viewing files in shared chats is currently not supported.');
-      return;
-    }
-
-    const rect = event.currentTarget.getBoundingClientRect();
-    const boundingBox = {
-      top: rect.top,
-      left: rect.left,
-      width: rect.width,
-      height: rect.height,
-    };
-
-    setArtifact({
-      documentId: result.id,
-      kind: result.kind,
-      content: '',
-      title: result.title,
-      isVisible: true,
-      status: 'idle',
-      boundingBox,
-    });
-  }, [isReadonly, result, setArtifact]);
+  }, [result.id, result.newContent, type]);
 
   if (result.error) {
      return (
@@ -103,27 +79,19 @@ function PureDocumentToolResult({
      )
   }
 
-  if (!isUpdateProposal) {
+  // Handle 'create' type result separately
+  if (type === 'create') {
     return (
-      <button
-        type="button"
-        className="bg-background cursor-pointer border py-2 px-3 rounded-xl w-fit flex flex-row gap-3 items-start text-sm hover:bg-muted/50 transition-colors"
-        onClick={handleOpenDocument}
+      <div // Non-clickable div
+        className="bg-background border py-2 px-3 rounded-xl w-fit flex flex-row gap-3 items-start text-sm text-muted-foreground"
       >
-        <div className="text-muted-foreground mt-0.5">
-          {type === 'create' ? (
-            <FileIcon />
-          ) : type === 'update' && !isUpdateProposal ? (
-            <PencilEditIcon />
-          ) : type === 'request-suggestions' ? (
-            <MessageIcon />
-          ) : null}
+        <div className="mt-0.5">
+           <FileIcon />
         </div>
         <div className="text-left">
-          {`${getActionText(type, 'past')} "${result.title}"`}
-          {result.status && !result.error && <span className="text-xs text-muted-foreground ml-1">({result.status})</span>} 
+          {'Document content generated.'}
         </div>
-      </button>
+      </div>
     );
   }
 
@@ -180,34 +148,13 @@ function PureDocumentToolCall({
   isReadonly,
 }: DocumentToolCallProps) {
   const { setArtifact } = useArtifact();
+  const { artifact } = useArtifact();
+
+  const displayTitle = type === 'create' && artifact.title ? artifact.title : args.title;
 
   return (
-    <button
-      type="button"
-      className="cursor pointer w-fit border py-2 px-3 rounded-xl flex flex-row items-start justify-between gap-3"
-      onClick={(event) => {
-        if (isReadonly) {
-          toast.error(
-            'Viewing files in shared chats is currently not supported.',
-          );
-          return;
-        }
-
-        const rect = event.currentTarget.getBoundingClientRect();
-
-        const boundingBox = {
-          top: rect.top,
-          left: rect.left,
-          width: rect.width,
-          height: rect.height,
-        };
-
-        setArtifact((currentArtifact) => ({
-          ...currentArtifact,
-          isVisible: true,
-          boundingBox,
-        }));
-      }}
+    <div 
+      className="w-fit border py-2 px-3 rounded-xl flex flex-row items-start justify-between gap-3" 
     >
       <div className="flex flex-row gap-3 items-start">
         <div className="text-zinc-500 mt-1">
@@ -221,12 +168,12 @@ function PureDocumentToolCall({
         </div>
 
         <div className="text-left">
-          {`${getActionText(type, 'present')} ${args.title ? `"${args.title}"` : ''}`}
+          {`${getActionText(type, 'present')} ${displayTitle ? `"${displayTitle}"` : '(active document)'}`}
         </div>
       </div>
 
       <div className="animate-spin mt-1">{<LoaderIcon />}</div>
-    </button>
+    </div>
   );
 }
 

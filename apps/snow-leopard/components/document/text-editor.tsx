@@ -60,6 +60,12 @@ function PureEditor({
   const abortControllerRef = useRef<AbortController | null>(null); 
   const savePromiseRef = useRef<Promise<Partial<SaveState> | void> | null>(null);
 
+  const { suggestionLength, customInstructions } = useAiOptions();
+  const suggestionLengthRef = useRef(suggestionLength);
+  const customInstructionsRef = useRef(customInstructions);
+  useEffect(() => { suggestionLengthRef.current = suggestionLength; }, [suggestionLength]);
+  useEffect(() => { customInstructionsRef.current = customInstructions; }, [customInstructions]);
+
   useEffect(() => {
     currentDocumentIdRef.current = documentId;
   }, [documentId]);
@@ -136,9 +142,9 @@ function PureEditor({
           contextAfter,
           fullContent,
           nodeType: 'paragraph', 
-          aiOptions: { 
-            suggestionLength,
-            customInstructions,
+          aiOptions: {
+            suggestionLength: suggestionLengthRef.current,
+            customInstructions: customInstructionsRef.current,
           }
         }),
         signal: controller.signal,
@@ -449,6 +455,72 @@ function PureEditor({
     return () => window.removeEventListener('apply-document-update', handleApplyUpdate as EventListener);
   }, [documentId]);
 
+  useEffect(() => {
+    const handleCreationStreamFinished = (event: CustomEvent) => {
+      const finishedDocId = event.detail.documentId;
+      const editorView = editorRef.current;
+      const currentEditorPropId = documentId;
+
+      console.log(`[Editor] Received creation-stream-finished event. Event Doc ID: ${finishedDocId}, Editor Prop Doc ID: ${currentEditorPropId}`);
+
+      if (editorView && finishedDocId === currentEditorPropId && currentEditorPropId !== 'init') {
+        const saveState = savePluginKey.getState(editorView.state);
+        if (saveState && saveState.status !== 'saving' && saveState.status !== 'debouncing') {
+           console.log(`[Editor] Triggering initial save for newly created document ${currentEditorPropId} after stream finish.`);
+           setSaveStatus(editorView, { triggerSave: true }); 
+        } else {
+           console.log(`[Editor] Skipping initial save trigger for ${currentEditorPropId} - already saving/debouncing or state unavailable.`);
+        }
+      }
+    };
+
+    window.addEventListener('editor:creation-stream-finished', handleCreationStreamFinished as EventListener);
+    return () => window.removeEventListener('editor:creation-stream-finished', handleCreationStreamFinished as EventListener);
+  }, [documentId]);
+
+  useEffect(() => {
+    const handleForceSave = async (event: any) => {
+      const forceSaveDocId = event.detail.documentId;
+      const editorView = editorRef.current;
+      const currentEditorPropId = documentId;
+
+      if (!editorView || forceSaveDocId !== currentEditorPropId || currentEditorPropId === 'init') {
+        return;
+      }
+
+      try {
+        const content = buildContentFromDocument(editorView.state.doc);
+        
+        console.log(`[Editor] Force-saving document ${currentEditorPropId}`);
+        
+        const response = await fetch('/api/document', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: currentEditorPropId,
+            content: content,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`API error: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        setSaveStatus(editorView, { 
+          status: 'saved',
+          lastSaved: new Date(data.updatedAt || new Date().toISOString()),
+          isDirty: false
+        });
+      } catch (error) {
+        console.error(`[Editor] Force-save failed for ${currentEditorPropId}:`, error);
+      }
+    };
+
+    window.addEventListener('editor:force-save-document', handleForceSave as unknown as EventListener);
+    return () => window.removeEventListener('editor:force-save-document', handleForceSave as unknown as EventListener);
+  }, [documentId]);
+
   return (
     <>
       <div className="relative prose dark:prose-invert" ref={containerRef} />
@@ -507,10 +579,7 @@ function areEqual(prevProps: EditorProps, nextProps: EditorProps) {
     prevProps.currentVersionIndex === nextProps.currentVersionIndex &&
     prevProps.isCurrentVersion === nextProps.isCurrentVersion &&
     !(prevProps.status === 'streaming' && nextProps.status === 'streaming') &&
-    prevProps.content === nextProps.content &&
-    prevProps.initialLastSaved === nextProps.initialLastSaved &&
-    prevProps.onStatusChange === nextProps.onStatusChange &&
-    prevProps.onCreateDocumentRequest === nextProps.onCreateDocumentRequest
+    prevProps.content === nextProps.content
   );
 }
 

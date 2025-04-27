@@ -16,7 +16,8 @@ export type DataStreamDelta = {
     | 'clear'
     | 'finish'
     | 'kind'
-    | 'artifactUpdate';
+    | 'artifactUpdate'
+    | 'force-save';
   content: string;
 };
 
@@ -57,34 +58,29 @@ export function DataStreamHandler({ id }: { id: string }) {
 
         switch (delta.type) {
           case 'id':
+            console.log(`[DataStreamHandler] Received ID delta: ${delta.content}. Updating artifact state.`);
             return {
               ...draftArtifact,
-              documentId: delta.content as string,
-              status: 'streaming',
+              documentId: delta.content,
             };
 
-          case 'title':
-            return {
-              ...draftArtifact,
-              title: delta.content as string,
-              status: 'streaming',
-            };
+          case 'force-save':
+            if (draftArtifact.documentId && draftArtifact.documentId !== 'init') {
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('editor:force-save-document', {
+                  detail: { documentId: draftArtifact.documentId }
+                }));
+              }
+            }
+            return draftArtifact;
 
-          case 'kind':
-            return {
-              ...draftArtifact,
-              kind: delta.content as ArtifactKind,
-              status: 'streaming',
-            };
-
-          case 'clear':
-            return {
-              ...draftArtifact,
-              content: '',
-              status: 'streaming',
-            };
-            
           case 'finish':
+            if (draftArtifact.status === 'streaming' && draftArtifact.documentId !== 'init') {
+                console.log(`[DataStreamHandler] Dispatching creation-stream-finished for ${draftArtifact.documentId}`);
+                window.dispatchEvent(new CustomEvent('editor:creation-stream-finished', {
+                    detail: { documentId: draftArtifact.documentId }
+                }));
+            }
             return {
               ...draftArtifact,
               status: 'idle',
@@ -95,11 +91,9 @@ export function DataStreamHandler({ id }: { id: string }) {
               const updateData = JSON.parse(delta.content as string);
               console.log('[DataStreamHandler] Received artifactUpdate, dispatching to editor:', updateData);
               
-              // Verify running client-side before dispatch
               if (typeof window !== 'undefined') {
                 console.log('[DataStreamHandler] Window context confirmed. Attempting to dispatch editor:stream-data...');
                 try {
-                  // Dispatch the data directly for the editor to consume
                   window.dispatchEvent(new CustomEvent('editor:stream-data', {
                     detail: { type: 'artifactUpdate', content: delta.content }
                   }));
@@ -113,12 +107,9 @@ export function DataStreamHandler({ id }: { id: string }) {
             } catch (error) {
               console.error('[DataStreamHandler] Error parsing artifactUpdate content:', error);
             }
-            // No state change needed here, just dispatching the event
             return draftArtifact;
 
           default:
-            // Handle text-delta, code-delta etc. via artifactDefinition.onStreamPart
-            // If no handler handles it, just return current state
             return draftArtifact;
         }
       });

@@ -104,7 +104,11 @@ export async function saveMessages({ messages }: { messages: Array<typeof schema
         };
     });
 
-    await db.insert(schema.Message).values(formattedMessages);
+    if (formattedMessages.length > 0) {
+      await db.insert(schema.Message).values(formattedMessages);
+    } else {
+      console.log('[DB Query - saveMessages] No messages to save, skipping db insert');
+    }
   } catch (error) {
     console.error('Error saving messages:', error);
     throw error;

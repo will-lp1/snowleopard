@@ -23,11 +23,14 @@ import {
 } from '@/lib/utils';
 import { generateTitleFromUserMessage } from '@/app/api/chat/actions/chat';
 import { updateDocument } from '@/lib/ai/tools/update-document';
+import { createDocument } from '@/lib/ai/tools/create-document';
 import { isProductionEnvironment } from '@/lib/constants';
 import { NextResponse } from 'next/server';
 import { myProvider } from '@/lib/ai/providers';
 import { auth } from "@/lib/auth";
 import { headers } from 'next/headers';
+import { ArtifactKind } from '@/components/artifact';
+import type { Document } from '@snow-leopard/db';
 
 export const maxDuration = 60;
 
@@ -261,11 +264,23 @@ export async function POST(request: Request) {
     });
 
     let validatedActiveDocumentId: string | undefined = undefined;
+    let activeDocumentKind: ArtifactKind | undefined = undefined;
+
     if (activeDocumentId) {
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (uuidRegex.test(activeDocumentId)) {
-        validatedActiveDocumentId = activeDocumentId;
-        console.log(`[Chat API] Validated active document ID for tools: ${validatedActiveDocumentId}`);
+        try {
+          const activeDoc = await getDocumentById({ id: activeDocumentId });
+          if (activeDoc) {
+            validatedActiveDocumentId = activeDocumentId;
+            activeDocumentKind = activeDoc.kind as ArtifactKind;
+            console.log(`[Chat API] Validated active document ID: ${validatedActiveDocumentId}, Kind: ${activeDocumentKind}`);
+          } else {
+            console.warn(`[Chat API] Active document ${activeDocumentId} not found in DB.`);
+          }
+        } catch (error) {
+          console.error(`[Chat API] Error fetching active document ${activeDocumentId} for kind:`, error);
+        }
       } else {
         console.warn(`[Chat API] Invalid active document ID format, not passing to tools: ${activeDocumentId}`);
       }
@@ -274,26 +289,70 @@ export async function POST(request: Request) {
     console.log(`[Chat API POST] Calling streamText with model: ${selectedChatModel}`);
 
     return createDataStreamResponse({
-      execute: (dataStream) => {
+      execute: async (dataStream) => {
+        // --- Build tools dynamically (Re-refined) ---
+        const availableTools: any = {};
+        const activeToolsList: string[] = [];
+        const MIN_CONTENT_LENGTH_FOR_UPDATE = 5; // Threshold
+
+        // Only add tools if there IS an active document context
+        if (validatedActiveDocumentId) { 
+          let activeDoc: Document | null = null;
+          let currentKind: ArtifactKind | undefined = undefined;
+
+          // Fetch the active document within execute
+          try {
+            activeDoc = await getDocumentById({ id: validatedActiveDocumentId });
+            if (activeDoc) {
+              currentKind = activeDoc.kind as ArtifactKind;
+            } else {
+              console.warn(`[Chat API Execute] Active document ${validatedActiveDocumentId} not found when checking for tool selection.`);
+            }
+          } catch (error) {
+            console.error('[Chat API Execute] Error fetching active document for tool selection:', error);
+          }
+
+          // Now, decide which tool to offer based on content
+          if (activeDoc && currentKind) { // Ensure we found the doc and its kind
+            const hasContent = activeDoc.content && activeDoc.content.length >= MIN_CONTENT_LENGTH_FOR_UPDATE;
+
+            if (hasContent) {
+              // Document has content -> Offer ONLY updateDocument
+              availableTools.updateDocument = updateDocument({
+                session: toolSession,
+                documentId: validatedActiveDocumentId,
+              });
+              activeToolsList.push('updateDocument');
+              console.log('[Chat API] Active document has content. Offering ONLY updateDocument tool.');
+            } else {
+              // Document is empty/minimal -> Offer ONLY createDocument
+              availableTools.createDocument = createDocument({
+                session: toolSession,
+                dataStream,
+                // No documentId/Kind needed for the tool itself anymore
+              });
+              activeToolsList.push('createDocument'); 
+              console.log('[Chat API] Active document is empty/minimal. Offering ONLY createDocument tool.');
+            }
+          } else {
+             console.log(`[Chat API] Could not find active document details (${validatedActiveDocumentId}) or kind, no document tools added.`);
+          }
+
+        } else {
+          console.log('[Chat API] No active document ID, no document tools added.');
+        }
+        // --- End Build tools ---
+
         const result = streamText({
           model: myProvider.languageModel(selectedChatModel),
           system: enhancedSystemPrompt,
           messages,
           maxSteps: 5,
-          experimental_activeTools: validatedActiveDocumentId
-            ? ['updateDocument']
-            : [],
-          experimental_transform: smoothStream({ chunking: 'word' }),
+          experimental_activeTools: activeToolsList, 
+          experimental_transform: smoothStream({ chunking: 'line' }),
           experimental_generateMessageId: generateUUID,
-          tools: {
-            updateDocument: updateDocument({ 
-              session: toolSession,
-              documentId: validatedActiveDocumentId
-            }),
-          },
+          tools: availableTools, 
           onFinish: async ({ response, reasoning }) => {
-            console.log('[Chat API POST onFinish] Full response object:', JSON.stringify(response, null, 2));
-
             if (userId) {
               try {
                 const sanitizedResponseMessages = sanitizeResponseMessages({
