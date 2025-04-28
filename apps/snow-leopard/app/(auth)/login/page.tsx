@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { authClient } from '@/lib/auth-client';
 import { toast } from '@/components/toast';
@@ -10,8 +10,6 @@ import { SubmitButton } from '@/components/submit-button';
 
 export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const redirectTo = searchParams.get('redirect') || '/documents';
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccessful, setIsSuccessful] = useState(false);
   const [email, setEmail] = useState('');
@@ -24,17 +22,20 @@ export default function LoginPage() {
     await authClient.signIn.email({
       email: currentEmail,
       password,
-      callbackURL: redirectTo,
+      callbackURL: "/documents"
     }, {
       onRequest: () => {
         setIsLoading(true);
         setIsSuccessful(false);
       },
-      onSuccess: () => {
+      onSuccess: (ctx) => {
         setIsLoading(false);
         setIsSuccessful(true);
-        toast({ type: 'success', description: 'Signed in successfully! Redirecting...' });
-        router.push(redirectTo);
+        toast({
+          type: 'success',
+          description: 'Signed in successfully! Redirecting...'
+        });
+        router.refresh();
       },
       onError: (ctx) => {
         setIsLoading(false);
