@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { streamText, smoothStream } from 'ai';
+import { streamText } from 'ai';
 import { getDocumentById } from '@/lib/db/queries';
 import { myProvider } from '@/lib/ai/providers';
 import { auth } from "@/lib/auth";
@@ -161,7 +161,6 @@ async function streamInlineSuggestion({
   const { fullStream } = streamText({
     model: myProvider.languageModel('artifact-model'),
     system: getSystemPrompt(aiOptions?.customInstructions),
-    experimental_transform: smoothStream({ chunking: 'word' }),
     prompt,
     temperature: 0.4, // Fixed temperature for text
     maxTokens: maxTokens,
