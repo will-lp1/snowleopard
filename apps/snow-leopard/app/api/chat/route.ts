@@ -1,7 +1,6 @@
 import {
   type Message,
   createDataStreamResponse,
-  smoothStream,
   streamText,
 } from 'ai';
 import { systemPrompt } from '@/lib/ai/prompts';
@@ -348,8 +347,7 @@ export async function POST(request: Request) {
           system: enhancedSystemPrompt,
           messages,
           maxSteps: 5,
-          experimental_activeTools: activeToolsList, 
-          experimental_transform: smoothStream({ chunking: 'line' }),
+          experimental_activeTools: activeToolsList,
           experimental_generateMessageId: generateUUID,
           tools: availableTools, 
           onFinish: async ({ response, reasoning }) => {

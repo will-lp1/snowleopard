@@ -32,6 +32,8 @@ import { placeholderPlugin } from '@/lib/editor/placeholder-plugin';
 
 import { savePlugin, savePluginKey, setSaveStatus, type SaveState, type SaveStatus } from '@/lib/editor/save-plugin';
 
+import { synonymsPlugin } from '@/lib/editor/synonym-plugin';
+
 type EditorProps = {
   content: string;
   status: 'streaming' | 'idle';
@@ -228,6 +230,7 @@ function PureEditor({
           ],
         }),
         inlineSuggestionPlugin({ requestSuggestion: requestInlineSuggestionCallback }),
+        synonymsPlugin(),
         savePlugin({
           saveFunction: performSave,
           initialLastSaved: initialLastSaved,
@@ -567,6 +570,50 @@ function PureEditor({
 
         div.ProseMirror {
           position: relative;
+        }
+
+        .synonym-word {
+          /* Cursor is handled by the browser default for text */
+          position: relative; /* Needed for absolute positioning of pseudo-element */
+          display: inline-block; /* Ensure span takes space for overlay */
+        }
+        .synonym-overlay-menu {
+          /* Dark background like the image */
+          background: #282c34; /* Dark grey/black */
+          color: #fff; /* White text */
+          border: none; /* Remove default border */
+          padding: 4px;
+          border-radius: 4px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+          display: flex; /* Arrange buttons horizontally */
+          gap: 4px; /* Spacing between buttons */
+        }
+        .synonym-overlay-menu .synonym-option {
+          background: none;
+          border: none;
+          padding: 2px 6px; /* Adjust padding */
+          margin: 0; /* Remove default margin */
+          cursor: pointer;
+          font: inherit;
+          color: inherit; /* Inherit white text color */
+          border-radius: 3px; /* Slightly rounded corners */
+        }
+        .synonym-overlay-menu .synonym-option:hover {
+          /* Slightly lighter background on hover */
+          background: rgba(255, 255, 255, 0.1);
+        }
+        /* Loading state overlay */
+        .synonym-loading::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background-color: rgba(100, 100, 100, 0.2); /* Semi-transparent gray overlay */
+          border-radius: 2px; /* Optional: slightly rounded corners */
+          pointer-events: none; /* Allow clicks/hovers to pass through */
+          z-index: 1; /* Ensure it's above the text but below potential popups */
         }
       `}</style>
     </>
