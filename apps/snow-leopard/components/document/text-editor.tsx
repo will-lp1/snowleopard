@@ -33,6 +33,34 @@ import { placeholderPlugin } from '@/lib/editor/placeholder-plugin';
 import { savePlugin, savePluginKey, setSaveStatus, type SaveState, type SaveStatus } from '@/lib/editor/save-plugin';
 
 import { synonymsPlugin } from '@/lib/editor/synonym-plugin';
+import { EditorToolbar } from '@/components/editor-toolbar';
+
+const { nodes, marks } = documentSchema;
+
+function isMarkActive(state: EditorState, type: any): boolean {
+  const { from, $from, to, empty } = state.selection;
+  if (empty) {
+    return !!type.isInSet(state.storedMarks || $from.marks());
+  } else {
+    return state.doc.rangeHasMark(from, to, type);
+  }
+}
+
+function isBlockActive(state: EditorState, type: any, attrs: Record<string, any> = {}): boolean {
+  const { $from } = state.selection;
+  const node = $from.node($from.depth);
+  return node?.hasMarkup(type, attrs);
+}
+
+function isListActive(state: EditorState, type: any): boolean {
+    const { $from } = state.selection;
+    for (let d = $from.depth; d > 0; d--) {
+        if ($from.node(d).type === type) {
+            return true;
+        }
+    }
+    return false;
+}
 
 type EditorProps = {
   content: string;
@@ -58,6 +86,7 @@ function PureEditor({
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<EditorView | null>(null);
   const currentDocumentIdRef = useRef(documentId);
+  const [activeFormats, setActiveFormats] = useState<Record<string, boolean>>({});
   
   const abortControllerRef = useRef<AbortController | null>(null); 
   const savePromiseRef = useRef<Promise<Partial<SaveState> | void> | null>(null);
@@ -239,13 +268,13 @@ function PureEditor({
         })
       ];
       
-      const state = EditorState.create({
+      const initialEditorState = EditorState.create({
         doc: buildDocumentFromContent(content),
         plugins: plugins,
       });
       
       view = new EditorView(containerRef.current, {
-        state,
+        state: initialEditorState,
         handleDOMEvents: {
           focus: (view) => {
             console.log('[Editor] Focus event');
@@ -267,6 +296,16 @@ function PureEditor({
           const newState = editorView.state.apply(transaction);
           
           editorView.updateState(newState);
+          
+          setActiveFormats({
+            h1: isBlockActive(newState, nodes.heading, { level: 1 }),
+            h2: isBlockActive(newState, nodes.heading, { level: 2 }),
+            p: isBlockActive(newState, nodes.paragraph),
+            bulletList: isListActive(newState, nodes.bullet_list),
+            orderedList: isListActive(newState, nodes.ordered_list),
+            bold: isMarkActive(newState, marks.strong),
+            italic: isMarkActive(newState, marks.em),
+          });
           
           const newSaveState = savePluginKey.getState(newState);
 
@@ -293,6 +332,16 @@ function PureEditor({
       if (onStatusChange && initialSaveState) {
          onStatusChange(initialSaveState);
       }
+
+      setActiveFormats({
+        h1: isBlockActive(initialEditorState, nodes.heading, { level: 1 }),
+        h2: isBlockActive(initialEditorState, nodes.heading, { level: 2 }),
+        p: isBlockActive(initialEditorState, nodes.paragraph),
+        bulletList: isListActive(initialEditorState, nodes.bullet_list),
+        orderedList: isListActive(initialEditorState, nodes.ordered_list),
+        bold: isMarkActive(initialEditorState, marks.strong),
+        italic: isMarkActive(initialEditorState, marks.em),
+      });
     } else if (editorRef.current) {
        const currentView = editorRef.current;
        const currentDocId = currentDocumentIdRef.current;
@@ -526,7 +575,8 @@ function PureEditor({
 
   return (
     <>
-      <div className="relative prose dark:prose-invert" ref={containerRef} />
+      {isCurrentVersion && documentId !== 'init' && <EditorToolbar activeFormats={activeFormats} />}
+      <div className="prose dark:prose-invert pt-2" ref={containerRef} />
       <style jsx global>{`
         .suggestion-decoration-inline {
           display: contents;

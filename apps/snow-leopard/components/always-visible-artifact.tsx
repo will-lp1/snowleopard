@@ -12,7 +12,6 @@ import { fetcher, generateUUID } from '@/lib/utils';
 import { useArtifact } from '@/hooks/use-artifact';
 import { ArtifactActions } from '@/components/artifact-actions';
 import { VersionHeader } from '@/components/document/version-header';
-import { Toolbar } from '@/components/toolbar';
 import { Editor } from '@/components/document/text-editor';
 import { useDocumentUtils } from '@/hooks/use-document-utils';
 import useSWR from 'swr';
@@ -92,7 +91,6 @@ export function AlwaysVisibleArtifact({
   const [mode, setMode] = useState<'edit' | 'diff'>('edit');
   const [document, setDocument] = useState<Document | null>(null);
   const [currentVersionIndex, setCurrentVersionIndex] = useState(-1);
-  const [isToolbarVisible, setIsToolbarVisible] = useState(false);
   const lastDocumentIdRef = useRef<string | null>(null);
   
   useEffect(() => {
@@ -626,20 +624,6 @@ export function AlwaysVisibleArtifact({
                 onCreateDocumentRequest={handleCreateDocumentFromEditor}
               />
             </div>
-            
-            <AnimatePresence>
-              {artifact.documentId !== 'init' && isCurrentVersion && (
-                <Toolbar
-                  isToolbarVisible={isToolbarVisible}
-                  setIsToolbarVisible={setIsToolbarVisible}
-                  append={() => Promise.resolve('')}
-                  status="ready"
-                  stop={() => {}}
-                  setMessages={() => {}}
-                  artifactKind={artifact.kind || 'text'}
-                />
-              )}
-            </AnimatePresence>
           </>
         )}
       </div>
