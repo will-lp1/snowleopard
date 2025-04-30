@@ -28,11 +28,11 @@ export function EditorToolbar({ activeFormats }: EditorToolbarProps) {
   const buttonClass = (format: string) =>
     cn(
       'h-8 w-8 p-0',
-      activeFormats[format] && 'bg-muted text-foreground'
+      activeFormats[format] && 'bg-accent text-accent-foreground'
     );
 
   return (
-    <div className="sticky top-0 z-10 flex h-10 items-center gap-1 border-b bg-background px-3 backdrop-blur-sm">
+    <div className="sticky top-0 z-10 flex h-10 items-center gap-1 bg-background/90 px-3 backdrop-blur-sm">
       <Button
         variant="ghost"
         className={buttonClass('h1')}
