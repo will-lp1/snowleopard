@@ -1,5 +1,5 @@
 'use client';
-import { ChevronUp, Loader2, ChevronRight } from 'lucide-react';
+import { ChevronUp, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
@@ -8,6 +8,12 @@ import { useTheme } from 'next-themes';
 import { toast } from '@/components/toast';
 import type { ClientUser as User } from '@/lib/auth-client';
 import { cn } from '@/lib/utils';
+import {
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from '@/components/ui/sidebar';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 type Subscription = {
   id: string;
@@ -45,11 +51,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from '@/components/ui/sidebar';
 
 export function SidebarUserNav({ user }: { user: User | null }) {
   const { setTheme, theme } = useTheme();
@@ -188,32 +189,27 @@ export function SidebarUserNav({ user }: { user: User | null }) {
                 <DropdownMenuLabel className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
                   Billing
                 </DropdownMenuLabel>
-                <div 
-                  className={cn(
-                     "flex items-center justify-between px-2 py-1.5 text-sm",
-                     canManage && "cursor-pointer hover:bg-muted rounded-sm mx-1 px-1",
-                     (isBillingLoading || isSubscriptionLoading) && "opacity-60 cursor-default pointer-events-none"
-                  )}
-                  onClick={canManage && !isBillingLoading && !isSubscriptionLoading ? handleManageBilling : undefined}
-                  role={canManage ? "button" : undefined}
-                  tabIndex={canManage ? 0 : -1}
-                  aria-disabled={isBillingLoading || isSubscriptionLoading || !canManage}
-                  onKeyDown={(e) => { 
-                     if (canManage && (e.key === 'Enter' || e.key === ' ')) {
-                       handleManageBilling();
-                     }
-                  }}
-                >
-                  <div className="flex flex-col">
-                    <span className="font-medium capitalize text-foreground/90">{planName}</span>
-                    <span className="text-muted-foreground text-xs">{statusText}</span>
+                <div className="flex items-center justify-between px-2 py-1.5 text-sm">
+                  <div className="flex items-center space-x-2">
+                    <span className="h-2 w-2 bg-green-500 rounded-full inline-block" />
+                    <span className="font-medium capitalize text-foreground/90">Active</span>
                   </div>
-                  {canManage && !isBillingLoading && !isSubscriptionLoading && (
-                    <ChevronRight className="h-4 w-4 text-muted-foreground ml-2" />
-                  )}
-                  {isBillingLoading && (
-                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground ml-2" />
-                  )}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={handleManageBilling}
+                        disabled={isBillingLoading}
+                        className="ml-2 text-sm font-medium text-blue-600 hover:underline disabled:opacity-50"
+                      >
+                        {isBillingLoading ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                        ) : (
+                          "Manage"
+                        )}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">Go to billing portal</TooltipContent>
+                  </Tooltip>
                 </div>
                 <DropdownMenuSeparator />
               </>
