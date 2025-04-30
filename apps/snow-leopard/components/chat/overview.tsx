@@ -27,6 +27,8 @@ export const Overview = () => {
           <p>Press <kbd className="px-1.5 py-0.5 text-xs font-semibold text-foreground bg-background border border-border rounded-md">TAB</kbd> to generate a suggestion.</p>
           <p>Highlight text and press <kbd className="px-1.5 py-0.5 text-xs font-semibold text-foreground bg-background border border-border rounded-md">⌘/Ctrl + K</kbd> to edit.</p>
           <p>Send a message in the chat input below.</p>
+          <p>Hold <kbd className="px-1.5 py-0.5 text-xs font-semibold text-foreground bg-background border border-border rounded-md">Shift</kbd> and hover over text for synonyms.</p>
+          <p>Configure AI behavior in the settings menu (top-right).</p>
         </div>
 
           <Button
