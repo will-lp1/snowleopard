@@ -102,12 +102,13 @@ export function AlwaysVisibleArtifact({
 
   useEffect(() => {
     startTransition(() => {
-        setDocuments(initialDocuments);
-        const initialIndex = initialDocuments.length > 0 ? initialDocuments.length - 1 : -1;
+        const docs = initialDocuments || [];
+        setDocuments(docs);
+        const initialIndex = docs.length > 0 ? docs.length - 1 : -1;
         setCurrentVersionIndex(initialIndex);
         setMode('edit');
 
-        const docToUse = initialDocuments[initialIndex];
+        const docToUse = docs[initialIndex];
 
         if (docToUse) {
             const artifactData: SettableArtifact = {
@@ -118,23 +119,19 @@ export function AlwaysVisibleArtifact({
                 kind: (docToUse.kind as ArtifactKind) || 'text',
                 status: 'idle'
             };
-            setArtifact(artifactData as any);
-            updateDocument(artifactData.documentId, artifactData.title, artifactData.content, artifactData.kind);
-            setNewTitle(artifactData.title);
-        } else if (initialDocumentId === 'init') {
+            if (artifact.documentId === docToUse.id) {
+                 setArtifact(prev => ({ 
+                     ...prev, 
+                     ...artifactData, 
+                     status: 'idle'
+                 })); 
+                 updateDocument(artifactData.documentId, artifactData.title, artifactData.content, artifactData.kind);
+                 setNewTitle(artifactData.title);
+            } else {
+                console.warn(`[AlwaysVisibleArtifact] Discarding state update for ${docToUse.id} because current artifact ID is ${artifact.documentId}`);
+            }
+        } else if (initialDocumentId === 'init' || showCreateDocumentForId) {
             const initData: SettableArtifact = {
-                ...defaultArtifactProps,
-                documentId: 'init',
-                title: 'Document',
-                content: '',
-                kind: 'text' as ArtifactKind,
-                status: 'idle'
-            };
-            setArtifact(initData as any);
-            updateDocument(initData.documentId, initData.title, initData.content, initData.kind);
-            setNewTitle(initData.title);
-        } else if (showCreateDocumentForId) {
-             const initData: SettableArtifact = {
                 ...defaultArtifactProps,
                 documentId: 'init',
                 title: 'Document',
@@ -148,7 +145,7 @@ export function AlwaysVisibleArtifact({
         }
     });
 
-  }, [initialDocumentId, initialDocuments, setArtifact, updateDocument, showCreateDocumentForId, startTransition]);
+  }, [initialDocumentId, initialDocuments, setArtifact, updateDocument, showCreateDocumentForId, startTransition, artifact.documentId]);
 
   useEffect(() => {
     const handleDocumentRenamed = (event: CustomEvent) => {
