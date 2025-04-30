@@ -105,7 +105,9 @@ function PureArtifactActions({
         </div>
       )}
 
-      {artifactDefinition.actions.map((action) => (
+      {artifactDefinition.actions
+        .filter((action) => action.description !== 'View changes')
+        .map((action) => (
         <Tooltip key={action.description}>
           <TooltipTrigger asChild>
             <Button
