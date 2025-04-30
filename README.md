@@ -1,9 +1,9 @@
-# ❄️ Snow Leopard - AI-Powered Writing Assistant
+# Snow Leopard - AI-Powered Writing Assistant
 
-## 🎯 What is Snow Leopard?
+## What is Snow Leopard?
 Snow Leopard is an intelligent writing environment designed to enhance your writing process with AI capabilities. It provides a seamless interface for document creation, editing, and collaboration, augmented by AI suggestions, content generation, and contextual chat.
 
-## ✨ Why Snow Leopard?
+## Why Snow Leopard?
 Modern writing tools often lack deep AI integration or are closed-source. Snow Leopard aims to provide:
 
 ✅ **Open-Source & Extensible** – Transparent development and easy integration.
@@ -16,7 +16,7 @@ Modern writing tools often lack deep AI integration or are closed-source. Snow L
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 *   **Framework:** Next.js (App Router)
 *   **Language:** TypeScript
 *   **UI:** React, TailwindCSS, Shadcn UI
@@ -27,7 +27,7 @@ Modern writing tools often lack deep AI integration or are closed-source. Snow L
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 Make sure you have the following installed:
@@ -135,7 +135,7 @@ GROQ_API_KEY="" # Get your key at https://console.groq.com/keys
 
 ---
 
-### 🗄️ Database Management (Drizzle ORM)
+### Database Management (Drizzle ORM)
 
 *   **Location:** Schema (`packages/db/src/schema.ts`), Client (`src/index.ts`), and Migrations (`migrations/`) are in `packages/db`.
 *   **Commands (Run from Root):**
@@ -148,7 +148,7 @@ GROQ_API_KEY="" # Get your key at https://console.groq.com/keys
 
 ---
 
-### 🔐 Authentication (Better Auth)
+### Authentication (Better Auth)
 
 *   **Configuration:** Set `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` in `apps/snow-leopard/.env`.
 *   **Adapter:** Uses the Drizzle adapter, configured in `apps/snow-leopard/lib/auth.ts` (imports `db` from `@snow-leopard/db`).
@@ -156,7 +156,7 @@ GROQ_API_KEY="" # Get your key at https://console.groq.com/keys
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! Please follow these steps:
 
@@ -172,6 +172,6 @@ For bug reports and feature requests, please use GitHub Issues or the in-app fee
 
 ---
 
-## 📜 License
+## License
 
 This project is licensed under the **Apache License 2.0**. See the [LICENSE](LICENSE) file for details.
