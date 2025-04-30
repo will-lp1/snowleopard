@@ -118,17 +118,9 @@ export function AlwaysVisibleArtifact({
                 kind: (docToUse.kind as ArtifactKind) || 'text',
                 status: 'idle'
             };
-            if (artifact.documentId === docToUse.id) {
-                 setArtifact(prev => ({ 
-                     ...prev, 
-                     ...artifactData, 
-                     status: 'idle'
-                 })); 
-                 updateDocument(artifactData.documentId, artifactData.title, artifactData.content, artifactData.kind);
-                 setNewTitle(artifactData.title);
-            } else {
-                console.warn(`[AlwaysVisibleArtifact] Discarding state update for ${docToUse.id} because current artifact ID is ${artifact.documentId}`);
-            }
+            setArtifact(artifactData as any);
+            updateDocument(artifactData.documentId, artifactData.title, artifactData.content, artifactData.kind);
+            setNewTitle(artifactData.title);
         } else if (initialDocumentId === 'init' || showCreateDocumentForId) {
             const initData: SettableArtifact = {
                 ...defaultArtifactProps,
