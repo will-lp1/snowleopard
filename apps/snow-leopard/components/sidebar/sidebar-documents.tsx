@@ -388,6 +388,8 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
   };
   
   const handleDocumentSelect = useCallback(async (documentId: string) => {
+    setActiveDocumentId(documentId); 
+    
     try {
       if (documentId === 'init' || !documentId) {
         console.error('[SidebarDocuments] Invalid document ID:', documentId);
@@ -428,7 +430,7 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
       toast.error('Failed to load document');
       setArtifact((curr: any) => ({ ...curr, status: 'idle' }));
     }
-  }, [documents, setArtifact, router, setOpenMobile, activeDocumentId]);
+  }, [documents, setArtifact, router, setOpenMobile, activeDocumentId]); 
 
   const filterDocuments = (docs: Document[]) => {
     if (!searchTerm.trim()) return docs;

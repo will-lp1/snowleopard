@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo, Suspense, useTransition } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { Loader2, FileText, PlusIcon } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
@@ -10,7 +11,6 @@ import { generateUUID } from '@/lib/utils';
 import { useArtifact } from '@/hooks/use-artifact';
 import { ArtifactActions } from '@/components/artifact-actions';
 import { VersionHeader } from '@/components/document/version-header';
-import { Editor } from '@/components/document/text-editor';
 import { useDocumentUtils } from '@/hooks/use-document-utils';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -21,6 +21,21 @@ import { AiSettingsMenu } from './ai-settings-menu';
 import { SidebarToggle } from '@/components/sidebar/sidebar-toggle';
 import type { SaveState } from '@/lib/editor/save-plugin';
 import type { User } from '@/lib/auth';
+
+const Editor = dynamic(() => import('@/components/document/text-editor').then(mod => mod.Editor), {
+  ssr: false, 
+  loading: () => <EditorSkeleton />, 
+});
+
+const EditorSkeleton = () => (
+  <div className="space-y-4 animate-pulse">
+    <div className="h-6 bg-muted rounded w-3/4"></div>
+    <div className="h-4 bg-muted rounded w-full"></div>
+    <div className="h-4 bg-muted rounded w-5/6"></div>
+    <div className="h-4 bg-muted rounded w-full"></div>
+    <div className="h-4 bg-muted rounded w-1/2"></div>
+  </div>
+);
 
 type AlwaysVisibleArtifactProps = {
   chatId: string;
@@ -62,6 +77,7 @@ export function AlwaysVisibleArtifact({
     createDocument
   } = useDocumentUtils();
 
+  const [isPending, startTransition] = useTransition();
   const [editingTitle, setEditingTitle] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -85,56 +101,54 @@ export function AlwaysVisibleArtifact({
   }, [documents]);
 
   useEffect(() => {
-    console.log('[AVA Effect] Syncing props with state/context. InitialDocId:', initialDocumentId, 'InitialDocs Count:', initialDocuments.length);
-    setDocuments(initialDocuments);
-    const initialIndex = initialDocuments.length > 0 ? initialDocuments.length - 1 : -1;
-    setCurrentVersionIndex(initialIndex);
-    setMode('edit');
+    startTransition(() => {
+        setDocuments(initialDocuments);
+        const initialIndex = initialDocuments.length > 0 ? initialDocuments.length - 1 : -1;
+        setCurrentVersionIndex(initialIndex);
+        setMode('edit');
 
-    const docToUse = initialDocuments[initialIndex];
+        const docToUse = initialDocuments[initialIndex];
 
-    if (docToUse) {
-        console.log('[AVA Effect] Setting artifact/context from initial props:', docToUse.id);
-        const artifactData: SettableArtifact = {
-            ...defaultArtifactProps,
-            documentId: docToUse.id,
-            title: docToUse.title,
-            content: docToUse.content ?? '',
-            kind: (docToUse.kind as ArtifactKind) || 'text',
-            status: 'idle'
-        };
-        setArtifact(artifactData as any);
-        updateDocument(artifactData.documentId, artifactData.title, artifactData.content, artifactData.kind);
-        setNewTitle(artifactData.title);
-    } else if (initialDocumentId === 'init') {
-        console.log('[AVA Effect] Setting artifact/context to init state.');
-        const initData: SettableArtifact = {
-            ...defaultArtifactProps,
-            documentId: 'init',
-            title: 'Document',
-            content: '',
-            kind: 'text' as ArtifactKind,
-            status: 'idle'
-        };
-        setArtifact(initData as any);
-        updateDocument(initData.documentId, initData.title, initData.content, initData.kind);
-        setNewTitle(initData.title);
-    } else if (showCreateDocumentForId) {
-        console.log('[AVA Effect] Handling showCreateDocumentForId');
-         const initData: SettableArtifact = {
-            ...defaultArtifactProps,
-            documentId: 'init',
-            title: 'Document',
-            content: '',
-            kind: 'text' as ArtifactKind,
-            status: 'idle'
-        };
-        setArtifact(initData as any);
-        updateDocument(initData.documentId, initData.title, initData.content, initData.kind);
-        setNewTitle(initData.title);
-    }
+        if (docToUse) {
+            const artifactData: SettableArtifact = {
+                ...defaultArtifactProps,
+                documentId: docToUse.id,
+                title: docToUse.title,
+                content: docToUse.content ?? '',
+                kind: (docToUse.kind as ArtifactKind) || 'text',
+                status: 'idle'
+            };
+            setArtifact(artifactData as any);
+            updateDocument(artifactData.documentId, artifactData.title, artifactData.content, artifactData.kind);
+            setNewTitle(artifactData.title);
+        } else if (initialDocumentId === 'init') {
+            const initData: SettableArtifact = {
+                ...defaultArtifactProps,
+                documentId: 'init',
+                title: 'Document',
+                content: '',
+                kind: 'text' as ArtifactKind,
+                status: 'idle'
+            };
+            setArtifact(initData as any);
+            updateDocument(initData.documentId, initData.title, initData.content, initData.kind);
+            setNewTitle(initData.title);
+        } else if (showCreateDocumentForId) {
+             const initData: SettableArtifact = {
+                ...defaultArtifactProps,
+                documentId: 'init',
+                title: 'Document',
+                content: '',
+                kind: 'text' as ArtifactKind,
+                status: 'idle'
+            };
+            setArtifact(initData as any);
+            updateDocument(initData.documentId, initData.title, initData.content, initData.kind);
+            setNewTitle(initData.title);
+        }
+    });
 
-  }, [initialDocumentId, initialDocuments, setArtifact, updateDocument, showCreateDocumentForId]);
+  }, [initialDocumentId, initialDocuments, setArtifact, updateDocument, showCreateDocumentForId, startTransition]);
 
   useEffect(() => {
     const handleDocumentRenamed = (event: CustomEvent) => {
@@ -148,7 +162,6 @@ export function AlwaysVisibleArtifact({
       );
 
       if (renamedDocId === artifact.documentId) {
-        console.log('[AVA] Updating document title from rename event:', updatedTitle);
         setArtifact(current => ({
           ...current,
           title: updatedTitle
@@ -203,28 +216,30 @@ export function AlwaysVisibleArtifact({
   const handleVersionChange = useCallback((type: 'next' | 'prev' | 'toggle' | 'latest') => {
     if (documents.length <= 1 && (type === 'next' || type === 'prev' || type === 'toggle')) return;
 
-    if (type === 'latest') {
-      setCurrentVersionIndex(documents.length - 1);
-      setMode('edit');
-      return;
-    }
+    startTransition(() => {
+        if (type === 'latest') {
+            setCurrentVersionIndex(documents.length - 1);
+            setMode('edit');
+            return;
+        }
 
-    if (type === 'toggle') {
-      const nextMode = mode === 'edit' ? 'diff' : 'edit';
-      setMode(nextMode);
-      if (nextMode === 'edit') {
-          setCurrentVersionIndex(documents.length - 1);
-      }
-      return;
-    }
+        if (type === 'toggle') {
+            const nextMode = mode === 'edit' ? 'diff' : 'edit';
+            setMode(nextMode);
+            if (nextMode === 'edit') {
+                setCurrentVersionIndex(documents.length - 1);
+            }
+            return;
+        }
 
-    setMode('diff');
-    if (type === 'prev') {
-      setCurrentVersionIndex((index) => Math.max(0, index - 1));
-    } else if (type === 'next') {
-      setCurrentVersionIndex((index) => Math.min(documents.length - 1, index + 1));
-    }
-  }, [documents, mode]);
+        setMode('diff');
+        if (type === 'prev') {
+            setCurrentVersionIndex((index) => Math.max(0, index - 1));
+        } else if (type === 'next') {
+            setCurrentVersionIndex((index) => Math.min(documents.length - 1, index + 1));
+        }
+    });
+  }, [documents, mode, startTransition]);
 
   const getContentForVersion = useCallback((index: number): string => {
     if (!documents || index < 0 || index >= documents.length) return '';
@@ -250,7 +265,6 @@ export function AlwaysVisibleArtifact({
 
   const handleCreateDocumentFromEditor = useCallback(async (initialContent: string) => {
       if (isCreatingDocument || initialDocumentId !== 'init') return;
-      console.log('[AVA] Creating new document from editor input...');
       const newDocId = generateUUID();
       try {
           await createDocument({
@@ -390,18 +404,24 @@ export function AlwaysVisibleArtifact({
         </AnimatePresence>
 
         <div className="px-8 py-6 mx-auto max-w-3xl">
-             <Editor
-                key={editorDocumentId}
-                content={editorContent}
-                status={'idle'}
-                isCurrentVersion={isCurrentVersion}
-                currentVersionIndex={currentVersionIndex}
-                documentId={editorDocumentId}
-                initialLastSaved={latestDocument ? new Date(latestDocument.updatedAt) : null}
-                onStatusChange={(newSaveState: SaveState) => {
-                }}
-                onCreateDocumentRequest={handleCreateDocumentFromEditor}
-              />
+             {isPending ? (
+                 <EditorSkeleton />
+             ) : (
+                 <Suspense fallback={<EditorSkeleton />}>
+                     <Editor
+                        key={editorDocumentId}
+                        content={editorContent}
+                        status={'idle'}
+                        isCurrentVersion={isCurrentVersion}
+                        currentVersionIndex={currentVersionIndex}
+                        documentId={editorDocumentId}
+                        initialLastSaved={latestDocument ? new Date(latestDocument.updatedAt) : null}
+                        onStatusChange={(newSaveState: SaveState) => {
+                        }}
+                        onCreateDocumentRequest={handleCreateDocumentFromEditor}
+                      />
+                </Suspense>
+             )}
         </div>
       </div>
     </div>
