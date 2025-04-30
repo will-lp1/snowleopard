@@ -28,27 +28,7 @@ export const VersionHeader = ({
   const { mutate } = useSWRConfig();
   const [isMutating, setIsMutating] = useState(false);
   
-  if (!documents || documents.length === 0) return null;
-
-  const formatVersionLabel = (date: Date) => {
-    if (isToday(date)) return "Today";
-    if (isYesterday(date)) return "Yesterday";
-    
-    const days = differenceInDays(new Date(), date);
-    if (days < 7) return format(date, 'EEE');
-    if (days < 60) return format(date, 'MMM d');
-    return format(date, 'MMM yyyy');
-  };
-  
-  const formatVersionTime = (date: Date) => {
-    return format(date, 'h:mm a');
-  };
-
-  // Use currentVersionIndex directly instead of activeIndex
-  const currentDoc = documents[currentVersionIndex];
-
   const handleRestoreVersion = useCallback(async () => {
-    // Check against currentVersionIndex
     if (!documents || currentVersionIndex < 0 || currentVersionIndex >= documents.length) {
       toast.error('Invalid version selected');
       return;
@@ -103,6 +83,25 @@ export const VersionHeader = ({
       setIsMutating(false);
     }
   }, [documents, currentVersionIndex, artifact.documentId, setArtifact, handleVersionChange, mutate]);
+  
+  if (!documents || documents.length === 0) return null;
+
+  const formatVersionLabel = (date: Date) => {
+    if (isToday(date)) return "Today";
+    if (isYesterday(date)) return "Yesterday";
+    
+    const days = differenceInDays(new Date(), date);
+    if (days < 7) return format(date, 'EEE');
+    if (days < 60) return format(date, 'MMM d');
+    return format(date, 'MMM yyyy');
+  };
+  
+  const formatVersionTime = (date: Date) => {
+    return format(date, 'h:mm a');
+  };
+
+  // Use currentVersionIndex directly instead of activeIndex
+  const currentDoc = documents[currentVersionIndex];
 
   if (!currentDoc) return null; // Handle case where currentDoc might be undefined
 
