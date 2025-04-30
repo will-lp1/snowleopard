@@ -1,9 +1,10 @@
 import { notFound } from 'next/navigation';
 import { getUser } from '@/app/(auth)/auth';
-import { getDocumentById } from '@/lib/db/queries';
+import { getDocumentsById } from '@/lib/db/queries';
 import { AlwaysVisibleArtifact } from '@/components/always-visible-artifact';
 import { checkSubscriptionStatus } from '@/lib/subscription';
 import { Paywall } from '@/components/paywall'; 
+import type { Document } from '@snow-leopard/db';
 
 export const dynamic = 'auto';
 export const dynamicParams = true;
@@ -13,45 +14,54 @@ export default async function DocumentPage(props: { params: Promise<{ id: string
   try {
     const documentId = params.id;
 
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(documentId)) {
+      console.warn(`[DocumentPage] Invalid document ID format: ${documentId}`);
+      return notFound(); 
+    }
+
     const { hasActiveSubscription } = await checkSubscriptionStatus();
     
     if (!hasActiveSubscription) {
       return <Paywall isOpen={true} required={true} />;
     }
 
-    const [document, user] = await Promise.all([
-      getDocumentById({ id: documentId }),
+    const [documentsResult, user] = await Promise.all([
+      getDocumentsById({ ids: [documentId], userId: 'placeholder' }),
       getUser(),
     ]);
 
     if (!user) {
-      console.warn(`[documents/[id]/page.tsx] User ${documentId}: Active subscription status but no logged-in user found by getUser(). Redirecting.`);
-      return notFound(); // Or redirect('/login')
+      console.warn(`[DocumentPage] User not found after subscription check. Redirecting.`);
+      return notFound(); 
     }
 
-    if (!document || user.id !== document.userId) {
-      if (!document) { 
-        return (
-          <AlwaysVisibleArtifact 
-            chatId="placeholder-for-artifact"
-            initialDocumentId="init"
-            showCreateDocumentForId={documentId}
-          />
-        );
-      } else {
-        return notFound();
-      }
-    }
+    const documents: Document[] = await getDocumentsById({ ids: [documentId], userId: user.id });
 
+    if (!documents || documents.length === 0) {
+      console.log(`[DocumentPage] Document ${documentId} not found for user ${user.id}. Showing create prompt.`);
+      return (
+        <AlwaysVisibleArtifact 
+          chatId="placeholder-for-artifact"
+          initialDocumentId="init"
+          initialDocuments={[]}
+          showCreateDocumentForId={documentId}
+          user={user}
+        />
+      );
+    }
+    
     return (
       <AlwaysVisibleArtifact 
         chatId="placeholder-for-artifact"
         initialDocumentId={documentId}
+        initialDocuments={documents}
+        user={user}
       />
     );
 
   } catch (error) {
-    console.error(`Page error for document ${params.id}:`, error);
+    console.error(`[DocumentPage] Page error for document ${params.id}:`, error);
     return notFound();
   }
 } 
