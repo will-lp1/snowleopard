@@ -1,15 +1,13 @@
 'use client';
 
-import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from 'framer-motion';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSWRConfig } from 'swr';
-import { RotateCcw, Clock, Calendar, Loader2 } from 'lucide-react';
+import { RotateCcw, Clock, Loader2 } from 'lucide-react';
 import { format, formatDistance, isToday, isYesterday, differenceInDays } from 'date-fns';
 import { toast } from 'sonner';
 
 import type { Document } from '@snow-leopard/db';
 import { getDocumentTimestampByIndex } from '@/lib/utils';
-import { cn } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
 import { useArtifact } from '@/hooks/use-artifact';
@@ -29,84 +27,9 @@ export const VersionHeader = ({
   const { artifact, setArtifact } = useArtifact();
   const { mutate } = useSWRConfig();
   const [isMutating, setIsMutating] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(currentVersionIndex);
-  const trackRef = useRef<HTMLDivElement>(null);
-  const dragging = useRef<boolean>(false);
-  const [hasPlayed, setHasPlayed] = useState(false);
-  
-  const pulseTimeline = useRef<HTMLDivElement>(null);
-  const [pulseTick, setPulseTick] = useState<number | null>(null);
-  
-  const x = useMotionValue(0);
-  const springX = useSpring(x, { damping: 50, stiffness: 400 });
-  
-  const handleCommitVersion = useCallback(() => {
-    if (activeIndex !== currentVersionIndex) {
-      if (activeIndex < currentVersionIndex) {
-        for (let i = 0; i < currentVersionIndex - activeIndex; i++) {
-          handleVersionChange('prev');
-        }
-      } else if (activeIndex > currentVersionIndex) {
-        for (let i = 0; i < activeIndex - currentVersionIndex; i++) {
-          handleVersionChange('next');
-        }
-      }
-    }
-  }, [activeIndex, currentVersionIndex, handleVersionChange]);
-  
-  useEffect(() => {
-    if (!documents || documents.length === 0) return;
-    setActiveIndex(currentVersionIndex);
-    
-    if (trackRef.current) {
-      const trackWidth = trackRef.current.offsetWidth;
-      const segmentWidth = trackWidth / Math.max(1, documents.length - 1);
-      const newX = (documents.length - 1 - currentVersionIndex) * segmentWidth;
-      x.set(newX);
-    }
-  }, [documents, currentVersionIndex, x]);
-  
-  useEffect(() => {
-    if (!documents || documents.length <= 1) return;
-    
-    const unsubscribe = springX.onChange((value) => {
-      if (!trackRef.current || !documents) return;
-      
-      const trackWidth = trackRef.current.offsetWidth;
-      const segmentWidth = trackWidth / Math.max(1, documents.length - 1);
-      
-      const exactIndex = Math.round((documents.length - 1) - (value / segmentWidth));
-      const clampedIndex = Math.max(0, Math.min(documents.length - 1, exactIndex));
-      
-      if (clampedIndex !== activeIndex) {
-        setActiveIndex(clampedIndex);
-        
-        if (dragging.current) {
-          setPulseTick(clampedIndex);
-          setTimeout(() => setPulseTick(null), 300);
-          
-          if (window.navigator && window.navigator.vibrate) {
-            try {
-              window.navigator.vibrate(8);
-            } catch (e) {
-            }
-          }
-        }
-      }
-    });
-    
-    return unsubscribe;
-  }, [documents, activeIndex, springX]);
   
   if (!documents || documents.length === 0) return null;
 
-  const onDragEnd = () => {
-    setIsDragging(false);
-    dragging.current = false;
-    handleCommitVersion();
-  };
-  
   const formatVersionLabel = (date: Date) => {
     if (isToday(date)) return "Today";
     if (isYesterday(date)) return "Yesterday";
@@ -120,19 +43,21 @@ export const VersionHeader = ({
   const formatVersionTime = (date: Date) => {
     return format(date, 'h:mm a');
   };
-  
-  const currentDoc = documents[activeIndex];
-  
-  const handleRestoreVersion = async () => {
-    if (!documents || activeIndex < 0 || activeIndex >= documents.length) {
+
+  // Use currentVersionIndex directly instead of activeIndex
+  const currentDoc = documents[currentVersionIndex];
+
+  const handleRestoreVersion = useCallback(async () => {
+    // Check against currentVersionIndex
+    if (!documents || currentVersionIndex < 0 || currentVersionIndex >= documents.length) {
       toast.error('Invalid version selected');
       return;
     }
 
     setIsMutating(true);
     try {
-      const versionToRestore = documents[activeIndex];
-      const timestamp = getDocumentTimestampByIndex(documents, activeIndex);
+      const versionToRestore = documents[currentVersionIndex];
+      const timestamp = getDocumentTimestampByIndex(documents, currentVersionIndex);
       
       const response = await fetch(`/api/document`, {
         method: 'POST',
@@ -177,32 +102,25 @@ export const VersionHeader = ({
     } finally {
       setIsMutating(false);
     }
-  };
+  }, [documents, currentVersionIndex, artifact.documentId, setArtifact, handleVersionChange, mutate]);
 
-  const maxVersions = documents.length;
+  if (!currentDoc) return null; // Handle case where currentDoc might be undefined
+
   const dateString = formatVersionLabel(new Date(currentDoc.createdAt));
   const timeString = formatVersionTime(new Date(currentDoc.createdAt));
   const relativeTimeString = formatDistance(new Date(currentDoc.createdAt), new Date(), { addSuffix: true });
-  
-  if (!hasPlayed && documents.length > 1) {
-    setTimeout(() => setHasPlayed(true), 100);
-  }
 
   return (
     <TooltipProvider>
-      <motion.div
-        className="relative border-b border-border backdrop-blur-sm bg-gradient-to-b from-primary/[0.03] to-transparent overflow-hidden"
-        initial={{ height: 0, opacity: 0 }}
-        animate={{ height: 'auto', opacity: 1 }}
-        exit={{ height: 0, opacity: 0 }}
-        transition={{ duration: 0.2 }}
+      <div
+        className="relative border-b border-border backdrop-blur-sm overflow-hidden"
       >
-        <div className="px-4 py-2.5 flex flex-col gap-2">
-          <div className="flex items-center justify-between">
+        <div className="px-4 py-2.5 flex items-center justify-between"> {/* Simplified to single row */}
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1.5 text-sm text-primary/90 font-medium">
+                 {/* Display version based on currentVersionIndex */}
                 <span className="rounded-full bg-primary/10 w-5 h-5 flex items-center justify-center text-[10px] text-primary">
-                  {activeIndex + 1}
+                  {currentVersionIndex + 1}
                 </span>
                 <span>
                   {dateString}
@@ -250,96 +168,8 @@ export const VersionHeader = ({
                 Exit History
               </Button>
             </div>
-          </div>
-          
-          {documents.length > 1 && (
-            <div className="py-2 px-1 relative" ref={trackRef}>
-              <div className="h-[3px] bg-primary/10 rounded-full relative">
-                {documents.map((doc, i) => (
-                  <AnimatePresence key={i}>
-                    <motion.div 
-                      className={cn(
-                        "absolute top-1/2 -translate-y-1/2 w-[3px] h-[3px] rounded-full",
-                        i === activeIndex ? "bg-primary" : "bg-primary/30",
-                        i === documents.length - 1 ? "right-0" : "",
-                        i === 0 ? "left-0" : "",
-                      )}
-                      style={{
-                        left: i === 0 ? 0 : i === documents.length - 1 ? undefined : `${(i / (documents.length - 1)) * 100}%`,
-                      }}
-                      whileHover={{ scale: 1.7 }}
-                      initial={{ scale: hasPlayed ? 1 : 0 }}
-                      animate={{ scale: i === activeIndex ? 1.7 : 1 }}
-                      transition={{ duration: 0.2 }}
-                    />
-                    
-                    {pulseTick === i && (
-                      <motion.div
-                        className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-primary/20 pointer-events-none"
-                        style={{
-                          left: i === 0 ? 0 : i === documents.length - 1 ? undefined : `${(i / (documents.length - 1)) * 100}%`,
-                          right: i === documents.length - 1 ? 0 : undefined,
-                          marginLeft: i === 0 ? 0 : -6,
-                          marginRight: i === documents.length - 1 ? -6 : 0,
-                        }}
-                        initial={{ scale: 0, opacity: 0.8 }}
-                        animate={{ scale: 2, opacity: 0 }}
-                        transition={{ duration: 0.3 }}
-                      />
-                    )}
-                  </AnimatePresence>
-                ))}
-              </div>
-              
-              <motion.div
-                className={cn(
-                  "absolute top-0 left-0 w-full transition-opacity",
-                  isDragging ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-                )}
-                style={{ y: "-50%" }}
-              >
-                <motion.div
-                  drag="x"
-                  dragConstraints={trackRef}
-                  dragElastic={0}
-                  dragMomentum={false}
-                  onDragStart={() => {
-                    setIsDragging(true);
-                    dragging.current = true;
-                  }}
-                  onDragEnd={onDragEnd}
-                  style={{ x: springX }}
-                  className="cursor-grab active:cursor-grabbing"
-                >
-                  <div className={cn(
-                    "w-5 h-5 bg-primary rounded-full shadow-sm flex items-center justify-center -mt-[9px]",
-                    "transition-all duration-150",
-                    isDragging ? "scale-125" : "scale-100 hover:scale-110"
-                  )}>
-                    <div className="w-1.5 h-1.5 bg-white rounded-full" />
-                  </div>
-                </motion.div>
-              </motion.div>
-              
-              <div className="flex justify-between mt-2 text-[10px] text-muted-foreground px-1">
-                <div>
-                  {formatVersionLabel(new Date(documents[0].createdAt))}
-                </div>
-                
-                {documents.length > 2 && (
-                  <div>
-                    {formatVersionLabel(new Date(documents[Math.floor(documents.length / 2)].createdAt))}
-                  </div>
-                )}
-                
-                <div>
-                  {formatVersionLabel(new Date(documents[documents.length - 1].createdAt))}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
-      </motion.div>
+      </div>
     </TooltipProvider>
   );
 }; 

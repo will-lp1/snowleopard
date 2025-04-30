@@ -4,7 +4,6 @@ import React, { useEffect, useState, useRef, useCallback, useMemo, Suspense, use
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { Loader2, FileText, PlusIcon } from 'lucide-react';
-import { AnimatePresence } from 'framer-motion';
 
 import type { Document } from '@snow-leopard/db';
 import { generateUUID } from '@/lib/utils';
@@ -392,16 +391,14 @@ export function AlwaysVisibleArtifact({
       </div>
       
       <div className="dark:bg-muted bg-background h-full overflow-y-auto !max-w-full items-center relative">
-        <AnimatePresence>
-          {!isCurrentVersion && documents && documents.length > 1 && (
-            <VersionHeader
-              key={`${currentDocument?.id}-${currentVersionIndex}`}
-              currentVersionIndex={currentVersionIndex}
-              documents={documents}
-              handleVersionChange={handleVersionChange}
-            />
-          )}
-        </AnimatePresence>
+        {!isCurrentVersion && documents && documents.length > 1 && (
+          <VersionHeader
+            key={`${currentDocument?.id}-${currentVersionIndex}`}
+            currentVersionIndex={currentVersionIndex}
+            documents={documents}
+            handleVersionChange={handleVersionChange}
+          />
+        )}
 
         <div className="px-8 py-6 mx-auto max-w-3xl">
              {isPending ? (
