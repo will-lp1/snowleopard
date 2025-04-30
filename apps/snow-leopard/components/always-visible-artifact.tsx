@@ -37,6 +37,24 @@ const EditorSkeleton = () => (
   </div>
 );
 
+
+const HeaderSkeleton = () => (
+  <div className="flex flex-row justify-between items-center border-b border-zinc-200 dark:border-zinc-700 px-3 h-[45px] animate-pulse">
+    <div className="flex flex-row gap-2 items-center min-w-0">
+      {/* SidebarToggle placeholder */}
+      <div className="h-6 w-6 bg-muted rounded"></div>
+      {/* Title placeholder */}
+      <div className="h-4 w-32 bg-muted rounded"></div>
+    </div>
+    <div className="flex items-center gap-1 flex-shrink-0">
+      {/* Action buttons placeholder */}
+      <div className="h-6 w-20 bg-muted rounded"></div>
+      {/* AI Settings Menu placeholder */}
+      <div className="h-6 w-6 bg-muted rounded"></div>
+    </div>
+  </div>
+);
+
 type AlwaysVisibleArtifactProps = {
   chatId: string;
   initialDocumentId: string;
@@ -339,54 +357,58 @@ export function AlwaysVisibleArtifact({
 
   return (
     <div className="flex flex-col h-dvh bg-background">
-      <div className="flex flex-row justify-between items-center border-b border-zinc-200 dark:border-zinc-700 px-3 h-[45px]">
-        <div className="flex flex-row gap-2 items-center min-w-0">
-          <SidebarToggle />
-          <div className="flex flex-col min-w-0">
-            <div className="h-6 flex items-center">
-              {editingTitle ? (
-                <Input
-                  ref={titleInputRef}
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  className="h-6 py-0 px-1 text-sm font-medium flex-grow bg-transparent border-transparent focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none disabled:opacity-75"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleSaveTitle();
-                    if (e.key === 'Escape') handleCancelEditTitle();
-                  }}
-                  onBlur={handleSaveTitle}
-                  disabled={isRenamingDocument || !latestDocument}
-                  aria-label="Edit document title"
-                />
-              ) : (
-                <div
-                  className={`font-medium truncate h-6 leading-6 px-1 ${latestDocument ? 'cursor-pointer hover:underline' : 'text-muted-foreground'}`}
-                  onClick={latestDocument ? handleEditTitle : undefined}
-                  onDoubleClick={latestDocument ? handleEditTitle : undefined}
-                  title={latestDocument ? `Rename "${latestDocument.title}"` : (initialDocumentId === 'init' ? 'Untitled Document' : 'Loading...')}
-                >
-                  {latestDocument?.title ?? artifact.title ?? 'Document'}
-                </div>
-              )}
+      {isPending ? (
+        <HeaderSkeleton />
+      ) : (
+        <div className="flex flex-row justify-between items-center border-b border-zinc-200 dark:border-zinc-700 px-3 h-[45px]">
+          <div className="flex flex-row gap-2 items-center min-w-0">
+            <SidebarToggle />
+            <div className="flex flex-col min-w-0">
+              <div className="h-6 flex items-center">
+                {editingTitle ? (
+                  <Input
+                    ref={titleInputRef}
+                    value={newTitle}
+                    onChange={(e) => setNewTitle(e.target.value)}
+                    className="h-6 py-0 px-1 text-sm font-medium flex-grow bg-transparent border-transparent focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none disabled:opacity-75"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveTitle();
+                      if (e.key === 'Escape') handleCancelEditTitle();
+                    }}
+                    onBlur={handleSaveTitle}
+                    disabled={isRenamingDocument || !latestDocument}
+                    aria-label="Edit document title"
+                  />
+                ) : (
+                  <div
+                    className={`font-medium truncate h-6 leading-6 px-1 ${latestDocument ? 'cursor-pointer hover:underline' : 'text-muted-foreground'}`}
+                    onClick={latestDocument ? handleEditTitle : undefined}
+                    onDoubleClick={latestDocument ? handleEditTitle : undefined}
+                    title={latestDocument ? `Rename "${latestDocument.title}"` : (initialDocumentId === 'init' ? 'Untitled Document' : 'Loading...')}
+                  >
+                    {latestDocument?.title ?? artifact.title ?? 'Document'}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
+          
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {documents && documents.length > 0 && (
+              <ArtifactActions
+                artifact={artifact}
+                currentVersionIndex={currentVersionIndex}
+                handleVersionChange={handleVersionChange}
+                isCurrentVersion={isCurrentVersion}
+                mode={mode}
+                metadata={metadata}
+                setMetadata={setMetadata}
+              />
+            )}
+            <AiSettingsMenu />
+          </div>
         </div>
-        
-        <div className="flex items-center gap-1 flex-shrink-0">
-          {documents && documents.length > 0 && (
-            <ArtifactActions
-              artifact={artifact}
-              currentVersionIndex={currentVersionIndex}
-              handleVersionChange={handleVersionChange}
-              isCurrentVersion={isCurrentVersion}
-              mode={mode}
-              metadata={metadata}
-              setMetadata={setMetadata}
-            />
-          )}
-          <AiSettingsMenu />
-        </div>
-      </div>
+      )}
       
       <div className="dark:bg-muted bg-background h-full overflow-y-auto !max-w-full items-center relative">
         <AnimatePresence>
