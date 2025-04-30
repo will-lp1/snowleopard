@@ -26,9 +26,6 @@ interface DeleteDocumentParams {
   redirectUrl?: string;
 }
 
-/**
- * Custom hook that provides utility functions for document and chat operations
- */
 export function useDocumentUtils() {
   const router = useRouter();
   const { setArtifact, artifact } = useArtifact();
@@ -37,45 +34,32 @@ export function useDocumentUtils() {
   const [isCreatingDocument, setIsCreatingDocument] = useState(false);
   const [isRenamingDocument, setIsRenamingDocument] = useState(false);
 
-  /**
-   * Resets the chat state without changing the document view.
-   * Dispatches an event to notify the chat component.
-   */
   const handleResetChat = () => {
     console.log('[useDocumentUtils] Resetting chat state');
-    // Dispatch an event that the chat component listens for
-    // This event will signal the useChat hook to reset its messages and generate a new ID
     window.dispatchEvent(new CustomEvent('reset-chat-state'));
     
-    // Close mobile sidebar if open
     if (openMobile) {
       setOpenMobile(false);
     }
   };
 
-  /**
-   * Creates a new chat and resets the artifact state
-   */
   const handleNewChat = () => {
     if (isCreatingChat) return;
     setIsCreatingChat(true);
     
     try {
-      // Reset artifact state before navigation
       setArtifact({
-        documentId: 'init', // Reset to initial state
+        documentId: 'init', 
         title: 'New Document',
         kind: 'text',
         isVisible: true,
         status: 'idle',
         content: '',
-        boundingBox: { top: 0, left: 0, width: 0, height: 0 } // Default bounding box
+        boundingBox: { top: 0, left: 0, width: 0, height: 0 } 
       });
       
-      // Close mobile sidebar if open
       setOpenMobile(false);
       
-      // Navigate to documents page
       router.push('/documents');
       router.refresh();
     } catch (error) {
@@ -86,9 +70,6 @@ export function useDocumentUtils() {
     }
   };
 
-  /**
-   * Creates a new document and navigates to it
-   */
   const createNewDocument = async () => {
     if (isCreatingDocument) return;
     
@@ -100,7 +81,6 @@ export function useDocumentUtils() {
         documentId: newDocId
       });
       
-      // Create the document in the database first
       const docResponse = await fetch('/api/document', {
         method: 'PUT',
         headers: {
@@ -122,7 +102,6 @@ export function useDocumentUtils() {
       
       const document = await docResponse.json();
       
-      // Dispatch an event to notify the sidebar to update immediately
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('document-created', {
           detail: {
@@ -131,7 +110,6 @@ export function useDocumentUtils() {
         }));
       }
       
-      // Close mobile sidebar if it's open
       if (openMobile) {
         setOpenMobile(false);
       }
@@ -141,7 +119,6 @@ export function useDocumentUtils() {
         duration: 2000 
       });
       
-      // Always navigate directly to the document page
       router.push(`/documents/${newDocId}`);
       
     } catch (error) {
@@ -152,16 +129,12 @@ export function useDocumentUtils() {
         duration: 5000
       });
     } finally {
-      // Always cleanup to enable future document creation
       setTimeout(() => {
         setIsCreatingDocument(false);
       }, 1000);
     }
   };
 
-  /**
-   * Renames an existing document
-   */
   const renameDocument = async (newTitle: string) => {
     if (isRenamingDocument || !artifact.documentId || artifact.documentId === 'init') return;
 
@@ -170,11 +143,10 @@ export function useDocumentUtils() {
       return;
     }
 
-    const originalTitle = artifact.title; // Store original title for potential revert
+    const originalTitle = artifact.title; 
     setIsRenamingDocument(true);
 
     try {
-      // Send the update to the server using POST
       const response = await fetch(`/api/document`, {
         method: 'POST',
         headers: {
@@ -187,22 +159,17 @@ export function useDocumentUtils() {
       });
 
       if (!response.ok) {
-        // No state was changed yet, just throw error
         const errorData = await response.json().catch(() => ({ error: 'Unknown error during rename' }));
         throw new Error(`Failed to rename document: ${errorData.error || response.statusText}`);
       }
 
-      // --- Success Case: Update state and dispatch event AFTER successful API call ---
-      const updatedDocumentData = await response.json(); // Get potentially updated data
+      const updatedDocumentData = await response.json(); 
 
-      // Update local artifact state
       setArtifact(current => ({
         ...current,
-        // Use title from response if available, otherwise use the requested newTitle
         title: updatedDocumentData?.title || newTitle
       }));
 
-      // Dispatch the event now that the server has confirmed
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('document-renamed', {
           detail: {
@@ -211,10 +178,7 @@ export function useDocumentUtils() {
           }
         }));
       }
-      // Note: SWR mutations for list and specific item could also be triggered here
-      // For example: mutate('/api/document'); mutate(`/api/document?id=${artifact.documentId}`);
 
-      // Add to document cache (if still using manual cache alongside SWR)
       if (typeof window !== 'undefined' && (window as any).__DOCUMENT_CACHE) {
         const cachedDoc = (window as any).__DOCUMENT_CACHE.get(artifact.documentId);
         if (cachedDoc) {
@@ -233,21 +197,17 @@ export function useDocumentUtils() {
       toast.error('Failed to rename document', {
         description: error.message
       });
-      // No need to revert state as it wasn't changed optimistically
     } finally {
       setIsRenamingDocument(false);
     }
   };
 
-  // Create a new document
   const createDocument = async (params: CreateDocumentParams) => {
     setIsCreatingDocument(true);
     
     try {
-      // Generate a document ID or use the provided one
       const documentId = params.providedId || generateUUID();
       
-      // Create the document
       const response = await fetch('/api/document', {
         method: 'PUT',
         headers: {
@@ -268,7 +228,6 @@ export function useDocumentUtils() {
       
       const document = await response.json();
       
-      // Update the artifact state
       setArtifact(curr => ({
         ...curr,
         documentId: documentId,
@@ -279,7 +238,6 @@ export function useDocumentUtils() {
         isVisible: true,
       }));
       
-      // Dispatch an event to notify the sidebar to update immediately
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('document-created', {
           detail: {
@@ -288,12 +246,10 @@ export function useDocumentUtils() {
         }));
       }
       
-      // Navigate to document view if needed
       if (params.navigateAfterCreate) {
         router.push(`/documents/${documentId}`);
       }
       
-      // Add to document cache for immediate access
       if (typeof window !== 'undefined') {
         if (!(window as any).__DOCUMENT_CACHE) {
           (window as any).__DOCUMENT_CACHE = new Map();
@@ -316,7 +272,6 @@ export function useDocumentUtils() {
     }
   };
   
-  // Load a document by ID
   const loadDocument = async (documentId: string, params?: LoadDocumentParams) => {
     try {
       if (!documentId || documentId === 'init') {
@@ -324,7 +279,6 @@ export function useDocumentUtils() {
         return null;
       }
       
-      // Fetch the document
       const response = await fetch(`/api/document?id=${documentId}`);
       
       if (!response.ok) {
@@ -340,7 +294,6 @@ export function useDocumentUtils() {
       
       const document = documents[0];
       
-      // Update the artifact state
       setArtifact(curr => ({
         ...curr,
         documentId: document.id,
@@ -351,7 +304,6 @@ export function useDocumentUtils() {
         isVisible: true,
       }));
       
-      // Navigate to document view if needed
       if (params?.navigateAfterLoad) {
         router.push(`/documents/${documentId}`);
       }
@@ -364,17 +316,14 @@ export function useDocumentUtils() {
     }
   };
   
-  // Delete a document by ID
   const deleteDocument = async (documentId: string, params?: DeleteDocumentParams) => {
     try {
-      // Check if the document ID is valid
       if (!documentId || documentId === 'undefined' || documentId === 'null' || documentId === 'init') {
         console.error('[useDocumentUtils] Invalid document ID for deletion:', documentId);
         toast.error('Cannot delete: Invalid document ID');
         return false;
       }
 
-      // Perform the delete operation
       const response = await fetch(`/api/document`, {
         method: 'DELETE',
         headers: {
@@ -390,15 +339,12 @@ export function useDocumentUtils() {
         throw new Error(errorData.error || 'Failed to delete document');
       }
       
-      // Navigate to redirect URL if provided, using replace to prevent history stacking
       if (params?.redirectUrl) {
         router.replace(params.redirectUrl);
       } else {
-        // Force a soft refresh of the current page to prevent flicker
         router.refresh();
       }
       
-      // Remove from document cache
       if (typeof window !== 'undefined' && (window as any).__DOCUMENT_CACHE) {
         (window as any).__DOCUMENT_CACHE.delete(documentId);
       }
