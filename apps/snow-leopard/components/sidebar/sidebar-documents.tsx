@@ -388,33 +388,28 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
   };
   
   const handleDocumentSelect = useCallback(async (documentId: string) => {
+    setActiveDocumentId(documentId); 
+    
     try {
       if (documentId === 'init' || !documentId) {
         console.error('[SidebarDocuments] Invalid document ID:', documentId);
         return;
       }
       
-      if (documentId === activeDocumentId) {
-        console.log('[SidebarDocuments] Document already active, skipping select.');
-        setOpenMobile(false);
-        return;
-      }
-
       const selectedDocData = documents?.find(doc => doc.id === documentId);
-
+      
       setArtifact((curr: any) => {
         const newTitle = selectedDocData?.title || 'Loading...';
         const newKind = (selectedDocData?.kind as ArtifactKind) || 'text';
-        const newContent = curr.documentId === documentId ? curr.content : ''; 
         
         console.log(`[SidebarDocuments] Optimistically setting artifact: ID=${documentId}, Title=${newTitle}`);
         return {
-          ...curr,
+          ...curr, 
           documentId: documentId,
           title: newTitle,
-          content: newContent,
+          content: '',
           kind: newKind,
-          status: 'loading',
+          status: 'idle',
         };
       });
       
@@ -683,7 +678,6 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
                     const groupedDocuments = groupDocumentsByDate(filteredDocuments);
                     return (
                       <>
-                        {/* Today's documents */}
                         {groupedDocuments.today.length > 0 && (
                           <>
                             <div className="px-2 py-1 text-xs text-sidebar-foreground/50">
@@ -708,7 +702,6 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
                           </>
                         )}
 
-                        {/* Yesterday's documents */}
                         {groupedDocuments.yesterday.length > 0 && (
                           <>
                             <div className="px-2 py-1 text-xs text-sidebar-foreground/50 mt-4">
@@ -733,7 +726,6 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
                           </>
                         )}
 
-                        {/* Last week's documents */}
                         {groupedDocuments.lastWeek.length > 0 && (
                           <>
                             <div className="px-2 py-1 text-xs text-sidebar-foreground/50 mt-4">
@@ -758,7 +750,6 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
                           </>
                         )}
 
-                        {/* Last month's documents */}
                         {groupedDocuments.lastMonth.length > 0 && (
                           <>
                             <div className="px-2 py-1 text-xs text-sidebar-foreground/50 mt-4">
@@ -783,7 +774,6 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
                           </>
                         )}
 
-                        {/* Older documents */}
                         {groupedDocuments.older.length > 0 && (
                           <>
                             <div className="px-2 py-1 text-xs text-sidebar-foreground/50 mt-4">
@@ -817,7 +807,6 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
         )}
       </SidebarGroup>
 
-      {/* Delete single document dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -836,7 +825,6 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
         </AlertDialogContent>
       </AlertDialog>
       
-      {/* Delete multiple documents dialog */}
       <AlertDialog open={showMultiDeleteDialog} onOpenChange={setShowMultiDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
