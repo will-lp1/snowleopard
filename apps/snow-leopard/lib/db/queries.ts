@@ -363,9 +363,14 @@ export async function getAllDocumentsByUserId({ userId }: { userId: string }): P
   }
 }
 
-export async function getCurrentDocumentsByUserId({ userId }: { userId: string }): Promise<Document[]> {
+export async function getCurrentDocumentsByUserId({ userId }: { userId: string }): Promise<Pick<Document, 'id' | 'title' | 'createdAt' | 'kind'>[]> {
   try {
-    const data = await db.select()
+    const data = await db.select({
+        id: schema.Document.id,
+        title: schema.Document.title,
+        createdAt: schema.Document.createdAt,
+        kind: schema.Document.kind,
+      })
       .from(schema.Document)
       .where(
         and(
@@ -373,7 +378,7 @@ export async function getCurrentDocumentsByUserId({ userId }: { userId: string }
           eq(schema.Document.is_current, true) 
         )
       )
-      .orderBy(desc(schema.Document.createdAt)); 
+      .orderBy(desc(schema.Document.createdAt));
     return data || [];
   } catch (error) {
     console.error('Error fetching current documents by user ID:', error);
