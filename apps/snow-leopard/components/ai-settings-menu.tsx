@@ -110,11 +110,11 @@ export function AiSettingsMenu() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent 
-            className="w-80 p-0 shadow-md rounded-lg border dark:border-zinc-700 bg-background" 
+            className="w-80 p-0 shadow-lg rounded-lg border border-border bg-popover" 
             align="end"
             sideOffset={8}
           >
-            <div className="px-3 py-2 border-b flex items-center justify-between">
+            <div className="px-4 py-3 border-b border-border flex items-center justify-between">
               <span className="text-sm font-medium">AI Preferences</span>
               {customInstructions && (
                 <span className="text-xs px-1.5 py-0.5 bg-primary/10 text-primary rounded-sm">
@@ -124,7 +124,7 @@ export function AiSettingsMenu() {
             </div>
 
             {/* Writing Style Presets */}
-            <div className="p-3 border-b space-y-2">
+            <div className="px-4 py-3 border-b border-border space-y-2">
               <Label className="text-xs font-medium block mb-2">
                 Writing Style Presets
               </Label>
@@ -145,7 +145,7 @@ export function AiSettingsMenu() {
             </div>
 
             {/* Suggestion Length */}
-            <div className="p-3 space-y-4">
+            <div className="px-4 py-4 space-y-4">
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs font-medium">
