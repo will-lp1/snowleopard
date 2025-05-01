@@ -579,7 +579,7 @@ function PureEditor({
       <div className="prose dark:prose-invert pt-2" ref={containerRef} />
       <style jsx global>{`
         .suggestion-decoration-inline {
-          display: contents;
+          /* Removed display: contents; */
         }
         .suggestion-decoration-inline::after {
           content: attr(data-suggestion);
@@ -624,8 +624,8 @@ function PureEditor({
 
         .synonym-word {
           /* Cursor is handled by the browser default for text */
-          position: relative; /* Needed for absolute positioning of pseudo-element */
-          display: inline-block; /* Ensure span takes space for overlay */
+          /* Removed position: relative; */
+          display: inline; /* Changed from inline-block */
         }
         .synonym-overlay-menu {
           /* Dark background like the image */
