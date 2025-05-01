@@ -1,16 +1,16 @@
 import 'server-only';
 import { betterAuth } from 'better-auth';
-// Use the adapter import path potentially provided by the core library or a plugin
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from 'better-auth/next-js';
-import { db, user as schemaUser } from '@snow-leopard/db'; // Use the actual package name
-import * as schema from '@snow-leopard/db'; // Import all exports if needed, or specific tables
-import Stripe from "stripe"; // Import Stripe SDK
-import { stripe } from "@better-auth/stripe"; // Import Better Auth Stripe plugin
-import { Resend } from 'resend'; // Import Resend SDK
-// import { count } from 'drizzle-orm'; // No longer needed for test query
+import { db, user as schemaUser } from '@snow-leopard/db'; 
+import * as schema from '@snow-leopard/db'; 
+import Stripe from "stripe"; 
+import { stripe } from "@better-auth/stripe"; 
+import { Resend } from 'resend'; 
 
-// Check for required environment variables
+const googleEnabled = process.env.GOOGLE_ENABLED === 'true';
+const githubEnabled = process.env.GITHUB_ENABLED === 'true';
+
 if (!process.env.BETTER_AUTH_SECRET) {
   throw new Error('Missing BETTER_AUTH_SECRET environment variable');
 }
@@ -18,7 +18,6 @@ if (!process.env.BETTER_AUTH_URL) {
     throw new Error('Missing BETTER_AUTH_URL environment variable');
 }
 
-// Only check Stripe keys if Stripe is explicitly enabled
 if (process.env.STRIPE_ENABLED === 'true') {
   if (!process.env.STRIPE_SECRET_KEY) throw new Error('Missing STRIPE_SECRET_KEY but STRIPE_ENABLED is true');
   if (!process.env.STRIPE_WEBHOOK_SECRET) throw new Error('Missing STRIPE_WEBHOOK_SECRET but STRIPE_ENABLED is true');
@@ -26,17 +25,14 @@ if (process.env.STRIPE_ENABLED === 'true') {
   if (!process.env.STRIPE_PRO_YEARLY_PRICE_ID) throw new Error('Missing STRIPE_PRO_YEARLY_PRICE_ID but STRIPE_ENABLED is true'); // Add check for yearly price ID
 }
 
-// ---> Add check for email verification enabled <---
 const emailVerificationEnabled = process.env.EMAIL_VERIFY_ENABLED === 'true';
 console.log(`Email Verification Enabled: ${emailVerificationEnabled}`);
 
-// Check Resend/Email From keys ONLY if verification is enabled
 if (emailVerificationEnabled) {
   if (!process.env.RESEND_API_KEY) throw new Error('Missing RESEND_API_KEY because EMAIL_VERIFY_ENABLED is true');
   if (!process.env.EMAIL_FROM) throw new Error('Missing EMAIL_FROM because EMAIL_VERIFY_ENABLED is true');
 }
 
-// Environment Variable Checks (Ensure all required vars are present)
 if (process.env.STRIPE_ENABLED === 'true') {
   if (!process.env.STRIPE_SECRET_KEY) {
     throw new Error("STRIPE_SECRET_KEY environment variable is missing but STRIPE_ENABLED is true.");
@@ -52,6 +48,17 @@ if (process.env.STRIPE_ENABLED === 'true') {
   }
 }
 
+if (googleEnabled) {
+  if (!process.env.GOOGLE_CLIENT_ID) throw new Error('Missing GOOGLE_CLIENT_ID because GOOGLE_ENABLED is true');
+  if (!process.env.GOOGLE_CLIENT_SECRET) throw new Error('Missing GOOGLE_CLIENT_SECRET because GOOGLE_ENABLED is true');
+  console.log('Google OAuth ENABLED');
+}
+
+if (githubEnabled) {
+  if (!process.env.GITHUB_CLIENT_ID) throw new Error('Missing GITHUB_CLIENT_ID because GITHUB_ENABLED is true');
+  if (!process.env.GITHUB_CLIENT_SECRET) throw new Error('Missing GITHUB_CLIENT_SECRET because GITHUB_ENABLED is true');
+  console.log('GitHub OAuth ENABLED');
+}
 
 console.log('--- Checking env vars in lib/auth.ts ---');
 console.log('DATABASE_URL:', process.env.DATABASE_URL ? 'Set' : 'MISSING!');
@@ -115,14 +122,42 @@ if (process.env.STRIPE_ENABLED === 'true') {
   console.log('Stripe is DISABLED. Skipping Stripe plugin for Better Auth.');
 }
 
-// Ensure the nextCookies plugin is always last in the chain
 authPlugins.push(nextCookies());
+
+const socialProviders: Record<string, any> = {}; 
+
+if (googleEnabled) {
+  socialProviders.google = {
+    clientId: process.env.GOOGLE_CLIENT_ID!,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+  };
+}
+
+if (githubEnabled) {
+  socialProviders.github = {
+    clientId: process.env.GITHUB_CLIENT_ID!,
+    clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+  };
+}
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, { 
     provider: 'pg',
-  }), 
-  
+  }),
+  rateLimit: {
+    enabled: process.env.NODE_ENV === 'production',
+    window: 60,           
+    max: 100,            
+    customRules: {
+      '/sign-in/email':           { window: 10, max: 5 },
+      '/sign-up/email':           { window: 10, max: 3 },
+      '/send-verification-email': { window: 60, max: 3 },
+    },
+    storage: 'database',  
+    modelName: 'rateLimit',
+  },
+  socialProviders,
+
   emailAndPassword: {    
       enabled: true,
       requireEmailVerification: emailVerificationEnabled, 

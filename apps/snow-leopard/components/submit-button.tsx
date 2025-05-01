@@ -22,10 +22,7 @@ export function SubmitButton({ isSuccessful, children }: SubmitButtonProps) {
           Done
         </>
       ) : (
-        <>
-          <LoaderIcon size={16} />
-          {children}
-        </>
+        children
       )}
     </Button>
   );

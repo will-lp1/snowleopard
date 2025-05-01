@@ -5,12 +5,17 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { authClient } from '@/lib/auth-client';
 import { toast } from '@/components/toast';
-import { AuthForm } from '@/components/auth-form'; 
+import { AuthForm } from '@/components/auth-form';
 import { SubmitButton } from '@/components/submit-button';
+
+const googleEnabled = process.env.NEXT_PUBLIC_GOOGLE_ENABLED === 'true';
+const githubEnabled = process.env.NEXT_PUBLIC_GITHUB_ENABLED === 'true';
+const emailVerificationEnabled = process.env.NEXT_PUBLIC_EMAIL_VERIFY_ENABLED === 'true';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isEmailLoading, setIsEmailLoading] = useState(false);
+  const [isSocialLoading, setIsSocialLoading] = useState<string | null>(null);
   const [isSuccessful, setIsSuccessful] = useState(false);
   const [email, setEmail] = useState('');
 
@@ -19,8 +24,9 @@ export default function RegisterPage() {
     const password = formData.get('password') as string;
     const name = emailValue.split('@')[0] || 'User';
     setEmail(emailValue);
-    setIsLoading(true);
+    setIsEmailLoading(true);
     setIsSuccessful(false);
+    setIsSocialLoading(null);
 
     await authClient.signUp.email({
       email: emailValue,
@@ -30,11 +36,8 @@ export default function RegisterPage() {
       onRequest: () => {
       },
       onSuccess: (ctx) => {
-        setIsLoading(false);
-
-        const isVerificationEnabled = process.env.NEXT_PUBLIC_EMAIL_VERIFY_ENABLED === 'true';
-
-        if (isVerificationEnabled) {
+        setIsEmailLoading(false);
+        if (emailVerificationEnabled) {
           setIsSuccessful(false);
           toast({
             type: 'success',
@@ -47,16 +50,39 @@ export default function RegisterPage() {
             type: 'success',
             description: 'Account created! Redirecting...'
           });
-          router.push('/documents');
+          router.push('/documents'); 
         }
       },
       onError: (ctx) => {
-        setIsLoading(false);
+        setIsEmailLoading(false);
         setIsSuccessful(false);
         console.error("Email Signup Error:", ctx.error);
         toast({
           type: 'error',
           description: ctx.error.message || 'Failed to create account.',
+        });
+      },
+    });
+  };
+
+  const handleSocialLogin = async (provider: 'google' | 'github') => {
+    await authClient.signIn.social({
+      provider,
+      callbackURL: "/documents", 
+      errorCallbackURL: "/register?error=social_signin_failed",
+    }, {
+      onRequest: () => {
+        setIsSocialLoading(provider);
+        setIsSuccessful(false);
+        setIsEmailLoading(false);
+      },
+      onError: (ctx) => {
+        setIsSocialLoading(null);
+        setIsSuccessful(false);
+        console.error(`Social Sign Up/In Error (${provider}):`, ctx.error);
+        toast({
+          type: 'error',
+          description: ctx.error.message || `Failed to sign up/in with ${provider}.`,
         });
       },
     });
@@ -72,9 +98,18 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        <div className="px-8">
-          <AuthForm action={handleEmailSignup} defaultEmail={email}>
-            <SubmitButton 
+        <div className="px-8 flex flex-col gap-6">
+          <AuthForm 
+            action={handleEmailSignup} 
+            defaultEmail={email}
+            showSocialLogins={true}
+            googleEnabled={googleEnabled}
+            githubEnabled={githubEnabled}
+            onSocialLogin={handleSocialLogin}
+            isSocialLoading={isSocialLoading}
+            isEmailLoading={isEmailLoading}
+          >
+            <SubmitButton
               isSuccessful={isSuccessful}
             >
               Sign Up
