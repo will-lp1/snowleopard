@@ -8,9 +8,14 @@ import { toast } from '@/components/toast';
 import { AuthForm } from '@/components/auth-form';
 import { SubmitButton } from '@/components/submit-button';
 
+// Client-side check for enabled providers
+const googleEnabled = process.env.NEXT_PUBLIC_GOOGLE_ENABLED === 'true';
+const githubEnabled = process.env.NEXT_PUBLIC_GITHUB_ENABLED === 'true';
+
 export default function LoginPage() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isEmailLoading, setIsEmailLoading] = useState(false);
+  const [isSocialLoading, setIsSocialLoading] = useState<string | null>(null);
   const [isSuccessful, setIsSuccessful] = useState(false);
   const [email, setEmail] = useState('');
 
@@ -25,11 +30,12 @@ export default function LoginPage() {
       callbackURL: "/documents"
     }, {
       onRequest: () => {
-        setIsLoading(true);
+        setIsEmailLoading(true);
         setIsSuccessful(false);
+        setIsSocialLoading(null);
       },
       onSuccess: (ctx) => {
-        setIsLoading(false);
+        setIsEmailLoading(false);
         setIsSuccessful(true);
         toast({
           type: 'success',
@@ -38,12 +44,35 @@ export default function LoginPage() {
         router.refresh();
       },
       onError: (ctx) => {
-        setIsLoading(false);
+        setIsEmailLoading(false);
         setIsSuccessful(false);
         console.error("Email Login Error:", ctx.error);
         toast({
           type: 'error',
           description: ctx.error.message || 'Failed to sign in.',
+        });
+      },
+    });
+  };
+
+  const handleSocialLogin = async (provider: 'google' | 'github') => {
+    await authClient.signIn.social({
+      provider,
+      callbackURL: "/documents",
+      errorCallbackURL: "/login?error=social_signin_failed",
+    }, {
+      onRequest: () => {
+        setIsSocialLoading(provider);
+        setIsSuccessful(false);
+        setIsEmailLoading(false);
+      },
+      onError: (ctx) => {
+        setIsSocialLoading(null);
+        setIsSuccessful(false);
+        console.error(`Social Login Error (${provider}):`, ctx.error);
+        toast({
+          type: 'error',
+          description: ctx.error.message || `Failed to sign in with ${provider}.`,
         });
       },
     });
@@ -60,7 +89,16 @@ export default function LoginPage() {
         </div>
         
         <div className="px-8">
-          <AuthForm action={handleEmailLogin} defaultEmail={email}> 
+          <AuthForm 
+            action={handleEmailLogin} 
+            defaultEmail={email}
+            showSocialLogins={true}
+            googleEnabled={googleEnabled}
+            githubEnabled={githubEnabled}
+            onSocialLogin={handleSocialLogin}
+            isSocialLoading={isSocialLoading}
+            isEmailLoading={isEmailLoading}
+          > 
             <SubmitButton 
               isSuccessful={isSuccessful}
             >
