@@ -98,7 +98,7 @@ export function AiSettingsMenu() {
                 onChange={(e) => setLocalInstructions(e.target.value)}
               />
               <p className="text-[11px] text-muted-foreground leading-tight">
-                Leave blank for default behavior. Your instructions shape the AIap&apos;s responses.
+                Leave blank for default behavior. Your instructions shape the AI&apos;s responses.
               </p>
             </div>
           </DropdownMenuContent>

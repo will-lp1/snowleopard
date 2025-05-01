@@ -623,9 +623,11 @@ function PureEditor({
         }
 
         .synonym-word {
-          /* Cursor is handled by the browser default for text */
-          /* Removed position: relative; */
-          display: inline; /* Changed from inline-block */
+          display: inline; 
+        }
+        .synonym-word.synonym-loading {
+          position: relative; /* Only add positioning when showing hover overlay */
+          display: inline-block; /* Only wrap word for hover overlay */
         }
         .synonym-overlay-menu {
           /* Dark background like the image */
