@@ -193,7 +193,7 @@ function PureChatHeader({
         asChild
       >
         <Link
-          href="https://github.com/will-lp1/cursorforwriting"
+          href="https://github.com/will-lp1/snowleopard"
           target="_blank"
           rel="noopener noreferrer"
         >
