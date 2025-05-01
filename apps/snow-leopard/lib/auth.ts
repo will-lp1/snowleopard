@@ -144,18 +144,7 @@ export const auth = betterAuth({
   database: drizzleAdapter(db, { 
     provider: 'pg',
   }),
-  rateLimit: {
-    enabled: process.env.NODE_ENV === 'production',
-    window: 60,           
-    max: 100,            
-    customRules: {
-      '/sign-in/email':           { window: 10, max: 5 },
-      '/sign-up/email':           { window: 10, max: 3 },
-      '/send-verification-email': { window: 60, max: 3 },
-    },
-    storage: 'database',  
-    modelName: 'rateLimit',
-  },
+
   socialProviders,
 
   emailAndPassword: {    
