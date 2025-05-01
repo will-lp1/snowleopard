@@ -57,6 +57,19 @@ export function DataStreamHandler({ id }: { id: string }) {
         }
 
         switch (delta.type) {
+          case 'text-delta':
+            if (typeof window !== 'undefined' && draftArtifact.documentId) {
+              window.dispatchEvent(
+                new CustomEvent('editor:stream-text', {
+                  detail: {
+                    documentId: draftArtifact.documentId,
+                    content: delta.content,
+                  },
+                }),
+              );
+            }
+            return draftArtifact;
+
           case 'id':
             console.log(`[DataStreamHandler] Received ID delta: ${delta.content}. Updating artifact state.`);
             return {
