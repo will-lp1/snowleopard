@@ -13,7 +13,7 @@ export const textDocumentHandler = createDocumentHandler<'text'>({
       model: myProvider.languageModel('artifact-model'),
       system:
         'Write about the given topic. Markdown is supported. Use headings wherever appropriate.',
-      experimental_transform: smoothStream({ chunking: 'word' }),
+      experimental_transform: smoothStream({ chunking: 'line' }),
       prompt: title,
     });
 

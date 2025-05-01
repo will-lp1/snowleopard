@@ -17,6 +17,8 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { getActiveEditorView } from '@/lib/editor/editor-state';
+import { documentSchema } from '@/lib/editor/config';
 
 interface TextArtifactMetadata {
   [key: string]: any;
@@ -27,19 +29,21 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
   description: 'Useful for text content, like drafting essays and emails.',
   onStreamPart: ({ streamPart, setMetadata, setArtifact }) => {
     if (streamPart.type === 'text-delta') {
-      setArtifact((draftArtifact: any) => {
-        return {
-          ...draftArtifact,
-          content: draftArtifact.content + (streamPart.content as string),
-          isVisible:
-            draftArtifact.status === 'streaming' &&
-            draftArtifact.content.length > 400 &&
-            draftArtifact.content.length < 450
-              ? true
-              : draftArtifact.isVisible,
-          status: 'streaming',
-        };
-      });
+      const editorView = getActiveEditorView();
+      if (editorView) {
+        const textDelta = streamPart.content as string;
+        const { state } = editorView;
+        const insertPos = state.doc.content.size; 
+        
+        try {
+           const transaction = state.tr.insertText(textDelta, insertPos);
+           editorView.dispatch(transaction);
+        } catch (error) {
+           console.error("[TextArtifact Client] Error dispatching stream transaction:", error);
+        }
+      } else {
+        console.warn("[TextArtifact Client] No active editor view found to insert stream delta.");
+      }
     }
   },
   content: ({

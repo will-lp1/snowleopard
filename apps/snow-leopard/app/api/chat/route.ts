@@ -2,6 +2,7 @@ import {
   type Message,
   createDataStreamResponse,
   streamText,
+  smoothStream,
 } from 'ai';
 import { systemPrompt } from '@/lib/ai/prompts';
 import {
@@ -346,9 +347,13 @@ export async function POST(request: Request) {
           model: myProvider.languageModel(selectedChatModel),
           system: enhancedSystemPrompt,
           messages,
-          maxSteps: 5,
+          maxSteps: 1,
+          toolCallStreaming: true,
           experimental_activeTools: activeToolsList,
           experimental_generateMessageId: generateUUID,
+          experimental_transform: smoothStream({
+            chunking:'word',
+          }),
           tools: availableTools, 
           onFinish: async ({ response, reasoning }) => {
             if (userId) {

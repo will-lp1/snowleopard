@@ -144,13 +144,16 @@ interface DocumentToolCallProps {
 
 function PureDocumentToolCall({
   type,
-  args,
+  args = { title: '' },
   isReadonly,
 }: DocumentToolCallProps) {
-  const { setArtifact } = useArtifact();
-  const { artifact } = useArtifact();
+  const { setArtifact, artifact: localArtifact } = useArtifact();
+  const artTitle = localArtifact?.title ?? '';
 
-  const displayTitle = type === 'create' && artifact.title ? artifact.title : args.title;
+  const titleArg = args.title ?? '';
+  const displayTitle = type === 'create' && artTitle.trim()
+    ? artTitle
+    : titleArg.trim();
 
   return (
     <div 
@@ -168,7 +171,8 @@ function PureDocumentToolCall({
         </div>
 
         <div className="text-left">
-          {`${getActionText(type, 'present')} ${displayTitle ? `"${displayTitle}"` : '(active document)'}`}
+          {`${getActionText(type, 'present')}`}{' '}
+          {displayTitle ? `"${displayTitle}"` : '(active document)'}
         </div>
       </div>
 

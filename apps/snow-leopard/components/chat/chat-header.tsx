@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useWindowSize } from 'usehooks-ts';
@@ -45,6 +45,10 @@ function PureChatHeader({
   const isMobile = windowWidth < 768;
   const isCompact = windowWidth < 1024;
   const { handleResetChat, isCreatingChat } = useDocumentUtils();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   
   // Fetch recent chat history for the dropdown menu
   const { data: history, isLoading: isHistoryLoading } = useSWR<Array<Chat & { document_context?: any }>>('/api/history', fetcher, {
@@ -87,7 +91,7 @@ function PureChatHeader({
       </Button>
 
       {/* Model Selector - Only show if not readonly */}
-      {!isReadonly && (
+      {!isReadonly && mounted && (
         <div className="transition-all duration-200 min-w-0 flex-shrink">
           <ModelSelector
             selectedModelId={selectedModelId}
