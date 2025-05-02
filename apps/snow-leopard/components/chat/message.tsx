@@ -182,9 +182,15 @@ const PurePreviewMessage = ({
                     const { result } = toolInvocation;
                     return (
                       <div key={toolCallId}>
-                        {(toolName === 'createDocument' || toolName === 'streamingDocument') ? (
+                        {toolName === 'createDocument' ? (
                           <DocumentToolResult
                             type="create"
+                            result={result}
+                            isReadonly={isReadonly}
+                          />
+                        ) : toolName === 'streamingDocument' ? (
+                          <DocumentToolResult
+                            type="stream"
                             result={result}
                             isReadonly={isReadonly}
                           />
@@ -214,9 +220,15 @@ const PurePreviewMessage = ({
                         skeleton: ['getWeather'].includes(toolName),
                       })}
                     >
-                      {(toolName === 'createDocument' || toolName === 'streamingDocument') ? (
+                      {toolName === 'createDocument' ? (
                         <DocumentToolCall
                           type="create"
+                          args={args}
+                          isReadonly={isReadonly}
+                        />
+                      ) : toolName === 'streamingDocument' ? (
+                        <DocumentToolCall
+                          type="stream"
                           args={args}
                           isReadonly={isReadonly}
                         />

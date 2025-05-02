@@ -40,7 +40,7 @@ export const streamingDocument = ({ session, dataStream }: CreateDocumentProps) 
       dataStream.writeData({ type: 'finish', content: '' });
 
       return {
-        content: 'Content generation stream started.',
+        content: 'Content generation streamed.',
       };
     },
   });
