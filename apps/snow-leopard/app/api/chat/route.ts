@@ -301,8 +301,8 @@ export async function POST(request: Request) {
           availableTools.updateDocument = updateDocument({ session: toolSession, documentId: validatedActiveDocumentId });
           activeToolsList.push('updateDocument');
         } else {
-          // Active document exists but empty: allow both creating a new document and streaming content
-          console.log('[Chat API] Offering tools: createDocument and streamingDocument (document is empty)');
+          // Active document exists but is empty: allow creating a new one OR streaming into the current empty one
+          console.log('[Chat API] Offering tools: createDocument & streamingDocument (document is empty)');
           availableTools.createDocument = aiCreateDocument({ session: toolSession, dataStream });
           availableTools.streamingDocument = streamingDocument({ session: toolSession, dataStream });
           activeToolsList.push('createDocument', 'streamingDocument');
@@ -321,7 +321,7 @@ export async function POST(request: Request) {
           model: myProvider.languageModel(selectedChatModel),
           system: dynamicSystemPrompt,
           messages,
-          maxSteps: 1,
+          maxSteps: activeToolsList.length,
           toolCallStreaming: true,
           experimental_activeTools: activeToolsList,
           experimental_generateMessageId: generateUUID,

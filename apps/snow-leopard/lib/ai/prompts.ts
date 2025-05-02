@@ -25,7 +25,7 @@ export function buildArtifactsPrompt(
   }
   if (tools.includes('streamingDocument')) {
     prompt +=
-      '\n- streamingDocument: When an active document exists but has minimal or no content, call streamingDocument with a title and kind to stream larger content into it.';
+      '\n- streamingDocument: If an active document exists but is empty, call streamingDocument with a title and kind to stream content into *that specific document*.';
   }
   if (tools.includes('updateDocument')) {
     prompt +=
