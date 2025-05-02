@@ -42,12 +42,15 @@ async function createEnhancedSystemPrompt({
   selectedChatModel,
   activeDocumentId,
   mentionedDocumentIds,
-}: { 
+  availableTools = ['createDocument','streamingDocument','updateDocument'] as Array<'createDocument'|'streamingDocument'|'updateDocument'>,
+}: {
   selectedChatModel: string;
   activeDocumentId?: string | null;
   mentionedDocumentIds?: string[] | null;
+  availableTools?: Array<'createDocument'|'streamingDocument'|'updateDocument'>;
 }) {
-  let basePrompt = systemPrompt({ selectedChatModel });
+  // Build the base prompt with only the allowed tools
+  let basePrompt = systemPrompt({ selectedChatModel, availableTools });
   let contextAdded = false;
 
   // Explicitly ask the reasoning model to use think tags
@@ -65,11 +68,10 @@ async function createEnhancedSystemPrompt({
   if (activeDocumentId) {
     try {
       const document = await getDocumentById({ id: activeDocumentId });
-      
       if (document) {
         console.log(`[Chat API] Found active document for context: "${document.title}"`);
         const documentContext = `
-CURRENT DOCUMENT CONTEXT (You can update this one using tools):
+CURRENT DOCUMENT:
 Title: ${document.title}
 Content:
 ${document.content || '(Empty document)'}
@@ -86,7 +88,7 @@ ${document.content || '(Empty document)'}
 
   // --- Mentioned Documents Context --- 
   if (mentionedDocumentIds && mentionedDocumentIds.length > 0) {
-    basePrompt += `\n\n--- MENTIONED DOCUMENTS (for reference only) ---`;
+    basePrompt += `\n\n--- MENTIONED DOCUMENTS (do not modify) ---`;
     for (const mentionedId of mentionedDocumentIds) {
       // Avoid refetching if mentioned is same as active
       if (mentionedId === activeDocumentId) continue; 
@@ -112,8 +114,7 @@ ${document.content || '(Empty document)'}
   }
 
   if (contextAdded) {
-    basePrompt += `\n\nPlease reference the provided document contexts when appropriate in your responses. Remember you can only suggest updates for the CURRENT DOCUMENT CONTEXT.`;
-    console.log('[Chat API] Successfully enhanced system prompt with document context(s).');
+    console.log('[Chat API] Successfully added document context to system prompt.');
   } else {
     console.log('[Chat API] No document context added to system prompt.');
   }
@@ -264,26 +265,20 @@ export async function POST(request: Request) {
       mentionedDocumentIds,
     });
 
-    let validatedActiveDocumentId: string | undefined = undefined;
-    let activeDocumentKind: ArtifactKind | undefined = undefined;
-
-    if (activeDocumentId) {
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      if (uuidRegex.test(activeDocumentId)) {
+    // Validate and load the active document once
+    let validatedActiveDocumentId: string | undefined;
+    let activeDoc: Document | null = null;
+    if (activeDocumentId && uuidRegex.test(activeDocumentId)) {
         try {
-          const activeDoc = await getDocumentById({ id: activeDocumentId });
+        activeDoc = await getDocumentById({ id: activeDocumentId });
           if (activeDoc) {
             validatedActiveDocumentId = activeDocumentId;
-            activeDocumentKind = activeDoc.kind as ArtifactKind;
-            console.log(`[Chat API] Validated active document ID: ${validatedActiveDocumentId}, Kind: ${activeDocumentKind}`);
+          console.log(`[Chat API] Loaded active document: ${activeDoc.title}`);
           } else {
-            console.warn(`[Chat API] Active document ${activeDocumentId} not found in DB.`);
-          }
-        } catch (error) {
-          console.error(`[Chat API] Error fetching active document ${activeDocumentId} for kind:`, error);
+          console.warn(`[Chat API] Active document ID valid but not found: ${activeDocumentId}`);
         }
-      } else {
-        console.warn(`[Chat API] Invalid active document ID format, not passing to tools: ${activeDocumentId}`);
+      } catch (error) {
+        console.error(`[Chat API] Error loading active document ${activeDocumentId}:`, error);
       }
     }
 
@@ -291,67 +286,42 @@ export async function POST(request: Request) {
 
     return createDataStreamResponse({
       execute: async (dataStream) => {
-        // --- Build tools dynamically (Re-refined) ---
+        // --- Build tools based on active document state ---
         const availableTools: any = {};
-        const activeToolsList: string[] = [];
-        const MIN_CONTENT_LENGTH_FOR_UPDATE = 5; // Threshold
+        const activeToolsList: Array<'createDocument' | 'streamingDocument' | 'updateDocument'> = [];
 
-        // If there is no active document set, offer the AI initialization tool
         if (!validatedActiveDocumentId) {
-          availableTools.createDocument = aiCreateDocument({
-            session: toolSession,
-            dataStream,
-          });
+          // No active document: only allow creating a new one
+          console.log('[Chat API] Offering tool: createDocument (no active document)');
+          availableTools.createDocument = aiCreateDocument({ session: toolSession, dataStream });
           activeToolsList.push('createDocument');
-          console.log('[Chat API] No active document. Offering AI createDocument initiation tool.');
+        } else if ((activeDoc?.content?.length ?? 0) > 0) {
+          // Active document has content: only allow update
+          console.log('[Chat API] Offering tool: updateDocument (document has content)');
+          availableTools.updateDocument = updateDocument({ session: toolSession, documentId: validatedActiveDocumentId });
+          activeToolsList.push('updateDocument');
         } else {
-          let activeDoc: Document | null = null;
-          let currentKind: ArtifactKind | undefined = undefined;
-
-          // Fetch the active document within execute
-          try {
-            activeDoc = await getDocumentById({ id: validatedActiveDocumentId });
-            if (activeDoc) {
-              currentKind = activeDoc.kind as ArtifactKind;
-            } else {
-              console.warn(`[Chat API Execute] Active document ${validatedActiveDocumentId} not found when checking for tool selection.`);
-            }
-          } catch (error) {
-            console.error('[Chat API Execute] Error fetching active document for tool selection:', error);
-          }
-
-          // Now, decide which tool to offer based on content
-          if (activeDoc && currentKind) { // Ensure we found the doc and its kind
-            const hasContent = activeDoc.content && activeDoc.content.length >= MIN_CONTENT_LENGTH_FOR_UPDATE;
-
-            if (hasContent) {
-              // Document has content -> Offer ONLY updateDocument
-              availableTools.updateDocument = updateDocument({
-                session: toolSession,
-                documentId: validatedActiveDocumentId,
-              });
-              activeToolsList.push('updateDocument');
-              console.log('[Chat API] Active document has content. Offering ONLY updateDocument tool.');
-            } else {
-              // Document is empty/minimal -> Offer ONLY createDocument streaming tool
-              availableTools.createDocument = streamingDocument({
-                session: toolSession,
-                dataStream,
-              });
-              activeToolsList.push('createDocument'); 
-              console.log('[Chat API] Active document is empty/minimal. Offering ONLY createDocument streaming tool.');
-            }
-          } else {
-             console.log(`[Chat API] Could not find active document details (${validatedActiveDocumentId}) or kind, no document tools added.`);
-          }
+          // Active document exists but empty: allow both creating a new document and streaming content
+          console.log('[Chat API] Offering tools: createDocument and streamingDocument (document is empty)');
+          availableTools.createDocument = aiCreateDocument({ session: toolSession, dataStream });
+          availableTools.streamingDocument = streamingDocument({ session: toolSession, dataStream });
+          activeToolsList.push('createDocument', 'streamingDocument');
         }
         // --- End Build tools ---
 
+        // Regenerate the system prompt with the actual available tools
+        const dynamicSystemPrompt = await createEnhancedSystemPrompt({
+          selectedChatModel,
+          activeDocumentId,
+          mentionedDocumentIds,
+          availableTools: activeToolsList,
+        });
+
         const result = streamText({
           model: myProvider.languageModel(selectedChatModel),
-          system: enhancedSystemPrompt,
+          system: dynamicSystemPrompt,
           messages,
-          maxSteps: 2,
+          maxSteps: 1,
           toolCallStreaming: true,
           experimental_activeTools: activeToolsList,
           experimental_generateMessageId: generateUUID,
