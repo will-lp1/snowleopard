@@ -31,6 +31,10 @@ export function buildArtifactsPrompt(
     prompt +=
       '\n- updateDocument: When the active document already has substantial content, call updateDocument with a concise description of changes to generate a diff proposal.';
   }
+  if (tools.includes('createDocument') && tools.includes('streamingDocument')) {
+    prompt +=
+      '\n- For an empty existing document (both tools available), first invoke createDocument to initialize the document record, then streamingDocument to stream initial content into it.';
+  }
   return prompt;
 }
 
