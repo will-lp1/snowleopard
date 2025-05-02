@@ -1,5 +1,5 @@
 import { Plugin, PluginKey } from 'prosemirror-state';
-import { defaultMarkdownParser } from 'prosemirror-markdown';
+import { buildDocumentFromContent } from './functions';
 
 export const creationStreamingKey = new PluginKey('creationStreaming');
 
@@ -18,8 +18,9 @@ export function creationStreamingPlugin(targetDocumentId: string) {
         const { documentId, content } = event.detail;
         if (documentId !== targetDocumentId) return;
         try {
-          // parse the Markdown chunk into a document fragment
-          const fragment = defaultMarkdownParser.parse(content).content;
+          // parse the Markdown chunk into a document fragment using existing utility
+          const docNode = buildDocumentFromContent(content);
+          const fragment = docNode.content;
           const { state, dispatch } = editorView;
           const endPos = state.doc.content.size;
           const tr = state.tr.insert(endPos, fragment);

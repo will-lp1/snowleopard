@@ -11,9 +11,7 @@ export const textDocumentHandler = createDocumentHandler<'text'>({
 
     const { fullStream } = streamText({
       model: myProvider.languageModel('artifact-model'),
-      system: `Use headings (#, ##, ###), bullet or ordered lists,
-bold (**bold**), italics (*italics*), and code blocks (\`\`\`language ...\`\`\`).
-Focus on clear structure and readability. Output only the content without any extra explanation.
+      system: `'Write about the given topic. Markdown is supported. Use headings wherever appropriate.',  
       `.trim(),
       experimental_transform: smoothStream({ chunking: 'line' }),
       prompt: title,
