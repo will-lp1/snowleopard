@@ -23,7 +23,7 @@ import {
 } from '@/lib/utils';
 import { generateTitleFromUserMessage } from '@/app/api/chat/actions/chat';
 import { updateDocument } from '@/lib/ai/tools/update-document';
-import { createDocument } from '@/lib/ai/tools/create-document';
+import { streamingDocument } from '@/lib/ai/tools/document-streaming';
 import { isProductionEnvironment } from '@/lib/constants';
 import { NextResponse } from 'next/server';
 import { myProvider } from '@/lib/ai/providers';
@@ -31,6 +31,7 @@ import { auth } from "@/lib/auth";
 import { headers } from 'next/headers';
 import { ArtifactKind } from '@/components/artifact';
 import type { Document } from '@snow-leopard/db';
+import { createDocument as aiCreateDocument } from '@/lib/ai/tools/create-document';
 
 export const maxDuration = 60;
 
@@ -295,8 +296,15 @@ export async function POST(request: Request) {
         const activeToolsList: string[] = [];
         const MIN_CONTENT_LENGTH_FOR_UPDATE = 5; // Threshold
 
-        // Only add tools if there IS an active document context
-        if (validatedActiveDocumentId) { 
+        // If there is no active document set, offer the AI initialization tool
+        if (!validatedActiveDocumentId) {
+          availableTools.createDocument = aiCreateDocument({
+            session: toolSession,
+            dataStream,
+          });
+          activeToolsList.push('createDocument');
+          console.log('[Chat API] No active document. Offering AI createDocument initiation tool.');
+        } else {
           let activeDoc: Document | null = null;
           let currentKind: ArtifactKind | undefined = undefined;
 
@@ -325,21 +333,17 @@ export async function POST(request: Request) {
               activeToolsList.push('updateDocument');
               console.log('[Chat API] Active document has content. Offering ONLY updateDocument tool.');
             } else {
-              // Document is empty/minimal -> Offer ONLY createDocument
-              availableTools.createDocument = createDocument({
+              // Document is empty/minimal -> Offer ONLY createDocument streaming tool
+              availableTools.createDocument = streamingDocument({
                 session: toolSession,
                 dataStream,
-                // No documentId/Kind needed for the tool itself anymore
               });
               activeToolsList.push('createDocument'); 
-              console.log('[Chat API] Active document is empty/minimal. Offering ONLY createDocument tool.');
+              console.log('[Chat API] Active document is empty/minimal. Offering ONLY createDocument streaming tool.');
             }
           } else {
              console.log(`[Chat API] Could not find active document details (${validatedActiveDocumentId}) or kind, no document tools added.`);
           }
-
-        } else {
-          console.log('[Chat API] No active document ID, no document tools added.');
         }
         // --- End Build tools ---
 
@@ -347,7 +351,7 @@ export async function POST(request: Request) {
           model: myProvider.languageModel(selectedChatModel),
           system: enhancedSystemPrompt,
           messages,
-          maxSteps: 1,
+          maxSteps: 2,
           toolCallStreaming: true,
           experimental_activeTools: activeToolsList,
           experimental_generateMessageId: generateUUID,
