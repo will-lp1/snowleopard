@@ -68,7 +68,7 @@ export function AlwaysVisibleArtifact({
 }: AlwaysVisibleArtifactProps) {
   const router = useRouter();
   const { artifact, setArtifact, metadata, setMetadata } = useArtifact();
-  const { documentId: contextDocumentId, updateDocument } = useDocumentContext();
+  const { documentId: contextDocumentId } = useDocumentContext();
   const {
     isCreatingDocument,
     renameDocument,
@@ -119,7 +119,6 @@ export function AlwaysVisibleArtifact({
                 status: 'idle'
             };
             setArtifact(artifactData as any);
-            updateDocument(artifactData.documentId, artifactData.title, artifactData.content, artifactData.kind);
             setNewTitle(artifactData.title);
         } else if (initialDocumentId === 'init' || showCreateDocumentForId) {
             const initData: SettableArtifact = {
@@ -131,12 +130,11 @@ export function AlwaysVisibleArtifact({
                 status: 'idle'
             };
             setArtifact(initData as any);
-            updateDocument(initData.documentId, initData.title, initData.content, initData.kind);
             setNewTitle(initData.title);
         }
     });
 
-  }, [initialDocumentId, initialDocuments, setArtifact, updateDocument, showCreateDocumentForId, startTransition, artifact.documentId]);
+  }, [initialDocumentId, initialDocuments, setArtifact, startTransition, artifact.documentId]);
 
   useEffect(() => {
     const handleDocumentRenamed = (event: CustomEvent) => {
@@ -176,15 +174,17 @@ export function AlwaysVisibleArtifact({
     const trimmedNewTitle = newTitle.trim();
     if (trimmedNewTitle && trimmedNewTitle !== latestDocument.title) {
       const originalTitle = latestDocument.title;
-      setArtifact(current => ({ ...current, title: trimmedNewTitle }));
-      setDocuments(prevDocs => prevDocs.map(doc => doc.id === latestDocument.id ? { ...doc, title: trimmedNewTitle } : doc));
+      const originalDocuments = [...documents];
+      
+      setDocuments(prevDocs => prevDocs.map(doc => 
+        doc.id === latestDocument.id ? { ...doc, title: trimmedNewTitle } : doc
+      ));
 
       try {
         await renameDocument(trimmedNewTitle);
       } catch (error) {
         toast.error("Failed to rename document.");
-        setArtifact(current => ({ ...current, title: originalTitle }));
-        setDocuments(prevDocs => prevDocs.map(doc => doc.id === latestDocument.id ? { ...doc, title: originalTitle } : doc));
+        setDocuments(originalDocuments);
         console.error("Rename failed:", error);
       } finally {
         setEditingTitle(false);
@@ -193,7 +193,7 @@ export function AlwaysVisibleArtifact({
        setEditingTitle(false);
        if (!trimmedNewTitle) setNewTitle(latestDocument.title);
     }
-  }, [newTitle, latestDocument, renameDocument, setArtifact]);
+  }, [newTitle, latestDocument, documents, renameDocument, setArtifact]);
 
   const handleCancelEditTitle = useCallback(() => {
     if (!latestDocument) return;

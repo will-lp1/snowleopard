@@ -179,16 +179,6 @@ export function useDocumentUtils() {
         }));
       }
 
-      if (typeof window !== 'undefined' && (window as any).__DOCUMENT_CACHE) {
-        const cachedDoc = (window as any).__DOCUMENT_CACHE.get(artifact.documentId);
-        if (cachedDoc) {
-          (window as any).__DOCUMENT_CACHE.set(artifact.documentId, {
-            ...cachedDoc,
-            title: updatedDocumentData?.title || newTitle
-          });
-        }
-      }
-
       toast.success('Document renamed', {
         duration: 2000
       });
@@ -248,18 +238,6 @@ export function useDocumentUtils() {
       
       if (params.navigateAfterCreate) {
         router.push(`/documents/${documentId}`);
-      }
-      
-      if (typeof window !== 'undefined') {
-        if (!(window as any).__DOCUMENT_CACHE) {
-          (window as any).__DOCUMENT_CACHE = new Map();
-        }
-        (window as any).__DOCUMENT_CACHE.set(documentId, {
-          id: documentId,
-          title: params.title,
-          content: params.content,
-          kind: params.kind,
-        });
       }
       
       return document;
@@ -343,10 +321,6 @@ export function useDocumentUtils() {
         router.replace(params.redirectUrl);
       } else {
         router.refresh();
-      }
-      
-      if (typeof window !== 'undefined' && (window as any).__DOCUMENT_CACHE) {
-        (window as any).__DOCUMENT_CACHE.delete(documentId);
       }
       
       toast.success('Document deleted');

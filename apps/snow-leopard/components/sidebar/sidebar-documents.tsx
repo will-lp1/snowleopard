@@ -162,9 +162,11 @@ const PureDocumentItem = ({
 };
 
 export const DocumentItem = memo(PureDocumentItem, (prevProps, nextProps) => {
+  if (prevProps.document.title !== nextProps.document.title) return false;
   if (prevProps.isActive !== nextProps.isActive) return false;
   if (prevProps.isSelectionMode !== nextProps.isSelectionMode) return false;
   if (prevProps.isSelected !== nextProps.isSelected) return false;
+  if (prevProps.document.id !== nextProps.document.id) return false;
   return true;
 });
 
@@ -179,7 +181,7 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
     deleteDocument,
     isCreatingDocument
   } = useDocumentUtils();
-  const { updateDocument } = useDocumentContext();
+  // const { updateDocument } = useDocumentContext();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [isExpanded, setIsExpanded] = useState(true);
@@ -248,18 +250,6 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
             return doc;
           });
         }, false);
-
-        try {
-          const updateEvent = new CustomEvent('document-updated', {
-            detail: {
-              documentId: event.detail.documentId,
-              title: event.detail.newTitle
-            }
-          });
-          window.dispatchEvent(updateEvent);
-        } catch (error) {
-          console.error('[SidebarDocuments] Error dispatching document-updated event', error);
-        }
       }
     };
 

@@ -6,12 +6,11 @@ import { updateDocumentPrompt } from '@/lib/ai/prompts';
 export const textDocumentHandler = createDocumentHandler<'text'>({
   kind: 'text',
   onCreateDocument: async ({ title, dataStream }) => {
-    // No need to track draft content - we're just streaming to the client
-    // Editor's auto-save will handle saving later
 
     const { fullStream } = streamText({
-      model: myProvider.languageModel('artifact-model'),
-      system: `'Write about the given topic. Markdown is supported. Use headings wherever appropriate.',  
+      model: myProvider.languageModel('chat-model-large'),
+      system: `'Write about the given topic. Markdown is supported. Use headings wherever appropriate. Valid Markdown only, using headings (#, ##),
+lists, bold, italics, and code blocks as needed',  
       `.trim(),
       experimental_transform: smoothStream({ chunking: 'line' }),
       prompt: title,
