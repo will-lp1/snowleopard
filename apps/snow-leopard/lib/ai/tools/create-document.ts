@@ -1,10 +1,10 @@
 import { DataStreamWriter, tool } from 'ai';
 import { z } from 'zod';
 import { Session } from '@/lib/auth';
-import {
-  artifactKinds,
-  documentHandlersByArtifactKind,
-} from '@/lib/artifacts/server';
+import { artifactKinds } from '@/lib/artifacts/server';
+import { saveDocument } from '@/lib/db/queries';
+import { generateUUID } from '@/lib/utils';
+import type { ArtifactKind } from '@/components/artifact';
 
 interface CreateDocumentProps {
   session: Session;
@@ -14,33 +14,38 @@ interface CreateDocumentProps {
 export const createDocument = ({ session, dataStream }: CreateDocumentProps) =>
   tool({
     description:
-      'Generates content based on a title or prompt and streams it into the active document view. Use this to start writing or add content.',
+      'Creates a new document record in the database, streams back its ID so the editor can initialize it.',
     parameters: z.object({
-      title: z.string().describe('The title or topic to generate content about.'),
-      kind: z.enum(artifactKinds).describe('The kind of content to generate (e.g., text).')
+      title: z.string().describe('The title for the new document.'),
+      kind: z
+        .enum(artifactKinds)
+        .describe('The kind of document to create (e.g., text).')
+        .optional(),
     }),
-    execute: async ({ title, kind }) => {
-      const documentHandler = documentHandlersByArtifactKind.find(
-        (documentHandlerByArtifactKind) =>
-          documentHandlerByArtifactKind.kind === kind,
-      );
+    execute: async ({ title, kind = 'text' }) => {
+      // Generate a new document ID
+      const newDocumentId = generateUUID();
+      const userId = session.user.id;
 
-      if (!documentHandler) {
-        throw new Error(`No document handler found for requested kind: ${kind}`);
+      try {
+        // Save the new document with empty content
+        await saveDocument({
+          id: newDocumentId,
+          title,
+          content: '',
+          kind: kind as ArtifactKind,
+          userId,
+        });
+
+        // Stream the new ID to the client
+        dataStream.writeData({ type: 'id', content: newDocumentId });
+        // Signal that creation is finished
+        dataStream.writeData({ type: 'finish', content: '' });
+
+        return { content: 'New document created.' };
+      } catch (error: any) {
+        console.error('[AI Tool] Failed to create document:', error);
+        throw new Error(`Failed to create document: ${error.message || error}`);
       }
-
-      await documentHandler.onCreateDocument({
-        title,
-        dataStream,
-        session,
-      });
-
-      dataStream.writeData({ type: 'force-save', content: '' });
-      
-      dataStream.writeData({ type: 'finish', content: '' });
-
-      return {
-        content: 'Content generation stream started.',
-      };
     },
   });

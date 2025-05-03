@@ -2,21 +2,16 @@
 
 import { Artifact } from '@/components/create-artifact';
 import { DiffView } from '@/components/document/diffview';
-import { DocumentSkeleton } from '@/components/document/document-skeleton';
 import { Editor } from '@/components/document/text-editor';
 import {
-  CheckIcon,
   ClockRewind,
-  CopyIcon,
-  MessageIcon,
-  PenIcon,
   RedoIcon,
   UndoIcon,
+  CopyIcon,
 } from '@/components/icons';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { useEffect, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Markdown } from '@/components/markdown';
 
 interface TextArtifactMetadata {
   [key: string]: any;
@@ -25,34 +20,10 @@ interface TextArtifactMetadata {
 export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
   kind: 'text',
   description: 'Useful for text content, like drafting essays and emails.',
-  onStreamPart: ({ streamPart, setMetadata, setArtifact }) => {
-    if (streamPart.type === 'text-delta') {
-      setArtifact((draftArtifact: any) => {
-        return {
-          ...draftArtifact,
-          content: draftArtifact.content + (streamPart.content as string),
-          isVisible:
-            draftArtifact.status === 'streaming' &&
-            draftArtifact.content.length > 400 &&
-            draftArtifact.content.length < 450
-              ? true
-              : draftArtifact.isVisible,
-          status: 'streaming',
-        };
-      });
-    }
+  onStreamPart: () => {
+    // No-op: handled by creationStreamingPlugin
   },
-  content: ({
-    mode,
-    status,
-    content,
-    isCurrentVersion,
-    currentVersionIndex,
-    onSaveContent,
-    getDocumentContentById,
-    isLoading,
-    documentId,
-  }) => {
+  content: ({ mode, content, isCurrentVersion, currentVersionIndex, isLoading, getDocumentContentById, documentId }) => {
     if (isLoading) {
       return (
         <div className="px-8 py-10 max-w-4xl mx-auto">
@@ -70,7 +41,6 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
     if (mode === 'diff') {
       const oldContent = getDocumentContentById(currentVersionIndex - 1);
       const newContent = getDocumentContentById(currentVersionIndex);
-
       return <DiffView oldContent={oldContent} newContent={newContent} />;
     }
 
@@ -80,16 +50,14 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
           <Editor
             content={content}
             documentId={documentId}
-            status={'idle'}
+            status="idle"
             isCurrentVersion={isCurrentVersion}
             currentVersionIndex={currentVersionIndex}
             initialLastSaved={null}
           />
         ) : (
           <div className="prose dark:prose-invert">
-            {content.split('\n').map((line, index) => (
-              <div key={index}>{line || <br />}</div>
-            ))}
+            <Markdown>{content}</Markdown>
           </div>
         )}
       </div>

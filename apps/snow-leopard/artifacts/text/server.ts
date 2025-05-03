@@ -11,9 +11,9 @@ export const textDocumentHandler = createDocumentHandler<'text'>({
 
     const { fullStream } = streamText({
       model: myProvider.languageModel('artifact-model'),
-      system:
-        'Write about the given topic. Markdown is supported. Use headings wherever appropriate.',
-      experimental_transform: smoothStream({ chunking: 'word' }),
+      system: `'Write about the given topic. Markdown is supported. Use headings wherever appropriate.',  
+      `.trim(),
+      experimental_transform: smoothStream({ chunking: 'line' }),
       prompt: title,
     });
 
@@ -38,8 +38,12 @@ export const textDocumentHandler = createDocumentHandler<'text'>({
 
     const { fullStream } = streamText({
       model: myProvider.languageModel('artifact-model'),
-      system: updateDocumentPrompt(document.content, 'text'),
-      experimental_transform: smoothStream({ chunking: 'word' }),
+      system: `
+Provide the revised document content in valid Markdown only, using headings (#, ##),
+lists, bold, italics, and code blocks as needed. Show the complete updated document.
+Do not include any commentary. Use changing sections in place.
+      `.trim(),
+      experimental_transform: smoothStream({ chunking: 'line' }),
       prompt: description,
       experimental_providerMetadata: {
         openai: {

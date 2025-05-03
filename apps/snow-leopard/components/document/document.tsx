@@ -1,7 +1,7 @@
 import { memo, useState, useCallback } from 'react';
 
 import type { ArtifactKind } from '@/components/artifact';
-import { FileIcon, LoaderIcon, MessageIcon, PencilEditIcon, CheckIcon } from '@/components/icons';
+import { FileIcon, LoaderIcon, MessageIcon, PencilEditIcon, CheckIcon, CheckCircleFillIcon } from '@/components/icons';
 import { toast } from 'sonner';
 import { useArtifact } from '@/hooks/use-artifact';
 import { DiffView } from './diffview';
@@ -9,12 +9,14 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 const getActionText = (
-  type: 'create' | 'update' | 'request-suggestions',
+  type: 'create' | 'stream' | 'update' | 'request-suggestions',
   tense: 'present' | 'past',
 ) => {
   switch (type) {
     case 'create':
-      return tense === 'present' ? 'Generating content for' : 'Created';
+      return tense === 'present' ? 'Creating document' : 'Created';
+    case 'stream':
+      return tense === 'present' ? 'Streaming content for' : 'Streamed';
     case 'update':
       return tense === 'present' ? 'Updating' : 'Updated';
     case 'request-suggestions':
@@ -27,7 +29,7 @@ const getActionText = (
 };
 
 interface DocumentToolResultProps {
-  type: 'create' | 'update' | 'request-suggestions';
+  type: 'create' | 'stream' | 'update' | 'request-suggestions';
   result: {
     id?: string;
     title?: string;
@@ -79,18 +81,22 @@ function PureDocumentToolResult({
      )
   }
 
-  // Handle 'create' type result separately
   if (type === 'create') {
+    const message = result.content || 'Document initialized successfully.';
     return (
-      <div // Non-clickable div
-        className="bg-background border py-2 px-3 rounded-xl w-fit flex flex-row gap-3 items-start text-sm text-muted-foreground"
-      >
-        <div className="mt-0.5">
-           <FileIcon />
-        </div>
-        <div className="text-left">
-          {'Document content generated.'}
-        </div>
+      <div className="bg-green-50 border border-green-200 text-green-800 text-sm py-2 px-3 rounded-xl w-fit flex items-center gap-2">
+        <CheckCircleFillIcon size={16} />
+        <span>{message}</span>
+      </div>
+    );
+  }
+
+  if (type === 'stream') {
+    const message = result.content || 'Content generation completed.';
+    return (
+      <div className="bg-blue-50 border border-blue-200 text-blue-800 text-sm py-2 px-3 rounded-xl w-fit flex items-center gap-2">
+        <CheckCircleFillIcon size={16} />
+        <span>{message}</span>
       </div>
     );
   }
@@ -137,20 +143,23 @@ function PureDocumentToolResult({
 export const DocumentToolResult = memo(PureDocumentToolResult, () => true);
 
 interface DocumentToolCallProps {
-  type: 'create' | 'update' | 'request-suggestions';
+  type: 'create' | 'stream' | 'update' | 'request-suggestions';
   args: { title: string };
   isReadonly: boolean;
 }
 
 function PureDocumentToolCall({
   type,
-  args,
+  args = { title: '' },
   isReadonly,
 }: DocumentToolCallProps) {
-  const { setArtifact } = useArtifact();
-  const { artifact } = useArtifact();
+  const { setArtifact, artifact: localArtifact } = useArtifact();
+  const artTitle = localArtifact?.title ?? '';
 
-  const displayTitle = type === 'create' && artifact.title ? artifact.title : args.title;
+  const titleArg = args.title ?? '';
+  const displayTitle = type === 'create' && artTitle.trim()
+    ? artTitle
+    : titleArg.trim();
 
   return (
     <div 
@@ -160,6 +169,8 @@ function PureDocumentToolCall({
         <div className="text-zinc-500 mt-1">
           {type === 'create' ? (
             <FileIcon />
+          ) : type === 'stream' ? (
+            <LoaderIcon />
           ) : type === 'update' ? (
             <PencilEditIcon />
           ) : type === 'request-suggestions' ? (
@@ -168,7 +179,8 @@ function PureDocumentToolCall({
         </div>
 
         <div className="text-left">
-          {`${getActionText(type, 'present')} ${displayTitle ? `"${displayTitle}"` : '(active document)'}`}
+          {`${getActionText(type, 'present')}`}{' '}
+          {displayTitle ? `"${displayTitle}"` : '(active document)'}
         </div>
       </div>
 

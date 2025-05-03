@@ -34,6 +34,7 @@ import { savePlugin, savePluginKey, setSaveStatus, type SaveState, type SaveStat
 
 import { synonymsPlugin } from '@/lib/editor/synonym-plugin';
 import { EditorToolbar } from '@/components/editor-toolbar';
+import { creationStreamingPlugin } from '@/lib/editor/creation-streaming-plugin';
 
 const { nodes, marks } = documentSchema;
 
@@ -250,6 +251,7 @@ function PureEditor({
     if (containerRef.current && !editorRef.current) {
       console.log(`[Editor] Initializing for documentId: ${documentId}`);
       const plugins = [
+        creationStreamingPlugin(documentId),
         placeholderPlugin(documentId === 'init' ? 'Start typing' : 'Start typing...'),
         ...exampleSetup({ schema: documentSchema, menuBar: false }),
         inputRules({

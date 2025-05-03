@@ -2,6 +2,7 @@
 
 import { useChat } from '@ai-sdk/react';
 import { useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { artifactDefinitions, ArtifactKind } from './artifact';
 import { initialArtifactData, useArtifact } from '@/hooks/use-artifact';
 
@@ -28,6 +29,7 @@ interface StreamMetadata {
 }
 
 export function DataStreamHandler({ id }: { id: string }) {
+  const router = useRouter();
   const { data: dataStream } = useChat({ id });
   const { artifact, setArtifact, setMetadata } = useArtifact();
   const lastProcessedIndex = useRef(-1);
@@ -57,11 +59,27 @@ export function DataStreamHandler({ id }: { id: string }) {
         }
 
         switch (delta.type) {
+          case 'text-delta':
+            if (typeof window !== 'undefined' && draftArtifact.documentId) {
+              window.dispatchEvent(
+                new CustomEvent('editor:stream-text', {
+                  detail: {
+                    documentId: draftArtifact.documentId,
+                    content: delta.content,
+                  },
+                }),
+              );
+            }
+            return draftArtifact;
+
           case 'id':
             console.log(`[DataStreamHandler] Received ID delta: ${delta.content}. Updating artifact state.`);
+            const newDocId = delta.content;
+            console.log(`[DataStreamHandler] Navigating to /documents/${newDocId}`);
+            router.push(`/documents/${newDocId}`);
             return {
               ...draftArtifact,
-              documentId: delta.content,
+              documentId: newDocId,
             };
 
           case 'force-save':
@@ -114,7 +132,7 @@ export function DataStreamHandler({ id }: { id: string }) {
         }
       });
     });
-  }, [dataStream, setArtifact, setMetadata, artifact]);
+  }, [dataStream, setArtifact, setMetadata, artifact, router]);
 
   return null;
 }

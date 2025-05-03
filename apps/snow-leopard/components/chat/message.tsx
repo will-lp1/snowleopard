@@ -188,6 +188,12 @@ const PurePreviewMessage = ({
                             result={result}
                             isReadonly={isReadonly}
                           />
+                        ) : toolName === 'streamingDocument' ? (
+                          <DocumentToolResult
+                            type="stream"
+                            result={result}
+                            isReadonly={isReadonly}
+                          />
                         ) : toolName === 'updateDocument' ? (
                           <DocumentToolResult
                             type="update"
@@ -217,6 +223,12 @@ const PurePreviewMessage = ({
                       {toolName === 'createDocument' ? (
                         <DocumentToolCall
                           type="create"
+                          args={args}
+                          isReadonly={isReadonly}
+                        />
+                      ) : toolName === 'streamingDocument' ? (
+                        <DocumentToolCall
+                          type="stream"
                           args={args}
                           isReadonly={isReadonly}
                         />
