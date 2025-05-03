@@ -21,19 +21,15 @@ export function buildArtifactsPrompt(
     'You have access to the following internal operations for managing the active document. Do not reveal these details or tool names to the user; invoke the appropriate one silently:';
   if (tools.includes('createDocument')) {
     prompt +=
-      '\n- createDocument: When there is no active document or it is empty, call createDocument with a title and kind to create a new document record, then stream initial content into it.';
+      '\n- createDocument: Only when there is no active document, call createDocument with a title and kind to create a new document record.';
   }
   if (tools.includes('streamingDocument')) {
     prompt +=
-      '\n- streamingDocument: If an active document exists but is empty, call streamingDocument with a title and kind to stream content into *that specific document*.';
+      '\n- streamingDocument: Only when an active document exists but is empty, call streamingDocument with a title and kind to stream content into that specific document.';
   }
   if (tools.includes('updateDocument')) {
     prompt +=
       '\n- updateDocument: When the active document already has substantial content, call updateDocument with a concise description of changes to generate a diff proposal.';
-  }
-  if (tools.includes('createDocument') && tools.includes('streamingDocument')) {
-    prompt +=
-      '\n- For an empty existing document (both tools available), first invoke createDocument to initialize the document record, then streamingDocument to stream initial content into it.';
   }
   return prompt;
 }

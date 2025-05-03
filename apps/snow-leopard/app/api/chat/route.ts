@@ -291,21 +291,20 @@ export async function POST(request: Request) {
         const activeToolsList: Array<'createDocument' | 'streamingDocument' | 'updateDocument'> = [];
 
         if (!validatedActiveDocumentId) {
-          // No active document: only allow creating a new one
+          // No active document: Only offer createDocument to make a new one.
           console.log('[Chat API] Offering tool: createDocument (no active document)');
           availableTools.createDocument = aiCreateDocument({ session: toolSession, dataStream });
           activeToolsList.push('createDocument');
-        } else if ((activeDoc?.content?.length ?? 0) > 0) {
-          // Active document has content: only allow update
+        } else if ((activeDoc?.content?.length ?? 0) === 0) {
+          // Active document exists but is empty: Only offer streamingDocument to fill it.
+          console.log('[Chat API] Offering tool: streamingDocument (document is empty)');
+          availableTools.streamingDocument = streamingDocument({ session: toolSession, dataStream });
+          activeToolsList.push('streamingDocument');
+        } else {
+          // Active document exists and has content: Only offer updateDocument.
           console.log('[Chat API] Offering tool: updateDocument (document has content)');
           availableTools.updateDocument = updateDocument({ session: toolSession, documentId: validatedActiveDocumentId });
           activeToolsList.push('updateDocument');
-        } else {
-          // Active document exists but is empty: allow creating a new one OR streaming into the current empty one
-          console.log('[Chat API] Offering tools: createDocument & streamingDocument (document is empty)');
-          availableTools.createDocument = aiCreateDocument({ session: toolSession, dataStream });
-          availableTools.streamingDocument = streamingDocument({ session: toolSession, dataStream });
-          activeToolsList.push('createDocument', 'streamingDocument');
         }
         // --- End Build tools ---
 
