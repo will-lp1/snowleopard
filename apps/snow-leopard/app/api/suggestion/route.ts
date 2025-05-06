@@ -10,7 +10,8 @@ async function handleSuggestionRequest(
   documentId: string,
   description: string,
   userId: string,
-  selectedText?: string
+  selectedText?: string,
+  aiOptions?: { customInstructions?: string }
 ) {
   const document = await getDocumentById({ id: documentId });
 
@@ -56,6 +57,7 @@ async function handleSuggestionRequest(
         document,
         description,
         selectedText,
+        aiOptions,
         write: async (type, content) => {
           await writer.write(encoder.encode(`data: ${JSON.stringify({
             type,
@@ -105,12 +107,19 @@ export async function GET(request: Request) {
     const documentId = url.searchParams.get('documentId');
     const description = url.searchParams.get('description');
     const selectedText = url.searchParams.get('selectedText') || undefined;
+    const suggestionLength = url.searchParams.get('suggestionLength') as 'short' | 'medium' | 'long' | null;
+    const customInstructions = url.searchParams.get('customInstructions') || undefined;
 
     if (!documentId || !description) {
       return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
     }
 
-    return handleSuggestionRequest(documentId, description, userId, selectedText);
+    const aiOptions = {
+      suggestionLength: suggestionLength || undefined,
+      customInstructions: customInstructions
+    };
+
+    return handleSuggestionRequest(documentId, description, userId, selectedText, aiOptions);
   } catch (error: any) {
     console.error('Suggestion GET route error:', error);
     return NextResponse.json({ error: error.message || 'An error occurred' }, { status: 400 });
@@ -131,14 +140,15 @@ export async function POST(request: Request) {
     const {
       documentId,
       description,
-      selectedText
+      selectedText,
+      aiOptions
     } = await request.json();
 
     if (!documentId || !description) {
       return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
     }
 
-    return handleSuggestionRequest(documentId, description, userId, selectedText);
+    return handleSuggestionRequest(documentId, description, userId, selectedText, aiOptions);
   } catch (error: any) {
     console.error('Suggestion POST route error:', error);
     return NextResponse.json({ error: error.message || 'An error occurred' }, { status: 400 });
@@ -149,26 +159,46 @@ async function streamSuggestion({
   document,
   description,
   selectedText,
+  aiOptions,
   write
 }: {
   document: any;
   description: string;
   selectedText?: string;
+  aiOptions?: { suggestionLength?: 'short' | 'medium' | 'long', customInstructions?: string };
   write: (type: string, content: string) => Promise<void>;
 }) {
   let draftContent = '';
   const contentToModify = selectedText || document.content;
-  const promptContext = selectedText 
-    ? `I want to modify a specific part of a document. Here's the selected text: "${selectedText}"\n\nI want you to: ${description} - NEVER INCLUDE ANYTHING IN THE OUTPUT OTHER THAN THE MODIFIED TEXT`
+  const promptContext = selectedText
+    ? `I want to modify a specific part of a document. Here's the selected text: "${selectedText}"
+
+I want you to: ${description} - NEVER INCLUDE ANYTHING IN THE OUTPUT OTHER THAN THE MODIFIED TEXT`
     : description;
 
-  console.log("Starting stream text generation with content length:", contentToModify.length);
+  console.log("Starting stream text generation with content length:", contentToModify.length, "AI Options:", aiOptions);
+
+  let systemMessage = updateDocumentPrompt(
+    contentToModify,
+    'text'
+  );
+
+  if (aiOptions?.customInstructions) {
+    systemMessage += `\n\nUSER'S CUSTOM INSTRUCTIONS:\n${aiOptions.customInstructions}`;
+  }
+
+  const maxTokens = {
+    short: 60,
+    medium: 150,
+    long: 300
+  }[aiOptions?.suggestionLength || 'medium'];
 
   const { fullStream } = streamText({
     model: myProvider.languageModel('artifact-model'),
-    system: updateDocumentPrompt(contentToModify, 'text'),
+    system: systemMessage,
     experimental_transform: smoothStream({ chunking: 'word' }),
     prompt: promptContext,
+    maxTokens: maxTokens,
     experimental_providerMetadata: {
       openai: {
         prediction: {

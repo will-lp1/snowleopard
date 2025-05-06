@@ -1,8 +1,11 @@
 import {
-  type Message,
+  type Message as AIMessageType,
   createDataStreamResponse,
   streamText,
   smoothStream,
+  experimental_createMCPClient,
+  type MCPTransport,
+  type CoreMessage
 } from 'ai';
 import { systemPrompt } from '@/lib/ai/prompts';
 import {
@@ -35,6 +38,23 @@ import { createDocument as aiCreateDocument } from '@/lib/ai/tools/create-docume
 
 export const maxDuration = 60;
 
+// Copied from scira-mcp-chat or mcp-context.tsx for backend use
+interface KeyValuePair {
+  key: string;
+  value: string;
+}
+
+// This should match MCPServerApi from your mcp-context.tsx
+interface MCPServerConfig {
+  name?: string; 
+  url: string;
+  type: 'sse' | 'stdio';
+  command?: string;
+  args?: string[];
+  env?: KeyValuePair[];
+  headers?: KeyValuePair[];
+}
+
 /**
  * Creates an enhanced system prompt that includes active and mentioned document content
  */
@@ -42,34 +62,36 @@ async function createEnhancedSystemPrompt({
   selectedChatModel,
   activeDocumentId,
   mentionedDocumentIds,
-  availableTools = ['createDocument','streamingDocument','updateDocument'] as Array<'createDocument'|'streamingDocument'|'updateDocument'>,
+  customInstructions,
+  availableTools = [],
 }: {
   selectedChatModel: string;
   activeDocumentId?: string | null;
   mentionedDocumentIds?: string[] | null;
-  availableTools?: Array<'createDocument'|'streamingDocument'|'updateDocument'>;
+  customInstructions?: string | null;
+  availableTools?: string[];
 }) {
-  // Build the base prompt with only the allowed tools
-  let basePrompt = systemPrompt({ selectedChatModel, availableTools });
+  let basePrompt = systemPrompt({ selectedChatModel, availableTools: availableTools as any });
   let contextAdded = false;
 
-  // Explicitly ask the reasoning model to use think tags
   if (selectedChatModel === 'chat-model-reasoning') {
     basePrompt += "\n\nIMPORTANT: Think step-by-step about your plan using <think> tags before generating the response.";
   }
 
-  // Log the model received by the prompt function
-  console.log(`[createEnhancedSystemPrompt] Received model: ${selectedChatModel}`);
+  if (customInstructions && customInstructions.trim() !== "") {
+    basePrompt += `
 
-  // Log that we're processing document context
-  console.log(`[Chat API] Processing context. Active: ${activeDocumentId || 'none'}, Mentioned: ${mentionedDocumentIds?.length || 0}`);
+USER'S CUSTOM INSTRUCTIONS:
+${customInstructions}`;
+    console.log('[Chat API] Added custom instructions to system prompt.');
+  }
+
+  console.log(`[createEnhancedSystemPrompt] Received model: ${selectedChatModel}, Tools: ${availableTools.join(', ')}`);
   
-  // --- Active Document Context --- 
   if (activeDocumentId) {
     try {
       const document = await getDocumentById({ id: activeDocumentId });
       if (document) {
-        console.log(`[Chat API] Found active document for context: "${document.title}"`);
         const documentContext = `
 CURRENT DOCUMENT:
 Title: ${document.title}
@@ -86,17 +108,13 @@ ${document.content || '(Empty document)'}
     }
   }
 
-  // --- Mentioned Documents Context --- 
   if (mentionedDocumentIds && mentionedDocumentIds.length > 0) {
     basePrompt += `\n\n--- MENTIONED DOCUMENTS (do not modify) ---`;
     for (const mentionedId of mentionedDocumentIds) {
-      // Avoid refetching if mentioned is same as active
       if (mentionedId === activeDocumentId) continue; 
-
       try {
         const document = await getDocumentById({ id: mentionedId });
         if (document) {
-          console.log(`[Chat API] Found mentioned document for context: "${document.title}"`);
           const mentionedContext = `
 MENTIONED DOCUMENT:
 Title: ${document.title}
@@ -105,6 +123,8 @@ ${document.content || '(Empty document)'}
 `;
           basePrompt += `\n${mentionedContext}`;
           contextAdded = true;
+        } else {
+           console.warn(`[Chat API] Mentioned document not found for ID: ${mentionedId}`);
         }
       } catch (error) {
         console.error(`[Chat API] Error fetching mentioned document ID ${mentionedId}:`, error);
@@ -181,25 +201,36 @@ export async function POST(request: Request) {
     const userId = session.user.id;
 
     const {
-      id: chatId,
+      id: chatIdFromRequest,
       messages,
       selectedChatModel,
       data: requestData,
+      aiSettings,
+      mcpServers = [],
     }: {
       id: string;
-      messages: Array<Message>;
+      messages: Array<AIMessageType>;
       selectedChatModel: string;
       data?: { 
         activeDocumentId?: string | null;
         mentionedDocumentIds?: string[] | null;
         [key: string]: any; 
-      }
+      };
+      aiSettings?: {
+        customInstructions?: string | null;
+      } | null;
+      mcpServers?: MCPServerConfig[];
     } = await request.json();
 
+    const chatId = chatIdFromRequest;
+
     console.log(`[Chat API POST] Received request for chatId: ${chatId}, selectedChatModel: ${selectedChatModel}`);
+    console.log(`[Chat API POST] Received AI Settings:`, aiSettings);
+    console.log(`[Chat API POST] Received MCP Servers:`, mcpServers.length);
 
     const activeDocumentId = requestData?.activeDocumentId ?? undefined;
     const mentionedDocumentIds = requestData?.mentionedDocumentIds ?? undefined;
+    const customInstructions = aiSettings?.customInstructions ?? undefined;
 
     const userMessage = getMostRecentUserMessage(messages);
 
@@ -259,11 +290,47 @@ export async function POST(request: Request) {
       return new Response('Internal Server Error', { status: 500 });
     }
 
-    const enhancedSystemPrompt = await createEnhancedSystemPrompt({
-      selectedChatModel,
-      activeDocumentId,
-      mentionedDocumentIds,
-    });
+    // --- Initialize MCP Clients and Discover Tools ---
+    let combinedTools: any = {};
+    const mcpClients: Array<{ close: () => Promise<void> }> = [];
+
+    if (mcpServers && mcpServers.length > 0) {
+      console.log(`[Chat API] Initializing ${mcpServers.length} MCP clients...`);
+      for (const serverConfig of mcpServers) {
+        try {
+          let transport: MCPTransport; 
+          if (serverConfig.type === 'sse') {
+            const headers: Record<string, string> = {};
+            if (serverConfig.headers) {
+              serverConfig.headers.forEach(h => { if (h.key) headers[h.key] = h.value || ''; });
+            }
+            transport = {
+              type: 'sse',
+              url: serverConfig.url,
+              headers: Object.keys(headers).length > 0 ? headers : undefined,
+            };
+          } else if (serverConfig.type === 'stdio') {
+            // Ensure Experimental_StdioMCPTransport is imported and available if you support this
+            // For now, let's log and skip to keep it simpler if not immediately needed.
+            console.warn(`[Chat API] STDIO MCP transport for "${serverConfig.name || serverConfig.command}" is configured but might require 'ai/mcp-stdio'.`);
+            // Example: transport = new Experimental_StdioMCPTransport({ command: serverConfig.command!, args: serverConfig.args!, env: ... });
+            continue; // Skip STDIO for now if not fully set up with StdioMCPTransport
+          } else {
+            console.warn(`[Chat API] Unsupported MCP server type: ${serverConfig.type} for ${serverConfig.name || serverConfig.url}`);
+            continue;
+          }
+
+          const mcpClient = await experimental_createMCPClient({ transport });
+          mcpClients.push(mcpClient);
+          const discoveredMcpTools = await mcpClient.tools();
+          console.log(`[Chat API] Discovered tools from ${serverConfig.name || serverConfig.url}:`, Object.keys(discoveredMcpTools));
+          combinedTools = { ...combinedTools, ...discoveredMcpTools };
+        } catch (error) {
+          console.error(`[Chat API] Failed to initialize MCP client for ${serverConfig.name || serverConfig.url}:`, error);
+        }
+      }
+    }
+    // --- End MCP Tool Initialization ---
 
     // Validate and load the active document once
     let validatedActiveDocumentId: string | undefined;
@@ -286,48 +353,50 @@ export async function POST(request: Request) {
 
     return createDataStreamResponse({
       execute: async (dataStream) => {
-        // --- Build tools based on active document state ---
-        const availableTools: any = {};
+        // --- Build existing tools based on active document state (your current logic) ---
         const activeToolsList: Array<'createDocument' | 'streamingDocument' | 'updateDocument'> = [];
+        const documentSpecificTools: any = {};
 
         if (!validatedActiveDocumentId) {
-          // No active document: Only offer createDocument to make a new one.
           console.log('[Chat API] Offering tool: createDocument (no active document)');
-          availableTools.createDocument = aiCreateDocument({ session: toolSession, dataStream });
+          documentSpecificTools.createDocument = aiCreateDocument({ session: toolSession, dataStream });
           activeToolsList.push('createDocument');
         } else if ((activeDoc?.content?.length ?? 0) === 0) {
-          // Active document exists but is empty: Only offer streamingDocument to fill it.
           console.log('[Chat API] Offering tool: streamingDocument (document is empty)');
-          availableTools.streamingDocument = streamingDocument({ session: toolSession, dataStream });
+          documentSpecificTools.streamingDocument = streamingDocument({ session: toolSession, dataStream });
           activeToolsList.push('streamingDocument');
         } else {
-          // Active document exists and has content: Only offer updateDocument.
           console.log('[Chat API] Offering tool: updateDocument (document has content)');
-          availableTools.updateDocument = updateDocument({ session: toolSession, documentId: validatedActiveDocumentId });
+          documentSpecificTools.updateDocument = updateDocument({ session: toolSession, documentId: validatedActiveDocumentId });
           activeToolsList.push('updateDocument');
         }
-        // --- End Build tools ---
+        // --- End Build existing tools ---
 
-        // Regenerate the system prompt with the actual available tools
+        // Merge document-specific tools with discovered MCP tools
+        const allAvailableTools = { ...documentSpecificTools, ...combinedTools }; 
+
+        // Regenerate the system prompt with the actual available tools (including MCP ones)
+        // The availableTools in systemPrompt might need to accept a broader type or just be for logging purposes now
         const dynamicSystemPrompt = await createEnhancedSystemPrompt({
           selectedChatModel,
           activeDocumentId,
           mentionedDocumentIds,
-          availableTools: activeToolsList,
+          customInstructions,
+          availableTools: [...activeToolsList, ...Object.keys(combinedTools)] as any,
         });
 
         const result = streamText({
           model: myProvider.languageModel(selectedChatModel),
           system: dynamicSystemPrompt,
           messages,
-          maxSteps: activeToolsList.length,
+          maxSteps: 20,
           toolCallStreaming: true,
-          experimental_activeTools: activeToolsList,
+          experimental_activeTools: [...activeToolsList, ...Object.keys(combinedTools)],
           experimental_generateMessageId: generateUUID,
           experimental_transform: smoothStream({
             chunking:'word',
           }),
-          tools: availableTools, 
+          tools: allAvailableTools,
           onFinish: async ({ response, reasoning }) => {
             if (userId) {
               try {
@@ -343,6 +412,7 @@ export async function POST(request: Request) {
                     role: message.role,
                     content: parseMessageContent(message.content),
                     createdAt: new Date().toISOString(),
+                    toolInvocations: message.toolInvocations,
                   })),
                 });
                 
@@ -358,11 +428,23 @@ export async function POST(request: Request) {
                 console.error('Failed to save chat/messages onFinish:', error);
               }
             }
+            // Close MCP clients after streaming is finished
+            for (const client of mcpClients) {
+              await client.close().catch(error => console.error('[Chat API] Error closing MCP client onFinish:', error));
+            }
           },
           experimental_telemetry: {
             isEnabled: isProductionEnvironment,
             functionId: 'stream-text',
           },
+        });
+
+        // Add abort listener for request signal to close MCP clients
+        request.signal.addEventListener('abort', async () => {
+            console.log('[Chat API] Request aborted, closing MCP clients.');
+            for (const client of mcpClients) {
+                await client.close().catch(error => console.error('[Chat API] Error closing MCP client on abort:', error));
+            }
         });
 
         result.consumeStream();
@@ -371,13 +453,18 @@ export async function POST(request: Request) {
           sendReasoning: true,
         });
       },
-      onError: () => {
+      onError: (error) => {
+        console.error('[Chat API] createDataStreamResponse error:', error);
+        // Ensure mcpClients are closed here too, as a last resort if execute fails early
+        for (const client of mcpClients) {
+           client.close().catch(e => console.error('[Chat API] Error closing MCP client in outer onError:', e));
+        }
         return 'Oops, an error occurred!';
       },
     });
   } catch (error) {
     console.error('Chat route error:', error);
-    return NextResponse.json({ error }, { status: 400 });
+    return NextResponse.json({ error: (error as Error).message || String(error) }, { status: 400 });
   }
 }
 

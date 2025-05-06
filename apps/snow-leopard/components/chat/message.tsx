@@ -1,10 +1,11 @@
 'use client';
 
-import type { ChatRequestOptions, Message } from 'ai';
+import type { ChatRequestOptions, Message, ToolInvocation } from 'ai';
 import cx from 'classnames';
 import { AnimatePresence, motion } from 'framer-motion';
 import { memo, useState } from 'react';
 import { DocumentToolCall, DocumentToolResult } from '@/components/document/document';
+import { MCPInvocation } from '@/components/mcp/mcp-invocation';
 import { PencilEditIcon, SparklesIcon, FileIcon } from '../icons';
 import { Markdown } from '../markdown';
 import { MessageActions } from './message-actions';
@@ -62,6 +63,7 @@ const PurePreviewMessage = ({
   chatId,
   message,
   isLoading,
+  isLatestMessage,
   setMessages,
   reload,
   isReadonly,
@@ -69,6 +71,7 @@ const PurePreviewMessage = ({
   chatId: string;
   message: Message;
   isLoading: boolean;
+  isLatestMessage: boolean;
   setMessages: (
     messages: Message[] | ((messages: Message[]) => Message[]),
   ) => void;
@@ -77,7 +80,7 @@ const PurePreviewMessage = ({
   ) => Promise<string | null | undefined>;
   isReadonly: boolean;
 }) => {
-  console.log('[PreviewMessage] Rendering message:', message);
+  console.log('[PreviewMessage] Rendering message:', message.id, 'isLatest:', isLatestMessage, 'isLoading:', isLoading);
 
   return (
     <AnimatePresence>
@@ -137,79 +140,93 @@ const PurePreviewMessage = ({
             )}
 
             {message.toolInvocations && message.toolInvocations.length > 0 && (
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-2 mt-2">
                 {message.toolInvocations.map((toolInvocation) => {
-                  const { toolName, toolCallId, state, args } = toolInvocation;
+                  const { toolCallId, toolName, args } = toolInvocation;
+                  const result = (toolInvocation as any).result;
+                  const error = (toolInvocation as any).error;
 
-                  if (state === 'result') {
-                    const { result } = toolInvocation;
+                  const isResultState = result !== undefined || error !== undefined;
+
+                  if (toolName === 'createDocument') {
+                    return isResultState ? (
+                      <DocumentToolResult
+                        key={toolCallId}
+                        type="create"
+                        result={error ? { error: String(error), ...args } : result}
+                        isReadonly={isReadonly}
+                      />
+                    ) : (
+                      <DocumentToolCall
+                        key={toolCallId}
+                        type="create"
+                        args={args}
+                        isReadonly={isReadonly}
+                      />
+                    );
+                  } else if (toolName === 'streamingDocument') {
+                    return isResultState ? (
+                      <DocumentToolResult
+                        key={toolCallId}
+                        type="stream"
+                        result={error ? { error: String(error), ...args } : result}
+                        isReadonly={isReadonly}
+                      />
+                    ) : (
+                      <DocumentToolCall
+                        key={toolCallId}
+                        type="stream"
+                        args={args}
+                        isReadonly={isReadonly}
+                      />
+                    );
+                  } else if (toolName === 'updateDocument') {
+                    return isResultState ? (
+                      <DocumentToolResult
+                        key={toolCallId}
+                        type="update"
+                        result={error ? { error: String(error), ...args } : result}
+                        isReadonly={isReadonly}
+                      />
+                    ) : (
+                      <DocumentToolCall
+                        key={toolCallId}
+                        type="update"
+                        args={args}
+                        isReadonly={isReadonly}
+                      />
+                    );
+                  } else if (toolName === 'requestSuggestions') {
+                    return isResultState ? (
+                      <DocumentToolResult
+                        key={toolCallId}
+                        type="request-suggestions"
+                        result={error ? { error: String(error), ...args } : result}
+                        isReadonly={isReadonly}
+                      />
+                    ) : (
+                      <DocumentToolCall
+                        key={toolCallId}
+                        type="request-suggestions"
+                        args={args}
+                        isReadonly={isReadonly}
+                      />
+                    );
+                  } else {
+                    const isMcpToolRunning = isLatestMessage && isLoading && result === undefined && !error;
                     return (
-                      <div key={toolCallId}>
-                        {toolName === 'createDocument' ? (
-                          <DocumentToolResult
-                            type="create"
-                            result={result}
-                            isReadonly={isReadonly}
-                          />
-                        ) : toolName === 'streamingDocument' ? (
-                          <DocumentToolResult
-                            type="stream"
-                            result={result}
-                            isReadonly={isReadonly}
-                          />
-                        ) : toolName === 'updateDocument' ? (
-                          <DocumentToolResult
-                            type="update"
-                            result={result}
-                            isReadonly={isReadonly}
-                          />
-                        ) : toolName === 'requestSuggestions' ? (
-                          <DocumentToolResult
-                            type="request-suggestions"
-                            result={result}
-                            isReadonly={isReadonly}
-                          />
-                        ) : (
-                          <pre>{JSON.stringify(result, null, 2)}</pre>
-                        )}
-                      </div>
+                      <MCPInvocation
+                        key={toolCallId}
+                        toolCallId={toolCallId}
+                        toolName={toolName}
+                        args={args}
+                        result={result}
+                        error={error ? String(error) : undefined}
+                        isRunning={isMcpToolRunning}
+                        isCollapsedInitially={false}
+                      />
                     );
                   }
-
-                  return (
-                    <div
-                      key={toolCallId}
-                      className={cx({
-                        skeleton: ['getWeather'].includes(toolName),
-                      })}
-                    >
-                      {toolName === 'createDocument' ? (
-                        <DocumentToolCall
-                          type="create"
-                          args={args}
-                          isReadonly={isReadonly}
-                        />
-                      ) : toolName === 'streamingDocument' ? (
-                        <DocumentToolCall
-                          type="stream"
-                          args={args}
-                          isReadonly={isReadonly}
-                        />
-                      ) : toolName === 'updateDocument' ? (
-                        <DocumentToolCall
-                          type="update"
-                          args={args}
-                          isReadonly={isReadonly}
-                        />
-                      ) : toolName === 'requestSuggestions' ? (
-                        <DocumentToolCall
-                          type="request-suggestions"
-                          args={args}
-                          isReadonly={isReadonly}
-                        />
-                      ) : null}
-                    </div>
-                  );
                 })}
               </div>
             )}

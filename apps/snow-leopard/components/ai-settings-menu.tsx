@@ -1,6 +1,6 @@
 'use client';
 
-import { Settings } from 'lucide-react';
+import { Settings, Server } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -13,6 +13,8 @@ import { useAiOptions, SuggestionLength } from '@/hooks/ai-options';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { MCPServerManager } from '@/components/mcp/mcp-server-manager';
+import { Separator } from "@/components/ui/separator";
 
 export function AiSettingsMenu() {
   const {
@@ -24,6 +26,7 @@ export function AiSettingsMenu() {
 
   // Local state to prevent Textarea lag
   const [localInstructions, setLocalInstructions] = useState(customInstructions);
+  const [isMcpManagerOpen, setIsMcpManagerOpen] = useState(false);
 
   // Update local state if global state changes externally
   useEffect(() => {
@@ -44,6 +47,7 @@ export function AiSettingsMenu() {
   }, [localInstructions, customInstructions, setCustomInstructions]);
 
   return (
+    <>
     <Tooltip>
       <TooltipTrigger asChild>
         <DropdownMenu>
@@ -85,6 +89,21 @@ export function AiSettingsMenu() {
                 ))}
               </div>
             </div>
+                
+              <Separator className="my-3" />
+
+              <div className="mb-3">
+                <Button 
+                  variant="outline"
+                  className="w-full justify-start h-8 text-xs font-medium" 
+                  onClick={() => setIsMcpManagerOpen(true)}
+                >
+                  <Server size={14} className="mr-2 text-muted-foreground" />
+                  Manage MCP Servers
+                </Button>
+              </div>
+                
+              <Separator className="my-3" />
               
             <div className="space-y-2">
               <Label htmlFor="custom-instructions" className="text-xs font-medium">
@@ -106,5 +125,7 @@ export function AiSettingsMenu() {
       </TooltipTrigger>
       <TooltipContent side="bottom">AI Settings</TooltipContent>
     </Tooltip>
+      <MCPServerManager open={isMcpManagerOpen} onOpenChange={setIsMcpManagerOpen} />
+    </>
   );
 } 

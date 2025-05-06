@@ -9,6 +9,7 @@ import { AppSidebar } from '@/components/sidebar/app-sidebar';
 import { SidebarProvider, SidebarRail } from '@/components/ui/sidebar';
 import { authClient } from '@/lib/auth-client';
 import { fetcher } from '@/lib/utils';
+import { MCPProvider } from '@/lib/context/mcp-context';
 
 export const experimental_ppr = true;
 
@@ -34,6 +35,7 @@ export default function DocumentsLayout({ children }: { children: ReactNode }) {
     subscriptionData.hasActiveSubscription;
 
   return (
+    <MCPProvider>
     <SidebarProvider defaultOpen={!isCollapsed}>
       <div className="flex flex-row h-dvh w-full bg-background">
         <div className="relative">
@@ -60,5 +62,6 @@ export default function DocumentsLayout({ children }: { children: ReactNode }) {
         </div>
       </div>
     </SidebarProvider>
+    </MCPProvider>
   );
 } 

@@ -27,20 +27,27 @@ function PureMessages({
   const [messagesContainerRef, messagesEndRef] =
     useScrollToBottom<HTMLDivElement>();
 
+  // Determine if the chat is actively processing or waiting for a response.
+  const isActive = status === 'submitted' || status === 'streaming';
+  const isReadyForInput = status === 'ready'; // Assuming 'ready' means completed and ready for new input
+
   return (
     <div
       ref={messagesContainerRef}
-      className="flex flex-col min-w-0 gap-6 flex-1 overflow-y-scroll pt-4"
+      className="flex flex-col min-w-0 gap-3 md:gap-4 lg:gap-6 flex-1 overflow-y-scroll pt-4 pb-4"
     >
-      {messages.length === 0 && <Overview />}
+      {/* Show overview only when chat is ready for input and there are no messages */}
+      {messages.length === 0 && isReadyForInput && <Overview />} 
 
       {messages.map((message, index) => {
+        const isLatest = index === messages.length - 1;
         return (
           <PreviewMessage
             key={message.id}
             chatId={chatId}
             message={message}
-            isLoading={status === 'streaming' && messages.length - 1 === index}
+            isLoading={isActive} 
+            isLatestMessage={isLatest && isActive} 
             setMessages={setMessages}
             reload={reload}
             isReadonly={isReadonly}
@@ -48,23 +55,23 @@ function PureMessages({
         );
       })}
 
-      {status === 'submitted' &&
-        messages.length > 0 &&
-        messages[messages.length - 1].role === 'user' && <ThinkingMessage />}
+      {/* Show thinking indicator if actively waiting for a response and the last message was from user */}
+      {isActive && 
+        messages.length > 0 && 
+        messages[messages.length - 1].role === 'user' && 
+        <ThinkingMessage />}
 
       <div
         ref={messagesEndRef}
-        className="shrink-0 min-w-[24px] min-h-[24px]"
+        className="shrink-0 min-w-[1px] min-h-[1px]"
       />
     </div>
   );
 }
 
 export const Messages = memo(PureMessages, (prevProps, nextProps) => {
-  if (prevProps.isArtifactVisible && nextProps.isArtifactVisible) return true;
-
+  if (prevProps.isArtifactVisible !== nextProps.isArtifactVisible) return false;
   if (prevProps.status !== nextProps.status) return false;
-  if (prevProps.status && nextProps.status) return false;
   if (prevProps.messages.length !== nextProps.messages.length) return false;
   if (!equal(prevProps.messages, nextProps.messages)) return false;
   return true;

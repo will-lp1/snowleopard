@@ -19,6 +19,8 @@ import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
 import { DataStreamHandler } from '@/components/data-stream-handler';
 import { motion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
+import { useMCP } from '@/lib/context/mcp-context';
+import { useAiOptions } from '@/hooks/ai-options';
 
 export interface ChatProps {
   id?: string;
@@ -39,6 +41,8 @@ export function Chat({
   const { documentId, documentTitle, documentContent } = useDocumentContext();
   const [documentContextActive, setDocumentContextActive] = useState(false);
   const { artifact } = useArtifact();
+  const { mcpServersForApi } = useMCP();
+  const { customInstructions: globalCustomInstructions } = useAiOptions();
   const [chatId, setChatId] = useState(() => initialId || generateUUID());
   
   const [selectedChatModel, setSelectedChatModel] = useState(
@@ -87,6 +91,10 @@ export function Chat({
     body: {
       id: chatId,
       selectedChatModel: selectedChatModel,
+      mcpServers: mcpServersForApi,
+      aiSettings: {
+        customInstructions: globalCustomInstructions,
+      }
     },
     onResponse: (res) => {
       if (res.status === 401) {
@@ -287,7 +295,7 @@ export function Chat({
         </motion.div>
       )}
 
-      <div className="flex-1 overflow-y-auto relative">
+      <div className="flex-1 overflow-y-auto relative px-4">
         {isLoadingChat ? (
            <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm z-10">
              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
