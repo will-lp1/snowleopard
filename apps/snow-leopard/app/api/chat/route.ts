@@ -298,7 +298,7 @@ export async function POST(request: Request) {
       console.log(`[Chat API] Initializing ${mcpServers.length} MCP clients...`);
       for (const serverConfig of mcpServers) {
         try {
-          let transport: MCPTransport; 
+          let transport: MCPTransport | { type: 'sse'; url: string; headers?: Record<string, string>; };
           if (serverConfig.type === 'sse') {
             const headers: Record<string, string> = {};
             if (serverConfig.headers) {
@@ -412,7 +412,7 @@ export async function POST(request: Request) {
                     role: message.role,
                     content: parseMessageContent(message.content),
                     createdAt: new Date().toISOString(),
-                    toolInvocations: message.toolInvocations,
+                    toolInvocations: (message as any).toolInvocations,
                   })),
                 });
                 
