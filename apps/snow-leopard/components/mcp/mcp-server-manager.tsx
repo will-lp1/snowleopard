@@ -247,7 +247,7 @@ export const MCPServerManager = ({ open, onOpenChange }: MCPServerManagerProps) 
     };
 
     const renderServerList = () => (
-        <div className="flex-1 overflow-y-auto px-0 py-1 space-y-1.5 max-h-[calc(85vh-180px)]">
+        <div className="flex-1 px-0 py-1 space-y-1.5">
             {mcpServers.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center py-6">
                     <ServerIcon className="h-9 w-9 text-muted-foreground/60 mb-2.5" />
@@ -300,7 +300,6 @@ export const MCPServerManager = ({ open, onOpenChange }: MCPServerManagerProps) 
             <AccordionItem value={type} className="border-x-0 border-b-0 last:border-b-0">
                 <AccordionTrigger className="py-2 px-1 text-xs hover:no-underline text-muted-foreground hover:text-foreground data-[state=open]:text-foreground flex items-center justify-start">
                     <Cog size={13} className="mr-1.5 flex-shrink-0"/> {title}
-                    <ChevronDown className="h-3.5 w-3.5 shrink-0 transition-transform duration-200 ml-auto group-data-[state=open]:rotate-180" />
                 </AccordionTrigger>
                 <AccordionContent className="pt-1.5 pb-2.5 px-1 space-y-2">
                     {currentPairs.map((pair, index) => (
@@ -363,7 +362,7 @@ export const MCPServerManager = ({ open, onOpenChange }: MCPServerManagerProps) 
     };
 
     const renderServerForm = () => (
-        <div className="space-y-3.5 overflow-y-auto px-1 py-1 max-h-[calc(85vh-180px)]">
+        <div className="space-y-3.5 px-1 py-1">
             <div className="grid gap-1">
                 <Label htmlFor="server-name-input" className="text-xs font-medium text-muted-foreground ml-0.5 mb-1">Server Name</Label>
                 <Input id="server-name-input" name="name" value={currentServerData.name} onChange={handleInputChange} placeholder="My Awesome MCP Server" className={`h-9 text-sm`}/>
@@ -432,19 +431,18 @@ export const MCPServerManager = ({ open, onOpenChange }: MCPServerManagerProps) 
             <DialogContent className="sm:max-w-md flex flex-col max-h-[85vh] p-0">
                 <DialogHeader className="flex-shrink-0 px-4 pt-4 pb-3 border-b dark:border-input/80">
                     <DialogTitle className="flex items-center gap-1.5 text-md">
-                         <ServerIcon className="h-4.5 w-4.5 text-primary" />
                         {view === 'form' ? (editingServer ? "Edit MCP Server" : "Add New MCP Server") : "Manage MCP Servers"}
                     </DialogTitle>
                 </DialogHeader>
                 
-                <div className="flex-grow overflow-hidden relative px-4 pt-2 pb-1">
+                <div className="flex-grow overflow-y-auto min-h-0 relative px-4 pt-2 pb-1">
                     {view === 'form' ? renderServerForm() : renderServerList()}
                 </div>
                 
                 <DialogFooter className="px-4 pt-3 pb-4 border-t dark:border-input/80 flex-shrink-0">
                     {view === 'list' ? (
-                        <Button className="w-full sm:w-auto text-sm h-9" onClick={() => { setEditingServer(null); setView('form'); }}>
-                            <PlusCircle size={14} className="mr-1.5"/> Add Server
+                        <Button variant="outline" className="w-full sm:w-auto text-sm h-9" onClick={() => { setEditingServer(null); setView('form'); }}>
+                            <Plus size={14} className="mr-1.5"/> Add Server 
                         </Button>
                     ) : ( 
                         <>
