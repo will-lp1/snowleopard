@@ -304,7 +304,7 @@ export const MCPServerManager = ({ open, onOpenChange }: MCPServerManagerProps) 
                 <AccordionContent className="pt-1.5 pb-2.5 px-1 space-y-2">
                     {currentPairs.map((pair, index) => (
                         <div key={`${type}-${index}`} className="flex items-center gap-1.5">
-                            <Input value={pair.key} readOnly className={`h-9 text-sm bg-muted/50 flex-auto text-xs`} tabIndex={-1}/>
+                            <Input value={pair.key} readOnly className="h-9 bg-muted/50 flex-auto text-xs" tabIndex={-1}/>
                             <div className="relative flex-auto">
                                 {editingPair?.type === type && editingPair?.index === index ? (
                                     <div className="flex items-center gap-1">

@@ -1,6 +1,6 @@
 'use client';
 
-import { Settings, Server } from 'lucide-react';
+import { Settings, ServerIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -94,7 +94,7 @@ export function AiSettingsMenu() {
                   className="w-full justify-start h-8 text-xs font-medium"
                   onClick={() => setIsMcpManagerOpen(true)}
                 >
-                  <Server size={14} className="mr-2 text-muted-foreground" />
+                  <ServerIcon size={14} className="mr-2 text-muted-foreground" />
                   Manage MCP Servers
                 </Button>
               </div>
