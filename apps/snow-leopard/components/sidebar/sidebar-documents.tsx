@@ -2,9 +2,9 @@
 
 import { isToday, isYesterday, subMonths, subWeeks } from 'date-fns';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, usePathname } from 'next/navigation';
 import type { User } from '@/lib/auth';
-import { memo, useCallback, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useState, useMemo } from 'react';
 import { toast } from 'sonner';
 import useSWR from 'swr';
 import { cn, fetcher } from '@/lib/utils';
@@ -174,7 +174,7 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
   const { setOpenMobile } = useSidebar();
   const { id: chatId } = useParams();
   const router = useRouter();
-  const { setArtifact } = useArtifact();
+  const { artifact, setArtifact } = useArtifact();
   const { 
     createNewDocument, 
     loadDocument,
@@ -201,31 +201,15 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
     mutate();
   }, [mutate]);
 
-  const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
-  const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
-  
-  useEffect(() => {
+  const pathname = usePathname() || '';
+  const urlDocumentId = useMemo(() => {
     const match = pathname.match(/\/documents\/([^/?]+)/);
-    const newActiveId = match ? match[1] : null;
-    
-    if (newActiveId !== activeDocumentId) {
-      setActiveDocumentId(newActiveId);
-    }
-    
-    const updateActiveDocument = () => {
-      const newPathname = window.location.pathname;
-      const newMatch = newPathname.match(/\/documents\/([^/?]+)/);
-      const newId = newMatch ? newMatch[1] : null;
-      
-      setActiveDocumentId(newId);
-    };
-    
-    window.addEventListener('popstate', updateActiveDocument);
-    
-    return () => {
-      window.removeEventListener('popstate', updateActiveDocument);
-    };
-  }, [pathname, activeDocumentId]);
+    return match ? match[1] : null;
+  }, [pathname]);
+  const activeDocumentId = useMemo(
+    () => artifact?.documentId ?? urlDocumentId,
+    [artifact?.documentId, urlDocumentId]
+  );
 
   useEffect(() => {
     const handleDocumentCreated = (event: CustomEvent) => {
@@ -378,8 +362,6 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
   };
   
   const handleDocumentSelect = useCallback(async (documentId: string) => {
-    setActiveDocumentId(documentId); 
-    
     try {
       if (documentId === 'init' || !documentId) {
         console.error('[SidebarDocuments] Invalid document ID:', documentId);
@@ -413,7 +395,7 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
       toast.error('Failed to load document');
       setArtifact((curr: any) => ({ ...curr, status: 'idle' }));
     }
-  }, [documents, setArtifact, router, setOpenMobile, activeDocumentId]);
+  }, [documents, setArtifact, router, setOpenMobile]);
 
   const filterDocuments = (docs: Document[]) => {
     if (!searchTerm.trim()) return docs;

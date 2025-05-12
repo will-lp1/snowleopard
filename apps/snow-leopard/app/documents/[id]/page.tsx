@@ -20,23 +20,26 @@ export default async function DocumentPage(props: { params: Promise<{ id: string
       return notFound(); 
     }
 
-    const { hasActiveSubscription } = await checkSubscriptionStatus();
+    // Fetch subscription status and user in parallel
+    const [{ hasActiveSubscription }, user] = await Promise.all([
+      checkSubscriptionStatus(),
+      getUser(),
+    ]);
     
     if (!hasActiveSubscription) {
       return <Paywall isOpen={true} required={true} />;
     }
-
-    const [documentsResult, user] = await Promise.all([
-      getDocumentsById({ ids: [documentId], userId: 'placeholder' }),
-      getUser(),
-    ]);
 
     if (!user) {
       console.warn(`[DocumentPage] User not found after subscription check. Redirecting.`);
       return notFound(); 
     }
 
-    const documents: Document[] = await getDocumentsById({ ids: [documentId], userId: user.id });
+    // Fetch the documents once with the authenticated user
+    const documents: Document[] = await getDocumentsById({
+      ids: [documentId],
+      userId: user.id,
+    });
 
     if (!documents || documents.length === 0) {
       console.log(`[DocumentPage] Document ${documentId} not found for user ${user.id}. Showing create prompt.`);

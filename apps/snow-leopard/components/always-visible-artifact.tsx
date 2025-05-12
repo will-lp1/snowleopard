@@ -26,7 +26,7 @@ const Editor = dynamic(() => import('@/components/document/text-editor').then(mo
   loading: () => <EditorSkeleton />, 
 });
 
-const EditorSkeleton = () => (
+export const EditorSkeleton = () => (
   <div className="space-y-4 animate-pulse">
     <div className="h-6 bg-muted rounded w-3/4"></div>
     <div className="h-4 bg-muted rounded w-full"></div>
@@ -58,6 +58,9 @@ const defaultArtifactProps = {
     isVisible: false,
     boundingBox: undefined,
 };
+
+const MemoArtifactActions = React.memo(ArtifactActions);
+const MemoAiSettingsMenu = React.memo(AiSettingsMenu);
 
 export function AlwaysVisibleArtifact({
   chatId,
@@ -134,7 +137,7 @@ export function AlwaysVisibleArtifact({
         }
     });
 
-  }, [initialDocumentId, initialDocuments, setArtifact, startTransition, artifact.documentId]);
+  }, [initialDocumentId, initialDocuments, setArtifact, startTransition]);
 
   useEffect(() => {
     const handleDocumentRenamed = (event: CustomEvent) => {
@@ -368,7 +371,7 @@ export function AlwaysVisibleArtifact({
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
           {documents && documents.length > 0 && (
-            <ArtifactActions
+            <MemoArtifactActions
               artifact={artifact}
               currentVersionIndex={currentVersionIndex}
               handleVersionChange={handleVersionChange}
@@ -378,7 +381,7 @@ export function AlwaysVisibleArtifact({
               setMetadata={setMetadata}
             />
           )}
-          <AiSettingsMenu />
+          <MemoAiSettingsMenu />
         </div>
       </div>
       
