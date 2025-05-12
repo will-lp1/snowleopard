@@ -174,7 +174,7 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
   const { setOpenMobile } = useSidebar();
   const { id: chatId } = useParams();
   const router = useRouter();
-  const { artifact, setArtifact } = useArtifact();
+  const { setArtifact } = useArtifact();
   const { 
     createNewDocument, 
     loadDocument,
@@ -202,14 +202,21 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
   }, [mutate]);
 
   const pathname = usePathname() || '';
-  const urlDocumentId = useMemo(() => {
+  // Derive document ID from the URL
+  const routeDocumentId = useMemo(() => {
     const match = pathname.match(/\/documents\/([^/?]+)/);
     return match ? match[1] : null;
   }, [pathname]);
-  const activeDocumentId = useMemo(
-    () => artifact?.documentId ?? urlDocumentId,
-    [artifact?.documentId, urlDocumentId]
-  );
+  // Pending selection for instant sidebar highlight
+  const [pendingDocumentId, setPendingDocumentId] = useState<string | null>(null);
+  // Active document ID is either the pending one or the actual route
+  const activeDocumentId = pendingDocumentId ?? routeDocumentId;
+  // Clear pending when navigation completes
+  useEffect(() => {
+    if (pendingDocumentId && pathname.includes(`/documents/${pendingDocumentId}`)) {
+      setPendingDocumentId(null);
+    }
+  }, [pathname, pendingDocumentId]);
 
   useEffect(() => {
     const handleDocumentCreated = (event: CustomEvent) => {
@@ -362,6 +369,8 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
   };
   
   const handleDocumentSelect = useCallback(async (documentId: string) => {
+    // Optimistically highlight the clicked document
+    setPendingDocumentId(documentId);
     try {
       if (documentId === 'init' || !documentId) {
         console.error('[SidebarDocuments] Invalid document ID:', documentId);

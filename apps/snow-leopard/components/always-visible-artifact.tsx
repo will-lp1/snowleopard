@@ -396,24 +396,20 @@ export function AlwaysVisibleArtifact({
         )}
 
         <div className="px-8 py-6 mx-auto max-w-3xl">
-             {isPending ? (
-                 <EditorSkeleton />
-             ) : (
-                 <Suspense fallback={<EditorSkeleton />}>
-                     <Editor
-                        key={editorDocumentId}
-                        content={editorContent}
-                        status={'idle'}
-                        isCurrentVersion={isCurrentVersion}
-                        currentVersionIndex={currentVersionIndex}
-                        documentId={editorDocumentId}
-                        initialLastSaved={latestDocument ? new Date(latestDocument.updatedAt) : null}
-                        onStatusChange={(newSaveState: SaveState) => {
-                        }}
-                        onCreateDocumentRequest={handleCreateDocumentFromEditor}
-                      />
-                </Suspense>
-             )}
+             <Suspense fallback={<EditorSkeleton />}>
+                 <Editor
+                    key={editorDocumentId}
+                    content={editorContent}
+                    status={'idle'}
+                    isCurrentVersion={isCurrentVersion}
+                    currentVersionIndex={currentVersionIndex}
+                    documentId={editorDocumentId}
+                    initialLastSaved={latestDocument ? new Date(latestDocument.updatedAt) : null}
+                    onStatusChange={(newSaveState: SaveState) => {
+                    }}
+                    onCreateDocumentRequest={handleCreateDocumentFromEditor}
+                  />
+             </Suspense>
         </div>
       </div>
     </div>
