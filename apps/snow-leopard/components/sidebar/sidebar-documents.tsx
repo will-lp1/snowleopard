@@ -4,7 +4,7 @@ import { isToday, isYesterday, subMonths, subWeeks } from 'date-fns';
 import Link from 'next/link';
 import { useParams, useRouter, usePathname } from 'next/navigation';
 import type { User } from '@/lib/auth';
-import { memo, useCallback, useEffect, useState, useMemo } from 'react';
+import { memo, useCallback, useEffect, useState, useMemo, useTransition } from 'react';
 import { toast } from 'sonner';
 import useSWR from 'swr';
 import { cn, fetcher } from '@/lib/utils';
@@ -175,6 +175,7 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
   const { id: chatId } = useParams();
   const router = useRouter();
   const { setArtifact } = useArtifact();
+  const [isNavigating, startTransition] = useTransition();
   const { 
     createNewDocument, 
     loadDocument,
@@ -368,19 +369,22 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
     }
   };
   
-  const handleDocumentSelect = useCallback(async (documentId: string) => {
+  const handleDocumentSelect = useCallback((documentId: string) => {
     // Optimistically highlight the clicked document
     setPendingDocumentId(documentId);
-    try {
+
+    // Start transition for navigation
+    startTransition(() => {
       if (documentId === 'init' || !documentId) {
         console.error('[SidebarDocuments] Invalid document ID:', documentId);
+        setPendingDocumentId(null); // Clear pending if ID is invalid
         return;
       }
       
       const selectedDocData = documents?.find(doc => doc.id === documentId);
       
       setArtifact((curr: any) => {
-        const newTitle = selectedDocData?.title || 'Loading...';
+        const newTitle = selectedDocData?.title || 'Loading...'; // Optimistic title
         const newKind = (selectedDocData?.kind as ArtifactKind) || 'text';
         
         console.log(`[SidebarDocuments] Optimistically setting artifact: ID=${documentId}, Title=${newTitle}`);
@@ -388,23 +392,18 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
           ...curr, 
           documentId: documentId,
           title: newTitle,
-          content: '',
+          content: '', // Content will be loaded by page
           kind: newKind,
-          status: 'idle',
+          status: 'idle', // Let page load handle status
         };
       });
       
-      console.log('[SidebarDocuments] Navigating to:', `/documents/${documentId}`);
+      console.log('[SidebarDocuments] Navigating (transition) to:', `/documents/${documentId}`);
       router.push(`/documents/${documentId}`);
 
       setOpenMobile(false);
-
-    } catch (error) {
-      console.error('[SidebarDocuments] Error selecting document:', error);
-      toast.error('Failed to load document');
-      setArtifact((curr: any) => ({ ...curr, status: 'idle' }));
-    }
-  }, [documents, setArtifact, router, setOpenMobile]);
+    });
+  }, [documents, setArtifact, router, setOpenMobile, startTransition, setPendingDocumentId]);
 
   const filterDocuments = (docs: Document[]) => {
     if (!searchTerm.trim()) return docs;

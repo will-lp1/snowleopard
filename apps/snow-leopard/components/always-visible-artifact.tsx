@@ -79,76 +79,54 @@ export function AlwaysVisibleArtifact({
     createDocument
   } = useDocumentUtils();
 
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const [editingTitle, setEditingTitle] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const titleInputRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<'edit' | 'diff'>('edit');
 
-  const [documents, setDocuments] = useState<Document[]>(initialDocuments);
   const [currentVersionIndex, setCurrentVersionIndex] = useState<number>(initialDocuments.length > 0 ? initialDocuments.length - 1 : -1);
 
+  useEffect(() => {
+    setCurrentVersionIndex(initialDocuments.length > 0 ? initialDocuments.length - 1 : -1);
+    setMode('edit');
+    const latestDoc = initialDocuments[initialDocuments.length - 1];
+    if (latestDoc && artifact.documentId !== latestDoc.id) {
+      setArtifact(prev => ({
+        ...prev,
+        documentId: latestDoc.id,
+        title: latestDoc.title,
+        content: latestDoc.content ?? '',
+        kind: (latestDoc.kind as ArtifactKind) || 'text'
+      }));
+      setNewTitle(latestDoc.title); 
+    } else if (initialDocumentId === 'init' && artifact.documentId !== 'init') {
+      setArtifact(prev => ({
+         ...prev,
+         documentId: 'init',
+         title: 'Document',
+         content: '',
+         kind: 'text' as ArtifactKind,
+      }));
+      setNewTitle('Document');
+    }
+  }, [initialDocuments, initialDocumentId, setArtifact, artifact.documentId]);
+
   const currentDocument = useMemo(() => {
-    if (currentVersionIndex >= 0 && currentVersionIndex < documents.length) {
-      return documents[currentVersionIndex];
+    if (currentVersionIndex >= 0 && currentVersionIndex < initialDocuments.length) {
+      return initialDocuments[currentVersionIndex];
     }
     return null;
-  }, [documents, currentVersionIndex]);
+  }, [initialDocuments, currentVersionIndex]);
 
   const latestDocument = useMemo(() => {
-      if (documents && documents.length > 0) {
-          return documents[documents.length - 1];
-      }
-      return null;
-  }, [documents]);
-
-  useEffect(() => {
-    startTransition(() => {
-        const docs = initialDocuments || [];
-        setDocuments(docs);
-        const initialIndex = docs.length > 0 ? docs.length - 1 : -1;
-        setCurrentVersionIndex(initialIndex);
-        setMode('edit');
-
-        const docToUse = docs[initialIndex];
-
-        if (docToUse) {
-            const artifactData: SettableArtifact = {
-                ...defaultArtifactProps,
-                documentId: docToUse.id,
-                title: docToUse.title,
-                content: docToUse.content ?? '',
-                kind: (docToUse.kind as ArtifactKind) || 'text',
-                status: 'idle'
-            };
-            setArtifact(artifactData as any);
-            setNewTitle(artifactData.title);
-        } else if (initialDocumentId === 'init' || showCreateDocumentForId) {
-            const initData: SettableArtifact = {
-                ...defaultArtifactProps,
-                documentId: 'init',
-                title: 'Document',
-                content: '',
-                kind: 'text' as ArtifactKind,
-                status: 'idle'
-            };
-            setArtifact(initData as any);
-            setNewTitle(initData.title);
-        }
-    });
-
-  }, [initialDocumentId, initialDocuments, setArtifact, startTransition]);
+    return initialDocuments?.[initialDocuments.length - 1] ?? null;
+  }, [initialDocuments]);
 
   useEffect(() => {
     const handleDocumentRenamed = (event: CustomEvent) => {
       if (!event.detail) return;
       const { documentId: renamedDocId, newTitle: updatedTitle } = event.detail;
-
-      setDocuments(prevDocs =>
-          prevDocs.map(doc =>
-              doc.id === renamedDocId ? { ...doc, title: updatedTitle } : doc
-          )
-      );
 
       if (renamedDocId === artifact.documentId) {
         setArtifact(current => ({
@@ -177,17 +155,13 @@ export function AlwaysVisibleArtifact({
     const trimmedNewTitle = newTitle.trim();
     if (trimmedNewTitle && trimmedNewTitle !== latestDocument.title) {
       const originalTitle = latestDocument.title;
-      const originalDocuments = [...documents];
       
-      setDocuments(prevDocs => prevDocs.map(doc => 
-        doc.id === latestDocument.id ? { ...doc, title: trimmedNewTitle } : doc
-      ));
-
       try {
         await renameDocument(trimmedNewTitle);
       } catch (error) {
         toast.error("Failed to rename document.");
-        setDocuments(originalDocuments);
+        setArtifact(prev => ({ ...prev, title: originalTitle }));
+        setNewTitle(originalTitle);
         console.error("Rename failed:", error);
       } finally {
         setEditingTitle(false);
@@ -196,7 +170,7 @@ export function AlwaysVisibleArtifact({
        setEditingTitle(false);
        if (!trimmedNewTitle) setNewTitle(latestDocument.title);
     }
-  }, [newTitle, latestDocument, documents, renameDocument, setArtifact]);
+  }, [newTitle, latestDocument, renameDocument, setArtifact]);
 
   const handleCancelEditTitle = useCallback(() => {
     if (!latestDocument) return;
@@ -205,11 +179,11 @@ export function AlwaysVisibleArtifact({
   }, [latestDocument]);
 
   const handleVersionChange = useCallback((type: 'next' | 'prev' | 'toggle' | 'latest') => {
-    if (documents.length <= 1 && (type === 'next' || type === 'prev' || type === 'toggle')) return;
+    if (initialDocuments.length <= 1 && (type === 'next' || type === 'prev' || type === 'toggle')) return;
 
     startTransition(() => {
         if (type === 'latest') {
-            setCurrentVersionIndex(documents.length - 1);
+            setCurrentVersionIndex(initialDocuments.length - 1);
             setMode('edit');
             return;
         }
@@ -218,7 +192,7 @@ export function AlwaysVisibleArtifact({
             const nextMode = mode === 'edit' ? 'diff' : 'edit';
             setMode(nextMode);
             if (nextMode === 'edit') {
-                setCurrentVersionIndex(documents.length - 1);
+                setCurrentVersionIndex(initialDocuments.length - 1);
             }
             return;
         }
@@ -227,15 +201,15 @@ export function AlwaysVisibleArtifact({
         if (type === 'prev') {
             setCurrentVersionIndex((index) => Math.max(0, index - 1));
         } else if (type === 'next') {
-            setCurrentVersionIndex((index) => Math.min(documents.length - 1, index + 1));
+            setCurrentVersionIndex((index) => Math.min(initialDocuments.length - 1, index + 1));
         }
     });
-  }, [documents, mode, startTransition]);
+  }, [initialDocuments, mode, startTransition]);
 
   const getContentForVersion = useCallback((index: number): string => {
-    if (!documents || index < 0 || index >= documents.length) return '';
-    return documents[index].content ?? '';
-  }, [documents]);
+    if (!initialDocuments || index < 0 || index >= initialDocuments.length) return '';
+    return initialDocuments[index].content ?? '';
+  }, [initialDocuments]);
 
   const handleCreateDocumentWithId = useCallback(async (id: string) => {
     if (isCreatingDocument) return;
@@ -272,18 +246,18 @@ export function AlwaysVisibleArtifact({
       }
   }, [isCreatingDocument, initialDocumentId, createDocument]);
 
-  const isCurrentVersion = useMemo(() => currentVersionIndex === documents.length - 1, [currentVersionIndex, documents]);
+  const isCurrentVersion = useMemo(() => currentVersionIndex === initialDocuments.length - 1, [currentVersionIndex, initialDocuments]);
 
   const editorContent = useMemo(() => {
       if (initialDocumentId === 'init' && !showCreateDocumentForId) {
           return '';
       }
-      if (documents.length === 0 && !showCreateDocumentForId) {
+      if (initialDocuments.length === 0 && !showCreateDocumentForId) {
           return '';
       }
       return getContentForVersion(currentVersionIndex);
 
-  }, [initialDocumentId, documents, currentVersionIndex, showCreateDocumentForId, getContentForVersion]);
+  }, [initialDocumentId, initialDocuments, currentVersionIndex, showCreateDocumentForId, getContentForVersion]);
 
   const editorDocumentId = useMemo(() => {
        if (showCreateDocumentForId) return 'init';
@@ -336,41 +310,21 @@ export function AlwaysVisibleArtifact({
       <div className="flex flex-row justify-between items-center border-b border-zinc-200 dark:border-zinc-700 px-3 h-[45px]">
         <div className="flex flex-row gap-2 items-center min-w-0">
           <SidebarToggle />
-          {isPending ? (
-            <div className="h-4 w-32 bg-muted rounded animate-pulse"></div>
-          ) : (
-            <div className="flex flex-col min-w-0">
-              <div className="h-6 flex items-center">
-                {editingTitle ? (
-                  <Input
-                    ref={titleInputRef}
-                    value={newTitle}
-                    onChange={(e) => setNewTitle(e.target.value)}
-                    className="h-6 py-0 px-1 text-sm font-medium flex-grow bg-transparent border-transparent focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none disabled:opacity-75"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleSaveTitle();
-                      if (e.key === 'Escape') handleCancelEditTitle();
-                    }}
-                    onBlur={handleSaveTitle}
-                    disabled={isRenamingDocument || !latestDocument}
-                    aria-label="Edit document title"
-                  />
-                ) : (
-                  <div
-                    className={`font-medium truncate h-6 leading-6 px-1 ${latestDocument ? 'cursor-pointer hover:underline' : 'text-muted-foreground'}`}
-                    onClick={latestDocument ? handleEditTitle : undefined}
-                    onDoubleClick={latestDocument ? handleEditTitle : undefined}
-                    title={latestDocument ? `Rename "${latestDocument.title}"` : (initialDocumentId === 'init' ? 'Untitled Document' : 'Loading...')}
-                  >
-                    {latestDocument?.title ?? artifact.title ?? 'Document'}
-                  </div>
-                )}
+          <div className="flex flex-col min-w-0">
+            <div className="h-6 flex items-center">
+              <div
+                className={`font-medium truncate h-6 leading-6 px-1 ${latestDocument ? 'cursor-pointer hover:underline' : 'text-muted-foreground'}`}
+                onClick={latestDocument ? handleEditTitle : undefined}
+                onDoubleClick={latestDocument ? handleEditTitle : undefined}
+                title={latestDocument ? `Rename "${latestDocument.title}"` : (initialDocumentId === 'init' ? 'Untitled Document' : 'Loading...')}
+              >
+                {latestDocument?.title ?? artifact.title ?? 'Document'}
               </div>
             </div>
-          )}
+          </div>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
-          {documents && documents.length > 0 && (
+          {initialDocuments && initialDocuments.length > 0 && (
             <MemoArtifactActions
               artifact={artifact}
               currentVersionIndex={currentVersionIndex}
@@ -386,11 +340,11 @@ export function AlwaysVisibleArtifact({
       </div>
       
       <div className="dark:bg-muted bg-background h-full overflow-y-auto !max-w-full items-center relative">
-        {!isCurrentVersion && documents && documents.length > 1 && (
+        {!isCurrentVersion && initialDocuments && initialDocuments.length > 1 && (
           <VersionHeader
             key={`${currentDocument?.id}-${currentVersionIndex}`}
             currentVersionIndex={currentVersionIndex}
-            documents={documents}
+            documents={initialDocuments}
             handleVersionChange={handleVersionChange}
           />
         )}
