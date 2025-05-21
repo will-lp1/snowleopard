@@ -171,15 +171,12 @@ export default function Home() {
                   Real-time Inline Suggestions
                 </CardHeader>
                 <CardContent className="p-6 text-sm text-muted-foreground flex-grow">
-                  <p className="demo-prose-mirror-style advanced-inline-demo">
-                    <span className="text-segment static-prefix">You start typing, and the AI</span>
-                    <span className="text-segment suggested-suffix-1" data-suggestion=" offers a helpful completion."></span>
-                    <kbd className="key tab-key tab-1">Tab</kbd>
-                    <span className="text-segment static-infix-1">. Now, let&apos;s try</span>
-                    <span className="text-segment caret-marker-container"><span className="caret-marker">|</span></span>
-                    <span className="text-segment suggested-infix-2" data-suggestion=" an inline insertion"></span>
-                    <kbd className="key tab-key tab-2">Tab</kbd>
-                    <span className="text-segment static-suffix-2">.</span>
+                  <p className="demo-prose-mirror-style">
+                    <span className="demo-text-base">You start typing, and the AI offers</span>
+                    <span className="inline-suggestion-wrapper">
+                      <span className="demo-inline-suggestion-animated" data-suggestion=" a helpful completion."></span>
+                      <kbd className="demo-inline-tab">Tab</kbd>
+                    </span>
                   </p>
                 </CardContent>
               </Card>
@@ -552,8 +549,13 @@ export default function Home() {
           }
         }
 
-        /* Inline Suggestion 3D Tab Key Styling - Reused and renamed base class */
-        .key.tab-key {
+        /* Inline Suggestion 3D Tab Key Styling */
+        .inline-suggestion-wrapper {
+          display: inline-flex;
+          align-items: baseline;
+          gap: 0.25rem;
+        }
+        .demo-inline-tab {
           background: linear-gradient(145deg, #f3f3f3, #e0e0e0);
           border: 1px solid #c0c0c0;
           border-radius: 4px;
@@ -561,72 +563,19 @@ export default function Home() {
           font-size: 0.75em;
           font-weight: 500;
           color: hsl(var(--muted-foreground));
-          box-shadow: 0 2px 0px 0px rgba(0,0,0,0.1), inset 0 1px 0px 0px rgba(255,255,255,0.8);
-          display: inline-block;
-          margin-left: 0.25em;
-          opacity: 0; /* Initially hidden, controlled by animation */
+          box-shadow: 0 2px 0 rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.8);
+          opacity: 0;
+          animation: fadeInInlineTab 0.3s ease-out 1.3s forwards;
         }
-        @keyframes fadeInKey {
+        @keyframes fadeInInlineTab {
           to { opacity: 1; }
         }
-        html.dark .key.tab-key {
+        html.dark .demo-inline-tab {
           background: linear-gradient(145deg, #2c2c2c, #383838);
           border-color: #444444;
-          box-shadow: 0 2px 0px 0px rgba(0,0,0,0.4), inset 0 1px 0px 0px rgba(255,255,255,0.05);
+          box-shadow: 0 2px 0 rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
           color: hsl(var(--muted-foreground));
         }
-
-        /* Advanced Inline Demo Specifics */
-        .advanced-inline-demo .text-segment {
-          opacity: 0; /* Most segments start hidden */
-          vertical-align: baseline;
-        }
-        .advanced-inline-demo .static-prefix {
-          opacity: 1; /* First part is visible */
-        }
-        .advanced-inline-demo .suggested-suffix-1::after,
-        .advanced-inline-demo .suggested-infix-2::after {
-          content: attr(data-suggestion);
-          color: var(--muted-foreground);
-          display: inline-block;
-          vertical-align: baseline;
-          white-space: nowrap;
-          overflow: hidden;
-          width: 0; /* Start with no width for streaming */
-        }
-
-        /* Keyframes for the advanced demo */
-        @keyframes streamInText {
-          to { width: 100%; }
-        }
-        @keyframes applySuggestionColor {
-          to { color: var(--foreground); }
-        }
-        @keyframes pressKeyEffect {
-          0%, 100% { transform: scale(1); filter: brightness(1); }
-          50% { transform: scale(0.92); filter: brightness(0.9); }
-        }
-        @keyframes blinkCaretKeyframe {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0; }
-        }
-
-        /* Animation application for #features.in-view .advanced-inline-demo */
-        #features.in-view .advanced-inline-demo .suggested-suffix-1 { animation: fadeInKey 0.01s linear 0.5s forwards; }
-        #features.in-view .advanced-inline-demo .suggested-suffix-1::after { animation: streamInText 1s steps(28, end) 0.5s forwards; }
-        #features.in-view .advanced-inline-demo .tab-1 { animation: fadeInKey 0.3s ease-out 1.6s forwards, pressKeyEffect 0.2s ease-in-out 2.1s forwards; }
-        #features.in-view .advanced-inline-demo .suggested-suffix-1 { animation: applySuggestionColor 0.3s ease-out 2.3s forwards; } /* Target element for color change of ::after */
-
-        #features.in-view .advanced-inline-demo .static-infix-1 { animation: fadeInKey 0.3s ease-out 2.8s forwards; }
-        #features.in-view .advanced-inline-demo .caret-marker-container { animation: fadeInKey 0.1s ease-out 3.2s forwards; }
-        #features.in-view .advanced-inline-demo .caret-marker { animation: blinkCaretKeyframe 1s infinite 3.2s; opacity:0; /* start blinking after fade in */}
-
-        #features.in-view .advanced-inline-demo .suggested-infix-2 { animation: fadeInKey 0.01s linear 3.7s forwards; }
-        #features.in-view .advanced-inline-demo .suggested-infix-2::after { animation: streamInText 1s steps(20, end) 3.7s forwards; }
-        #features.in-view .advanced-inline-demo .tab-2 { animation: fadeInKey 0.3s ease-out 4.8s forwards, pressKeyEffect 0.2s ease-in-out 5.3s forwards; }
-        #features.in-view .advanced-inline-demo .suggested-infix-2 { animation: applySuggestionColor 0.3s ease-out 5.5s forwards; } /* Target element for color change of ::after */
-
-        #features.in-view .advanced-inline-demo .static-suffix-2 { animation: fadeInKey 0.3s ease-out 6.0s forwards; }
       `}</style>
     </div>
   );
