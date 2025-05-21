@@ -199,23 +199,15 @@ export function SidebarUserNav({ user }: { user: User | null }) {
                   <DropdownMenuLabel className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
                     Subscription
                   </DropdownMenuLabel>
-                  <div className="flex items-center justify-between px-2 py-1.5 text-sm">
-                    <div className="flex items-center space-x-2">
-                      {subscription?.status === 'active' ? (
-                        <span className="h-2 w-2 bg-green-500 rounded-full inline-block" />
-                      ) : subscription?.status === 'trialing' && subscription.trialEnd && new Date(subscription.trialEnd) > new Date() ? (
-                        <span className="h-2 w-2 bg-blue-500 rounded-full inline-block" />
-                      ) : (
-                        <span className="h-2 w-2 bg-red-500 rounded-full inline-block" />
-                      )}
-                      <span className="font-medium capitalize text-foreground/90">{statusText}</span>
-                    </div>
+                  <div className="px-2 py-1.5 text-sm space-y-1">
+                    <p className="font-medium">{planName}</p>
+                    <p className="text-xs text-muted-foreground">{statusText}</p>
                     <button
                       onClick={ctaAction}
                       disabled={ctaLoading}
-                      className="ml-2 text-sm font-medium text-blue-600 hover:underline disabled:opacity-50"
+                      className="mt-2 text-sm font-medium text-blue-600 hover:underline disabled:opacity-50"
                     >
-                      {ctaLoading ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : ctaText}
+                      {ctaLoading ? <Loader2 className="h-4 w-4 animate-spin inline-block mr-1 text-muted-foreground" /> : ctaText}
                     </button>
                   </div>
                   <DropdownMenuSeparator />

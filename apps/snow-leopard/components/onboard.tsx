@@ -71,13 +71,7 @@ export function Onboard({ isOpen, onOpenChange, required = false }: OnboardProps
                 Try Snow Leopard free for 3 days. No credit card required.
               </DialogDescription>
             </DialogHeader>
-            <div className="flex-grow space-y-2 text-sm text-foreground/90">
-              <ul className="list-disc list-inside">
-                <li>Up to 5 documents</li>
-                <li>Standard AI model</li>
-                <li>Basic support</li>
-              </ul>
-            </div>
+            {/* Features list removed for simplicity */}
             <DialogFooter className="mt-8 pt-4 border-t flex items-center">
               <Button
                 onClick={handleStartTrial}
