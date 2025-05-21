@@ -122,7 +122,7 @@ export default function Home() {
           <div className="mt-16 flex justify-center w-full">
             <div className="hero-frame">
               <Image
-                src="/images/snowleopardlight.jpeg"
+                src="/images/SLlight.jpeg"
                 alt="Snow Leopard Demo Preview"
                 width={1200}
                 height={675}
@@ -130,7 +130,7 @@ export default function Home() {
                 priority={true}
               />
               <Image
-                src="/images/snowleoparddark.jpeg"
+                src="/images/SLdark.jpeg"
                 alt="Snow Leopard Demo Preview (Dark Mode)"
                 width={1200}
                 height={675}
