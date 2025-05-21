@@ -81,9 +81,7 @@ const plans = process.env.STRIPE_ENABLED === 'true' ? [
     name: "snowleopard", 
     priceId: process.env.STRIPE_PRO_MONTHLY_PRICE_ID!,        
     annualDiscountPriceId: process.env.STRIPE_PRO_YEARLY_PRICE_ID!, 
-    freeTrial: {
-      days: 3,
-    },
+    // freeTrial is now handled via a separate onboarding flow
   },
 ] : [];
 

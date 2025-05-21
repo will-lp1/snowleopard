@@ -21,7 +21,18 @@ export async function checkSubscriptionStatus(): Promise<SubscriptionStatus> {
     }
 
     const subscription = await getActiveSubscriptionByUserId({ userId: session.user.id });
-    const isActive = subscription?.status === 'active' || subscription?.status === 'trialing';
+    let isActive = false;
+    if (subscription) {
+      if (subscription.status === 'active') {
+        isActive = true;
+      } else if (
+        subscription.status === 'trialing' &&
+        subscription.trialEnd &&
+        new Date(subscription.trialEnd) > new Date()
+      ) {
+        isActive = true;
+      }
+    }
     console.log(`[checkSubscriptionStatus] User: ${session.user.id}, DB Sub Status: ${subscription?.status}, IsActive: ${isActive}`);
 
     return { hasActiveSubscription: isActive };
