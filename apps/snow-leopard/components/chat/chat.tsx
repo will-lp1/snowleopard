@@ -9,7 +9,7 @@ import { fetcher, generateUUID } from '@/lib/utils';
 import { MultimodalInput } from './multimodal-input';
 import { Messages } from './messages';
 import { toast } from 'sonner';
-import { FileText } from 'lucide-react';
+import { FileText, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useDocumentContext } from '@/hooks/use-document-context';
 import { MentionedDocument } from './multimodal-input';
@@ -18,14 +18,14 @@ import { useArtifact } from '@/hooks/use-artifact';
 import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
 import { DataStreamHandler } from '@/components/data-stream-handler';
 import { motion } from 'framer-motion';
-import { Loader2, RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
 
 export interface ChatProps {
   id?: string;
   initialMessages: Array<Message>;
   selectedChatModel?: string;
   isReadonly?: boolean;
+  hasActiveSubscription?: boolean;
 }
 
 export function Chat({
@@ -33,6 +33,7 @@ export function Chat({
   initialMessages,
   selectedChatModel: initialSelectedChatModel,
   isReadonly = false,
+  hasActiveSubscription = true,
 }: ChatProps) {
   const { mutate } = useSWRConfig();
   const { documentId, documentTitle, documentContent } = useDocumentContext();
@@ -45,6 +46,7 @@ export function Chat({
   );
   const [isLoadingChat, setIsLoadingChat] = useState(false);
   const [requestedChatLoadId, setRequestedChatLoadId] = useState<string | null>(null);
+  const [isRefreshingSubscription, setIsRefreshingSubscription] = useState(false);
 
   // Callback function to update the model state
   const handleModelChange = (newModelId: string) => {
@@ -53,17 +55,6 @@ export function Chat({
   };
 
   const [confirmedMentions, setConfirmedMentions] = useState<MentionedDocument[]>([]);
-
-  const [isRefreshingSubscription, setIsRefreshingSubscription] = useState(false);
-  const { 
-    data: subscriptionStatusData, 
-    error: subscriptionStatusError, 
-    isLoading: isSubscriptionStatusLoading,
-    mutate: mutateSubscriptionStatus
-  } = useSWR('/api/user/subscription-status', fetcher, {
-    revalidateOnFocus: false, // Optionally, prevent revalidation on focus
-    revalidateOnReconnect: false, // Optionally, prevent revalidation on reconnect
-  });
 
   useEffect(() => {
     const hasDocumentContext = documentId !== 'init';
@@ -260,28 +251,22 @@ export function Chat({
     }
     
     if (confirmedMentions.length > 0) {
-      contextData.mentionedDocumentIds = confirmedMentions.map(m => m.id);
+      contextData.mentionedDocumentIds = confirmedMentions.map(doc => doc.id);
     }
     
-    const finalChatRequestOptions: ChatRequestOptions = {
-      data: { ...contextData },
+    const options: ChatRequestOptions = {
+      data: contextData,
     };
 
-    handleSubmit(e, finalChatRequestOptions);
+    handleSubmit(e, options);
 
     setConfirmedMentions([]);
   };
-  
-  const handleRefreshSubscription = async () => {
+
+  const refreshSubscription = async () => {
     setIsRefreshingSubscription(true);
-    try {
-      await mutateSubscriptionStatus();
-    } catch (error) {
-      console.error("Error refreshing subscription status:", error);
-      toast.error("Failed to refresh subscription status.");
-    } finally {
-      setIsRefreshingSubscription(false);
-    }
+    await mutate('/api/user/subscription-status');
+    setIsRefreshingSubscription(false);
   };
 
   return (
@@ -327,54 +312,46 @@ export function Chat({
          )}
       </div>
 
-      <div className="mt-auto w-full shrink-0 bg-background pb-3 md:pb-4">
-        {isSubscriptionStatusLoading ? (
-          <div className="flex items-center justify-center p-4 text-sm text-muted-foreground">
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Checking subscription...
-          </div>
-        ) : subscriptionStatusError ? (
-          <div className="flex items-center justify-center p-4 text-sm text-destructive">
-            Error checking subscription. Please try again.
-          </div>
-        ) : subscriptionStatusData?.hasActiveSubscription === false ? (
-          <div className="mx-auto flex max-w-2xl flex-col items-center justify-center space-y-2 rounded-lg border bg-muted/50 p-3 text-center text-sm text-muted-foreground shadow-sm">
-            <p>Subscription required to send messages.</p>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleRefreshSubscription} 
-              disabled={isRefreshingSubscription}
-              className="text-xs"
-            >
-              {isRefreshingSubscription ? (
-                <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
-              ) : (
-                <RefreshCw className="mr-1.5 h-3 w-3" />
-              )}
-              Refresh Status
-            </Button>
-          </div>
-        ) : (
-          <MultimodalInput
-            chatId={chatId}
-            input={input}
-            setInput={setInput}
-            status={status}
-            stop={stop}
-            attachments={attachments}
-            setAttachments={setAttachments}
-            messages={messages}
-            setMessages={setMessages}
-            append={append}
-            handleSubmit={wrappedSubmit as any}
-            className="mx-auto max-w-2xl px-4"
-            confirmedMentions={confirmedMentions}
-            onMentionsChange={handleMentionsChange}
-          />
-        )}
-        <DataStreamHandler id={chatId} />
-      </div>
+      {!isReadonly && (
+        <div className="p-4 border-t border-zinc-200 dark:border-zinc-700">
+          {hasActiveSubscription ? (
+            <form onSubmit={wrappedSubmit}>
+              <MultimodalInput
+                chatId={chatId}
+                input={input}
+                setInput={setInput}
+                handleSubmit={handleSubmit}
+                status={status}
+                stop={stop}
+                attachments={attachments}
+                setAttachments={setAttachments}
+                messages={messages}
+                setMessages={setMessages}
+                append={append}
+                confirmedMentions={confirmedMentions}
+                onMentionsChange={handleMentionsChange}
+              />
+            </form>
+          ) : (
+            <div className="flex items-center justify-center space-x-2 h-[56px] text-sm text-muted-foreground bg-muted rounded-2xl border border-border">
+              <span>Subscription required to send messages.</span>
+              <button
+                onClick={refreshSubscription}
+                disabled={isRefreshingSubscription}
+                className="p-1"
+              >
+                {isRefreshingSubscription ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      <DataStreamHandler id={chatId} />
     </div>
   );
 }
