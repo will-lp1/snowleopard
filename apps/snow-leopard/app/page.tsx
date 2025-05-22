@@ -254,6 +254,16 @@ export default function Home() {
           </div>
         </div>
       </section>
+      <footer className="w-full border-t border-border bg-background/80 backdrop-blur-sm py-4 mt-8">
+        <div className="container mx-auto px-6 md:px-8 lg:px-12 flex items-center justify-between text-sm text-muted-foreground">
+          <span>© {new Date().getFullYear()} Snow Leopard. All rights reserved.</span>
+          <Button variant="outline" size="icon" className="size-8 shrink-0" asChild>
+            <Link href="https://github.com/will-lp1/snowleopard" target="_blank" rel="noopener noreferrer">
+              <Image src="/images/github-logo.png" alt="Github" width={16} height={16} className="dark:invert" />
+            </Link>
+          </Button>
+        </div>
+      </footer>
       <style jsx global>{`
         :root {
           --ease-out-quad: cubic-bezier(0.25, 0.46, 0.45, 0.94);
