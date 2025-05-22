@@ -18,7 +18,8 @@ import { useArtifact } from '@/hooks/use-artifact';
 import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
 import { DataStreamHandler } from '@/components/data-stream-handler';
 import { motion } from 'framer-motion';
-import { Loader2 } from 'lucide-react';
+import { Loader2, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export interface ChatProps {
   id?: string;
@@ -46,6 +47,8 @@ export function Chat({
   );
   const [isLoadingChat, setIsLoadingChat] = useState(false);
   const [requestedChatLoadId, setRequestedChatLoadId] = useState<string | null>(null);
+  const [effectiveHasActiveSubscription, setEffectiveHasActiveSubscription] = useState(hasActiveSubscription);
+  const [isSubscriptionCheckLoading, setIsSubscriptionCheckLoading] = useState(false);
 
   // Callback function to update the model state
   const handleModelChange = (newModelId: string) => {
@@ -214,15 +217,16 @@ export function Chat({
       setMessages([]);
       setInput('');
       setChatId(newChatId);
+      setEffectiveHasActiveSubscription(hasActiveSubscription);
       console.log('[Chat Component] Chat state reset. New ID:', newChatId);
     };
 
     window.addEventListener('reset-chat-state', handleReset);
-
+    
     return () => {
       window.removeEventListener('reset-chat-state', handleReset);
     };
-  }, [setMessages, setInput, setChatId]);
+  }, [setMessages, setInput, setChatId, hasActiveSubscription]);
 
   const wrappedSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -260,6 +264,29 @@ export function Chat({
     handleSubmit(e, options);
 
     setConfirmedMentions([]);
+  };
+
+  const checkSubscriptionStatus = async () => {
+    setIsSubscriptionCheckLoading(true);
+    try {
+      const response = await fetch('/api/user/subscription-status');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch subscription status');
+      }
+      const data = await response.json();
+      setEffectiveHasActiveSubscription(data.hasActiveSubscription);
+      if (data.hasActiveSubscription) {
+        toast.success('Subscription active. You can now send messages.');
+      } else {
+        toast.error('Subscription not active.');
+      }
+    } catch (error: any) {
+      console.error('Error checking subscription status:', error);
+      toast.error(error.message || 'Could not refresh subscription status.');
+    } finally {
+      setIsSubscriptionCheckLoading(false);
+    }
   };
 
   return (
@@ -307,7 +334,7 @@ export function Chat({
 
       {!isReadonly && (
         <div className="p-4 border-t border-zinc-200 dark:border-zinc-700">
-          {hasActiveSubscription ? (
+          {effectiveHasActiveSubscription ? (
             <form onSubmit={wrappedSubmit}>
               <MultimodalInput
                 chatId={chatId}
@@ -327,7 +354,22 @@ export function Chat({
             </form>
           ) : (
             <div className="flex items-center justify-center h-[56px] text-sm text-muted-foreground bg-muted rounded-2xl border border-border">
-              Subscription required to send messages.
+              Subscription required.
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={checkSubscriptionStatus}
+                disabled={isSubscriptionCheckLoading}
+                className="ml-3 h-6 w-6 p-1"
+                aria-label="Refresh subscription status"
+                title="Refresh subscription status"
+              >
+                {isSubscriptionCheckLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+              </Button>
             </div>
           )}
         </div>
