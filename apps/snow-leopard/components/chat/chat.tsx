@@ -26,7 +26,6 @@ export interface ChatProps {
   initialMessages: Array<Message>;
   selectedChatModel?: string;
   isReadonly?: boolean;
-  hasActiveSubscription?: boolean;
 }
 
 export function Chat({
@@ -34,7 +33,6 @@ export function Chat({
   initialMessages,
   selectedChatModel: initialSelectedChatModel,
   isReadonly = false,
-  hasActiveSubscription = true,
 }: ChatProps) {
   const { mutate } = useSWRConfig();
   const { documentId, documentTitle, documentContent } = useDocumentContext();
@@ -47,8 +45,6 @@ export function Chat({
   );
   const [isLoadingChat, setIsLoadingChat] = useState(false);
   const [requestedChatLoadId, setRequestedChatLoadId] = useState<string | null>(null);
-  const [effectiveHasActiveSubscription, setEffectiveHasActiveSubscription] = useState(hasActiveSubscription);
-  const [isSubscriptionCheckLoading, setIsSubscriptionCheckLoading] = useState(false);
 
   // Callback function to update the model state
   const handleModelChange = (newModelId: string) => {
@@ -57,6 +53,17 @@ export function Chat({
   };
 
   const [confirmedMentions, setConfirmedMentions] = useState<MentionedDocument[]>([]);
+
+  const [isRefreshingSubscription, setIsRefreshingSubscription] = useState(false);
+  const { 
+    data: subscriptionStatusData, 
+    error: subscriptionStatusError, 
+    isLoading: isSubscriptionStatusLoading,
+    mutate: mutateSubscriptionStatus
+  } = useSWR('/api/user/subscription-status', fetcher, {
+    revalidateOnFocus: false, // Optionally, prevent revalidation on focus
+    revalidateOnReconnect: false, // Optionally, prevent revalidation on reconnect
+  });
 
   useEffect(() => {
     const hasDocumentContext = documentId !== 'init';
@@ -217,16 +224,15 @@ export function Chat({
       setMessages([]);
       setInput('');
       setChatId(newChatId);
-      setEffectiveHasActiveSubscription(hasActiveSubscription);
       console.log('[Chat Component] Chat state reset. New ID:', newChatId);
     };
 
     window.addEventListener('reset-chat-state', handleReset);
-    
+
     return () => {
       window.removeEventListener('reset-chat-state', handleReset);
     };
-  }, [setMessages, setInput, setChatId, hasActiveSubscription]);
+  }, [setMessages, setInput, setChatId]);
 
   const wrappedSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -254,38 +260,27 @@ export function Chat({
     }
     
     if (confirmedMentions.length > 0) {
-      contextData.mentionedDocumentIds = confirmedMentions.map(doc => doc.id);
+      contextData.mentionedDocumentIds = confirmedMentions.map(m => m.id);
     }
     
-    const options: ChatRequestOptions = {
-      data: contextData,
+    const finalChatRequestOptions: ChatRequestOptions = {
+      data: { ...contextData },
     };
 
-    handleSubmit(e, options);
+    handleSubmit(e, finalChatRequestOptions);
 
     setConfirmedMentions([]);
   };
-
-  const checkSubscriptionStatus = async () => {
-    setIsSubscriptionCheckLoading(true);
+  
+  const handleRefreshSubscription = async () => {
+    setIsRefreshingSubscription(true);
     try {
-      const response = await fetch('/api/user/subscription-status');
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch subscription status');
-      }
-      const data = await response.json();
-      setEffectiveHasActiveSubscription(data.hasActiveSubscription);
-      if (data.hasActiveSubscription) {
-        toast.success('Subscription active. You can now send messages.');
-      } else {
-        toast.error('Subscription not active.');
-      }
-    } catch (error: any) {
-      console.error('Error checking subscription status:', error);
-      toast.error(error.message || 'Could not refresh subscription status.');
+      await mutateSubscriptionStatus();
+    } catch (error) {
+      console.error("Error refreshing subscription status:", error);
+      toast.error("Failed to refresh subscription status.");
     } finally {
-      setIsSubscriptionCheckLoading(false);
+      setIsRefreshingSubscription(false);
     }
   };
 
@@ -332,50 +327,54 @@ export function Chat({
          )}
       </div>
 
-      {!isReadonly && (
-        <div className="p-4 border-t border-zinc-200 dark:border-zinc-700">
-          {effectiveHasActiveSubscription ? (
-            <form onSubmit={wrappedSubmit}>
-              <MultimodalInput
-                chatId={chatId}
-                input={input}
-                setInput={setInput}
-                handleSubmit={handleSubmit}
-                status={status}
-                stop={stop}
-                attachments={attachments}
-                setAttachments={setAttachments}
-                messages={messages}
-                setMessages={setMessages}
-                append={append}
-                confirmedMentions={confirmedMentions}
-                onMentionsChange={handleMentionsChange}
-              />
-            </form>
-          ) : (
-            <div className="flex items-center justify-center h-[56px] text-sm text-muted-foreground bg-muted rounded-2xl border border-border">
-              Subscription required.
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={checkSubscriptionStatus}
-                disabled={isSubscriptionCheckLoading}
-                className="ml-3 h-6 w-6 p-1"
-                aria-label="Refresh subscription status"
-                title="Refresh subscription status"
-              >
-                {isSubscriptionCheckLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-          )}
-        </div>
-      )}
-
-      <DataStreamHandler id={chatId} />
+      <div className="mt-auto w-full shrink-0 bg-background pb-3 md:pb-4">
+        {isSubscriptionStatusLoading ? (
+          <div className="flex items-center justify-center p-4 text-sm text-muted-foreground">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Checking subscription...
+          </div>
+        ) : subscriptionStatusError ? (
+          <div className="flex items-center justify-center p-4 text-sm text-destructive">
+            Error checking subscription. Please try again.
+          </div>
+        ) : subscriptionStatusData?.hasActiveSubscription === false ? (
+          <div className="mx-auto flex max-w-2xl flex-col items-center justify-center space-y-2 rounded-lg border bg-muted/50 p-3 text-center text-sm text-muted-foreground shadow-sm">
+            <p>Subscription required to send messages.</p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleRefreshSubscription} 
+              disabled={isRefreshingSubscription}
+              className="text-xs"
+            >
+              {isRefreshingSubscription ? (
+                <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-1.5 h-3 w-3" />
+              )}
+              Refresh Status
+            </Button>
+          </div>
+        ) : (
+          <MultimodalInput
+            chatId={chatId}
+            input={input}
+            setInput={setInput}
+            status={status}
+            stop={stop}
+            attachments={attachments}
+            setAttachments={setAttachments}
+            messages={messages}
+            setMessages={setMessages}
+            append={append}
+            handleSubmit={wrappedSubmit as any}
+            className="mx-auto max-w-2xl px-4"
+            confirmedMentions={confirmedMentions}
+            onMentionsChange={handleMentionsChange}
+          />
+        )}
+        <DataStreamHandler id={chatId} />
+      </div>
     </div>
   );
 }
