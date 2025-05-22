@@ -13,7 +13,15 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Paywall } from '@/components/paywall';
 
 type Subscription = {
   id: string;
@@ -43,21 +51,13 @@ function formatPlanName(planName: string | undefined | null): string {
   return planName.charAt(0).toUpperCase() + planName.slice(1);
 }
 
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-
 export function SidebarUserNav({ user }: { user: User | null }) {
   const { setTheme, theme } = useTheme();
   const router = useRouter();
 
   const [isSignOutLoading, setIsSignOutLoading] = useState(false);
   const [isBillingLoading, setIsBillingLoading] = useState(false);
+  const [isPaywallOpen, setIsPaywallOpen] = useState(false);
 
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [isSubscriptionLoading, setIsSubscriptionLoading] = useState(false);
@@ -67,7 +67,7 @@ export function SidebarUserNav({ user }: { user: User | null }) {
 
   useEffect(() => {
     if (!isStripeEnabled || !user) {
-       setIsSubscriptionLoading(false);
+      setIsSubscriptionLoading(false);
       return;
     }
 
@@ -77,15 +77,16 @@ export function SidebarUserNav({ user }: { user: User | null }) {
 
     const fetchSubscription = async () => {
       try {
-        const { data, error: fetchError } = await authClient.subscription.list();
+        const res = await fetch('/api/user/subscription');
+        const result = await res.json();
         if (!isMounted) return;
-        if (fetchError) throw new Error(fetchError.message || 'Failed to fetch subscription data.');
-
-        const activeSub = data?.find(sub => sub.status === 'active' || sub.status === 'trialing') as Subscription | undefined;
-        setSubscription(activeSub || null);
+        if (!res.ok) {
+          throw new Error(result.error || 'Failed to load subscription info.');
+        }
+        setSubscription(result.subscription || null);
       } catch (err: any) {
         if (!isMounted) return;
-        console.error("Error fetching subscription:", err);
+        console.error('Error fetching subscription:', err);
         setSubscriptionError(err.message || 'Could not load subscription info.');
         setSubscription(null);
       } finally {
@@ -140,7 +141,9 @@ export function SidebarUserNav({ user }: { user: User | null }) {
 
   let statusText = 'No active plan';
   let planName = 'Free';
-  let canManage = false;
+  let ctaText = 'Subscribe';
+  let ctaAction = () => setIsPaywallOpen(true);
+  let ctaLoading = isSubscriptionLoading;
 
   if (isSubscriptionLoading) {
     statusText = 'Loading...';
@@ -150,95 +153,91 @@ export function SidebarUserNav({ user }: { user: User | null }) {
     planName = 'Error';
   } else if (subscription) {
     planName = formatPlanName(subscription.plan);
-    canManage = true;
+    const now = new Date();
     if (subscription.status === 'trialing') {
       const trialEndDate = subscription.trialEnd || subscription.periodEnd;
-      statusText = `Trial ends ${formatDate(trialEndDate)}`;
+      const ends = new Date(trialEndDate || '').getTime();
+      if (ends > now.getTime()) {
+        statusText = `Trial ends ${formatDate(trialEndDate)}`;
+        ctaText = 'Upgrade';
+        ctaAction = () => setIsPaywallOpen(true);
+        ctaLoading = isSubscriptionLoading;
+      } else {
+        statusText = `Trial ended ${formatDate(trialEndDate)}`;
+        ctaText = 'Subscribe';
+        ctaAction = () => setIsPaywallOpen(true);
+        ctaLoading = isSubscriptionLoading;
+      }
     } else if (subscription.status === 'active') {
       if (subscription.cancelAtPeriodEnd) {
         statusText = `Cancels ${formatDate(subscription.periodEnd)}`;
       } else {
         statusText = `Renews ${formatDate(subscription.periodEnd)}`;
       }
+      ctaText = 'Manage';
+      ctaAction = handleManageBilling;
+      ctaLoading = isBillingLoading;
     }
   }
 
   const isLoading = isSignOutLoading || isBillingLoading || isSubscriptionLoading;
 
   return (
-    <SidebarMenu>
-      <SidebarMenuItem>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild disabled={isLoading}>
-            <SidebarMenuButton className="data-[state=open]:bg-sidebar-accent bg-background data-[state=open]:text-sidebar-accent-foreground h-10">
-              <span className="truncate">{user.email ?? 'User'}</span>
-              <ChevronUp className="ml-auto" />
-            </SidebarMenuButton>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            side="top"
-            className="w-[--radix-popper-anchor-width]"
-            onCloseAutoFocus={(e) => {
-              if (isBillingLoading) {
-                e.preventDefault();
-              }
-            }}
-          >
-            {isStripeEnabled && (
-              <>
-                <DropdownMenuLabel className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                  Billing
-                </DropdownMenuLabel>
-                <div className="flex items-center justify-between px-2 py-1.5 text-sm">
-                  <div className="flex items-center space-x-2">
-                    <span className="h-2 w-2 bg-green-500 rounded-full inline-block" />
-                    <span className="font-medium capitalize text-foreground/90">Active</span>
+    <>
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild disabled={isLoading}>
+              <SidebarMenuButton className="data-[state=open]:bg-sidebar-accent bg-background data-[state=open]:text-sidebar-accent-foreground h-10">
+                <span className="truncate">{user.email ?? 'User'}</span>
+                <ChevronUp className="ml-auto" />
+              </SidebarMenuButton>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="top" className="w-[--radix-popper-anchor-width]">
+              {isStripeEnabled && (
+                <>
+                  <DropdownMenuLabel className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                    Subscription
+                  </DropdownMenuLabel>
+                  <div className="px-2 py-1.5 text-sm space-y-1">
+                    <p className="font-medium">{planName}</p>
+                    <p className="text-xs text-muted-foreground">{statusText}</p>
+                    <button
+                      onClick={ctaAction}
+                      disabled={ctaLoading}
+                      className="mt-2 text-sm font-medium text-blue-600 hover:underline disabled:opacity-50"
+                    >
+                      {ctaLoading ? <Loader2 className="h-4 w-4 animate-spin inline-block mr-1 text-muted-foreground" /> : ctaText}
+                    </button>
                   </div>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={handleManageBilling}
-                        disabled={isBillingLoading}
-                        className="ml-2 text-sm font-medium text-blue-600 hover:underline disabled:opacity-50"
-                      >
-                        {isBillingLoading ? (
-                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                        ) : (
-                          "Manage"
-                        )}
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">Go to billing portal</TooltipContent>
-                  </Tooltip>
-                </div>
-                <DropdownMenuSeparator />
-              </>
-            )}
-
-            <DropdownMenuItem
-              className="cursor-pointer"
-              onSelect={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              disabled={isLoading}
-            >
-              {`Toggle ${theme === 'light' ? 'dark' : 'light'} mode`}
-            </DropdownMenuItem>
-            
-            {!isStripeEnabled && <DropdownMenuSeparator />}
-
-            <DropdownMenuItem
-              className="cursor-pointer"
-              onSelect={handleSignOut}
-              disabled={isLoading}
-            >
-              {isSignOutLoading ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing out...</>
-              ) : (
-                 'Sign out'
+                  <DropdownMenuSeparator />
+                </>
               )}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </SidebarMenuItem>
-    </SidebarMenu>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onSelect={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                disabled={isLoading}
+              >
+                {`Toggle ${theme === 'light' ? 'dark' : 'light'} mode`}
+              </DropdownMenuItem>
+              {!isStripeEnabled && <DropdownMenuSeparator />}
+
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onSelect={handleSignOut}
+                disabled={isLoading}
+              >
+                {isSignOutLoading ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing out...</>
+                ) : (
+                   'Sign out'
+                )}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </SidebarMenuItem>
+      </SidebarMenu>
+      <Paywall isOpen={isPaywallOpen} onOpenChange={setIsPaywallOpen} />
+    </>
   );
 }

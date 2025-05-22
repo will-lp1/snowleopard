@@ -3,21 +3,32 @@ import { getSession, getUser } from '@/app/(auth)/auth';
 import { AlwaysVisibleArtifact } from '@/components/always-visible-artifact';
 import { checkSubscriptionStatus } from '@/lib/subscription';
 import { Paywall } from '@/components/paywall';
+import { getActiveSubscriptionByUserId } from '@/lib/db/queries';
+import { Onboard } from '@/components/onboard';
 
 export default async function Page() {
   const session = await getSession();
 
-  if (!session?.user?.id) { // Check for user ID  
-    redirect('/'); // Redirect if not logged in
+  if (!session?.user?.id) { 
+    redirect('/'); 
+  }
+
+  const user = await getUser();
+  if (!user) {
+    redirect('/');
+  }
+
+  // Determine if user has already begun a trial or subscription
+  let subscription = null;
+  if (process.env.STRIPE_ENABLED === 'true') {
+    subscription = await getActiveSubscriptionByUserId({ userId: session.user.id });
   }
 
   const { hasActiveSubscription } = await checkSubscriptionStatus();
 
-  // Fetch user data for passing to client component
-  const user = await getUser();
-  if (!user) {
-    // If getUser fails, redirect to login or home
-    redirect('/');
+  // If Stripe is enabled and no subscription/trial started, show onboarding dialog
+  if (process.env.STRIPE_ENABLED === 'true' && !subscription) {
+    return <Onboard isOpen={true} required={true} />;
   }
 
   return (
@@ -26,7 +37,7 @@ export default async function Page() {
         <AlwaysVisibleArtifact 
           chatId="new-chat"
           initialDocumentId="init"
-          initialDocuments={[]} // No existing docs for new chat
+          initialDocuments={[]} 
           user={user}
         />
       ) : (

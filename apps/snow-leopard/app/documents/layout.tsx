@@ -20,7 +20,7 @@ export default function DocumentsLayout({ children }: { children: ReactNode }) {
   const { data: subscriptionData, isLoading: isSubscriptionLoading } = useSWR(
     shouldFetchSubscription ? '/api/user/subscription-status' : null,
     fetcher,
-    { revalidateOnFocus: false }
+    { revalidateOnFocus: false, refreshInterval: 60000 }
   );
 
   useEffect(() => {

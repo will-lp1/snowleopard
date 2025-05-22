@@ -16,10 +16,25 @@ export async function GET() {
 
     if (process.env.STRIPE_ENABLED === 'true') {
       const subscription = await getActiveSubscriptionByUserId({ userId: session.user.id });
-      hasActiveSubscription = subscription?.status === 'active' || subscription?.status === 'trialing';
+      if (subscription) {
+        if (subscription.status === 'active') {
+          hasActiveSubscription = true;
+        } else if (
+          subscription.status === 'trialing' &&
+          subscription.trialEnd &&
+          new Date(subscription.trialEnd) > new Date()
+        ) {
+          hasActiveSubscription = true;
+        } else {
+          hasActiveSubscription = false;
+        }
+      } else {
+        hasActiveSubscription = false;
+      }
       console.log(`[api/user/subscription-status] User: ${session.user.id}, Sub Status: ${subscription?.status}, HasActive: ${hasActiveSubscription}`);
     } else {
       console.log(`[api/user/subscription-status] Stripe DISABLED, granting access.`);
+      hasActiveSubscription = true;
     }
 
     return NextResponse.json({ hasActiveSubscription });

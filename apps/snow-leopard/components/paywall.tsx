@@ -40,13 +40,12 @@ const freeFeatures = [
 
 // Plan display data - separate from the config in lib/auth.ts
 // This array defines how the plans are presented in the UI.
-const displayPlans = [
+export const displayPlans = [
   {
     displayName: 'Monthly',
     planName: 'snowleopard',
     price: '$8',
     billing: '/ month',
-    trialText: 'Includes 3-day free trial',
     features: [
       'Unlimited Documents',
       'Advanced AI Features',
@@ -61,7 +60,6 @@ const displayPlans = [
     planName: 'snowleopard',
     price: '$49',
     billing: '/ year',
-    trialText: 'Includes 3-day free trial',
     features: [
       'All Pro features',
       'Significant cost savings',
@@ -227,9 +225,6 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
                       <div className="flex-grow">
                         <h4 className="font-semibold text-base mb-1">{plan.displayName}</h4>
                         <p className="text-lg font-bold text-foreground/90">{plan.price} <span className="text-sm font-normal text-muted-foreground">{plan.billing}</span></p>
-                         {plan.trialText && (
-                          <p className="text-xs text-green-600 mt-1 font-medium">{plan.trialText}</p>
-                        )}
                       </div>
                     </div>
                     <div className="mt-auto">
@@ -241,7 +236,7 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
                       >
                         {isLoading && loadingPlanId === plan.stripePriceId ? (
                           <><Loader2 className="mr-2 size-4 animate-spin" /> Processing...</>
-                        ) : plan.annual ? 'Start Annual' : 'Start Free Trial'}
+                        ) : plan.annual ? 'Subscribe Annually' : 'Subscribe Monthly'}
                       </Button>
                     </div>
                   </div>

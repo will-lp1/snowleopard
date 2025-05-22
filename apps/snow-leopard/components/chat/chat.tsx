@@ -9,7 +9,7 @@ import { fetcher, generateUUID } from '@/lib/utils';
 import { MultimodalInput } from './multimodal-input';
 import { Messages } from './messages';
 import { toast } from 'sonner';
-import { FileText } from 'lucide-react';
+import { FileText, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useDocumentContext } from '@/hooks/use-document-context';
 import { MentionedDocument } from './multimodal-input';
@@ -46,6 +46,7 @@ export function Chat({
   );
   const [isLoadingChat, setIsLoadingChat] = useState(false);
   const [requestedChatLoadId, setRequestedChatLoadId] = useState<string | null>(null);
+  const [isRefreshingSubscription, setIsRefreshingSubscription] = useState(false);
 
   // Callback function to update the model state
   const handleModelChange = (newModelId: string) => {
@@ -262,6 +263,12 @@ export function Chat({
     setConfirmedMentions([]);
   };
 
+  const refreshSubscription = async () => {
+    setIsRefreshingSubscription(true);
+    await mutate('/api/user/subscription-status');
+    setIsRefreshingSubscription(false);
+  };
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <ChatHeader
@@ -326,8 +333,19 @@ export function Chat({
               />
             </form>
           ) : (
-            <div className="flex items-center justify-center h-[56px] text-sm text-muted-foreground bg-muted rounded-2xl border border-border">
-              Subscription required to send messages.
+            <div className="flex items-center justify-center space-x-2 h-[56px] text-sm text-muted-foreground bg-muted rounded-2xl border border-border">
+              <span>Subscription required to send messages.</span>
+              <button
+                onClick={refreshSubscription}
+                disabled={isRefreshingSubscription}
+                className="p-1"
+              >
+                {isRefreshingSubscription ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+              </button>
             </div>
           )}
         </div>
