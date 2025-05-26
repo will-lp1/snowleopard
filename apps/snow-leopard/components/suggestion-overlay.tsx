@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useAiOptions } from '@/hooks/ai-options';
 import { useSuggestionOverlay } from './suggestion-overlay-provider';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 
 export interface HighlightedTextProps {
   text: string;
@@ -375,24 +376,27 @@ export default function SuggestionOverlay({
         >
           <div className="px-3 py-2 space-y-2">
             {/* Header with close button */}
-            <div className="flex justify-between items-center drag-handle cursor-move">
-              <div className="flex items-center gap-2">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2 drag-handle cursor-move">
                 <GripVertical size={14} className="text-muted-foreground" />
                 <h3 className="text-sm font-medium">Suggestion</h3>
               </div>
-              <button
-                onClick={onClose}
-                onMouseDown={(e) => e.stopPropagation()}
-                className="text-muted-foreground hover:text-foreground transition-colors p-2"
-                aria-label="Close"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            {/* Hint for keyboard shortcuts */}
-            <div className="text-xs text-muted-foreground italic">
-              Press ⌘+Enter to accept, ⌘+Backspace to reject.
+              <TooltipProvider> 
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={onClose}
+                    className="text-muted-foreground hover:text-foreground transition-colors p-2"
+                    aria-label="Close"
+                  >
+                    <X size={16} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <span className="text-xs">⌘+Backspace</span>
+                </TooltipContent>
+              </Tooltip>
+              </TooltipProvider>
             </div>
 
             {/* Selected text collapsible section */}
@@ -458,20 +462,36 @@ export default function SuggestionOverlay({
                 {/* Action buttons - only show on completion */}
                 {!isGenerating && suggestion && (
                   <div className="flex justify-end gap-2 p-2 border-t bg-background/50">
-                    <button
-                      onClick={onClose}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:text-destructive"
-                    >
-                      <X size={13} strokeWidth={2.5} />
-                      <span className="text-xs">Reject</span>
-                    </button>
-                    <button
-                      onClick={() => handleAcceptSuggestion(suggestion)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:text-primary"
-                    >
-                      <Check size={13} strokeWidth={2.5} />
-                      <span className="text-xs">Accept</span>
-                    </button>
+                    <TooltipProvider> 
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={onClose}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:text-destructive"
+                        >
+                          <X size={13} strokeWidth={2.5} />
+                          <span className="text-xs">Reject</span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        <span className="text-xs">⌘+Backspace</span>
+                      </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => handleAcceptSuggestion(suggestion)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:text-primary"
+                        >
+                          <Check size={13} strokeWidth={2.5} />
+                          <span className="text-xs">Accept</span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        <span className="text-xs">⌘+Enter</span>
+                      </TooltipContent>
+                    </Tooltip>
+                    </TooltipProvider>
                   </div>
                 )}
                 
