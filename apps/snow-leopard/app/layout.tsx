@@ -13,6 +13,9 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'snowleopard',
   description: 'Tab, Tab, Apply Brilliance',
+  icons: {
+    icon: '/images/leopardprintbw.svg',
+  },
 };
 
 export const viewport = {

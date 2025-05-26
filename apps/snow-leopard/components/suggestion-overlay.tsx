@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { X, Check, ChevronDown, GripVertical, Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useArtifact } from '@/hooks/use-artifact';
 import { DiffView } from '@/components/document/diffview';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useAiOptions } from '@/hooks/ai-options';
+import { useSuggestionOverlay } from './suggestion-overlay-provider';
 
 export interface HighlightedTextProps {
   text: string;
@@ -58,6 +60,12 @@ export default function SuggestionOverlay({
   const eventSourceRef = useRef<EventSource | null>(null);
   const { artifact, setArtifact, metadata, setMetadata } = useArtifact();
   const { customInstructions } = useAiOptions();
+  const { setSuggestionIsLoading } = useSuggestionOverlay();
+
+  // Effect to inform provider about loading state changes
+  useEffect(() => {
+    setSuggestionIsLoading(isGenerating);
+  }, [isGenerating, setSuggestionIsLoading]);
 
   // Function to truncate text to first 5 words
   const truncateText = (text: string, wordCount = 5) => {
@@ -188,22 +196,40 @@ export default function SuggestionOverlay({
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Escape') {
       onClose();
+    } else if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !isGenerating && suggestion) {
+      // Cmd+Enter to accept suggestion
+      onAcceptSuggestion(suggestion);
+    } else if ((e.metaKey || e.ctrlKey) && e.key === 'Backspace') {
+      // Cmd+Backspace to reject suggestion
+      onClose();
     } else if (e.key === 'Enter' && isOpen && inputValue && !isGenerating) {
       handleSubmitPrompt(inputValue);
     }
-  }, [isOpen, onClose, inputValue, isGenerating]);
+  }, [isOpen, onClose, inputValue, isGenerating, suggestion, onAcceptSuggestion]);
+
+  const handleClickOutside = useCallback((event: MouseEvent) => {
+    if (overlayRef.current && !overlayRef.current.contains(event.target as Node)) {
+      // Only close if the click is truly outside and not on some other interactive element
+      // that might be part of a larger system (e.g., a global command palette that opened it).
+      // For now, a simple check is fine.
+      onClose();
+    }
+  }, [onClose, overlayRef]);
 
   useEffect(() => {
     if (isOpen) {
       window.addEventListener('keydown', handleKeyDown);
+      document.addEventListener('mousedown', handleClickOutside);
     } else {
       window.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('mousedown', handleClickOutside);
     }
     
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isOpen, handleKeyDown]);
+  }, [isOpen, handleKeyDown, handleClickOutside]);
 
   const handleSubmitPrompt = useCallback(async (prompt: string) => {
     if (!documentId) {
@@ -311,136 +337,15 @@ export default function SuggestionOverlay({
     }
   }, [documentId, selectedText, customInstructions]);
 
-  const handleAcceptSuggestion = useCallback(async (suggestedText: string) => {
-    if (!artifact.documentId || !originalContent) return;
-
-    // Try to apply to ProseMirror editor if available
-    try {
-      // Define interface for Vue-enhanced elements 
-      interface VueElement extends Element {
-        __vue__?: {
-          $refs?: {
-            editor?: {
-              view?: any;
-            };
-          };
-        };
-      }
-
-      // Get the ProseMirror view instance
-      const editorView = (document.querySelector('.ProseMirror') as VueElement)?.__vue__?.$refs?.editor?.view;
-      
-      if (editorView) {
-        const { state, dispatch } = editorView;
-        const { tr } = state;
-        
-        // Search for original content in document
-        const docText = state.doc.textContent;
-        let startPos = docText.indexOf(originalContent);
-        
-        if (startPos !== -1) {
-          // Find exact position in document structure
-          const endPos = startPos + originalContent.length;
-          
-          // Search for closest textNode containing the original content
-          let foundNode = false;
-          let nodeStartPos = 0;
-          let nodeEndPos = 0;
-          
-          state.doc.descendants((node: any, pos: number) => {
-            if (foundNode) return false;
-            
-            if (node.isText && node.text?.includes(originalContent)) {
-              nodeStartPos = pos;
-              nodeEndPos = pos + node.nodeSize;
-              foundNode = true;
-              return false;
-            }
-            
-            if (node.textContent.includes(originalContent)) {
-              // Check if this is a formatted node like a list item
-              const isListItem = node.type.name === 'listItem' || 
-                                node.type.name === 'bulletList' || 
-                                node.type.name === 'orderedList';
-              
-              if (isListItem) {
-                // For list items, handle specially
-                nodeStartPos = pos;
-                nodeEndPos = pos + node.nodeSize;
-                foundNode = true;
-                return false;
-              }
-            }
-            
-            return true;
-          });
-          
-          if (foundNode) {
-            // For list items and other formatting, try to preserve structure
-            const $start = state.doc.resolve(nodeStartPos);
-            const $end = state.doc.resolve(nodeEndPos);
-            const isListItem = $start.parent.type.name === 'listItem' || 
-                              $start.node().type.name === 'listItem' ||
-                              $start.parent.type.name === 'bulletList' ||
-                              $start.parent.type.name === 'orderedList';
-            
-            if (isListItem) {
-              // For list items, create proper structure
-              const schema = state.schema;
-              const paragraphType = schema.nodes.paragraph;
-              const listItemType = schema.nodes.listItem;
-              
-              // Create content with preserved formatting
-              const paragraph = paragraphType.create(
-                null,
-                schema.text(suggestedText)
-              );
-              
-              const listItem = listItemType.create(
-                $start.parent.attrs,
-                paragraph
-              );
-              
-              tr.replaceWith(nodeStartPos, nodeEndPos, listItem);
-            } else {
-              // For regular text, simple replacement
-              tr.replaceWith(nodeStartPos, nodeEndPos, state.schema.text(suggestedText));
-            }
-            
-            dispatch(tr);
-            toast.success('Changes applied');
-            onClose();
-            return;
-          }
-        }
-      }
-    } catch (err) {
-      console.error('Error applying to ProseMirror:', err);
-      // Fall back to direct content replacement
-    }
-
-    // Fallback: Update the content in the artifact directly
-    const updatedContent = artifact.content.replace(originalContent, suggestedText);
-    
-    // Update local state
-    setArtifact(prev => ({
-      ...prev,
-      content: updatedContent,
-    }));
-
-    // Update metadata to mark suggestion as resolved
-    if (metadata?.suggestions) {
-      setMetadata((prev: SuggestionMetadata) => ({
-        ...prev,
-        suggestions: prev.suggestions?.map(s => 
-          s.originalText === originalContent ? { ...s, isResolved: true } : s
-        ) || [],
-      }));
-    }
-
-    toast.success('Changes applied');
-    onClose();
-  }, [artifact, originalContent, setArtifact, metadata, setMetadata, onClose]);
+  // Handle accept with a quick pulse animation before applying suggestion
+  const handleAcceptSuggestion = useCallback((suggestedText: string) => {
+    // Pulse the highlight in the editor
+    setSuggestionIsLoading(true);
+    // After a short pulse, apply and close
+    setTimeout(() => {
+      onAcceptSuggestion(suggestedText);
+    }, 300);
+  }, [onAcceptSuggestion, setSuggestionIsLoading]);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent<HTMLFormElement>) => {
@@ -453,127 +358,138 @@ export default function SuggestionOverlay({
   if (!isOpen) return null;
 
   return (
-    <div
-      ref={overlayRef}
-      className={cn(
-        "fixed z-50 bg-background rounded-lg shadow-lg border border-border w-[400px] overflow-hidden select-none",
-        isDragging && "pointer-events-none"
-      )}
-      style={{
-        top: `${currentPosition.y}px`,
-        left: `${currentPosition.x}px`,
-      }}
-      onMouseDown={handleMouseDown}
-    >
-      <div className="px-3 py-2 space-y-2">
-        {/* Header with close button */}
-        <div className="flex justify-between items-center drag-handle cursor-move">
-          <div className="flex items-center gap-2">
-            <GripVertical size={14} className="text-muted-foreground" />
-            <h3 className="text-sm font-medium">Suggestion</h3>
-          </div>
-          <button 
-            onClick={onClose} 
-            className="text-muted-foreground hover:text-foreground transition-colors" 
-            aria-label="Close"
-          >
-            <X size={16} />
-          </button>
-        </div>
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          ref={overlayRef}
+          className={cn(
+            "fixed z-50 bg-background rounded-lg shadow-lg border border-border w-[400px] overflow-hidden select-none",
+            isDragging && "pointer-events-none"
+          )}
+          style={{ top: `${currentPosition.y}px`, left: `${currentPosition.x}px` }}
+          onMouseDown={handleMouseDown}
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          transition={{ duration: 0.2 }}
+        >
+          <div className="px-3 py-2 space-y-2">
+            {/* Header with close button */}
+            <div className="flex justify-between items-center drag-handle cursor-move">
+              <div className="flex items-center gap-2">
+                <GripVertical size={14} className="text-muted-foreground" />
+                <h3 className="text-sm font-medium">Suggestion</h3>
+              </div>
+              <button
+                onClick={onClose}
+                onMouseDown={(e) => e.stopPropagation()}
+                className="text-muted-foreground hover:text-foreground transition-colors p-2"
+                aria-label="Close"
+              >
+                <X size={16} />
+              </button>
+            </div>
 
-        {/* Selected text collapsible section */}
-        {selectedText && (
-          <div className="border rounded-md overflow-hidden bg-muted/30">
-            <button
-              onClick={() => setIsSelectionExpanded(!isSelectionExpanded)}
-              className="w-full px-3 py-2 flex items-center justify-between text-sm text-muted-foreground hover:bg-muted/50 transition-colors"
-            >
-              <span className="truncate">
-                {isSelectionExpanded ? "Selected Text" : truncateText(selectedText)}
-              </span>
-              <ChevronDown
-                size={16}
-                className={cn("transition-transform", {
-                  "transform rotate-180": isSelectionExpanded
-                })}
-              />
-            </button>
-            {isSelectionExpanded && (
-              <div className="px-3 py-2 text-sm border-t max-h-[150px] overflow-y-auto">
-                {selectedText}
+            {/* Hint for keyboard shortcuts */}
+            <div className="text-xs text-muted-foreground italic">
+              Press ⌘+Enter to accept, ⌘+Backspace to reject.
+            </div>
+
+            {/* Selected text collapsible section */}
+            {selectedText && (
+              <div className="border rounded-md overflow-hidden bg-muted/30">
+                <button
+                  onClick={() => setIsSelectionExpanded(!isSelectionExpanded)}
+                  className="w-full px-3 py-2 flex items-center justify-between text-sm text-muted-foreground hover:bg-muted/50 transition-colors"
+                >
+                  <span className="truncate">
+                    {isSelectionExpanded ? "Selected Text" : truncateText(selectedText)}
+                  </span>
+                  <ChevronDown
+                    size={16}
+                    className={cn("transition-transform", {
+                      "transform rotate-180": isSelectionExpanded
+                    })}
+                  />
+                </button>
+                {isSelectionExpanded && (
+                  <div className="px-3 py-2 text-sm border-t max-h-[150px] overflow-y-auto">
+                    {selectedText}
+                  </div>
+                )}
               </div>
             )}
-          </div>
-        )}
-        
-        {/* Input field */}
-        <div>
-          <input
-            ref={inputRef}
-            type="text"
-            placeholder={selectedText ? "Describe what changes you'd like to make..." : "Select text first..."}
-            className="w-full p-2 rounded-md border border-input text-sm bg-transparent outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !isGenerating) {
-                handleSubmitPrompt(inputValue);
-              }
-            }}
-            disabled={isGenerating || !selectedText}
-          />
-        </div>
-        
-        {/* Error message */}
-        {error && (
-          <div className="p-2 bg-destructive/10 border border-destructive/20 rounded-md text-xs text-destructive">
-            {error}
-          </div>
-        )}
-        
-        {/* Diff view for original vs suggestion */}
-        {(isGenerating || suggestion) && originalContent && (
-          <div className="border rounded-lg overflow-hidden bg-muted/30">
-            <div className="p-2 max-h-[300px] overflow-y-auto">
-              <DiffView
-                oldContent={originalContent}
-                newContent={suggestion || originalContent} // Show old content while generating
+            
+            {/* Input field */}
+            <div>
+              <input
+                ref={inputRef}
+                type="text"
+                placeholder={selectedText ? "Describe what changes you'd like to make..." : "Select text first..."}
+                className="w-full p-2 rounded-md border border-input text-sm bg-transparent outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !isGenerating) {
+                    handleSubmitPrompt(inputValue);
+                  }
+                }}
+                disabled={isGenerating || !selectedText}
               />
             </div>
             
-            {/* Action buttons - only show on completion */}
-            {!isGenerating && suggestion && (
-              <div className="flex justify-end gap-2 p-2 border-t bg-background/50">
-                <button
-                  onClick={onClose}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:text-destructive"
-                >
-                  <X size={13} strokeWidth={2.5} />
-                  <span className="text-xs">Reject</span>
-                </button>
-                <button
-                  onClick={() => onAcceptSuggestion(suggestion)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:text-primary"
-                >
-                  <Check size={13} strokeWidth={2.5} />
-                  <span className="text-xs">Accept</span>
-                </button>
+            {/* Error message */}
+            {error && (
+              <div className="p-2 bg-destructive/10 border border-destructive/20 rounded-md text-xs text-destructive">
+                {error}
               </div>
             )}
             
-            {/* Show loading state with spinner */}
-            {isGenerating && (
-              <div className="flex justify-center items-center p-2 border-t bg-background/50">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  <span>Generating suggestion...</span>
+            {/* Diff view for original vs suggestion */}
+            {(isGenerating || suggestion) && originalContent && (
+              <div className="border rounded-lg overflow-hidden bg-muted/30">
+                <div className="p-2 max-h-[300px] overflow-y-auto">
+                  <DiffView
+                    oldContent={originalContent}
+                    newContent={suggestion || originalContent} // Show old content while generating
+                  />
                 </div>
+                
+                {/* Action buttons - only show on completion */}
+                {!isGenerating && suggestion && (
+                  <div className="flex justify-end gap-2 p-2 border-t bg-background/50">
+                    <button
+                      onClick={onClose}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:text-destructive"
+                    >
+                      <X size={13} strokeWidth={2.5} />
+                      <span className="text-xs">Reject</span>
+                    </button>
+                    <button
+                      onClick={() => handleAcceptSuggestion(suggestion)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:text-primary"
+                    >
+                      <Check size={13} strokeWidth={2.5} />
+                      <span className="text-xs">Accept</span>
+                    </button>
+                  </div>
+                )}
+                
+                {/* Show loading state with spinner */}
+                {isGenerating && (
+                  <div className="flex justify-center items-center p-2 border-t bg-background/50">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      <span>Generating suggestion...</span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
-        )}
-      </div>
-    </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
