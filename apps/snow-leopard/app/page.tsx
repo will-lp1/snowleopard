@@ -175,7 +175,7 @@ export default function Home() {
                     <span className="demo-text-base">You start typing, and the AI offers</span>
                     <span className="inline-suggestion-wrapper">
                       <span className="demo-inline-suggestion-animated" data-suggestion=" a helpful completion."></span>
-                      <kbd className="demo-inline-tab">Tab</kbd>
+                      <kbd className="inline-tab-icon">Tab</kbd>
                     </span>
                   </p>
                 </CardContent>
@@ -565,7 +565,7 @@ export default function Home() {
           align-items: baseline;
           gap: 0.25rem;
         }
-        .demo-inline-tab {
+        .inline-tab-icon {
           background: linear-gradient(145deg, #f3f3f3, #e0e0e0);
           border: 1px solid #c0c0c0;
           border-radius: 4px;
@@ -580,8 +580,7 @@ export default function Home() {
         @keyframes fadeInInlineTab {
           to { opacity: 1; }
         }
-        html.dark .demo-inline-tab {
-          background: linear-gradient(145deg, #2c2c2c, #383838);
+        html.dark .inline-tab-icon {
           border-color: #444444;
           box-shadow: 0 2px 0 rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
           color: hsl(var(--muted-foreground));

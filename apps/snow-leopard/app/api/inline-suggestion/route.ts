@@ -8,10 +8,8 @@ import { headers } from 'next/headers';
 async function handleInlineSuggestionRequest(
   documentId: string,
   currentContent: string,
-  contextAfter: string,
-  fullContent: string,
   userId: string,
-  aiOptions: { suggestionLength?: 'short' | 'medium' | 'long', customInstructions?: string }
+  suggestionLength: 'short' | 'medium' | 'long' = 'medium'
 ) {
   const document = await getDocumentById({ id: documentId });
 
@@ -32,25 +30,18 @@ async function handleInlineSuggestionRequest(
     try {
       console.log("Starting to process inline suggestion stream");
 
-      await streamInlineSuggestion({
-        document,
-        currentContent,
-        contextAfter,
-        fullContent,
-        aiOptions,
-        write: async (type, content) => {
-          if (writerClosed) return;
+      await streamInlineSuggestion({ document, currentContent, suggestionLength, write: async (type, content) => {
+        if (writerClosed) return;
 
-          try {
-            await writer.write(encoder.encode(`data: ${JSON.stringify({
-              type,
-              content
-            })}\n\n`));
-          } catch (error) {
-            console.error('Error writing to stream:', error);
-          }
+        try {
+          await writer.write(encoder.encode(`data: ${JSON.stringify({
+            type,
+            content
+          })}\n\n`));
+        } catch (error) {
+          console.error('Error writing to stream:', error);
         }
-      });
+      } });
 
       if (!writerClosed) {
         try {
@@ -113,19 +104,14 @@ export async function POST(request: Request) {
     }
     const userId = session.user.id;
 
-    const {
-      documentId,
-      currentContent,
-      contextAfter = '',
-      fullContent = '',
-      aiOptions = {}
-    } = await request.json();
+    const { documentId, currentContent, aiOptions = {} } = await request.json();
+    const { suggestionLength } = aiOptions;
 
     if (!documentId || !currentContent) {
       return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
     }
 
-    return handleInlineSuggestionRequest(documentId, currentContent, contextAfter, fullContent, userId, aiOptions);
+    return handleInlineSuggestionRequest(documentId, currentContent, userId, suggestionLength);
   } catch (error: any) {
     console.error('Inline suggestion route error:', error);
     return NextResponse.json({ error: error.message || 'An error occurred' }, { status: 400 });
@@ -135,35 +121,26 @@ export async function POST(request: Request) {
 async function streamInlineSuggestion({
   document,
   currentContent,
-  contextAfter,
-  fullContent,
-  aiOptions,
+  suggestionLength,
   write
 }: {
   document: any;
   currentContent: string;
-  contextAfter: string;
-  fullContent: string;
-  aiOptions: { suggestionLength?: 'short' | 'medium' | 'long', customInstructions?: string };
+  suggestionLength: 'short' | 'medium' | 'long';
   write: (type: string, content: string) => Promise<void>;
 }) {
-  console.log("Starting text inline suggestion generation with options:", aiOptions);
+  console.log("Starting text inline suggestion generation with options:", { suggestionLength });
 
-  const prompt = buildPrompt(
-    currentContent,
-    contextAfter,
-    document.title || '',
-    aiOptions?.suggestionLength
-  );
+  const prompt = buildPrompt(currentContent, suggestionLength);
 
-  const maxTokens = { short: 20, medium: 50, long: 80 }[aiOptions?.suggestionLength || 'medium'];
+  const maxTokens = { short: 20, medium: 50, long: 80 }[suggestionLength || 'medium'];
 
   const { fullStream } = streamText({
     model: myProvider.languageModel('artifact-model'),
-    system: getSystemPrompt(aiOptions?.customInstructions),
+    system: getSystemPrompt(),
     prompt,
-    temperature: 0.4, // Fixed temperature for text
-    maxTokens: maxTokens,
+    temperature: 0.4,
+    maxTokens,
   });
 
   let suggestionContent = '';
@@ -179,53 +156,17 @@ async function streamInlineSuggestion({
   }
 }
 
-function getSystemPrompt(customInstructions?: string): string {
-  let basePrompt = `You are a writing assistant providing quick, natural text completions.
-Your goal is to predict the next few words that would naturally follow the cursor position.
-- Match the exact tone and style of the text.
-- Keep suggestions short (typically 5-10 words) and natural.
-- Focus on the immediate context.
-- Stop at natural sentence boundaries (like periods, commas, question marks).
-- **CRITICAL: Do NOT add quotation marks (single or double) unless the existing text already ends with an open quote that you are continuing.**
-- Do not complete entire sentences or paragraphs unless it's extremely short and obvious.
-- Be concise and directly continue the thought.`;
-
-  if (customInstructions) {
-    basePrompt += `\n\nFollow these user instructions:\n${customInstructions}`;
-  }
-
-  return basePrompt;
+function getSystemPrompt(): string {
+  return `You are a helpful assistant that continues the given text. Only output the continuation without extra commentary or quotes.`;
 }
 
 function buildPrompt(
   currentContent: string,
-  contextAfter: string,
-  documentTitle: string,
   suggestionLength: 'short' | 'medium' | 'long' = 'medium'
 ): string {
-  const contextWindow = 250; // Increased slightly for more text context
+  const contextWindow = 200;
   const relevantContent = currentContent.slice(-contextWindow);
-
-  let prompt = `You are completing text in a document.${
-    documentTitle ? ` Document title: "${documentTitle}"` : ''
-  }\n\nThe user's cursor is at the end of the following text:\n"""\n${relevantContent}\n"""`;
-
-  // Limit contextAfter to prevent overly long prompts and reduce cost/latency
-  const maxContextAfterLength = 150;
-  if (contextAfter && contextAfter.trim().length > 0) {
-      const truncatedContextAfter = contextAfter.length > maxContextAfterLength
-          ? contextAfter.substring(0, maxContextAfterLength) + "..."
-          : contextAfter;
-      prompt += `\n\nFor context, this is the text immediately *after* the cursor (do not repeat this):\n"""\n${truncatedContextAfter}\n"""`;
-  }
-
-  const lengthInstruction = {
-    short: 'Suggest only the immediate next 1-5 words.',
-    medium: 'Suggest the next 5-10 words.',
-    long: 'Suggest the next 10-15 words.',
-  }[suggestionLength];
-
-  prompt += `\n\nProvide a natural, immediate continuation of the text. ${lengthInstruction} Follow the system prompt rules precisely, especially regarding quotation marks.`;
-
-  return prompt;
+  const lengthMap = { short: '1-5 words', medium: '5-10 words', long: '10-15 words' };
+  const lengthInstruction = lengthMap[suggestionLength] || lengthMap.medium;
+  return `Text before cursor:\n"""${relevantContent}"""\n\nContinue this text with ${lengthInstruction}.`;
 } 
