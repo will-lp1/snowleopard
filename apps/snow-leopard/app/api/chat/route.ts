@@ -32,6 +32,7 @@ import { headers } from 'next/headers';
 import { ArtifactKind } from '@/components/artifact';
 import type { Document } from '@snow-leopard/db';
 import { createDocument as aiCreateDocument } from '@/lib/ai/tools/create-document';
+import { webSearch } from '@/lib/ai/tools/web-search';
 
 export const maxDuration = 60;
 
@@ -42,14 +43,14 @@ async function createEnhancedSystemPrompt({
   selectedChatModel,
   activeDocumentId,
   mentionedDocumentIds,
-  availableTools = ['createDocument','streamingDocument','updateDocument'] as Array<'createDocument'|'streamingDocument'|'updateDocument'>,
+  availableTools = ['createDocument','streamingDocument','updateDocument','webSearch'] as Array<'createDocument'|'streamingDocument'|'updateDocument'|'webSearch'>,
 }: {
   selectedChatModel: string;
   activeDocumentId?: string | null;
   mentionedDocumentIds?: string[] | null;
-  availableTools?: Array<'createDocument'|'streamingDocument'|'updateDocument'>;
+  availableTools?: Array<'createDocument'|'streamingDocument'|'updateDocument'|'webSearch'>;
 }) {
-  
+
   let basePrompt = systemPrompt({ selectedChatModel, availableTools });
   let contextAdded = false;
 
@@ -259,7 +260,6 @@ export async function POST(request: Request) {
       mentionedDocumentIds,
     });
 
-    // Validate and load the active document once
     let validatedActiveDocumentId: string | undefined;
     let activeDoc: Document | null = null;
     if (activeDocumentId && uuidRegex.test(activeDocumentId)) {
@@ -282,7 +282,7 @@ export async function POST(request: Request) {
       execute: async (dataStream) => {
         // --- Build tools based on active document state ---
         const availableTools: any = {};
-        const activeToolsList: Array<'createDocument' | 'streamingDocument' | 'updateDocument'> = [];
+        const activeToolsList: Array<'createDocument' | 'streamingDocument' | 'updateDocument' | 'webSearch'> = [];
 
         if (!validatedActiveDocumentId) {
           // No active document: Offer both createDocument and streamingDocument
@@ -303,6 +303,10 @@ export async function POST(request: Request) {
         }
         // --- End Build tools ---
 
+        // Offer webSearch tool for real-time search queries
+        availableTools.webSearch = webSearch({ session: toolSession });
+        activeToolsList.push('webSearch');
+
         // Regenerate the system prompt with the actual available tools
         const dynamicSystemPrompt = await createEnhancedSystemPrompt({
           selectedChatModel,
@@ -315,7 +319,7 @@ export async function POST(request: Request) {
           model: myProvider.languageModel(selectedChatModel),
           system: dynamicSystemPrompt,
           messages,
-          maxSteps: 3, // Allow multiple steps for create+stream workflow
+          maxSteps: 3, 
           toolCallStreaming: true,
           experimental_activeTools: activeToolsList,
           experimental_generateMessageId: generateUUID,

@@ -4,7 +4,9 @@ import { ArtifactKind } from '@/components/artifact';
 const documentAwarenessPrompt = `
 You have access to the CURRENT DOCUMENT. Use its content silently to guide your responses.
 
-- Only invoke internal document operations when the user's request involves document creation or content modifications; for all other queries, respond normally without using any tools.
+- Only invoke internal document operations when the user's request involves document creation or content modifications.
+- When a query requires up-to-date or external information not contained in the CURRENT DOCUMENT, call webSearch with an appropriate query to fetch relevant sources.
+- For all other queries, respond normally without using any tools.
 - When no active document exists, call createDocument first (with title and kind), then streamingDocument to generate and stream initial content.
 - When an active document exists but is empty, call streamingDocument (with title and kind) to fill it with initial content.
 - When an active document exists and has content, call updateDocument with a concise description of the desired edits.
@@ -12,7 +14,7 @@ You have access to the CURRENT DOCUMENT. Use its content silently to guide your 
 
 // Dynamically generate the artifact-management tools section
 export function buildArtifactsPrompt(
-  tools: Array<'createDocument' | 'streamingDocument' | 'updateDocument'>
+  tools: Array<'createDocument' | 'streamingDocument' | 'updateDocument' | 'webSearch'>
 ): string {
   let prompt =
     'Available internal operations for document management (invoke silently only when needed):';
@@ -29,6 +31,10 @@ export function buildArtifactsPrompt(
     prompt +=
       '\n- updateDocument: Propose diff-based edits based on a concise description of desired changes.';
   }
+  if (tools.includes('webSearch')) {
+    prompt +=
+      '\n- webSearch: Perform a real-time web search using a query and return structured search results.';
+  }
 
   return prompt;
 }
@@ -38,10 +44,10 @@ export const regularPrompt =
 
 export const systemPrompt = ({
   selectedChatModel,
-  availableTools = ['createDocument', 'streamingDocument', 'updateDocument'],
+  availableTools = ['createDocument', 'streamingDocument', 'updateDocument', 'webSearch'],
 }: {
   selectedChatModel: string;
-  availableTools?: Array<'createDocument' | 'streamingDocument' | 'updateDocument'>;
+  availableTools?: Array<'createDocument' | 'streamingDocument' | 'updateDocument' | 'webSearch'>;
 }) => {
   const artifactsText = buildArtifactsPrompt(availableTools);
   return `${regularPrompt}

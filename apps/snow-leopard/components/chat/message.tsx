@@ -143,6 +143,12 @@ const PurePreviewMessage = ({
 
                   if (state === 'result') {
                     const { result } = toolInvocation;
+                    if (toolName === 'webSearch') {
+                      const results = (result as any).results || [];
+                      return (
+                        <WebSearchResult key={toolCallId} query={(args as any).query} results={results} />
+                      );
+                    }
                     return (
                       <div key={toolCallId}>
                         {toolName === 'createDocument' ? (
@@ -172,6 +178,13 @@ const PurePreviewMessage = ({
                         ) : (
                           <pre>{JSON.stringify(result, null, 2)}</pre>
                         )}
+                      </div>
+                    );
+                  }
+                  if (state === 'call' && toolName === 'webSearch') {
+                    return (
+                      <div key={toolCallId} className="bg-background border rounded-xl w-full max-w-md p-3 text-sm animate-pulse">
+                        Searching web for "{(args as any).query}"...
                       </div>
                     );
                   }
@@ -285,3 +298,34 @@ export const ThinkingMessage = () => {
     </motion.div>
   );
 };
+
+// Insert collapsible search result component
+function WebSearchResult({ query, results }: { query: string; results: any[] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="bg-background border rounded-xl w-full max-w-md p-4 text-sm">
+      <div className="flex items-center justify-between">
+        <span>Search completed for "{query}"</span>
+        <button onClick={() => setOpen(!open)} className="text-blue-600 hover:underline">
+          {open ? 'Hide sources' : `View ${results.length} sources`}
+        </button>
+      </div>
+      {open && (
+        <ul className="list-disc pl-5 mt-2 space-y-1 max-h-60 overflow-auto">
+          {results.map((item, idx) => (
+            <li key={idx}>
+              {item.title ? (
+                <a href={item.url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
+                  {item.title}
+                </a>
+              ) : (
+                <span>{item.url}</span>
+              )}
+              {item.content && <span>: {item.content}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
