@@ -13,9 +13,6 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'snowleopard',
   description: 'Tab, Tab, Apply Brilliance',
-  icons: {
-    icon: '/images/leopardprintbw.svg',
-  },
 };
 
 export const viewport = {
@@ -58,6 +55,7 @@ export default async function RootLayout({
             __html: THEME_COLOR_SCRIPT,
           }}
         />
+        <link rel="icon" href="/SLprint.png" />
       </head>
       <body className="antialiased">
         <ThemeProvider
