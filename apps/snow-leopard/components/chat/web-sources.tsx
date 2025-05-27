@@ -15,7 +15,7 @@ export function WebSearchCall({ args }: WebSearchCallProps) {
         <SparklesIcon size={16} />
       </div>
       <div className="flex-grow text-foreground">
-        Searching web for "{args.query}"...
+        Searching web for &quot;{args.query}&quot;...
       </div>
       <div className="animate-spin text-muted-foreground flex-shrink-0">
         <LoaderIcon size={16} />
@@ -40,13 +40,21 @@ export function WebSearchResult({ args, result }: WebSearchResultProps) {
           <div className="text-muted-foreground flex-shrink-0">
             <SparklesIcon size={16} />
           </div>
-          <span>Search completed for "{args.query}"</span>
+          <span>Search completed for &quot;{args.query}&quot;</span>
         </div>
-        <Button variant="link" size="sm" onClick={() => setOpen(!open)}>
+        <Button 
+          variant="link" 
+          size="sm" 
+          onClick={() => setOpen(!open)}
+          aria-expanded={open}
+        >
           {open ? 'Hide sources' : `View ${list.length} sources`}
         </Button>
       </div>
       {open && (
+        list.length === 0 ? (
+          <p className="text-muted-foreground mt-2">No sources found.</p>
+        ) : (
         <ul className="list-disc pl-5 mt-2 space-y-1 max-h-60 overflow-auto">
           {list.map((item, idx) => (
             <li key={idx}>
@@ -61,6 +69,7 @@ export function WebSearchResult({ args, result }: WebSearchResultProps) {
             </li>
           ))}
         </ul>
+        )
       )}
     </div>
   );

@@ -184,7 +184,7 @@ const PurePreviewMessage = ({
                   if (state === 'call' && toolName === 'webSearch') {
                     return (
                       <div key={toolCallId} className="bg-background border rounded-xl w-full max-w-md p-3 text-sm animate-pulse">
-                        Searching web for "{(args as any).query}"...
+                        Searching web for &quot;{(args as any).query}&quot;...
                       </div>
                     );
                   }
@@ -305,7 +305,7 @@ function WebSearchResult({ query, results }: { query: string; results: any[] }) 
   return (
     <div className="bg-background border rounded-xl w-full max-w-md p-4 text-sm">
       <div className="flex items-center justify-between">
-        <span>Search completed for "{query}"</span>
+        <span>Search completed for &quot;{query}&quot;</span>
         <button onClick={() => setOpen(!open)} className="text-blue-600 hover:underline">
           {open ? 'Hide sources' : `View ${results.length} sources`}
         </button>

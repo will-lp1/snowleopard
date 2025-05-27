@@ -18,7 +18,7 @@ export const webSearch = ({ session }: WebSearchProps) =>
     execute: async ({ query, maxResults = 5, searchDepth = 'basic', includeAnswer = false }) => {
       const apiKey = process.env.TAVILY_API_KEY;
       if (!apiKey) {
-        throw new Error('TAVILY_API_KEY environment variable not set.');
+        throw new Error('Web search is not configured. Please contact support.');
       }
       const response = await fetch('https://api.tavily.com/search', {
         method: 'POST',
