@@ -35,6 +35,7 @@ import { savePlugin, savePluginKey, setSaveStatus, type SaveState, type SaveStat
 import { synonymsPlugin } from '@/lib/editor/synonym-plugin';
 import { EditorToolbar } from '@/components/editor-toolbar';
 import { creationStreamingPlugin } from '@/lib/editor/creation-streaming-plugin';
+import { selectionContextPlugin } from '@/lib/editor/selection-context-plugin';
 
 const { nodes, marks } = documentSchema;
 
@@ -261,6 +262,7 @@ function PureEditor({
           ],
         }),
         inlineSuggestionPlugin({ requestSuggestion: requestInlineSuggestionCallback }),
+        selectionContextPlugin(),
         synonymsPlugin(),
         savePlugin({
           saveFunction: performSave,
@@ -668,6 +670,23 @@ function PureEditor({
           border-radius: 2px; /* Optional: slightly rounded corners */
           pointer-events: none; /* Allow clicks/hovers to pass through */
           z-index: 1; /* Ensure it's above the text but below potential popups */
+        }
+
+        /* Styles for selection context highlighting */
+        .suggestion-context-highlight {
+          background-color: rgba(255, 255, 0, 0.25); /* Light yellow highlight */
+          transition: background-color 0.3s ease-in-out;
+        }
+
+        .suggestion-context-loading {
+          background-color: rgba(255, 220, 0, 0.35); /* Slightly different shade for loading */
+          animation: pulse-animation 1.5s infinite ease-in-out;
+        }
+
+        @keyframes pulse-animation {
+          0% { background-color: rgba(255, 220, 0, 0.35); }
+          50% { background-color: rgba(255, 230, 80, 0.5); }
+          100% { background-color: rgba(255, 220, 0, 0.35); }
         }
       `}</style>
     </>

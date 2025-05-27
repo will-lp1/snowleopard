@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSWRConfig } from 'swr';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/toast';
@@ -16,6 +17,7 @@ interface OnboardProps {
 export function Onboard({ isOpen, onOpenChange, required = false }: OnboardProps) {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { mutate } = useSWRConfig();
 
   const handleStartTrial = async () => {
     setIsLoading(true);
@@ -31,6 +33,7 @@ export function Onboard({ isOpen, onOpenChange, required = false }: OnboardProps
       } else {
         toast({ type: 'success', description: 'Free trial started! Enjoy.' });
         onOpenChange?.(false);
+        await mutate('/api/user/subscription-status');
         router.refresh();
       }
     } catch (err) {

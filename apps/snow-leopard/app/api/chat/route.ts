@@ -49,14 +49,9 @@ async function createEnhancedSystemPrompt({
   mentionedDocumentIds?: string[] | null;
   availableTools?: Array<'createDocument'|'streamingDocument'|'updateDocument'>;
 }) {
-  // Build the base prompt with only the allowed tools
+  
   let basePrompt = systemPrompt({ selectedChatModel, availableTools });
   let contextAdded = false;
-
-  // Explicitly ask the reasoning model to use think tags
-  if (selectedChatModel === 'chat-model-reasoning') {
-    basePrompt += "\n\nIMPORTANT: Think step-by-step about your plan using <think> tags before generating the response.";
-  }
 
   // Log the model received by the prompt function
   console.log(`[createEnhancedSystemPrompt] Received model: ${selectedChatModel}`);
@@ -90,7 +85,6 @@ ${document.content || '(Empty document)'}
   if (mentionedDocumentIds && mentionedDocumentIds.length > 0) {
     basePrompt += `\n\n--- MENTIONED DOCUMENTS (do not modify) ---`;
     for (const mentionedId of mentionedDocumentIds) {
-      // Avoid refetching if mentioned is same as active
       if (mentionedId === activeDocumentId) continue; 
 
       try {
@@ -291,10 +285,11 @@ export async function POST(request: Request) {
         const activeToolsList: Array<'createDocument' | 'streamingDocument' | 'updateDocument'> = [];
 
         if (!validatedActiveDocumentId) {
-          // No active document: Only offer createDocument to make a new one.
-          console.log('[Chat API] Offering tool: createDocument (no active document)');
+          // No active document: Offer both createDocument and streamingDocument
+          console.log('[Chat API] Offering tools: createDocument + streamingDocument (no active document)');
           availableTools.createDocument = aiCreateDocument({ session: toolSession, dataStream });
-          activeToolsList.push('createDocument');
+          availableTools.streamingDocument = streamingDocument({ session: toolSession, dataStream });
+          activeToolsList.push('createDocument', 'streamingDocument');
         } else if ((activeDoc?.content?.length ?? 0) === 0) {
           // Active document exists but is empty: Only offer streamingDocument to fill it.
           console.log('[Chat API] Offering tool: streamingDocument (document is empty)');
@@ -320,14 +315,14 @@ export async function POST(request: Request) {
           model: myProvider.languageModel(selectedChatModel),
           system: dynamicSystemPrompt,
           messages,
-          maxSteps: activeToolsList.length,
+          maxSteps: 3, // Allow multiple steps for create+stream workflow
           toolCallStreaming: true,
           experimental_activeTools: activeToolsList,
           experimental_generateMessageId: generateUUID,
           experimental_transform: smoothStream({
             chunking:'word',
           }),
-          tools: availableTools, 
+          tools: availableTools,
           onFinish: async ({ response, reasoning }) => {
             if (userId) {
               try {

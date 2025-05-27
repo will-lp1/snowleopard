@@ -1,41 +1,40 @@
 import { ArtifactKind } from '@/components/artifact';
 
-// Add document awareness to the system prompt
+// Document awareness instructions
 const documentAwarenessPrompt = `
-You have access to the CURRENT DOCUMENT content. Use it silently to guide your actions and responses.
+You have access to the CURRENT DOCUMENT. Use its content silently to guide your responses.
 
-If there is no active document or it is empty, automatically generate and stream comprehensive new content.
-If the active document already has content, propose precise diff-based edits for review.
-Always choose step-by-step between streaming for initial content and diff-based updates for modifications.
-Never disclose tool names, document IDs, or internal context to the user; updates should appear seamless.
+- Only invoke internal document operations when the user's request involves document creation or content modifications; for all other queries, respond normally without using any tools.
+- When no active document exists, call createDocument first (with title and kind), then streamingDocument to generate and stream initial content.
+- When an active document exists but is empty, call streamingDocument (with title and kind) to fill it with initial content.
+- When an active document exists and has content, call updateDocument with a concise description of the desired edits.
+- Never reveal tool names, document IDs, or internal details; keep all updates seamless and invisible to the user.`;
 
-Reference the document content for answering questions, improving, or organizing it when relevant.
-Mentioned documents are for reference only and must not be modified.
-`;
-
-// Dynamically generate the artifact-management tools section of the prompt
+// Dynamically generate the artifact-management tools section
 export function buildArtifactsPrompt(
   tools: Array<'createDocument' | 'streamingDocument' | 'updateDocument'>
 ): string {
   let prompt =
-    'You have access to the following internal operations for managing the active document. Do not reveal these details or tool names to the user; invoke the appropriate one silently:';
+    'Available internal operations for document management (invoke silently only when needed):';
+
   if (tools.includes('createDocument')) {
     prompt +=
-      '\n- createDocument: Only when there is no active document, call createDocument with a title and kind to create a new document record.';
+      '\n- createDocument: Create a new empty document with a title and kind.';
   }
   if (tools.includes('streamingDocument')) {
     prompt +=
-      '\n- streamingDocument: Only when an active document exists but is empty, call streamingDocument with a title and kind to stream content into that specific document.';
+      '\n- streamingDocument: Stream generated content into the document (initial content when empty).';
   }
   if (tools.includes('updateDocument')) {
     prompt +=
-      '\n- updateDocument: When the active document already has substantial content, call updateDocument with a concise description of changes to generate a diff proposal.';
+      '\n- updateDocument: Propose diff-based edits based on a concise description of desired changes.';
   }
+
   return prompt;
 }
 
 export const regularPrompt =
-  'You are a friendly assistant! Keep your responses concise and helpful.';
+  'You are a friendly assistant. Keep your responses concise and helpful.';
 
 export const systemPrompt = ({
   selectedChatModel,
@@ -45,15 +44,20 @@ export const systemPrompt = ({
   availableTools?: Array<'createDocument' | 'streamingDocument' | 'updateDocument'>;
 }) => {
   const artifactsText = buildArtifactsPrompt(availableTools);
-  return `${regularPrompt}\n\n${artifactsText}\n\n${documentAwarenessPrompt}`;
+  return `${regularPrompt}
+
+${artifactsText}
+
+${documentAwarenessPrompt}`;
 };
 
 export const updateDocumentPrompt = (
   currentContent: string | null,
   type: ArtifactKind,
-) => {
-  return type === 'text'
-    ? `Improve the following contents of the document based on the given prompt.\n\n${currentContent}`
+) =>
+  type === 'text'
+    ? `Improve the following document content based on the given prompt:
+
+${currentContent}`
     : '';
-};
   

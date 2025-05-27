@@ -159,7 +159,17 @@ async function streamSuggestion({
   let draftContent = '';
   const contentToModify = selectedText || document.content;
   const promptContext = selectedText 
-    ? `I want to modify a specific part of a document. Here's the selected text: "${selectedText}"\n\nI want you to: ${description} - NEVER INCLUDE ANYTHING IN THE OUTPUT OTHER THAN THE MODIFIED TEXT`
+    ? `You are an expert text editor. Your task is to refine a given piece of text based on a specific instruction.
+Original selected text:
+"""
+${selectedText}
+"""
+
+Instruction: "${description}"
+
+Please provide ONLY the modified version of the selected text.
+If the instruction implies a small change, try to keep the rest of the original text intact as much as possible.
+Only output the resulting text, with no preamble or explanation.`
     : description;
 
   console.log("Starting stream text generation with content length:", contentToModify.length);

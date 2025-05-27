@@ -5,6 +5,11 @@ import SuggestionOverlay from './suggestion-overlay';
 import { useArtifact } from '@/hooks/use-artifact';
 import { toast } from 'sonner';
 import { getActiveEditorView } from '@/lib/editor/editor-state';
+import {
+  ACTIVATE_SUGGESTION_CONTEXT,
+  DEACTIVATE_SUGGESTION_CONTEXT,
+  SET_SUGGESTION_LOADING_STATE
+} from '@/lib/editor/selection-context-plugin';
 
 // Define interface for Vue-enhanced elements
 interface VueElement extends Element {
@@ -25,6 +30,7 @@ interface SuggestionOverlayContextType {
     to?: number;
   }) => void;
   closeSuggestionOverlay: () => void;
+  setSuggestionIsLoading: (isLoading: boolean) => void;
 }
 
 const SuggestionOverlayContext = createContext<SuggestionOverlayContextType | null>(null);
@@ -35,6 +41,14 @@ export function SuggestionOverlayProvider({ children }: { children: ReactNode })
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [selectionRange, setSelectionRange] = useState<{ from: number; to: number } | null>(null);
   const { artifact } = useArtifact();
+
+  const setSuggestionIsLoading = useCallback((isLoading: boolean) => {
+    const view = getActiveEditorView();
+    if (view) {
+      const tr = view.state.tr.setMeta(SET_SUGGESTION_LOADING_STATE, isLoading);
+      view.dispatch(tr);
+    }
+  }, []);
 
   const openSuggestionOverlay = useCallback(
     ({
@@ -56,8 +70,22 @@ export function SuggestionOverlayProvider({ children }: { children: ReactNode })
 
       if (typeof from === 'number' && typeof to === 'number') {
         setSelectionRange({ from, to });
+        const view = getActiveEditorView();
+        if (view) {
+          // Ensure any previous active state is cleared first, then activate new.
+          // This handles rapidly opening new overlays without explicit close.
+          let tr = view.state.tr.setMeta(DEACTIVATE_SUGGESTION_CONTEXT, true);
+          tr = tr.setMeta(ACTIVATE_SUGGESTION_CONTEXT, { from, to });
+          view.dispatch(tr);
+        }
       } else {
         setSelectionRange(null);
+        // If opening without a specific range, ensure any existing highlight is cleared.
+        const view = getActiveEditorView();
+        if (view) {
+            const tr = view.state.tr.setMeta(DEACTIVATE_SUGGESTION_CONTEXT, true);
+            view.dispatch(tr);
+        }
       }
 
       if (position) {
@@ -68,14 +96,22 @@ export function SuggestionOverlayProvider({ children }: { children: ReactNode })
 
       setIsOpen(true);
     },
-    []
+    [] // No dependencies, relies on getActiveEditorView at call time
   );
 
   const closeSuggestionOverlay = useCallback(() => {
     setIsOpen(false);
     setSelectedText('');
     setSelectionRange(null);
-  }, []);
+    
+    const view = getActiveEditorView();
+    if (view) {
+      // Ensure loading is set to false and then deactivate
+      let tr = view.state.tr.setMeta(SET_SUGGESTION_LOADING_STATE, false);
+      tr = tr.setMeta(DEACTIVATE_SUGGESTION_CONTEXT, true);
+      view.dispatch(tr);
+    }
+  }, []); // No dependencies, relies on getActiveEditorView at call time
 
   const handleAcceptSuggestion = useCallback((suggestion: string) => {
     if (!artifact.documentId || artifact.documentId === 'init') {
@@ -95,7 +131,7 @@ export function SuggestionOverlayProvider({ children }: { children: ReactNode })
         }
       });
       window.dispatchEvent(event);
-      closeSuggestionOverlay();
+      closeSuggestionOverlay(); // This will also handle deactivating plugin state
     } else {
       if (!selectionRange) {
         toast.warning("Cannot apply suggestion: Text range not captured.");
@@ -118,13 +154,41 @@ export function SuggestionOverlayProvider({ children }: { children: ReactNode })
           const { from, to, empty } = state.selection;
 
           if (!empty) {
-            const text = state.doc.textBetween(from, to, ' \n\n ');
-            let pos = { x: 100, y: 100 };
+            const text = state.doc.textBetween(from, to, ' \\n\\n ');
+            
+            let pos = { x: 100, y: 100 }; // Default position
             const domSelection = window.getSelection();
             const range = domSelection?.getRangeAt(0);
+
             if (range) {
               const rect = range.getBoundingClientRect();
-              pos = { x: rect.left, y: rect.bottom + 10 }; 
+              const overlayWidth = 400; // Approximate width of SuggestionOverlay
+              const overlayHeight = 450; // Approximate max height of SuggestionOverlay
+              const padding = 10; // Viewport padding
+
+              let newX = rect.left;
+              let newY = rect.bottom + padding;
+
+              // Adjust X if it goes off-screen right
+              if (newX + overlayWidth > window.innerWidth - padding) {
+                newX = window.innerWidth - overlayWidth - padding;
+              }
+              // Adjust X if it goes off-screen left (less common for LTR text selection)
+              if (newX < padding) {
+                newX = padding;
+              }
+
+              // Adjust Y if it goes off-screen bottom
+              if (newY + overlayHeight > window.innerHeight - padding) {
+                // Try to position above the selection
+                newY = rect.top - overlayHeight - padding;
+              }
+              // Adjust Y if (after trying above) it goes off-screen top
+              if (newY < padding) {
+                newY = padding; // Fallback to top of screen with padding
+              }
+              
+              pos = { x: newX, y: newY };
             }
 
             console.log(`[Provider] Opening overlay via Cmd+K from editor state. Range: [${from}, ${to}]`);
@@ -153,6 +217,7 @@ export function SuggestionOverlayProvider({ children }: { children: ReactNode })
       value={{
         openSuggestionOverlay,
         closeSuggestionOverlay,
+        setSuggestionIsLoading,
       }}
     >
       {children}
@@ -164,6 +229,7 @@ export function SuggestionOverlayProvider({ children }: { children: ReactNode })
           selectedText={selectedText}
           position={position}
           onAcceptSuggestion={handleAcceptSuggestion}
+          // highlightedTextProps is no longer needed as the plugin handles highlighting
         />
       )}
     </SuggestionOverlayContext.Provider>
