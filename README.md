@@ -10,6 +10,7 @@ Monorepo:
 - PostgreSQL, Drizzle ORM
 - Better Auth 
 - Vercel AI SDK
+- Tavily (for web search)
 
 ## Setup
 

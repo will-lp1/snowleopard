@@ -588,14 +588,14 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
             
             {filteredDocuments.length > 0 && (
               <div className="flex items-center justify-between px-2 py-1 mb-2">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
                   {isSelectionMode ? (
                     <>
                       <Button 
                         variant="ghost" 
                         size="sm" 
                         onClick={handleSelectAll}
-                        className="h-7 text-xs"
+                        className="h-7 text-xs px-1"
                       >
                         {selectedDocuments.size === filteredDocuments.length ? 'Deselect All' : 'Select All'}
                       </Button>
@@ -608,7 +608,7 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
                           }
                         }}
                         disabled={selectedDocuments.size === 0}
-                        className="h-7 text-xs"
+                        className="h-7 text-xs px-1"
                       >
                         Delete ({selectedDocuments.size})
                       </Button>
@@ -618,7 +618,7 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
                       variant="outline" 
                       size="sm" 
                       onClick={handleToggleSelectionMode}
-                      className="h-7 text-xs"
+                      className="h-7 text-xs px-1"
                     >
                       Select
                     </Button>
@@ -630,7 +630,7 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
                     variant="ghost" 
                     size="sm" 
                     onClick={handleToggleSelectionMode}
-                    className="h-7 text-xs"
+                    className="h-7 text-xs px-1"
                   >
                     Cancel
                   </Button>
