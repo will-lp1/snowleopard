@@ -3,13 +3,12 @@
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { X, Check, ChevronDown, GripVertical, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useArtifact } from '@/hooks/use-artifact';
-import { DiffView } from '@/components/document/diffview';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useAiOptions } from '@/hooks/ai-options';
 import { useSuggestionOverlay } from './suggestion-overlay-provider';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
+import { DiffView } from '@/components/document/diffview';
 
 export interface HighlightedTextProps {
   text: string;
@@ -35,7 +34,6 @@ interface SuggestionOverlayProps {
   isOpen: boolean;
   onClose: () => void;
   onAcceptSuggestion: (suggestion: string) => void;
-  highlightedTextProps?: HighlightedTextProps;
   position?: { x: number; y: number };
 }
 
@@ -59,7 +57,6 @@ export default function SuggestionOverlay({
   const inputRef = useRef<HTMLInputElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
-  const { artifact, setArtifact, metadata, setMetadata } = useArtifact();
   const { customInstructions } = useAiOptions();
   const { setSuggestionIsLoading } = useSuggestionOverlay();
 
@@ -199,14 +196,13 @@ export default function SuggestionOverlay({
       onClose();
     } else if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !isGenerating && suggestion) {
       // Cmd+Enter to accept suggestion
-      onAcceptSuggestion(suggestion);
+      setSuggestionIsLoading(true);
+      setTimeout(() => onAcceptSuggestion(suggestion), 300);
     } else if ((e.metaKey || e.ctrlKey) && e.key === 'Backspace') {
       // Cmd+Backspace to reject suggestion
       onClose();
-    } else if (e.key === 'Enter' && isOpen && inputValue && !isGenerating) {
-      handleSubmitPrompt(inputValue);
     }
-  }, [isOpen, onClose, inputValue, isGenerating, suggestion, onAcceptSuggestion]);
+  }, [onClose, isGenerating, suggestion, setSuggestionIsLoading, onAcceptSuggestion]);
 
   const handleClickOutside = useCallback((event: MouseEvent) => {
     if (overlayRef.current && !overlayRef.current.contains(event.target as Node)) {
@@ -338,16 +334,6 @@ export default function SuggestionOverlay({
     }
   }, [documentId, selectedText, customInstructions]);
 
-  // Handle accept with a quick pulse animation before applying suggestion
-  const handleAcceptSuggestion = useCallback((suggestedText: string) => {
-    // Pulse the highlight in the editor
-    setSuggestionIsLoading(true);
-    // After a short pulse, apply and close
-    setTimeout(() => {
-      onAcceptSuggestion(suggestedText);
-    }, 300);
-  }, [onAcceptSuggestion, setSuggestionIsLoading]);
-
   const handleSubmit = useCallback(
     async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
@@ -355,6 +341,14 @@ export default function SuggestionOverlay({
     },
     [handleSubmitPrompt, inputValue],
   );
+
+  // Handle accept with a quick pulse animation before applying suggestion
+  const handleAcceptSuggestion = useCallback((suggestedText: string) => {
+    setSuggestionIsLoading(true);
+    setTimeout(() => {
+      onAcceptSuggestion(suggestedText);
+    }, 300);
+  }, [onAcceptSuggestion, setSuggestionIsLoading]);
 
   if (!isOpen) return null;
 

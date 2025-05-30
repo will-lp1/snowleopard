@@ -9,7 +9,8 @@ async function handleInlineSuggestionRequest(
   documentId: string,
   currentContent: string,
   userId: string,
-  suggestionLength: 'short' | 'medium' | 'long' = 'medium'
+  suggestionLength: 'short' | 'medium' | 'long' = 'medium',
+  customInstructions?: string | null
 ) {
   const document = await getDocumentById({ id: documentId });
 
@@ -30,7 +31,7 @@ async function handleInlineSuggestionRequest(
     try {
       console.log("Starting to process inline suggestion stream");
 
-      await streamInlineSuggestion({ document, currentContent, suggestionLength, write: async (type, content) => {
+      await streamInlineSuggestion({ document, currentContent, suggestionLength, customInstructions, write: async (type, content) => {
         if (writerClosed) return;
 
         try {
@@ -105,13 +106,13 @@ export async function POST(request: Request) {
     const userId = session.user.id;
 
     const { documentId, currentContent, aiOptions = {} } = await request.json();
-    const { suggestionLength } = aiOptions;
+    const { suggestionLength, customInstructions } = aiOptions;
 
     if (!documentId || !currentContent) {
       return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
     }
 
-    return handleInlineSuggestionRequest(documentId, currentContent, userId, suggestionLength);
+    return handleInlineSuggestionRequest(documentId, currentContent, userId, suggestionLength, customInstructions);
   } catch (error: any) {
     console.error('Inline suggestion route error:', error);
     return NextResponse.json({ error: error.message || 'An error occurred' }, { status: 400 });
@@ -122,16 +123,18 @@ async function streamInlineSuggestion({
   document,
   currentContent,
   suggestionLength,
+  customInstructions,
   write
 }: {
   document: any;
   currentContent: string;
   suggestionLength: 'short' | 'medium' | 'long';
+  customInstructions?: string | null;
   write: (type: string, content: string) => Promise<void>;
 }) {
-  console.log("Starting text inline suggestion generation with options:", { suggestionLength });
+  console.log("Starting text inline suggestion generation with options:", { suggestionLength, customInstructions });
 
-  const prompt = buildPrompt(currentContent, suggestionLength);
+  const prompt = buildPrompt(currentContent, suggestionLength, customInstructions);
 
   const maxTokens = { short: 20, medium: 50, long: 80 }[suggestionLength || 'medium'];
 
@@ -162,11 +165,16 @@ function getSystemPrompt(): string {
 
 function buildPrompt(
   currentContent: string,
-  suggestionLength: 'short' | 'medium' | 'long' = 'medium'
+  suggestionLength: 'short' | 'medium' | 'long' = 'medium',
+  customInstructions?: string | null
 ): string {
   const contextWindow = 200;
   const relevantContent = currentContent.slice(-contextWindow);
   const lengthMap = { short: '1-5 words', medium: '5-10 words', long: '10-15 words' };
   const lengthInstruction = lengthMap[suggestionLength] || lengthMap.medium;
-  return `Text before cursor:\n"""${relevantContent}"""\n\nContinue this text with ${lengthInstruction}.`;
+  let promptContent = `Text before cursor:\n"""${relevantContent}"""\n\nContinue this text with ${lengthInstruction}.`;
+  if (customInstructions) {
+    promptContent = `${customInstructions}\n\n${promptContent}`;
+  }
+  return promptContent;
 } 

@@ -43,16 +43,22 @@ async function createEnhancedSystemPrompt({
   selectedChatModel,
   activeDocumentId,
   mentionedDocumentIds,
+  customInstructions,
   availableTools = ['createDocument','streamingDocument','updateDocument','webSearch'] as Array<'createDocument'|'streamingDocument'|'updateDocument'|'webSearch'>,
 }: {
   selectedChatModel: string;
   activeDocumentId?: string | null;
   mentionedDocumentIds?: string[] | null;
+  customInstructions?: string | null;
   availableTools?: Array<'createDocument'|'streamingDocument'|'updateDocument'|'webSearch'>;
 }) {
 
   let basePrompt = systemPrompt({ selectedChatModel, availableTools });
   let contextAdded = false;
+
+  if (customInstructions) {
+    basePrompt = customInstructions + "\n\n" + basePrompt;
+  }
 
   if (activeDocumentId) {
     try {
@@ -158,6 +164,7 @@ export async function POST(request: Request) {
       messages,
       selectedChatModel,
       data: requestData,
+      aiOptions,
     }: {
       id: string;
       messages: Array<Message>;
@@ -166,11 +173,17 @@ export async function POST(request: Request) {
         activeDocumentId?: string | null;
         mentionedDocumentIds?: string[] | null;
         [key: string]: any; 
-      }
+      };
+      aiOptions?: {
+        customInstructions?: string | null;
+        suggestionLength?: 'short' | 'medium' | 'long';
+      } | null;
     } = await request.json();
 
     const activeDocumentId = requestData?.activeDocumentId ?? undefined;
     const mentionedDocumentIds = requestData?.mentionedDocumentIds ?? undefined;
+    const customInstructions = aiOptions?.customInstructions ?? null;
+    const suggestionLength = aiOptions?.suggestionLength ?? 'medium';
 
     const userMessage = getMostRecentUserMessage(messages);
 
@@ -267,6 +280,7 @@ export async function POST(request: Request) {
           selectedChatModel,
           activeDocumentId,
           mentionedDocumentIds,
+          customInstructions,
           availableTools: activeToolsList,
         });
 

@@ -11,17 +11,6 @@ import {
   SET_SUGGESTION_LOADING_STATE
 } from '@/lib/editor/selection-context-plugin';
 
-// Define interface for Vue-enhanced elements
-interface VueElement extends Element {
-  __vue__?: {
-    $refs?: {
-      editor?: {
-        view?: any;
-      };
-    };
-  };
-}
-
 interface SuggestionOverlayContextType {
   openSuggestionOverlay: (options: {
     position?: { x: number; y: number };
