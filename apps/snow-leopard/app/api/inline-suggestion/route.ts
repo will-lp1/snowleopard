@@ -1,27 +1,14 @@
 import { NextResponse } from 'next/server';
 import { streamText } from 'ai';
-import { getDocumentById } from '@/lib/db/queries';
 import { myProvider } from '@/lib/ai/providers';
-import { auth } from "@/lib/auth";
+import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 
 async function handleInlineSuggestionRequest(
-  documentId: string,
   currentContent: string,
-  userId: string,
   suggestionLength: 'short' | 'medium' | 'long' = 'medium',
   customInstructions?: string | null
 ) {
-  const document = await getDocumentById({ id: documentId });
-
-  if (!document) {
-    throw new Error('Document not found');
-  }
-
-  if (document.userId !== userId) {
-    throw new Error('Unauthorized');
-  }
-
   const stream = new TransformStream();
   const writer = stream.writable.getWriter();
   const encoder = new TextEncoder();
@@ -31,7 +18,7 @@ async function handleInlineSuggestionRequest(
     try {
       console.log("Starting to process inline suggestion stream");
 
-      await streamInlineSuggestion({ document, currentContent, suggestionLength, customInstructions, write: async (type, content) => {
+      await streamInlineSuggestion({ currentContent, suggestionLength, customInstructions, write: async (type, content) => {
         if (writerClosed) return;
 
         try {
@@ -95,24 +82,20 @@ async function handleInlineSuggestionRequest(
 
 export async function POST(request: Request) {
   try {
-    // --- Authentication ---
     const readonlyHeaders = await headers();
     const requestHeaders = new Headers(readonlyHeaders);
     const session = await auth.api.getSession({ headers: requestHeaders });
-
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Authentication error' }, { status: 401 });
     }
-    const userId = session.user.id;
-
-    const { documentId, currentContent, aiOptions = {} } = await request.json();
+    const { currentContent, aiOptions = {} } = await request.json();
     const { suggestionLength, customInstructions } = aiOptions;
 
-    if (!documentId || !currentContent) {
-      return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
+    if (!currentContent) {
+      return NextResponse.json({ error: 'Missing content parameter' }, { status: 400 });
     }
 
-    return handleInlineSuggestionRequest(documentId, currentContent, userId, suggestionLength, customInstructions);
+    return handleInlineSuggestionRequest(currentContent, suggestionLength, customInstructions);
   } catch (error: any) {
     console.error('Inline suggestion route error:', error);
     return NextResponse.json({ error: error.message || 'An error occurred' }, { status: 400 });
@@ -120,13 +103,11 @@ export async function POST(request: Request) {
 }
 
 async function streamInlineSuggestion({
-  document,
   currentContent,
   suggestionLength,
   customInstructions,
   write
 }: {
-  document: any;
   currentContent: string;
   suggestionLength: 'short' | 'medium' | 'long';
   customInstructions?: string | null;
