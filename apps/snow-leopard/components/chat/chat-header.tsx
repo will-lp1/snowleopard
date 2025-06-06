@@ -69,9 +69,6 @@ function PureChatHeader({
         className,
       )}
     >
-      {isMobile && <SidebarToggle />}
-
-
       <Button
         variant="ghost"
         size="icon"
