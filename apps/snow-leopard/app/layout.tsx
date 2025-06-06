@@ -13,11 +13,11 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'Snow Leopard',
   description: 'Tab, Tab, Apply Brilliance',
-  metadataBase: new URL('https://cursorforwrit.ing'),
+  metadataBase: new URL('https://www.cursorforwrit.ing'),
   openGraph: {
     title: 'Snow Leopard',
     description: 'The most satisfying, intuitive AI writing tool, and it\'s open source.',
-    url: 'https://cursorforwrit.ing',
+    url: 'https://www.cursorforwrit.ing',
     siteName: 'Snow Leopard',
     images: [
       {
