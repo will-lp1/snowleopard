@@ -36,7 +36,7 @@ export default function DocumentsLayout({ children }: { children: ReactNode }) {
     subscriptionData.hasActiveSubscription;
 
   return (
-      <SidebarProvider defaultOpenLeft={!isLeftSidebarCollapsed} defaultOpenRight={false}>
+      <SidebarProvider defaultOpenLeft={!isLeftSidebarCollapsed} defaultOpenRight={true}>
         <div className="flex flex-row h-dvh w-full bg-background">
           <AppSidebar user={session?.user} />
           <main className="flex-1 flex flex-row min-w-0">
