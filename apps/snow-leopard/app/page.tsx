@@ -270,20 +270,41 @@ export default function Home() {
       <section id="social-proof" className="py-20 bg-background">
         <div className="container mx-auto px-6 md:px-8 lg:px-12">
           <div className="text-center mb-14">
-            <h2 className={`text-4xl md:text-5xl font-medium ${crimson.className} tracking-tight text-foreground`}>Loved by many</h2>
+            <h2 className={`text-4xl md:text-5xl font-medium ${crimson.className} tracking-tight text-foreground`}>
+              Loved by many
+            </h2>
           </div>
+          
           <TooltipProvider>
             <div className="flex flex-col items-center justify-center gap-5 max-w-3xl mx-auto">
-              <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-base text-muted-foreground">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-x-2 gap-y-2 text-base text-muted-foreground">
                 <span>Used by</span>
-                <Link href="https://twitter.com/dps" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 font-medium text-blue-600 hover:text-blue-700 transition-colors">
-                  <Image src="/images/dps.jpg" alt="David Singleton" width={28} height={28} className="size-7 rounded-full object-cover" />
+                <Link 
+                  href="https://twitter.com/dps" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="inline-flex items-center gap-1.5 font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                >
+                  <Image 
+                    src="/images/dps.jpg" 
+                    alt="David Singleton" 
+                    width={28} 
+                    height={28} 
+                    className="size-7 rounded-full object-cover" 
+                  />
                   <span className="text-sm">@dps</span>
                 </Link>
                 <span>the ex-CTO of</span>
-                <Image src="https://upload.wikimedia.org/wikipedia/commons/b/ba/Stripe_Logo%2C_revised_2016.svg" alt="Stripe" width={64} height={26} className="h-5 w-auto opacity-85" />
+                <Image 
+                  src="https://upload.wikimedia.org/wikipedia/commons/b/ba/Stripe_Logo%2C_revised_2016.svg" 
+                  alt="Stripe" 
+                  width={64} 
+                  height={26} 
+                  className="h-5 w-auto opacity-85" 
+                />
               </div>
-              <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-base text-muted-foreground">
+              
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-x-2 gap-y-2 text-base text-muted-foreground">
                 <span>Part of the</span>
                 <Link
                   href="https://vercel.com/ai-accelerator"
@@ -295,12 +316,25 @@ export default function Home() {
                 </Link>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <span className="cursor-pointer text-muted-foreground hover:text-foreground transition-colors">& used by the Vercel team</span>
+                    <span className="cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
+                      & used by the Vercel team
+                    </span>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom" className="text-sm font-normal">Including{' '}<a href="https://twitter.com/leerob" target="_blank" rel="noopener noreferrer" className="font-medium text-blue-600 hover:text-blue-700">@leerob</a></TooltipContent>
+                  <TooltipContent side="bottom" className="text-sm font-normal">
+                    Including{' '}
+                    <a 
+                      href="https://twitter.com/leerob" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="font-medium text-blue-600 hover:text-blue-700"
+                    >
+                      @leerob
+                    </a>
+                  </TooltipContent>
                 </Tooltip>
               </div>
-              <div className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 text-base text-muted-foreground">
+              
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-x-2.5 gap-y-2 text-base text-muted-foreground">
                 <span>We&apos;re open-source & self-hostable</span>
                 <a
                   className="github-button"
