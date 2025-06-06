@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   description: 'Tab, Tab, Apply Brilliance',
   metadataBase: new URL('https://www.cursorforwrit.ing'),
   openGraph: {
-    title: 'snowleopard',
+    title: 'Snow Leopard',
     description: 'The most satisfying, intuitive AI writing tool, and it\'s open source.',
     url: 'https://www.cursorforwrit.ing',
     siteName: 'snowleopard',
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'snowleopard',
+    title: 'Snow Leopard',
     description: 'The most satisfying, intuitive AI writing tool, and it\'s open source.',
     creator: '@wlovedaypowell',
     images: [
