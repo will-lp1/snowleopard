@@ -9,6 +9,7 @@ import { AppSidebar } from '@/components/sidebar/app-sidebar';
 import { SidebarProvider, SidebarRail } from '@/components/ui/sidebar';
 import { authClient } from '@/lib/auth-client';
 import { fetcher } from '@/lib/utils';
+import { ChatboxToggleProvider } from '@/providers/chatbox-toggle';
 
 export const experimental_ppr = true;
 
@@ -34,9 +35,10 @@ export default function DocumentsLayout({ children }: { children: ReactNode }) {
     subscriptionData.hasActiveSubscription;
 
   return (
-    <SidebarProvider defaultOpen={!isCollapsed}>
-      <div className="flex flex-row h-dvh w-full bg-background">
-        <div className="relative">
+    <ChatboxToggleProvider>
+      <SidebarProvider defaultOpen={!isCollapsed}>
+        <div className="flex flex-row h-dvh w-full bg-background">
+          <div className="relative">
           <AppSidebar user={session?.user} />
           <SidebarRail className="bg-background/80 backdrop-blur-sm" />
         </div>
@@ -58,7 +60,8 @@ export default function DocumentsLayout({ children }: { children: ReactNode }) {
             />
           </ResizablePanel>
         </div>
-      </div>
-    </SidebarProvider>
+        </div>
+      </SidebarProvider>
+    </ChatboxToggleProvider>
   );
 } 

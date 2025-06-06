@@ -3,6 +3,8 @@
 import { useState, useEffect, ReactNode } from 'react';
 import { GripVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useChatToggle } from '@/hooks/chat-toggle';
+import { motion } from 'framer-motion';
 
 interface ResizablePanelProps {
   children: ReactNode;
@@ -24,6 +26,7 @@ export function ResizablePanel({
   const [size, setSize] = useState(defaultSize);
   const [isResizing, setIsResizing] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
+  const { isOpen } = useChatToggle();
 
   // Handle mouse down on resize handle
   const startResizing = (e: React.MouseEvent) => {
@@ -107,37 +110,46 @@ export function ResizablePanel({
         </div>
       )}
       
-      {/* Resize handle */}
-      <div 
-        className={cn(
-          "w-1 cursor-col-resize flex flex-col items-center justify-center transition-colors",
-          isResizing && "bg-primary/30",
-          isHovering && !isResizing && "bg-primary/10"
-        )}
-        onMouseDown={startResizing}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-      >
-        <div className="h-16 w-4 flex items-center justify-center rounded-sm">
-          <GripVertical 
-            className={cn(
-              "h-4 w-4 text-muted-foreground/40 transition-colors",
-              isResizing && "text-primary",
-              isHovering && !isResizing && "text-primary/70"
-            )} 
-          />
-        </div>
-      </div>
-      
-      {/* Right side panel */}
-      {side === 'right' && (
+      {/* Resize handle - only show for right panel when open or animating */}
+      {(side === 'left' || isOpen) && (
         <div 
-          className={cn("h-full flex-shrink-0", className)}
-          style={{ width: `${size}px` }}
+          className={cn(
+            "w-1 cursor-col-resize flex flex-col items-center justify-center transition-colors",
+            isResizing && "bg-primary/30",
+            isHovering && !isResizing && "bg-primary/10"
+          )}
+          onMouseDown={startResizing}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+        >
+          <div className="h-16 w-4 flex items-center justify-center rounded-sm">
+            <GripVertical 
+              className={cn(
+                "h-4 w-4 text-muted-foreground/40 transition-colors",
+                isResizing && "text-primary",
+                isHovering && !isResizing && "text-primary/70"
+              )} 
+            />
+          </div>
+        </div>
+      )}
+      
+      {/* Right side panel - always rendered but animated */}
+      {side === 'right' && (
+        <motion.div 
+          className={cn("h-full flex-shrink-0 overflow-hidden", className)}
+          style={{ width: size }}
+          initial={{ width: 0 }}
+          animate={{ 
+            width: isOpen ? size : 0,
+            opacity: isOpen ? 1 : 0
+          }}
+          exit={{ width: 0, opacity: 0 }}
+          transition={{ duration: 0.2 }}
         >
           {children}
-        </div>
+        </motion.div>
       )}
     </div>
   );
-} 
+}

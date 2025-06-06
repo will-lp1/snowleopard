@@ -20,6 +20,7 @@ import { AiSettingsMenu } from './ai-settings-menu';
 import { SidebarToggle } from '@/components/sidebar/sidebar-toggle';
 import type { SaveState } from '@/lib/editor/save-plugin';
 import type { User } from '@/lib/auth';
+import { ToggleAiChat } from './toggle-ai-chat';
 
 const Editor = dynamic(() => import('@/components/document/text-editor').then(mod => mod.Editor), {
   ssr: false, 
@@ -379,6 +380,7 @@ export function AlwaysVisibleArtifact({
             />
           )}
           <AiSettingsMenu />
+          <ToggleAiChat />
         </div>
       </div>
       
