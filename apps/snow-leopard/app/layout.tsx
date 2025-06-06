@@ -15,10 +15,10 @@ export const metadata: Metadata = {
   description: 'Tab, Tab, Apply Brilliance',
   metadataBase: new URL('https://www.cursorforwrit.ing'),
   openGraph: {
-    title: 'Snow Leopard',
+    title: 'snowleopard',
     description: 'The most satisfying, intuitive AI writing tool, and it\'s open source.',
     url: 'https://www.cursorforwrit.ing',
-    siteName: 'Snow Leopard',
+    siteName: 'snowleopard',
     images: [
       {
         url: '/api/og', 
@@ -32,9 +32,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Snow Leopard',
+    title: 'snowleopard',
     description: 'The most satisfying, intuitive AI writing tool, and it\'s open source.',
-    creator: '@willys_lps',
+    creator: '@wlovedaypowell',
     images: [
       {
         url: '/api/og',
