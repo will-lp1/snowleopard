@@ -3,8 +3,7 @@
 import { useState, useEffect, ReactNode } from 'react';
 import { GripVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useChatToggle } from '@/hooks/chat-toggle';
-import { motion } from 'framer-motion';
+import { useSidebarWithSide } from '@/components/ui/sidebar';
 
 interface ResizablePanelProps {
   children: ReactNode;
@@ -26,7 +25,7 @@ export function ResizablePanel({
   const [size, setSize] = useState(defaultSize);
   const [isResizing, setIsResizing] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
-  const { isOpen } = useChatToggle();
+  const { open: isOpen } = useSidebarWithSide(side);
 
   // Handle mouse down on resize handle
   const startResizing = (e: React.MouseEvent) => {
@@ -134,21 +133,30 @@ export function ResizablePanel({
         </div>
       )}
       
-      {/* Right side panel - always rendered but animated */}
+      {/* Right side panel - use sidebar-style animation */}
       {side === 'right' && (
-        <motion.div 
-          className={cn("h-full flex-shrink-0 overflow-hidden", className)}
-          style={{ width: size }}
-          initial={{ width: 0 }}
-          animate={{ 
-            width: isOpen ? size : 0,
-            opacity: isOpen ? 1 : 0
-          }}
-          exit={{ width: 0, opacity: 0 }}
-          transition={{ duration: 0.2 }}
-        >
-          {children}
-        </motion.div>
+        <>
+          {/* Spacer div for smooth width transition */}
+          <div
+            className="duration-200 relative h-full bg-transparent transition-[width] ease-linear"
+            style={{ width: isOpen ? `${size}px` : '0px' }}
+          />
+          {/* Content div with slide animation */}
+          <div
+            className={cn(
+              "duration-200 fixed top-0 h-full transition-[right,width] ease-linear",
+              className
+            )}
+            style={{ 
+              width: `${size}px`,
+              right: isOpen ? '0px' : `-${size}px`
+            }}
+          >
+            <div className="h-full w-full">
+              {children}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

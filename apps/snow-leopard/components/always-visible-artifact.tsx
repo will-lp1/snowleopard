@@ -17,10 +17,9 @@ import { Input } from './ui/input';
 import { useDocumentContext } from '@/hooks/use-document-context';
 import { ArtifactKind } from '@/components/artifact';
 import { AiSettingsMenu } from './ai-settings-menu';
-import { SidebarToggle } from '@/components/sidebar/sidebar-toggle';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 import type { SaveState } from '@/lib/editor/save-plugin';
 import type { User } from '@/lib/auth';
-import { ToggleAiChat } from './toggle-ai-chat';
 
 const Editor = dynamic(() => import('@/components/document/text-editor').then(mod => mod.Editor), {
   ssr: false, 
@@ -293,7 +292,7 @@ export function AlwaysVisibleArtifact({
       <div className="flex flex-col h-dvh bg-background">
          <div className="flex flex-row justify-between items-center border-b border-zinc-200 dark:border-zinc-700 px-3 h-[45px]">
            <div className="flex flex-row gap-2 items-center min-w-0">
-             <SidebarToggle />
+             <SidebarTrigger />
              <div className="font-medium truncate h-6 leading-6 px-1">Document Not Found</div>
            </div>
          </div>
@@ -333,7 +332,7 @@ export function AlwaysVisibleArtifact({
     <div className="flex flex-col h-dvh bg-background">
       <div className="flex flex-row justify-between items-center border-b border-zinc-200 dark:border-zinc-700 px-3 h-[45px]">
         <div className="flex flex-row gap-2 items-center min-w-0">
-          <SidebarToggle />
+          <SidebarTrigger />
           {isPending ? (
             <div className="h-4 w-32 bg-muted rounded animate-pulse"></div>
           ) : (
@@ -380,7 +379,7 @@ export function AlwaysVisibleArtifact({
             />
           )}
           <AiSettingsMenu />
-          <ToggleAiChat />
+          <SidebarTrigger side="right" />
         </div>
       </div>
       
