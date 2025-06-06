@@ -94,7 +94,7 @@ export default function Home() {
               </h2>
             </div>
 
-            <div className="relative mt-0">
+            <div className="relative mt-4">
               <h3
                 className={`text-6xl md:text-[128px] ${crimson.className} tracking-[-0.06em] leading-none text-foreground `}
               >
@@ -105,7 +105,7 @@ export default function Home() {
           </div>
 
           {/* Tagline */}
-          <p className="text-xl text-muted-foreground mt-1 max-w-md text-balance mx-auto font-light">
+          <p className="text-xl text-muted-foreground mt-4 max-w-md text-balance mx-auto font-light">
             The most satisfying, intuitive AI writing tool, and it&apos;s open
             source.
           </p>
@@ -267,7 +267,7 @@ export default function Home() {
       </section>
       
       {/* Social Proof Section */}
-      <section id="social-proof" className="py-14 bg-background">
+      <section id="social-proof" className="py-20 bg-background">
         <div className="container mx-auto px-6 md:px-8 lg:px-12">
           <div className="text-center mb-14">
             <h2 className={`text-4xl md:text-5xl font-medium ${crimson.className} tracking-tight text-foreground`}>Loved by many</h2>
@@ -301,7 +301,7 @@ export default function Home() {
                 </Tooltip>
               </div>
               <div className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 text-base text-muted-foreground">
-                <span>We're open-source & self-hostable</span>
+                <span>We&apos;re open-source & self-hostable</span>
                 <a
                   className="github-button"
                   href="https://github.com/will-lp1/snowleopard"
@@ -341,7 +341,7 @@ export default function Home() {
         }
         .demo-prose-mirror-style {
           line-height: 1.6;
-          min-height: 100px; /* Adjusted for new card height and padding */
+          min-height: 100px; 
         }
 
         .demo-text-base {
