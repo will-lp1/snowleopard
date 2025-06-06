@@ -269,75 +269,38 @@ export default function Home() {
       {/* Social Proof Section */}
       <section id="social-proof" className="py-20 bg-background">
         <div className="container mx-auto px-6 md:px-8 lg:px-12">
-          <div className="text-center mb-16">
-            <h2 className={`text-4xl md:text-5xl font-medium ${crimson.className} tracking-tight text-foreground`}>
-              Loved by many
-            </h2>
-            <p className="mt-4 text-lg text-muted-foreground max-w-xl mx-auto">
-              Trusted by those who demand the best tools.
-            </p>
+          <div className="text-center mb-14">
+            <h2 className={`text-4xl md:text-5xl font-medium ${crimson.className} tracking-tight text-foreground`}>Loved by many</h2>
           </div>
-          
           <TooltipProvider>
-            <div className="flex flex-col items-center justify-center gap-6 max-w-4xl mx-auto">
-              {/* User testimonial */}
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 text-base sm:text-lg text-muted-foreground text-center">
+            <div className="flex flex-col items-center justify-center gap-5 max-w-3xl mx-auto">
+              <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-base text-muted-foreground">
                 <span>Used by</span>
-                <Link 
-                  href="https://twitter.com/dps" 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="inline-flex items-center gap-2 font-medium text-blue-600 hover:text-blue-700 transition-colors"
-                >
-                  <Image 
-                    src="/images/dps.jpg" 
-                    alt="David Singleton" 
-                    width={32} 
-                    height={32} 
-                    className="size-8 rounded-full object-cover" 
-                  />
-                  <span>@dps</span>
+                <Link href="https://twitter.com/dps" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 font-medium text-blue-600 hover:text-blue-700 transition-colors">
+                  <Image src="/images/dps.jpg" alt="David Singleton" width={28} height={28} className="size-7 rounded-full object-cover" />
+                  <span className="text-sm">@dps</span>
                 </Link>
                 <span>the ex-CTO of</span>
-                <Image 
-                  src="https://upload.wikimedia.org/wikipedia/commons/b/ba/Stripe_Logo%2C_revised_2016.svg" 
-                  alt="Stripe" 
-                  width={72} 
-                  height={28} 
-                  className="h-6 w-auto opacity-85" 
-                />
+                <Image src="https://upload.wikimedia.org/wikipedia/commons/b/ba/Stripe_Logo%2C_revised_2016.svg" alt="Stripe" width={64} height={26} className="h-5 w-auto opacity-85" />
               </div>
-
-              {/* Vercel partnership */}
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 text-base sm:text-lg text-muted-foreground text-center">
+              <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-base text-muted-foreground">
                 <span>Part of the</span>
                 <Link
                   href="https://vercel.com/ai-accelerator"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-semibold text-foreground hover:underline underline-offset-2 decoration-2"
+                  className="font-medium text-foreground hover:underline underline-offset-2"
                 >
                   Vercel AI Accelerator
                 </Link>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <span className="cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
-                      & used by the Vercel team
-                    </span>
+                    <span className="cursor-pointer text-muted-foreground hover:text-foreground transition-colors">& used by the Vercel team</span>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom" className="text-sm font-normal">
-                    Including{' '}
-                    <a 
-                      href="https://twitter.com/leerob" 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="font-medium text-blue-600 hover:text-blue-700"
-                    >
-                      @leerob
-                    </a>
-                  </TooltipContent>
+                  <TooltipContent side="bottom" className="text-sm font-normal">Including{' '}<a href="https://twitter.com/leerob" target="_blank" rel="noopener noreferrer" className="font-medium text-blue-600 hover:text-blue-700">@leerob</a></TooltipContent>
                 </Tooltip>
               </div>
+              <div className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 text-base text-muted-foreground">
                 <span>We&apos;re open-source & self-hostable</span>
                 <a
                   className="github-button"
@@ -353,17 +316,9 @@ export default function Home() {
               </div>
             </div>
           </TooltipProvider>
-
-          <div className="mt-12 text-center">
-            <Button 
-              variant="secondary" 
-              size="lg" 
-              className="rounded-full px-8 py-3 text-base font-medium" 
-              onClick={handleBeginClick}
-            >
-              Get Started
-            </Button>
-            <p className="mt-3 text-sm text-muted-foreground">No credit card required</p>
+          <div className="mt-10 text-center">
+            <Button variant="secondary" size="lg" className="rounded-full px-8 py-3" onClick={handleBeginClick}>Get Started</Button>
+            <p className="mt-2 text-xs text-muted-foreground">No credit card required</p>
           </div>
         </div>
       </section>
