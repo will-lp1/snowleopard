@@ -94,7 +94,7 @@ export default function Home() {
               </h2>
             </div>
 
-            <div className="relative mt-0">
+            <div className="relative mt-4">
               <h3
                 className={`text-6xl md:text-[128px] ${crimson.className} tracking-[-0.06em] leading-none text-foreground `}
               >
@@ -105,7 +105,7 @@ export default function Home() {
           </div>
 
           {/* Tagline */}
-          <p className="text-xl text-muted-foreground mt-1 max-w-md text-balance mx-auto font-light">
+          <p className="text-xl text-muted-foreground mt-4 max-w-md text-balance mx-auto font-light">
             The most satisfying, intuitive AI writing tool, and it&apos;s open
             source.
           </p>
@@ -338,9 +338,6 @@ export default function Home() {
                   </TooltipContent>
                 </Tooltip>
               </div>
-
-              {/* Open source */}
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 text-base sm:text-lg text-muted-foreground text-center">
                 <span>We&apos;re open-source & self-hostable</span>
                 <a
                   className="github-button"
@@ -389,7 +386,7 @@ export default function Home() {
         }
         .demo-prose-mirror-style {
           line-height: 1.6;
-          min-height: 100px; /* Adjusted for new card height and padding */
+          min-height: 100px; 
         }
 
         .demo-text-base {
