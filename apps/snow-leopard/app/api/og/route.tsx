@@ -14,42 +14,59 @@ export async function GET(req: NextRequest) {
 
   return new ImageResponse(
     (
-      <div
-        style={{
-          height: '100%',
-          width: '100%',
+      <div style={{
+        width: 1200,
+        height: 630,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'radial-gradient(circle at center, #ffffff 60%, #f0f0f0 100%)', // floating backdrop
+      }}>
+        <div style={{
+          width: 600,
+          height: 600,
+          borderRadius: '50%',
+          background: 'radial-gradient(circle at center, #f9f9f9 0%, #e0e0e0 100%)',
+          border: '8px solid #c0c0c0', // silver border
+          boxShadow: '0 20px 40px rgba(0,0,0,0.15), inset 0 0 30px rgba(0,0,0,0.03)', // drop shadow for floating effect
+          fontFamily: '"SF Pro Display", "Helvetica Neue", "Arial", sans-serif',
+          position: 'relative',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: '#030712', // gray-950
-          color: '#f9fafb', // gray-50
-          backgroundImage: 'linear-gradient(135deg, #111827 0%, #030712 100%)',
-          fontFamily: '"SF Pro Display", "Helvetica Neue", "Arial", sans-serif',
-        }}
-      >
-        <div
-          style={{
-            fontSize: 100,
+        }}>
+          <div style={{
+            fontSize: 72,
             fontWeight: 800,
             letterSpacing: '-0.05em',
             lineHeight: 1,
-            whiteSpace: 'pre-wrap',
             textAlign: 'center',
-          }}
-        >
-          {title}
-        </div>
-        <div
-          style={{
-            fontSize: 36,
+            fontFamily: '"SF Pro Display", "Helvetica Neue", "Arial", sans-serif',
+            color: '#1f2937', // gray-800
+          }}>
+            {title}
+          </div>
+          <div style={{
+            fontSize: 28,
             fontWeight: 400,
             marginTop: 24,
-            color: '#d1d5db', // gray-300
+            color: '#6b7280', // gray-500
             textAlign: 'center',
-          }}
-        >
-          Tab, Tab, Apply Brilliance
+            fontFamily: '"SF Pro Display", "Helvetica Neue", "Arial", sans-serif',
+          }}>
+            Tab, Tab, Apply
+          </div>
+          <div style={{
+            fontSize: 28,
+            fontWeight: 400,
+            marginTop: 8,
+            color: '#6b7280',
+            textAlign: 'center',
+            fontFamily: '"SF Pro Display", "Helvetica Neue", "Arial", sans-serif',
+          }}>
+            Brilliance
+          </div>
         </div>
       </div>
     ),

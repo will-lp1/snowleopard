@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     siteName: 'Snow Leopard',
     images: [
       {
-        url: 'https://cursorforwrit.ing/api/og', // we can use the full URL here
+        url: 'https://cursorforwrit.ing/api/og', 
         width: 1200,
         height: 630,
       },
