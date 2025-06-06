@@ -11,8 +11,9 @@ import { Analytics } from "@vercel/analytics/react"
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'snowleopard',
+  title: 'Snow Leopard',
   description: 'Tab, Tab, Apply Brilliance',
+  metadataBase: new URL('https://cursorforwrit.ing'),
   openGraph: {
     title: 'Snow Leopard',
     description: 'The most satisfying, intuitive AI writing tool, and it\'s open source.',
@@ -20,9 +21,10 @@ export const metadata: Metadata = {
     siteName: 'Snow Leopard',
     images: [
       {
-        url: 'https://cursorforwrit.ing/api/og', 
+        url: '/api/og', 
         width: 1200,
         height: 630,
+        alt: 'Snow Leopard - Tab, Tab, Apply Brilliance',
       },
     ],
     locale: 'en_US',
@@ -33,7 +35,12 @@ export const metadata: Metadata = {
     title: 'Snow Leopard',
     description: 'The most satisfying, intuitive AI writing tool, and it\'s open source.',
     creator: '@willys_lps',
-    images: ['https://cursorforwrit.ing/api/og'],
+    images: [
+      {
+        url: '/api/og',
+        alt: 'Snow Leopard - Tab, Tab, Apply Brilliance',
+      },
+    ],
   },
 };
 
