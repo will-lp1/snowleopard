@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { GripVertical, X, Check } from 'lucide-react';
 import Image from 'next/image';
 import { motion, useInView } from "framer-motion";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
+import Script from 'next/script';
 
 const crimson = Crimson_Text({
   weight: ["400", "700"],
@@ -28,6 +30,15 @@ export default function Home() {
   const card1InView = useInView(card1Ref, { once: true, amount: 0.5 });
   const card2InView = useInView(card2Ref, { once: true, amount: 0.5 });
   const card3InView = useInView(card3Ref, { once: true, amount: 0.5 });
+
+  const socialProofRef = useRef<HTMLElement>(null);
+  const isSocialProofInView = useInView(socialProofRef, { once: true, amount: 0.2 });
+  const proof1Ref = useRef<HTMLDivElement>(null);
+  const proof2Ref = useRef<HTMLDivElement>(null);
+  const proof3Ref = useRef<HTMLDivElement>(null);
+  const proof1InView = useInView(proof1Ref, { once: true, amount: 0.5 });
+  const proof2InView = useInView(proof2Ref, { once: true, amount: 0.5 });
+  const proof3InView = useInView(proof3Ref, { once: true, amount: 0.5 });
 
   useEffect(() => {
     const checkSession = async () => {
@@ -254,6 +265,64 @@ export default function Home() {
           </div>
         </div>
       </section>
+      
+      {/* Social Proof Section */}
+      <section id="social-proof" className="py-14 bg-background">
+        <div className="container mx-auto px-6 md:px-8 lg:px-12">
+          <div className="text-center mb-14">
+            <h2 className={`text-4xl md:text-5xl font-medium ${crimson.className} tracking-tight text-foreground`}>Loved by many</h2>
+          </div>
+          <TooltipProvider>
+            <div className="flex flex-col items-center justify-center gap-5 max-w-3xl mx-auto">
+              <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-base text-muted-foreground">
+                <span>Used by</span>
+                <Link href="https://twitter.com/dps" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 font-medium text-blue-600 hover:text-blue-700 transition-colors">
+                  <Image src="/images/dps.jpg" alt="David Singleton" width={28} height={28} className="size-7 rounded-full object-cover" />
+                  <span className="text-sm">@dps</span>
+                </Link>
+                <span>the ex-CTO of</span>
+                <Image src="https://upload.wikimedia.org/wikipedia/commons/b/ba/Stripe_Logo%2C_revised_2016.svg" alt="Stripe" width={64} height={26} className="h-5 w-auto opacity-85" />
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-base text-muted-foreground">
+                <span>Part of the</span>
+                <Link
+                  href="https://vercel.com/ai-accelerator"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-foreground hover:underline underline-offset-2"
+                >
+                  Vercel AI Accelerator
+                </Link>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="cursor-pointer text-muted-foreground hover:text-foreground transition-colors">& used by the Vercel team</span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-sm font-normal">Including{' '}<a href="https://twitter.com/leerob" target="_blank" rel="noopener noreferrer" className="font-medium text-blue-600 hover:text-blue-700">@leerob</a></TooltipContent>
+                </Tooltip>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 text-base text-muted-foreground">
+                <span>We're open-source & self-hostable</span>
+                <a
+                  className="github-button"
+                  href="https://github.com/will-lp1/snowleopard"
+                  data-icon="octicon-star"
+                  data-size="large"
+                  data-show-count="true"
+                  aria-label="Star will-lp1/snowleopard on GitHub"
+                >
+                  Star
+                </a>
+                <Script async defer src="https://buttons.github.io/buttons.js" />
+              </div>
+            </div>
+          </TooltipProvider>
+          <div className="mt-10 text-center">
+            <Button variant="secondary" size="lg" className="rounded-full px-8 py-3" onClick={handleBeginClick}>Get Started</Button>
+            <p className="mt-2 text-xs text-muted-foreground">No credit card required</p>
+          </div>
+        </div>
+      </section>
+
       <footer className="w-full border-t border-border bg-background/80 backdrop-blur-sm py-4 mt-8">
         <div className="container mx-auto px-6 md:px-8 lg:px-12 flex items-center justify-between text-sm text-muted-foreground">
           <span>© {new Date().getFullYear()} Snow Leopard. All rights reserved.</span>
