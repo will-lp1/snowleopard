@@ -1,0 +1,8 @@
+# See https://www.robotstxt.org/robotstxt.html for documentation on how to use the robots.txt file
+#
+# Allow crawling of all content
+User-agent: *
+Disallow:
+
+# Allow crawling of OG image routes
+Allow: /api/og/* 
