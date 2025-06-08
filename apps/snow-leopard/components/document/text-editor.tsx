@@ -427,36 +427,68 @@ function PureEditor({
 
       if (documentId !== currentDocId) {
         console.log(
-          `[Editor] Document ID changed from ${currentDocId} to ${documentId}. Re-initializing editor.`
+          `[Editor] Document ID changed from ${currentDocId} to ${documentId}. Re-initializing editor state with new plugins.`
         );
-        currentView.destroy();
-        editorRef.current = null;
-        return;
-      }
 
-      if (isCurrentVersion) {
-        const currentContent = buildContentFromDocument(currentView.state.doc);
-        if (content !== currentContent) {
-          console.log("[Editor] External content update detected. Applying...");
-          const newDoc = buildDocumentFromContent(content);
-          const newState = EditorState.create({
-            doc: newDoc,
-            plugins: currentView.state.plugins,
-          });
-          currentView.updateState(newState);
-        }
+        // Re-create plugins with the new documentId to ensure save plugin has correct doc ID
+        const newPlugins = [
+          creationStreamingPlugin(documentId),
+          placeholderPlugin(
+            documentId === "init" ? "Start typing" : "Start typing..."
+          ),
+          ...exampleSetup({ schema: documentSchema, menuBar: false }),
+          inputRules({
+            rules: [
+              headingRule(1),
+              headingRule(2),
+              headingRule(3),
+              headingRule(4),
+              headingRule(5),
+              headingRule(6),
+            ],
+          }),
+          inlineSuggestionPlugin({
+            requestSuggestion: requestInlineSuggestionCallback,
+          }),
+          selectionContextPlugin(),
+          synonymsPlugin(),
+          savePlugin({
+            saveFunction: performSave,
+            initialLastSaved: initialLastSaved,
+            debounceMs: 200,
+            documentId: documentId,
+          }),
+        ];
+
+        const newDoc = buildDocumentFromContent(content);
+
+        // Create a completely new state and update the view
+        const newState = EditorState.create({
+          doc: newDoc,
+          plugins: newPlugins,
+        });
+        currentView.updateState(newState);
       } else {
+        // Document ID is the same, check for external content updates
         const currentContent = buildContentFromDocument(currentView.state.doc);
         if (content !== currentContent) {
-          console.log(
-            "[Editor] Diff view content update detected. Applying..."
-          );
-          const newDoc = buildDocumentFromContent(content);
-          const newState = EditorState.create({
-            doc: newDoc,
-            plugins: currentView.state.plugins,
-          });
-          currentView.updateState(newState);
+          const saveState = savePluginKey.getState(currentView.state);
+          if (saveState?.isDirty) {
+            console.warn(
+              "[Editor] External content update received, but editor is dirty. Ignoring update."
+            );
+          } else {
+            console.log("[Editor] Content update for same document.");
+            const newDocument = buildDocumentFromContent(content);
+            const transaction = currentView.state.tr.replaceWith(
+              0,
+              currentView.state.doc.content.size,
+              newDocument.content
+            );
+            transaction.setMeta("external", true);
+            transaction.setMeta("addToHistory", false);
+            currentView.dispatch(transaction);
+          }
         }
       }
 
@@ -492,36 +524,6 @@ function PureEditor({
     onCreateDocumentRequest,
     requestInlineSuggestionCallback,
   ]);
-
-  useEffect(() => {
-    if (editorRef.current) {
-      const editorView = editorRef.current;
-      const currentDoc = editorView.state.doc;
-      const currentContent = buildContentFromDocument(currentDoc);
-
-      if (content !== currentContent) {
-        const saveState = savePluginKey.getState(editorView.state);
-
-        if (saveState?.isDirty) {
-          console.warn(
-            "[Editor] External content update received, but editor is dirty. Ignoring update."
-          );
-          return;
-        }
-
-        console.log("[Editor] Applying external content update.");
-        const newDocument = buildDocumentFromContent(content);
-        const transaction = editorView.state.tr.replaceWith(
-          0,
-          currentDoc.content.size,
-          newDocument.content
-        );
-        transaction.setMeta("external", true);
-        transaction.setMeta("addToHistory", false);
-        editorView.dispatch(transaction);
-      }
-    }
-  }, [content, status, editorRef]);
 
   useEffect(() => {
     const handleApplySuggestion = (event: CustomEvent) => {

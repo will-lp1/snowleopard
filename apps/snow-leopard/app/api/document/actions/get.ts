@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from "@/lib/auth"; // Import Better Auth
 import { headers } from 'next/headers'; // Import headers
-import { getDocumentsById, getCurrentDocumentsByUserId } from '@/lib/db/queries'; // Import Drizzle queries
+import { getDocumentsById, getCurrentDocumentsByUserId, getPaginatedDocumentsByUserId } from '@/lib/db/queries'; // Import Drizzle queries
 
 /**
  * Handles document retrieval operations (GET)
@@ -22,8 +22,10 @@ export async function getDocuments(request: NextRequest) {
     // Extract query parameters
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
+    const limitParam = searchParams.get('limit');
+    const endingBefore = searchParams.get('ending_before');
     
-    console.log(`[Document API - GET] Fetch request for user ${userId}:`, { id });
+    console.log(`[Document API - GET] Fetch request for user ${userId}:`, { id, limit: limitParam, endingBefore });
     
     // --- Fetch by specific document ID --- 
     if (id) {
@@ -38,9 +40,29 @@ export async function getDocuments(request: NextRequest) {
       const documents = await getDocumentsById({ ids: [id], userId: userId }); 
       return NextResponse.json(documents || []); // Ensure array is returned
     } 
-    // --- Fetch all *current* documents for the user --- 
+    
+    // --- Handle pagination ---
+    if (limitParam) {
+      console.log(`[Document API - GET] Fetching paginated documents for user: ${userId}`);
+      try {
+        const limit = parseInt(limitParam, 10);
+        if (isNaN(limit) || limit <= 0) {
+          return NextResponse.json({ error: 'Invalid limit parameter' }, { status: 400 });
+        }
+        const result = await getPaginatedDocumentsByUserId({ userId, limit, endingBefore });
+        return NextResponse.json(result);
+      } catch (error) {
+         console.error('[Document API - GET] Error fetching paginated documents:', error);
+         return NextResponse.json(
+          { error: 'Failed to fetch paginated documents' }, 
+          { status: 500 }
+        );
+      }
+    }
+    
+    // --- Fetch all *current* documents for the user (legacy) --- 
     else {
-      console.log(`[Document API - GET] Fetching all *current* documents for user: ${userId}`);
+      console.log(`[Document API - GET] Fetching all *current* documents for user (legacy): ${userId}`);
       try {
         // Fetch using the new Drizzle query
         const documents = await getCurrentDocumentsByUserId({ userId: userId });
