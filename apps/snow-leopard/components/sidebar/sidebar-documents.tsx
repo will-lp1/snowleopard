@@ -222,7 +222,8 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
   );
 
   const documents = paginatedDocumentsData ? paginatedDocumentsData.flatMap(page => page.documents) : [];
-  const hasReachedEnd = paginatedDocumentsData?.some(page => !page.hasMore) ?? false;
+  const lastPage = paginatedDocumentsData?.[paginatedDocumentsData.length - 1];
+  const hasReachedEnd = lastPage ? !lastPage.hasMore : false;
   const hasEmptyDocuments = paginatedDocumentsData?.every(page => page.documents.length === 0) ?? false;
 
   useEffect(() => {
