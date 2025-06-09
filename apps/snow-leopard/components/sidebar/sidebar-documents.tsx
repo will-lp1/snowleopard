@@ -52,6 +52,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { MessageSquare as MessageSquareIcon } from 'lucide-react';
 import { ArrowRightCircle } from 'lucide-react';
 import { Loader2 } from 'lucide-react';
+import useSWRInfinite from 'swr/infinite';
+import { motion } from 'framer-motion';
 
 type GroupedDocuments = {
   today: Document[];
@@ -60,6 +62,13 @@ type GroupedDocuments = {
   lastMonth: Document[];
   older: Document[];
 };
+
+const DOCUMENT_PAGE_SIZE = 25;
+
+interface PaginatedDocuments {
+  documents: Document[];
+  hasMore: boolean;
+}
 
 const PureDocumentItem = ({
   document,
@@ -188,14 +197,33 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
   const [forceUpdate, setForceUpdate] = useState(0);
   
   const {
-    data: documents,
+    data: paginatedDocumentsData,
     isLoading,
     mutate,
-  } = useSWR<Array<Document>>(user ? '/api/document' : null, fetcher, {
-    fallbackData: [],
-    revalidateOnFocus: false,
-    dedupingInterval: 10000,
-  });
+    size,
+    setSize,
+    isValidating
+  } = useSWRInfinite<PaginatedDocuments>(
+    (pageIndex, previousPageData) => {
+      if (!user) return null;
+      if (previousPageData && !previousPageData.hasMore) return null;
+      if (pageIndex === 0) return `/api/document?limit=${DOCUMENT_PAGE_SIZE}`;
+      if (!previousPageData?.documents?.length) return null;
+      const lastDoc = previousPageData.documents.at(-1);
+      if (!lastDoc) return null;
+      return `/api/document?limit=${DOCUMENT_PAGE_SIZE}&ending_before=${lastDoc.id}`;
+    },
+    fetcher,
+    {
+      fallbackData: [],
+      revalidateOnFocus: false,
+      dedupingInterval: 5000,
+    }
+  );
+
+  const documents = paginatedDocumentsData ? paginatedDocumentsData.flatMap(page => page.documents) : [];
+  const hasReachedEnd = paginatedDocumentsData?.some(page => !page.hasMore) ?? false;
+  const hasEmptyDocuments = paginatedDocumentsData?.every(page => page.documents.length === 0) ?? false;
 
   useEffect(() => {
     mutate();
@@ -240,15 +268,17 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
       console.log('[SidebarDocuments] Document renamed event received', event.detail);
 
       if (event.detail?.documentId && event.detail?.newTitle) {
-        mutate((currentDocs) => {
-          if (!currentDocs) return currentDocs;
-
-          return currentDocs.map(doc => {
-            if (doc.id === event.detail.documentId) {
-              return { ...doc, title: event.detail.newTitle };
-            }
-            return doc;
-          });
+        mutate((pages) => {
+          if (!pages) return pages;
+          return pages.map(page => ({
+            ...page,
+            documents: page.documents.map(doc => {
+              if (doc.id === event.detail.documentId) {
+                return { ...doc, title: event.detail.newTitle };
+              }
+              return doc;
+            })
+          }));
         }, false);
       }
     };
@@ -329,11 +359,12 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
     });
     
     if (success) {
-      mutate((docs) => {
-        if (docs) {
-          return docs.filter((d) => d.id !== deleteId);
-        }
-        return docs;
+      mutate((pages) => {
+        if (!pages) return pages;
+        return pages.map(page => ({
+          ...page,
+          documents: page.documents.filter((d) => d.id !== deleteId)
+        }));
       }, false);
     }
   };
@@ -348,11 +379,12 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
     const isCurrentDocumentSelected = documentFromUrl && selectedDocuments.has(documentFromUrl);
     
     try {
-      mutate((docs) => {
-        if (docs) {
-          return docs.filter(d => !selectedDocuments.has(d.id));
-        }
-        return docs;
+      mutate((pages) => {
+        if (!pages) return pages;
+        return pages.map(page => ({
+          ...page,
+          documents: page.documents.filter(d => !selectedDocuments.has(d.id))
+        }));
       }, false);
       
       if (isCurrentDocumentSelected) {
@@ -498,8 +530,8 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
     );
   }
 
-  const filteredDocuments = filterDocuments(documents || []);
-  if (filteredDocuments.length === 0 && !searchTerm) {
+  const filteredDocuments = documents ? filterDocuments(documents) : [];
+  if (hasEmptyDocuments && !searchTerm) {
     return (
       <SidebarGroup>
         <div className="px-2 py-1 text-xs text-sidebar-foreground/50 flex items-center justify-between cursor-pointer">

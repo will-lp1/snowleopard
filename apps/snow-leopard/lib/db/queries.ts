@@ -1,7 +1,7 @@
 import 'server-only';
 import { db } from '@snow-leopard/db'; 
 import * as schema from '@snow-leopard/db'; 
-import { eq, desc, asc, inArray, gt, and, sql } from 'drizzle-orm'; // Import Drizzle operators and
+import { eq, desc, asc, inArray, gt, and, sql, lt } from 'drizzle-orm'; // Import Drizzle operators and
 import type { ArtifactKind } from '@/components/artifact';
 
 type Chat = typeof schema.Chat.$inferSelect; 
@@ -350,19 +350,6 @@ export async function updateChatContextQuery({
   }
 }
 
-export async function getAllDocumentsByUserId({ userId }: { userId: string }): Promise<Document[]> {
-  try {
-    const data = await db.select()
-      .from(schema.Document)
-      .where(eq(schema.Document.userId, userId))
-      .orderBy(desc(schema.Document.createdAt)); 
-    return data || [];
-  } catch (error) {
-    console.error('Error fetching all documents by user ID:', error);
-    return []; 
-  }
-}
-
 export async function getCurrentDocumentsByUserId({ userId }: { userId: string }): Promise<Pick<Document, 'id' | 'title' | 'createdAt' | 'kind'>[]> {
   try {
     const data = await db.select({
@@ -383,6 +370,75 @@ export async function getCurrentDocumentsByUserId({ userId }: { userId: string }
   } catch (error) {
     console.error('Error fetching current documents by user ID:', error);
     return []; 
+  }
+}
+
+export async function getPaginatedDocumentsByUserId({
+  userId,
+  limit,
+  endingBefore,
+}: {
+  userId: string;
+  limit: number;
+  endingBefore: string | null;
+}): Promise<{ documents: Pick<Document, 'id' | 'title' | 'createdAt' | 'kind'>[], hasMore: boolean }> {
+  try {
+    const extendedLimit = limit + 1;
+
+    const query = (whereCondition?: any) =>
+      db
+        .select({
+          id: schema.Document.id,
+          title: schema.Document.title,
+          createdAt: schema.Document.createdAt,
+          kind: schema.Document.kind,
+        })
+        .from(schema.Document)
+        .where(
+          whereCondition
+            ? and(
+                whereCondition,
+                eq(schema.Document.userId, userId),
+                eq(schema.Document.is_current, true)
+              )
+            : and(
+                eq(schema.Document.userId, userId),
+                eq(schema.Document.is_current, true)
+              )
+        )
+        .orderBy(desc(schema.Document.createdAt))
+        .limit(extendedLimit);
+
+    let paginatedDocs: Pick<Document, 'id' | 'title' | 'createdAt' | 'kind'>[] = [];
+
+    if (endingBefore) {
+      // Find the cursor document to get its creation date
+      const [cursorDoc] = await db
+        .select({ createdAt: schema.Document.createdAt })
+        .from(schema.Document)
+        .where(eq(schema.Document.id, endingBefore))
+        .limit(1);
+
+      if (!cursorDoc) {
+        // If cursor doesn't exist, maybe return empty or handle error
+        return { documents: [], hasMore: false };
+      }
+
+      paginatedDocs = await query(lt(schema.Document.createdAt, cursorDoc.createdAt));
+    } else {
+      // First page
+      paginatedDocs = await query();
+    }
+
+    const hasMore = paginatedDocs.length > extendedLimit -1;
+
+    return {
+      documents: hasMore ? paginatedDocs.slice(0, limit) : paginatedDocs,
+      hasMore,
+    };
+  } catch (error) {
+    console.error(`[DB Query - getPaginatedDocuments] Error fetching paginated documents for user ${userId}:`, error);
+    throw error;
   }
 }
 
