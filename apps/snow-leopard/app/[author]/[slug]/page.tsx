@@ -4,12 +4,7 @@ import * as schema from '@snow-leopard/db';
 import { eq, and } from 'drizzle-orm';
 import { Markdown } from '@/components/markdown';
 
-interface PageProps {
-  params: { author: string; slug: string };
-  searchParams: { [key: string]: string | string[] | undefined };
-}
-
-export default async function Page({ params }: PageProps) {
+export default async function Page({ params }: { params: { author: string; slug: string } }) {
   const result = await db
     .select()
     .from(schema.Document)
