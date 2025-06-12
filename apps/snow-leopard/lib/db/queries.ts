@@ -844,3 +844,24 @@ export async function getActiveSubscriptionByUserId({ userId }: { userId: string
     return null;
   }
 }
+
+// Add publish settings update
+export async function updateDocumentPublishSettings({
+  documentId,
+  userId,
+  visibility,
+  author,
+  style,
+  slug,
+}: {
+  documentId: string;
+  userId: string;
+  visibility: 'public' | 'private';
+  author: string;
+  style: { theme: string };
+  slug: string;
+}): Promise<void> {
+  await db.update(schema.Document)
+    .set({ visibility, author, style, slug })
+    .where(and(eq(schema.Document.id, documentId), eq(schema.Document.userId, userId)));
+}

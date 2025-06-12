@@ -186,27 +186,28 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
           </div>
 
           <div className="p-8 md:p-10 flex flex-col relative">
-            {/* Sign Out Dropdown Menu - Top Right */}
-            <div className="absolute top-4 right-4 z-20">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-foreground">
-                    <MoreHorizontal className="size-4" />
-                    <span className="sr-only">Options</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem 
-                    onSelect={handleSignOut} 
-                    disabled={isSigningOut}
-                    className="text-destructive focus:bg-destructive/10 focus:text-destructive cursor-pointer"
-                  >
-                    {isSigningOut ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-                    Sign Out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+            {required && (
+              <div className="absolute top-4 right-4 z-20">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-foreground">
+                      <MoreHorizontal className="size-4" />
+                      <span className="sr-only">Options</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onSelect={handleSignOut}
+                      disabled={isSigningOut}
+                      className="text-destructive focus:bg-destructive/10 focus:text-destructive cursor-pointer"
+                    >
+                      {isSigningOut ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+                      Sign Out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            )}
 
             <div className="flex-grow">
               <DialogHeader className="mb-8 text-left">

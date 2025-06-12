@@ -87,6 +87,8 @@ export type Message = InferSelectModel<typeof Message>;
 
 export const artifactKindEnum = pgEnum('artifact_kind', ['text', 'code', 'image', 'sheet']);
 
+export const documentVisibilityEnum = pgEnum('document_visibility', ['public', 'private']);
+
 export const Document = pgTable(
   'Document',
   {
@@ -106,6 +108,10 @@ export const Document = pgTable(
     chatId: uuid('chatId')
       .references(() => Chat.id),
     is_current: boolean('is_current').notNull(),
+    visibility: text('visibility', { enum: ['public', 'private'] }).notNull().default('private'),
+    style: jsonb('style'),
+    author: text('author'),
+    slug: text('slug').unique(),
   },
   (table) => {
     return {

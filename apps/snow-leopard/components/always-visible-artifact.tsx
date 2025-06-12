@@ -20,6 +20,7 @@ import { AiSettingsMenu } from './ai-settings-menu';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import type { SaveState } from '@/lib/editor/save-plugin';
 import type { User } from '@/lib/auth';
+import { PublishSettingsMenu } from '@/components/publish-settings-menu';
 
 const Editor = dynamic(() => import('@/components/document/text-editor').then(mod => mod.Editor), {
   ssr: false, 
@@ -161,6 +162,26 @@ export function AlwaysVisibleArtifact({
     window.addEventListener('document-renamed', handleDocumentRenamed as EventListener);
     return () => window.removeEventListener('document-renamed', handleDocumentRenamed as EventListener);
   }, [artifact.documentId, editingTitle, newTitle, setArtifact]);
+
+  const handleDocumentUpdate = (updatedFields: Partial<Document>) => {
+      setDocuments(prevDocs =>
+          prevDocs.map(doc => {
+              if (doc.id === updatedFields.id) {
+                  return { ...doc, ...updatedFields };
+              }
+              return doc;
+          })
+      );
+      if (artifact.documentId === updatedFields.id) {
+          const { kind, ...otherUpdatedFields } = updatedFields;
+          setArtifact(current => ({
+              ...current,
+              ...otherUpdatedFields,
+              content: updatedFields.content !== undefined ? (updatedFields.content ?? '') : current.content,
+              ...(kind && { kind: kind as any }),
+          }));
+      }
+  };
 
   const handleEditTitle = useCallback(() => {
     if (!latestDocument) return;
@@ -376,6 +397,13 @@ export function AlwaysVisibleArtifact({
               mode={mode}
               metadata={metadata}
               setMetadata={setMetadata}
+            />
+          )}
+          {latestDocument && (
+            <PublishSettingsMenu
+              document={latestDocument}
+              user={user}
+              onUpdate={handleDocumentUpdate}
             />
           )}
           <AiSettingsMenu />
