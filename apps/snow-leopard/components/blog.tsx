@@ -1,6 +1,7 @@
 "use client";
 import React from 'react';
 import { Markdown } from '@/components/markdown';
+import '../app/blog.css'; // Import the new styles
 
 export type ThemeOption = 'light' | 'dark' | 'minimal';
 export type FontOption = 'sans' | 'serif' | 'mono';
@@ -20,29 +21,19 @@ export const Blog: React.FC<BlogProps> = ({
   font = 'sans',
   accentColor,
 }) => {
-  const classMap: Record<ThemeOption, string> = {
-    light: 'prose mx-auto py-10',
-    dark: 'prose dark:prose-invert mx-auto py-10',
-    minimal: 'max-w-3xl mx-auto py-10',
-  };
-
-  const fontMap: Record<FontOption, string> = {
-    sans: 'font-sans',
-    serif: 'font-serif',
-    mono: 'font-mono',
-  };
+  const themeClass = `theme-${theme}`;
+  const fontClass = `font-${font}`;
 
   const style: React.CSSProperties = accentColor
-    ? ({
-        '--tw-prose-links': accentColor,
-        '--tw-prose-headings': accentColor,
-      } as any)
+    ? ({ '--accent-color': accentColor } as any)
     : {};
 
   return (
-    <article className={`${classMap[theme]} ${fontMap[font]}`} style={style}>
-      <h1 className="font-bold text-3xl mb-4">{title}</h1>
-      <Markdown>{content}</Markdown>
-    </article>
+    <main className={`blog-theme ${themeClass}`} style={style}>
+      <article className={`blog-article ${fontClass}`}>
+        <h1 className="text-4xl md:text-5xl font-extrabold tracking-tighter mb-8">{title}</h1>
+        <Markdown>{content}</Markdown>
+      </article>
+    </main>
   );
 }; 

@@ -1,0 +1,119 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  Blog Theming:
+  We use CSS variables to create theme presets.
+  The .blog-theme container sets the variables, which cascade down.
+*/
+@layer components {
+  .blog-theme {
+    /* Default variables (Light Theme) */
+    --bg-color: #ffffff;
+    --text-color: #1f2937; /* gray-800 */
+    --heading-color: #111827; /* gray-900 */
+    --accent-color: #3b82f6; /* blue-500 from component default */
+    --muted-color: #6b7280; /* gray-500 */
+    --border-color: #e5e7eb; /* gray-200 */
+    --code-bg: #f3f4f6; /* gray-100 */
+
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    @apply min-h-screen transition-colors duration-300;
+  }
+
+  .blog-theme.theme-dark {
+    --bg-color: #111827; /* gray-900 */
+    --text-color: #d1d5db; /* gray-300 */
+    --heading-color: #f9fafb; /* gray-50 */
+    --muted-color: #9ca3af; /* gray-400 */
+    --border-color: #374151; /* gray-700 */
+    --code-bg: #1f2937; /* gray-800 */
+  }
+
+  .blog-theme.theme-minimal {
+    --bg-color: #fafafa;
+    --text-color: #333;
+    --heading-color: #111;
+    --accent-color: #111;
+  }
+
+  /*
+    Article Layout & Typography:
+    These styles are applied within the theme container.
+  */
+  .blog-article {
+    @apply max-w-3xl mx-auto py-16 px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Apply font families from Tailwind config */
+  .blog-article.font-sans {
+    font-family: theme('fontFamily.sans');
+  }
+  .blog-article.font-serif {
+    font-family: theme('fontFamily.serif');
+  }
+  .blog-article.font-mono {
+    font-family: theme('fontFamily.mono');
+  }
+
+  /* Minimal theme uses serif by default */
+  .theme-minimal .blog-article {
+    font-family: theme('fontFamily.serif');
+  }
+
+  .blog-article > * + * {
+    @apply mt-6;
+  }
+
+  .blog-article h1,
+  .blog-article h2,
+  .blog-article h3,
+  .blog-article h4 {
+    color: var(--heading-color);
+    @apply font-bold tracking-tight;
+  }
+  .blog-article h2 {
+    @apply text-3xl mt-12 mb-4 border-b pb-2;
+    border-color: var(--border-color);
+  }
+  .blog-article h3 {
+    @apply text-2xl mt-8 mb-4;
+  }
+
+  .blog-article p {
+    @apply text-lg leading-relaxed;
+  }
+
+  .blog-article a {
+    color: var(--accent-color);
+    @apply font-medium underline decoration-wavy underline-offset-4 hover:decoration-solid transition-colors;
+  }
+
+  .blog-article blockquote {
+    @apply border-l-4 my-8 pl-4 italic;
+    border-color: var(--accent-color);
+    color: var(--muted-color);
+  }
+
+  .blog-article ul,
+  .blog-article ol {
+    @apply pl-6 my-6;
+  }
+
+  .blog-article li {
+    @apply my-2;
+  }
+
+  .blog-article pre {
+    background-color: var(--code-bg);
+    @apply p-4 rounded-lg overflow-x-auto text-sm my-8;
+  }
+
+  /* Inline code */
+  .blog-article :not(pre) > code {
+    background-color: var(--code-bg);
+    @apply px-1.5 py-1 rounded;
+  }
+} 

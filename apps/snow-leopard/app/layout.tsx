@@ -1,3 +1,6 @@
+import './globals.css';
+// import './blog.css';
+import { Inter } from 'next/font/google';
 import type { Metadata } from 'next';
 import { Toaster } from 'sonner';
 
@@ -7,8 +10,6 @@ import { DocumentProvider } from '@/hooks/use-document-context';
 import { CSPostHogProvider } from '@/providers/posthog-provider';
 import { PostHogPageView } from '@/providers/posthog-pageview';
 import { Analytics } from "@vercel/analytics/react"
-
-import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Snow Leopard',
