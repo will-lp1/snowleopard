@@ -17,6 +17,11 @@ export async function publishDocument(request: NextRequest, body: any): Promise<
     return NextResponse.json({ error: 'Invalid parameters' }, { status: 400 });
   }
 
-  const updatedDocument = await updateDocumentPublishSettings({ documentId, userId, visibility, author, style, slug });
-  return NextResponse.json(updatedDocument);
+  try {
+    const updatedDocument = await updateDocumentPublishSettings({ documentId, userId, visibility, author, style, slug });
+    return NextResponse.json(updatedDocument);
+  } catch (error: any) {
+    console.error('[API /document/publish] Failed to update publish settings:', error);
+    return NextResponse.json({ error: error.message || 'Failed to update publish settings' }, { status: 500 });
+  }
 } 
