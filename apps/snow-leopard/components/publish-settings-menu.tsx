@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -11,7 +10,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { Loader2, GlobeIcon, LinkIcon } from 'lucide-react';
+import { Loader2, GlobeIcon, CopyIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Document } from '@snow-leopard/db';
 import type { User } from '@/lib/auth';
@@ -19,52 +18,34 @@ import type { User } from '@/lib/auth';
 export type StyleOption = 'light' | 'dark' | 'minimal';
 
 interface PublishSettingsMenuProps {
-  document: Document | null;
+  document: Document;
   user: User;
-  onUpdate: (updatedFields: Partial<Document>) => void;
+  onUpdate: (updatedDoc: Document) => void;
 }
 
-export function PublishSettingsMenu({
-  document,
-  user,
-  onUpdate,
-}: PublishSettingsMenuProps) {
-  const router = useRouter();
-  const [isOpen, setIsOpen] = useState(false);
+export function PublishSettingsMenu({ document, user, onUpdate }: PublishSettingsMenuProps) {
+  // Local UI state
+  const [author, setAuthor] = useState(document.author || user.name || '');
+  const [slug, setSlug] = useState(
+    document.slug ||
+      document.title
+        .toLowerCase()
+        .replace(/\s+/g, '-')
+        .replace(/[^a-z0-9-]/g, ''),
+  );
+  const [style, setStyle] = useState<StyleOption>((document.style as any)?.theme || 'light');
+  const [processing, setProcessing] = useState(false);
 
-  // State for editing publish settings
-  const [author, setAuthor] = useState('');
-  const [slug, setSlug] = useState('');
-  const [style, setStyle] = useState<StyleOption>('light');
-  const [isProcessing, setIsProcessing] = useState(false);
+  const isPublished = document.visibility === 'public';
+  const url = typeof window !== 'undefined' ? `${window.location.origin}/${author}/${slug}` : `/${author}/${slug}`;
 
-  const isPublished = document?.visibility === 'public';
-
-  useEffect(() => {
-    if (document) {
-      setAuthor(document.author || user.name || '');
-      setStyle((document.style as any)?.theme || 'light');
-      setSlug(
-        document.slug ||
-          document.title
-            .toLowerCase()
-            .replace(/\s+/g, '-')
-            .replace(/[^a-z0-9-]/g, ''),
-      );
-    }
-  }, [document, user.name]);
-
-  const handlePublishToggle = useCallback(async () => {
-    if (!document) return;
-
+  const handleToggle = useCallback(async () => {
     const newVisibility = isPublished ? 'private' : 'public';
-
     if (newVisibility === 'public' && !author.trim()) {
-      toast.error('Author name cannot be empty.');
+      toast.error('Please enter an author name.');
       return;
     }
-
-    setIsProcessing(true);
+    setProcessing(true);
     try {
       const res = await fetch('/api/document/publish', {
         method: 'POST',
@@ -72,90 +53,78 @@ export function PublishSettingsMenu({
         body: JSON.stringify({
           id: document.id,
           visibility: newVisibility,
-          author: author,
+          author,
           style: { theme: style },
-          slug: slug,
+          slug,
         }),
       });
-
-      if (!res.ok) {
-        throw new Error('Failed to update publication status');
-      }
-
-      const updatedDocument = await res.json();
-
-      onUpdate(updatedDocument);
-
-      toast.success(
-        newVisibility === 'public'
-          ? 'Document published!'
-          : 'Document unpublished.',
-      );
-      setIsOpen(false);
-
-      if (newVisibility === 'public') {
-        toast.info(`Published at: /${author}/${slug}`);
-      }
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : 'An unknown error occurred',
-      );
+      if (!res.ok) throw new Error('Failed to update publication.');
+      const updated = await res.json();
+      onUpdate(updated);
+      toast.success(isPublished ? 'Unpublished' : 'Published');
+    } catch (e: any) {
+      toast.error(e.message || 'Error updating publication');
     } finally {
-      setIsProcessing(false);
+      setProcessing(false);
     }
-  }, [document, author, style, slug, isPublished, onUpdate]);
-
-  if (!document) return null;
+  }, [document.id, isPublished, author, style, slug, onUpdate]);
 
   return (
-    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+    <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
           variant={isPublished ? 'secondary' : 'outline'}
-          size="sm"
-          className={cn('gap-1.5', isPublished && 'text-blue-500')}
+          className="h-8 px-3 gap-2"
         >
           <GlobeIcon className="size-4" />
           {isPublished ? 'Published' : 'Publish'}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        className="w-72 p-3 shadow-lg bg-popover border rounded-md space-y-3"
+        className="w-64 p-3 shadow-lg rounded-lg border bg-popover space-y-4"
         align="end"
       >
+        <div>
+          <Label className="text-sm font-medium">Publish Settings</Label>
+        </div>
         {!isPublished ? (
           <>
             <div className="space-y-1">
-              <Label htmlFor="author-name" className="text-xs">
+              <Label htmlFor="pub-author" className="text-xs font-medium block">
                 Author
               </Label>
               <Input
-                id="author-name"
+                id="pub-author"
                 value={author}
                 onChange={(e) => setAuthor(e.target.value)}
-                placeholder="Enter author name"
+                className="h-8"
+                placeholder="Your name"
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="slug" className="text-xs">
-                URL Slug
+              <Label htmlFor="pub-title" className="text-xs font-medium block">
+                Title
               </Label>
               <Input
-                id="slug"
+                id="pub-title"
                 value={slug}
                 onChange={(e) => setSlug(e.target.value)}
-                placeholder="your-document-slug"
+                className="h-8"
+                placeholder="Page slug"
               />
             </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Style</Label>
+            <div className="mb-4 space-y-2">
+              <Label className="text-xs font-medium block">Style</Label>
               <div className="flex items-center gap-1.5">
                 {(['light', 'dark', 'minimal'] as StyleOption[]).map((opt) => (
                   <Button
                     key={opt}
                     variant={style === opt ? 'secondary' : 'ghost'}
                     size="sm"
-                    className="flex-1 capitalize text-xs"
+                    className={cn(
+                      'flex-1 h-8 text-xs capitalize',
+                      style === opt ? 'font-semibold' : 'text-muted-foreground'
+                    )}
                     onClick={() => setStyle(opt)}
                   >
                     {opt}
@@ -164,46 +133,35 @@ export function PublishSettingsMenu({
               </div>
             </div>
             <Button
-              onClick={handlePublishToggle}
-              disabled={isProcessing}
+              onClick={handleToggle}
+              disabled={processing}
               className="w-full"
             >
-              {isProcessing ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                'Confirm and Publish'
-              )}
+              {processing ? <Loader2 className="size-4 animate-spin" /> : 'Confirm & Publish'}
             </Button>
           </>
         ) : (
           <>
-            <div className="text-sm font-medium">Your document is live.</div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full justify-start gap-2"
-              asChild
-            >
-              <a
-                href={`/${author}/${slug}`}
-                target="_blank"
-                rel="noopener noreferrer"
+            <div className="space-y-1">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-start gap-2"
+                onClick={() => {
+                  navigator.clipboard.writeText(url);
+                  toast.success('Link copied');
+                }}
               >
-                <LinkIcon className="size-4" />
-                {`/${author}/${slug}`}
-              </a>
-            </Button>
+                <CopyIcon className="size-4" /> Copy Link
+              </Button>
+            </div>
             <Button
-              onClick={handlePublishToggle}
-              disabled={isProcessing}
+              onClick={handleToggle}
+              disabled={processing}
               variant="destructive"
               className="w-full"
             >
-              {isProcessing ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                'Unpublish'
-              )}
+              {processing ? <Loader2 className="size-4 animate-spin" /> : 'Unpublish'}
             </Button>
           </>
         )}

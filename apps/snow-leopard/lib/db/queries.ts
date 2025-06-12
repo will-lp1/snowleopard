@@ -860,8 +860,14 @@ export async function updateDocumentPublishSettings({
   author: string;
   style: { theme: string };
   slug: string;
-}): Promise<void> {
-  await db.update(schema.Document)
+}): Promise<(typeof schema.Document.$inferSelect)> {
+  const updated = await db
+    .update(schema.Document)
     .set({ visibility, author, style, slug })
-    .where(and(eq(schema.Document.id, documentId), eq(schema.Document.userId, userId)));
+    .where(and(eq(schema.Document.id, documentId), eq(schema.Document.userId, userId)))
+    .returning();
+  if (!updated || updated.length === 0) {
+    throw new Error('Failed to update publish settings');
+  }
+  return updated[0];
 }

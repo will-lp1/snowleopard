@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { updateDocumentPublishSettings, getDocumentById } from "@/lib/db/queries";
+import { updateDocumentPublishSettings } from "@/lib/db/queries";
 
 export async function publishDocument(request: NextRequest, body: any): Promise<NextResponse> {
   const readonlyHeaders = await headers();
@@ -17,9 +17,6 @@ export async function publishDocument(request: NextRequest, body: any): Promise<
     return NextResponse.json({ error: 'Invalid parameters' }, { status: 400 });
   }
 
-  await updateDocumentPublishSettings({ documentId, userId, visibility, author, style, slug });
-
-  const updatedDocument = await getDocumentById({ id: documentId });
-  
+  const updatedDocument = await updateDocumentPublishSettings({ documentId, userId, visibility, author, style, slug });
   return NextResponse.json(updatedDocument);
 } 
