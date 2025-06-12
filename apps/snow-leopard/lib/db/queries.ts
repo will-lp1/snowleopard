@@ -871,3 +871,20 @@ export async function updateDocumentPublishSettings({
   }
   return updated[0];
 }
+
+// Add username availability check
+export async function checkUsernameAvailability({ username }: { username: string }): Promise<boolean> {
+  const [{ count }] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(schema.user)
+    .where(eq(schema.user.username, username));
+  return Number(count) === 0;
+}
+
+// Add set username for a user
+export async function setUsername({ userId, username }: { userId: string; username: string }): Promise<void> {
+  await db
+    .update(schema.user)
+    .set({ username })
+    .where(eq(schema.user.id, userId));
+}

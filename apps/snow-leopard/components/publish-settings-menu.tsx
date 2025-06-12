@@ -10,7 +10,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { Loader2, GlobeIcon, CopyIcon } from 'lucide-react';
+import { Loader2, GlobeIcon, CopyIcon, Edit2, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Document } from '@snow-leopard/db';
 import type { User } from '@/lib/auth';
@@ -24,8 +24,12 @@ interface PublishSettingsMenuProps {
 }
 
 export function PublishSettingsMenu({ document, user, onUpdate }: PublishSettingsMenuProps) {
+  // Username claim state
+  const [username, setUsername] = useState<string>(user.username || '');
+  const [hasUsername, setHasUsername] = useState<boolean>(!!user.username);
+  const [usernameCheck, setUsernameCheck] = useState<{ checking: boolean; available: boolean | null }>({ checking: false, available: null });
+  const [claiming, setClaiming] = useState(false);
   // Local UI state
-  const [author, setAuthor] = useState(document.author || user.name || '');
   const [slug, setSlug] = useState(
     document.slug ||
       document.title
@@ -37,12 +41,59 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
   const [processing, setProcessing] = useState(false);
 
   const isPublished = document.visibility === 'public';
-  const url = typeof window !== 'undefined' ? `${window.location.origin}/${author}/${slug}` : `/${author}/${slug}`;
+  const url = typeof window !== 'undefined' ? `${window.location.origin}/${username}/${slug}` : `/${username}/${slug}`;
+
+  // Helper to check username availability
+  const checkUsername = useCallback(async () => {
+    if (!username.trim()) return;
+    setUsernameCheck({ checking: true, available: null });
+    const res = await fetch(`/api/user/check-username?username=${encodeURIComponent(username)}`);
+    if (res.ok) {
+      const { available } = await res.json();
+      setUsernameCheck({ checking: false, available });
+    } else {
+      setUsernameCheck({ checking: false, available: false });
+    }
+  }, [username]);
+
+  // Debounced username check
+  useEffect(() => {
+    if (!username.trim() || username === user.username) {
+        setUsernameCheck({ checking: false, available: null });
+        return;
+    }
+    const handler = setTimeout(() => {
+        checkUsername();
+    }, 500);
+
+    return () => {
+        clearTimeout(handler);
+    };
+  }, [username, checkUsername, user.username]);
+
+  // Helper to claim username globally
+  const claimUsername = useCallback(async () => {
+    if (!usernameCheck.available) return;
+    setClaiming(true);
+    const res = await fetch('/api/user/username', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username }),
+    });
+    if (res.ok) {
+      setHasUsername(true);
+      setUsernameCheck({ checking: false, available: true });
+      toast.success('Username claimed!');
+    } else {
+      toast.error('Failed to claim username');
+    }
+    setClaiming(false);
+  }, [username, usernameCheck.available]);
 
   const handleToggle = useCallback(async () => {
     const newVisibility = isPublished ? 'private' : 'public';
-    if (newVisibility === 'public' && !author.trim()) {
-      toast.error('Please enter an author name.');
+    if (newVisibility === 'public' && !username.trim()) {
+      toast.error('Please claim a username first.');
       return;
     }
     setProcessing(true);
@@ -53,7 +104,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
         body: JSON.stringify({
           id: document.id,
           visibility: newVisibility,
-          author,
+          author: username,
           style: { theme: style },
           slug,
         }),
@@ -67,17 +118,19 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
     } finally {
       setProcessing(false);
     }
-  }, [document.id, isPublished, author, style, slug, onUpdate]);
+  }, [document.id, isPublished, style, slug, username, onUpdate]);
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
-          variant={isPublished ? 'secondary' : 'outline'}
-          className="h-8 px-3 gap-2"
+          variant="outline"
+          className={cn(
+            'h-8 w-8 p-0 flex items-center justify-center transition-colors',
+            isPublished ? 'text-blue-500' : 'text-muted-foreground'
+          )}
         >
           <GlobeIcon className="size-4" />
-          {isPublished ? 'Published' : 'Publish'}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -89,18 +142,63 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
         </div>
         {!isPublished ? (
           <>
-            <div className="space-y-1">
-              <Label htmlFor="pub-author" className="text-xs font-medium block">
-                Author
-              </Label>
-              <Input
-                id="pub-author"
-                value={author}
-                onChange={(e) => setAuthor(e.target.value)}
-                className="h-8"
-                placeholder="Your name"
-              />
+            {/* Username Claim Section */}
+            <div className="space-y-2">
+              <Label htmlFor="pub-username" className="text-xs font-medium block">Username</Label>
+              <div className="flex gap-2 items-center">
+                <Input
+                  id="pub-username"
+                  value={hasUsername ? `@${username}` : username}
+                  onChange={(e) => {
+                    setUsername(e.target.value);
+                    if (usernameCheck.available !== null) {
+                      setUsernameCheck({ checking: false, available: null });
+                    }
+                    if (hasUsername) {
+                      setHasUsername(false);
+                    }
+                  }}
+                  disabled={claiming || hasUsername}
+                  className={cn(
+                    "flex-1 h-8",
+                    hasUsername
+                      ? "opacity-50 bg-transparent border border-input text-muted-foreground"
+                      : usernameCheck.available === false
+                        ? "border-destructive text-destructive focus-visible:ring-destructive"
+                        : usernameCheck.available === true
+                          ? "border-green-500 text-green-500 focus-visible:ring-green-500"
+                          : ""
+                  )}
+                  placeholder="Choose a username"
+                />
+                {usernameCheck.checking && !hasUsername && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
+                {!hasUsername && !usernameCheck.checking && usernameCheck.available && (
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="h-8 w-8 flex-shrink-0"
+                    onClick={claimUsername}
+                    disabled={claiming}
+                  >
+                    {claiming ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+                  </Button>
+                )}
+                {hasUsername && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 flex-shrink-0"
+                    onClick={() => {
+                      setHasUsername(false);
+                      setUsernameCheck({ checking: false, available: null });
+                    }}
+                  >
+                    <Edit2 className="size-4" />
+                  </Button>
+                )}
+              </div>
             </div>
+            {/* Title Input */}
             <div className="space-y-1">
               <Label htmlFor="pub-title" className="text-xs font-medium block">
                 Title
@@ -113,7 +211,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                 placeholder="Page slug"
               />
             </div>
-            <div className="mb-4 space-y-2">
+            <div className="space-y-2">
               <Label className="text-xs font-medium block">Style</Label>
               <div className="flex items-center gap-1.5">
                 {(['light', 'dark', 'minimal'] as StyleOption[]).map((opt) => (
@@ -132,13 +230,21 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                 ))}
               </div>
             </div>
-            <Button
-              onClick={handleToggle}
-              disabled={processing}
-              className="w-full"
-            >
-              {processing ? <Loader2 className="size-4 animate-spin" /> : 'Confirm & Publish'}
-            </Button>
+            <div className="flex justify-end p-2 border-t bg-background/50 -mx-3 -mb-3 mt-4">
+              <Button
+                size="sm"
+                onClick={handleToggle}
+                disabled={processing || !hasUsername}
+              >
+                {processing ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <>
+                    <Check className="size-4 mr-1" /> Publish
+                  </>
+                )}
+              </Button>
+            </div>
           </>
         ) : (
           <>
@@ -158,7 +264,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
             <Button
               onClick={handleToggle}
               disabled={processing}
-              variant="destructive"
+              variant="outline"
               className="w-full"
             >
               {processing ? <Loader2 className="size-4 animate-spin" /> : 'Unpublish'}
