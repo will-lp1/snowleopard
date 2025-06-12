@@ -16,6 +16,7 @@ import type { Document } from '@snow-leopard/db';
 import type { User } from '@/lib/auth';
 
 export type StyleOption = 'light' | 'dark' | 'minimal';
+type FontOption = 'sans' | 'serif' | 'mono';
 
 interface PublishSettingsMenuProps {
   document: Document;
@@ -24,11 +25,55 @@ interface PublishSettingsMenuProps {
 }
 
 export function PublishSettingsMenu({ document, user, onUpdate }: PublishSettingsMenuProps) {
+  // Control dropdown open state to trigger refresh
+  const [menuOpen, setMenuOpen] = useState(false);
+
   // Username claim state
   const [username, setUsername] = useState<string>(user.username || '');
   const [hasUsername, setHasUsername] = useState<boolean>(!!user.username);
+  // Sync local username state when user prop changes
+  useEffect(() => {
+    setUsername(user.username || '');
+    setHasUsername(!!user.username);
+  }, [user.username]);
+
   const [usernameCheck, setUsernameCheck] = useState<{ checking: boolean; available: boolean | null }>({ checking: false, available: null });
   const [claiming, setClaiming] = useState(false);
+  // Helper to load the current username from API
+  const loadUsername = useCallback(async () => {
+    try {
+      const res = await fetch('/api/user');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.username) {
+        setUsername(data.username);
+        setHasUsername(true);
+        setUsernameCheck({ checking: false, available: true });
+      }
+    } catch (err) {
+      console.error('[PublishSettingsMenu] Failed to load username:', err);
+    }
+  }, []);
+
+  // Load username on mount
+  useEffect(() => {
+    loadUsername();
+  }, [loadUsername]);
+
+  // Refresh the latest document state (including visibility) when menu opens
+  const refreshDocument = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/document?id=${encodeURIComponent(document.id)}`);
+      if (!res.ok) return;
+      const docs = await res.json();
+      if (Array.isArray(docs) && docs.length > 0) {
+        onUpdate(docs[0]);
+      }
+    } catch (err) {
+      console.error('[PublishSettingsMenu] Failed to refresh document:', err);
+    }
+  }, [document.id, onUpdate]);
+
   // Local UI state
   const [slug, setSlug] = useState(
     document.slug ||
@@ -37,17 +82,35 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
         .replace(/\s+/g, '-')
         .replace(/[^a-z0-9-]/g, ''),
   );
+  // Sync local document-related state when document prop changes
+  useEffect(() => {
+    setSlug(
+      document.slug ||
+        document.title
+          .toLowerCase()
+          .replace(/\s+/g, '-')
+          .replace(/[^a-z0-9-]/g, '')
+    );
+    const styleObj = (document.style as any) || {};
+    setStyle(styleObj.theme || 'light');
+    setFont(styleObj.font || 'serif');
+    setAccentColor(styleObj.accentColor || '#3B82F6');
+  }, [document.slug, document.title, document.style]);
   const [style, setStyle] = useState<StyleOption>((document.style as any)?.theme || 'light');
+  const [font, setFont] = useState<FontOption>((document.style as any)?.font || 'serif');
+  const [accentColor, setAccentColor] = useState<string>((document.style as any)?.accentColor || '#3B82F6');
   const [processing, setProcessing] = useState(false);
 
+  // Determine published state from document prop
   const isPublished = document.visibility === 'public';
+
   const url = typeof window !== 'undefined' ? `${window.location.origin}/${username}/${slug}` : `/${username}/${slug}`;
 
   // Helper to check username availability
   const checkUsername = useCallback(async () => {
     if (!username.trim()) return;
     setUsernameCheck({ checking: true, available: null });
-    const res = await fetch(`/api/user/check-username?username=${encodeURIComponent(username)}`);
+    const res = await fetch(`/api/user?username=${encodeURIComponent(username)}`);
     if (res.ok) {
       const { available } = await res.json();
       setUsernameCheck({ checking: false, available });
@@ -75,7 +138,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
   const claimUsername = useCallback(async () => {
     if (!usernameCheck.available) return;
     setClaiming(true);
-    const res = await fetch('/api/user/username', {
+    const res = await fetch('/api/user', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username }),
@@ -105,7 +168,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
           id: document.id,
           visibility: newVisibility,
           author: username,
-          style: { theme: style },
+          style: { theme: style, font, accentColor },
           slug,
         }),
       });
@@ -118,10 +181,16 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
     } finally {
       setProcessing(false);
     }
-  }, [document.id, isPublished, style, slug, username, onUpdate]);
+  }, [document.id, isPublished, style, slug, username, onUpdate, font, accentColor]);
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={menuOpen} onOpenChange={(open) => {
+      setMenuOpen(open);
+      if (open) {
+        refreshDocument();
+        loadUsername();
+      }
+    }}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
@@ -229,6 +298,37 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                   </Button>
                 ))}
               </div>
+            </div>
+            {/* Font Section */}
+            <div className="space-y-2">
+              <Label className="text-xs font-medium block">Font</Label>
+              <div className="flex items-center gap-1.5">
+                {(['sans', 'serif', 'mono'] as FontOption[]).map((opt) => (
+                  <Button
+                    key={opt}
+                    variant={font === opt ? 'secondary' : 'ghost'}
+                    size="sm"
+                    className={cn(
+                      'flex-1 h-8 text-xs capitalize',
+                      font === opt ? 'font-semibold' : 'text-muted-foreground'
+                    )}
+                    onClick={() => setFont(opt)}
+                  >
+                    {opt}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            {/* Accent Color Section */}
+            <div className="space-y-1">
+              <Label htmlFor="pub-accent" className="text-xs font-medium block">Accent</Label>
+              <input
+                type="color"
+                id="pub-accent"
+                value={accentColor}
+                onChange={(e) => setAccentColor(e.target.value)}
+                className="w-full h-8 p-0 border-0 bg-transparent cursor-pointer"
+              />
             </div>
             <div className="flex justify-end p-2 border-t bg-background/50 -mx-3 -mb-3 mt-4">
               <Button

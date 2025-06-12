@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { setUsername } from '@/lib/db/queries';
 
-export async function POST(request: NextRequest) {
+export async function updateUsernameAction(request: NextRequest) {
   const readonlyHeaders = await headers();
   const requestHeaders = new Headers(readonlyHeaders);
   const session = await auth.api.getSession({ headers: requestHeaders });
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     await setUsername({ userId, username });
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error('[API /user/username] Error:', error);
+    console.error('[API /user] Update username error:', error);
     return NextResponse.json({ error: error.message || 'Failed to set username' }, { status: 500 });
   }
 } 

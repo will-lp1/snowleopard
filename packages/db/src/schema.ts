@@ -9,7 +9,8 @@ import {
   primaryKey,
   integer,
   pgEnum,
-  unique
+  unique,
+  uniqueIndex
 } from 'drizzle-orm/pg-core';
 import { relations, Many, One } from 'drizzle-orm';
 import { InferSelectModel } from 'drizzle-orm';
@@ -112,11 +113,12 @@ export const Document = pgTable(
     visibility: text('visibility', { enum: ['public', 'private'] }).notNull().default('private'),
     style: jsonb('style'),
     author: text('author'),
-    slug: text('slug').unique(),
+    slug: text('slug'),
   },
   (table) => {
     return {
       pk: primaryKey({ columns: [table.id, table.createdAt] }),
+      userSlugUnique: uniqueIndex('Document_userId_slug_unique').on(table.userId, table.slug),
     };
   },
 );
