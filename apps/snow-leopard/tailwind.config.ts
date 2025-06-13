@@ -1,4 +1,5 @@
 import type { Config } from 'tailwindcss';
+import defaultTheme from 'tailwindcss/defaultTheme';
 
 const config: Config = {
   darkMode: ['class'],
@@ -9,8 +10,9 @@ const config: Config = {
   ],
   theme: {
     fontFamily: {
-      sans: ['geist'],
-      mono: ['geist-mono'],
+      sans: ['geist', ...defaultTheme.fontFamily.sans],
+      serif: defaultTheme.fontFamily.serif,
+      mono: ['geist-mono', ...defaultTheme.fontFamily.mono],
     },
     extend: {
       screens: {
