@@ -116,4 +116,10 @@
     background-color: var(--code-bg);
     @apply px-1.5 py-1 rounded;
   }
+
+  /* Metadata section for author and date */
+  .blog-meta {
+    @apply text-sm mb-6 flex items-center space-x-2;
+    color: var(--muted-color);
+  }
 } 

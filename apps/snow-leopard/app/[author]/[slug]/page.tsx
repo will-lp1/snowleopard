@@ -33,6 +33,8 @@ export default async function Page({ params }: any) {
       theme={theme}
       font={font}
       accentColor={accentColor}
+      author={doc.author || author}
+      date={new Date(doc.createdAt).toISOString()}
     />
   );
 } 

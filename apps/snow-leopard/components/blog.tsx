@@ -12,6 +12,8 @@ interface BlogProps {
   theme?: ThemeOption;
   font?: FontOption;
   accentColor?: string;
+  author?: string;
+  date?: string;
 }
 
 export const Blog: React.FC<BlogProps> = ({
@@ -20,6 +22,8 @@ export const Blog: React.FC<BlogProps> = ({
   theme = 'light',
   font = 'sans',
   accentColor,
+  author,
+  date,
 }) => {
   const themeClass = `theme-${theme}`;
   const fontClass = `font-${font}`;
@@ -31,7 +35,13 @@ export const Blog: React.FC<BlogProps> = ({
   return (
     <main className={`blog-theme ${themeClass}`} style={style}>
       <article className={`blog-article ${fontClass}`}>
-        <h1 className="text-4xl md:text-5xl font-extrabold tracking-tighter mb-8">{title}</h1>
+      <h1 className="text-4xl md:text-5xl font-extrabold tracking-tighter mb-8">{title}</h1>
+        {(author || date) && (
+          <div className="blog-meta">
+            {author && <span>By <strong>{author}</strong></span>}
+            {date && <span>{new Date(date).toLocaleDateString()}</span>}
+          </div>
+        )}
         <Markdown>{content}</Markdown>
       </article>
     </main>
