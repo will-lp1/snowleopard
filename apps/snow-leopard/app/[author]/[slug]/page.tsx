@@ -3,6 +3,8 @@ import { db } from '@snow-leopard/db';
 import * as schema from '@snow-leopard/db';
 import { eq, and } from 'drizzle-orm';
 import { Blog } from '@/components/blog';
+import AIChatWidget from '@/components/ai-chat-widget';
+import ThemeToggle from '@/components/theme-toggle';
 
 export default async function Page({ params }: any) {
   const { author, slug } = await params;
@@ -21,20 +23,22 @@ export default async function Page({ params }: any) {
   if (!doc) {
     notFound();
   }
-  // Extract custom styles
   const styleObj = (doc.style as any) || {};
-  const theme = styleObj.theme as any;
   const font = styleObj.font as any;
   const accentColor = styleObj.accentColor as string;
+  const dateString = new Date(doc.createdAt).toLocaleDateString('en-US');
   return (
-    <Blog
-      title={doc.title}
-      content={doc.content || ''}
-      theme={theme}
-      font={font}
-      accentColor={accentColor}
-      author={doc.author || author}
-      date={new Date(doc.createdAt).toISOString()}
-    />
+    <>
+      <ThemeToggle />
+      <Blog
+        title={doc.title}
+        content={doc.content || ''}
+        font={font}
+        accentColor={accentColor}
+        author={doc.author || author}
+        date={dateString}
+      />
+      <AIChatWidget />
+    </>
   );
 } 

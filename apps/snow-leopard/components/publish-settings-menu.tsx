@@ -15,7 +15,6 @@ import { toast } from 'sonner';
 import type { Document } from '@snow-leopard/db';
 import type { User } from '@/lib/auth';
 
-export type StyleOption = 'light' | 'dark' | 'minimal';
 type FontOption = 'sans' | 'serif' | 'mono';
 
 interface PublishSettingsMenuProps {
@@ -92,10 +91,8 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
           .replace(/[^a-z0-9-]/g, '')
     );
     const styleObj = (document.style as any) || {};
-    setStyle(styleObj.theme || 'light');
     setFont(styleObj.font || 'serif');
   }, [document.slug, document.title, document.style]);
-  const [style, setStyle] = useState<StyleOption>((document.style as any)?.theme || 'light');
   const [font, setFont] = useState<FontOption>((document.style as any)?.font || 'serif');
   const [processing, setProcessing] = useState(false);
 
@@ -166,7 +163,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
           id: document.id,
           visibility: newVisibility,
           author: username,
-          style: { theme: style, font },
+          style: { font },
           slug,
         }),
       });
@@ -179,7 +176,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
     } finally {
       setProcessing(false);
     }
-  }, [document.id, isPublished, style, slug, username, onUpdate, font]);
+  }, [document.id, isPublished, slug, username, onUpdate, font]);
 
   return (
     <DropdownMenu open={menuOpen} onOpenChange={(open) => {
@@ -277,25 +274,6 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                 className="h-8"
                 placeholder="Page slug"
               />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-medium block">Style</Label>
-              <div className="flex items-center gap-1.5">
-                {(['light', 'dark', 'minimal'] as StyleOption[]).map((opt) => (
-                  <Button
-                    key={opt}
-                    variant={style === opt ? 'secondary' : 'ghost'}
-                    size="sm"
-                    className={cn(
-                      'flex-1 h-8 text-xs capitalize',
-                      style === opt ? 'font-semibold' : 'text-muted-foreground'
-                    )}
-                    onClick={() => setStyle(opt)}
-                  >
-                    {opt}
-                  </Button>
-                ))}
-              </div>
             </div>
             {/* Font Section */}
             <div className="space-y-2">
