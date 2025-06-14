@@ -38,7 +38,7 @@ export default async function Page({ params }: any) {
         author={doc.author || author}
         date={dateString}
       />
-      <AIChatWidget />
+      <AIChatWidget context={doc.content || ''} />
     </>
   );
 } 

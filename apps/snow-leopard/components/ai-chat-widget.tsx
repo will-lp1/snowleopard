@@ -1,69 +1,88 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useScrollToBottom } from '@/hooks/use-scroll-to-bottom';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { Plus, X, ArrowUpIcon } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 
-export default function AIChatWidget() {
+interface AIChatWidgetProps {
+  context: string;
+}
+
+export default function AIChatWidget({ context }: AIChatWidgetProps) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Array<{ id: string; role: 'user' | 'assistant'; content: string }>>([]);
   const [input, setInput] = useState('');
+  const [messagesContainerRef, messagesEndRef] = useScrollToBottom<HTMLDivElement>();
 
   const handleNewChat = () => {
     setMessages([]);
     setInput('');
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!input.trim()) return;
-    // Add user message
-    const userMessage = { id: Date.now().toString(), role: 'user' as const, content: input };
-    setMessages(prev => [...prev, userMessage]);
+    const newMessage = { id: Date.now().toString(), role: 'user' as const, content: input };
+    setMessages(prev => [...prev, newMessage]);
     setInput('');
-    // Mock assistant response
-    setTimeout(() => {
-      const assistantMessage = { id: (Date.now() + 1).toString(), role: 'assistant' as const, content: 'This is a mock response. Wire up your AI backend here.' };
-      setMessages(prev => [...prev, assistantMessage]);
-    }, 500);
+    const conversation = [...messages, newMessage];
+    const res = await fetch('/api/blog-chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: conversation, context }),
+    });
+    if (!res.ok) {
+      console.error(await res.text());
+      return;
+    }
+    const reader = res.body?.getReader();
+    if (!reader) return;
+    const decoder = new TextDecoder();
+    let done = false;
+    const assistantId = Date.now().toString() + '-assistant';
+    setMessages(prev => [...prev, { id: assistantId, role: 'assistant' as const, content: '' }]);
+    while (!done) {
+      const { value, done: doneReading } = await reader.read();
+      done = doneReading;
+      if (value) {
+        const chunk = decoder.decode(value);
+        setMessages(prev =>
+          prev.map(msg =>
+            msg.id === assistantId ? { ...msg, content: msg.content + chunk } : msg
+          )
+        );
+      }
+    }
   };
+
+  useEffect(() => {
+    if (open && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
+    }
+  }, [messages, open]);
 
   return (
     <>
-      {/* Toggle Button */}
       {!open && (
         <div className="fixed bottom-4 right-4 z-50">
-          <TooltipProvider delayDuration={0}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="dark:bg-sidebar border h-12 w-12 rounded-lg shadow-lg"
-                  onClick={e => { e.stopPropagation(); setOpen(true); }}
-                >
-                  <img src="/black-icon.svg" alt="AI Assistant" width={22} height={22} className="block dark:hidden" />
-                  <img src="/white-icon.svg" alt="AI Assistant" width={22} height={22} className="hidden dark:block" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Toggle AI Assistant</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <Button
+            className="rounded-full px-6 py-3 shadow-lg"
+            onClick={e => { e.stopPropagation(); setOpen(true); }}
+          >
+            Ask Leo
+          </Button>
         </div>
       )}
 
-      {/* Chat Panel */}
       {open && (
         <>
-          {/* Backdrop */}
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          {/* Panel */}
           <div className="fixed bottom-4 right-4 z-50 w-[400px] h-[500px] bg-background rounded-2xl shadow-lg border border-border overflow-hidden">
             <div className="flex flex-col h-full overflow-hidden">
 
-              {/* Header */}
               <header className="flex sticky top-0 bg-background/80 backdrop-blur-sm z-10 border-b border-border items-center px-3 h-[45px] gap-2 transition-all duration-200">
                 <Button
                   variant="ghost"
@@ -86,8 +105,7 @@ export default function AIChatWidget() {
                 </Button>
               </header>
 
-              {/* Messages */}
-              <div className="flex flex-col min-w-0 gap-6 flex-1 overflow-y-auto pt-4">
+              <div ref={messagesContainerRef} className="flex flex-col min-w-0 gap-6 flex-1 overflow-y-scroll pt-4">
                 {messages.map(message => (
                   <div
                     key={message.id}
@@ -114,10 +132,9 @@ export default function AIChatWidget() {
                     </div>
                   </div>
                 ))}
-                <div className="shrink-0 min-w-[24px] min-h-[24px]" />
+                <div ref={messagesEndRef} className="shrink-0 min-w-[24px] min-h-[24px]" />
               </div>
 
-              {/* Input (cloned from multimodal-input.tsx) */}
               <div className="p-4 border-t border-zinc-200 dark:border-zinc-700 relative">
                 <form onSubmit={handleSubmit}>
                   <div className="relative w-full flex flex-col gap-4">
@@ -136,7 +153,6 @@ export default function AIChatWidget() {
                         }
                       }}
                     />
-                    {/* Send Button (exact spacing from multimodal-input) */}
                     <div className="absolute bottom-0 right-0 p-2 w-fit flex flex-row justify-end">
                       <Button
                         type="submit"
