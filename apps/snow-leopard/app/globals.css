@@ -2,15 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
-}
-
-.animate-blink {
-  animation: blink 1s step-end infinite;
-}
-
 :root {
     --foreground-rgb: 0, 0, 0;
     --background-start-rgb: 214, 219, 220;
@@ -29,17 +20,9 @@
     .text-balance {
         text-wrap: balance;
     }
-    
-    .subtle-border {
-        @apply border-black/10 dark:border-zinc-700/20;
-    }
 }
 
 @layer base {
-    body {
-        @apply bg-background text-foreground;
-    }
-
     :root {
         --background: 0 0% 100%;
         --foreground: 240 10% 3.9%;
@@ -94,7 +77,7 @@
         --destructive-foreground: 0 0% 98%;
         --border: 240 3.7% 15.9%;
         --input: 240 3.7% 15.9%;
-        --ring: 240 5% 64.9%;
+        --ring: 240 4.9% 83.9%;
         --chart-1: 220 70% 50%;
         --chart-2: 160 60% 45%;
         --chart-3: 30 80% 55%;
@@ -106,28 +89,18 @@
         --sidebar-primary-foreground: 0 0% 100%;
         --sidebar-accent: 240 3.7% 15.9%;
         --sidebar-accent-foreground: 240 4.8% 95.9%;
-        --sidebar-border: 240 3.7% 15.9% / 0.3;
+        --sidebar-border: 240 3.7% 15.9%;
         --sidebar-ring: 217.2 91.2% 59.8%;
     }
 }
 
 @layer base {
+    * {
+        @apply border-border;
+    }
+
     body {
         @apply bg-background text-foreground;
-    }
-
-    @font-face {
-        font-family: "geist";
-        font-style: normal;
-        font-weight: 100 900;
-        src: url(/fonts/geist.woff2) format("woff2");
-    }
-
-    @font-face {
-        font-family: "geist-mono";
-        font-style: normal;
-        font-weight: 100 900;
-        src: url(/fonts/geist-mono.woff2) format("woff2");
     }
 }
 

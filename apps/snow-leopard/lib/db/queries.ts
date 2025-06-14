@@ -858,7 +858,7 @@ export async function updateDocumentPublishSettings({
   userId: string;
   visibility: 'public' | 'private';
   author: string;
-  style: { theme: string; font?: string; accentColor?: string };
+  style: { theme: string; font?: string };
   slug: string;
 }): Promise<(typeof schema.Document.$inferSelect)> {
   const updated = await db

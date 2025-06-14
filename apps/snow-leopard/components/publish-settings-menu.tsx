@@ -94,11 +94,9 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
     const styleObj = (document.style as any) || {};
     setStyle(styleObj.theme || 'light');
     setFont(styleObj.font || 'serif');
-    setAccentColor(styleObj.accentColor || '#3B82F6');
   }, [document.slug, document.title, document.style]);
   const [style, setStyle] = useState<StyleOption>((document.style as any)?.theme || 'light');
   const [font, setFont] = useState<FontOption>((document.style as any)?.font || 'serif');
-  const [accentColor, setAccentColor] = useState<string>((document.style as any)?.accentColor || '#3B82F6');
   const [processing, setProcessing] = useState(false);
 
   // Determine published state from document prop
@@ -168,7 +166,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
           id: document.id,
           visibility: newVisibility,
           author: username,
-          style: { theme: style, font, accentColor },
+          style: { theme: style, font },
           slug,
         }),
       });
@@ -181,7 +179,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
     } finally {
       setProcessing(false);
     }
-  }, [document.id, isPublished, style, slug, username, onUpdate, font, accentColor]);
+  }, [document.id, isPublished, style, slug, username, onUpdate, font]);
 
   return (
     <DropdownMenu open={menuOpen} onOpenChange={(open) => {
@@ -318,17 +316,6 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                   </Button>
                 ))}
               </div>
-            </div>
-            {/* Accent Color Section */}
-            <div className="space-y-1">
-              <Label htmlFor="pub-accent" className="text-xs font-medium block">Accent</Label>
-              <input
-                type="color"
-                id="pub-accent"
-                value={accentColor}
-                onChange={(e) => setAccentColor(e.target.value)}
-                className="w-full h-8 p-0 border-0 bg-transparent cursor-pointer"
-              />
             </div>
             <div className="flex justify-end p-2 border-t bg-background/50 -mx-3 -mb-3 mt-4">
               <Button
