@@ -112,9 +112,9 @@ function PureArtifactActions({
           <TooltipTrigger asChild>
             <Button
               variant="outline"
-              className={cn('h-fit dark:hover:bg-zinc-700', {
-                'p-2': !action.label,
-                'py-1.5 px-2': action.label,
+              className={cn('h-8 flex items-center justify-center dark:hover:bg-zinc-700', {
+                'w-8 p-0': !action.label,
+                'w-auto px-2': action.label,
               })}
               onClick={async () => {
                 setIsLoading(true);
