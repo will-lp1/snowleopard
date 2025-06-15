@@ -24,21 +24,34 @@ interface PublishSettingsMenuProps {
 }
 
 export function PublishSettingsMenu({ document, user, onUpdate }: PublishSettingsMenuProps) {
-  // Control dropdown open state to trigger refresh
-  const [menuOpen, setMenuOpen] = useState(false);
-
-  // Username claim state
   const [username, setUsername] = useState<string>(user.username || '');
   const [hasUsername, setHasUsername] = useState<boolean>(!!user.username);
-  // Sync local username state when user prop changes
+  const [claiming, setClaiming] = useState(false);
+  const [usernameCheck, setUsernameCheck] = useState<{ checking: boolean; available: boolean | null }>({ checking: false, available: null });
+  const [slug, setSlug] = useState('');
+  const [font, setFont] = useState<FontOption>('serif');
+  const [processing, setProcessing] = useState(false);
+  
+  const isPublished = document.visibility === 'public';
+  const url = typeof window !== 'undefined' ? `${window.location.origin}/${username}/${slug}` : `/${username}/${slug}`;
+
   useEffect(() => {
     setUsername(user.username || '');
     setHasUsername(!!user.username);
   }, [user.username]);
+  
+  useEffect(() => {
+    setSlug(
+      document.slug ||
+        document.title
+          .toLowerCase()
+          .replace(/\s+/g, '-')
+          .replace(/[^a-z0-9-]/g, '')
+    );
+    const styleObj = (document.style as any) || {};
+    setFont(styleObj.font || 'serif');
+  }, [document.slug, document.title, document.style]);
 
-  const [usernameCheck, setUsernameCheck] = useState<{ checking: boolean; available: boolean | null }>({ checking: false, available: null });
-  const [claiming, setClaiming] = useState(false);
-  // Helper to load the current username from API
   const loadUsername = useCallback(async () => {
     try {
       const res = await fetch('/api/user');
@@ -54,54 +67,6 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
     }
   }, []);
 
-  // Load username on mount
-  useEffect(() => {
-    loadUsername();
-  }, [loadUsername]);
-
-  // Refresh the latest document state (including visibility) when menu opens
-  const refreshDocument = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/document?id=${encodeURIComponent(document.id)}`);
-      if (!res.ok) return;
-      const docs = await res.json();
-      if (Array.isArray(docs) && docs.length > 0) {
-        onUpdate(docs[0]);
-      }
-    } catch (err) {
-      console.error('[PublishSettingsMenu] Failed to refresh document:', err);
-    }
-  }, [document.id, onUpdate]);
-
-  // Local UI state
-  const [slug, setSlug] = useState(
-    document.slug ||
-      document.title
-        .toLowerCase()
-        .replace(/\s+/g, '-')
-        .replace(/[^a-z0-9-]/g, ''),
-  );
-  // Sync local document-related state when document prop changes
-  useEffect(() => {
-    setSlug(
-      document.slug ||
-        document.title
-          .toLowerCase()
-          .replace(/\s+/g, '-')
-          .replace(/[^a-z0-9-]/g, '')
-    );
-    const styleObj = (document.style as any) || {};
-    setFont(styleObj.font || 'serif');
-  }, [document.slug, document.title, document.style]);
-  const [font, setFont] = useState<FontOption>((document.style as any)?.font || 'serif');
-  const [processing, setProcessing] = useState(false);
-
-  // Determine published state from document prop
-  const isPublished = document.visibility === 'public';
-
-  const url = typeof window !== 'undefined' ? `${window.location.origin}/${username}/${slug}` : `/${username}/${slug}`;
-
-  // Helper to check username availability
   const checkUsername = useCallback(async () => {
     if (!username.trim()) return;
     setUsernameCheck({ checking: true, available: null });
@@ -113,23 +78,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
       setUsernameCheck({ checking: false, available: false });
     }
   }, [username]);
-
-  // Debounced username check
-  useEffect(() => {
-    if (!username.trim() || username === user.username) {
-        setUsernameCheck({ checking: false, available: null });
-        return;
-    }
-    const handler = setTimeout(() => {
-        checkUsername();
-    }, 500);
-
-    return () => {
-        clearTimeout(handler);
-    };
-  }, [username, checkUsername, user.username]);
-
-  // Helper to claim username globally
+  
   const claimUsername = useCallback(async () => {
     if (!usernameCheck.available) return;
     setClaiming(true);
@@ -147,6 +96,20 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
     }
     setClaiming(false);
   }, [username, usernameCheck.available]);
+
+  useEffect(() => {
+    if (!username.trim() || username === user.username) {
+        setUsernameCheck({ checking: false, available: null });
+        return;
+    }
+    const handler = setTimeout(() => {
+        checkUsername();
+    }, 500);
+
+    return () => {
+        clearTimeout(handler);
+    };
+  }, [username, checkUsername, user.username]);
 
   const handleToggle = useCallback(async () => {
     const newVisibility = isPublished ? 'private' : 'public';
@@ -177,15 +140,17 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
       setProcessing(false);
     }
   }, [document.id, isPublished, slug, username, onUpdate, font]);
+  
+  const handleSlugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formattedSlug = e.target.value
+      .toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9-]/g, '');
+    setSlug(formattedSlug);
+  };
 
   return (
-    <DropdownMenu open={menuOpen} onOpenChange={(open) => {
-      setMenuOpen(open);
-      if (open) {
-        refreshDocument();
-        loadUsername();
-      }
-    }}>
+    <DropdownMenu onOpenChange={(open) => { if (open) { loadUsername(); } }}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
@@ -206,7 +171,6 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
         </div>
         {!isPublished ? (
           <>
-            {/* Username Claim Section */}
             <div className="space-y-2">
               <Label htmlFor="pub-username" className="text-xs font-medium block">Username</Label>
               <div className="flex gap-2 items-center">
@@ -262,20 +226,20 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                 )}
               </div>
             </div>
-            {/* Title Input */}
+            
             <div className="space-y-1">
               <Label htmlFor="pub-title" className="text-xs font-medium block">
-                Title
+                Slug
               </Label>
               <Input
                 id="pub-title"
                 value={slug}
-                onChange={(e) => setSlug(e.target.value)}
+                onChange={handleSlugChange}
                 className="h-8"
                 placeholder="Page slug"
               />
             </div>
-            {/* Font Section */}
+            
             <div className="space-y-2">
               <Label className="text-xs font-medium block">Font</Label>
               <div className="flex items-center gap-1.5">
@@ -295,6 +259,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                 ))}
               </div>
             </div>
+            
             <div className="flex justify-end p-2 border-t bg-background/50 -mx-3 -mb-3 mt-4">
               <Button
                 size="sm"
