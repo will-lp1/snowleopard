@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useScrollToBottom } from '@/hooks/use-scroll-to-bottom';
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Plus, X, ArrowUpIcon } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
+import { useChat } from '@ai-sdk/react';
+import { useHighlight } from '@/hooks/highlight-context';
+import { HighlightTool } from '@/components/tools/highlight-blog-tool';
 
 interface AIChatWidgetProps {
   context: string;
@@ -14,56 +16,67 @@ interface AIChatWidgetProps {
 
 export default function AIChatWidget({ context }: AIChatWidgetProps) {
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<Array<{ id: string; role: 'user' | 'assistant'; content: string }>>([]);
-  const [input, setInput] = useState('');
-  const [messagesContainerRef, messagesEndRef] = useScrollToBottom<HTMLDivElement>();
+  const { setHighlightedText } = useHighlight();
 
-  const handleNewChat = () => {
-    setMessages([]);
-    setInput('');
-  };
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!input.trim()) return;
-    const newMessage = { id: Date.now().toString(), role: 'user' as const, content: input };
-    setMessages(prev => [...prev, newMessage]);
-    setInput('');
-    const conversation = [...messages, newMessage];
-    const res = await fetch('/api/blog-chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: conversation, context }),
+  const { messages, input, handleInputChange, handleSubmit, setMessages } =
+    useChat({
+      api: '/api/blog-chat',
+      body: {
+        context,
+      },
     });
-    if (!res.ok) {
-      console.error(await res.text());
-      return;
-    }
-    const reader = res.body?.getReader();
-    if (!reader) return;
-    const decoder = new TextDecoder();
-    let done = false;
-    const assistantId = Date.now().toString() + '-assistant';
-    setMessages(prev => [...prev, { id: assistantId, role: 'assistant' as const, content: '' }]);
-    while (!done) {
-      const { value, done: doneReading } = await reader.read();
-      done = doneReading;
-      if (value) {
-        const chunk = decoder.decode(value);
-        setMessages(prev =>
-          prev.map(msg =>
-            msg.id === assistantId ? { ...msg, content: msg.content + chunk } : msg
-          )
-        );
-      }
-    }
-  };
+
+  const [messagesContainerRef, messagesEndRef] =
+    useScrollToBottom<HTMLDivElement>();
 
   useEffect(() => {
     if (open && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
     }
   }, [messages, open]);
+
+  // Effect to find the latest highlight tool result and update context
+  useEffect(() => {
+    const lastMessage = messages.at(-1);
+
+    if (lastMessage?.role !== 'assistant') {
+      return;
+    }
+
+    const toolInvocations = lastMessage.toolInvocations?.filter(
+      (t): t is NonNullable<typeof t> => t != null,
+    );
+
+    if (!toolInvocations || toolInvocations.length === 0) {
+      return;
+    }
+
+    const lastHighlight = toolInvocations
+      .filter(
+        t =>
+          t.toolName === 'highlightBlogText' &&
+          'result' in t &&
+          t.state === 'result',
+      )
+      .at(-1);
+
+    if (lastHighlight && 'result' in lastHighlight) {
+      const result = lastHighlight.result as { quote: string };
+      setHighlightedText(result.quote);
+    } else {
+      setHighlightedText(null);
+    }
+  }, [messages, setHighlightedText]);
+
+  const handleNewChat = () => {
+    setMessages([]);
+    setHighlightedText(null);
+  };
+
+  const onFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    setHighlightedText(null);
+    handleSubmit(e);
+  };
 
   return (
     <>
@@ -78,7 +91,10 @@ export default function AIChatWidget({ context }: AIChatWidgetProps) {
           >
             <Button
               className="rounded-full px-6 py-3 shadow-lg"
-              onClick={e => { e.stopPropagation(); setOpen(true); }}
+              onClick={e => {
+                e.stopPropagation();
+                setOpen(true);
+              }}
             >
               Ask Leo
             </Button>
@@ -104,7 +120,6 @@ export default function AIChatWidget({ context }: AIChatWidgetProps) {
               className="fixed bottom-4 right-4 z-50 w-[400px] h-[500px] bg-background rounded-2xl shadow-lg border border-border overflow-hidden"
             >
               <div className="flex flex-col h-full overflow-hidden">
-
                 <header className="flex sticky top-0 bg-background/80 backdrop-blur-sm z-10 border-b border-border items-center px-3 h-[45px] gap-2 transition-all duration-200">
                   <Button
                     variant="ghost"
@@ -127,7 +142,10 @@ export default function AIChatWidget({ context }: AIChatWidgetProps) {
                   </Button>
                 </header>
 
-                <div ref={messagesContainerRef} className="flex flex-col min-w-0 gap-6 flex-1 overflow-y-scroll pt-4">
+                <div
+                  ref={messagesContainerRef}
+                  className="flex flex-col min-w-0 gap-6 flex-1 overflow-y-scroll pt-4"
+                >
                   {messages.map(message => (
                     <div
                       key={message.id}
@@ -145,33 +163,53 @@ export default function AIChatWidget({ context }: AIChatWidgetProps) {
                           </div>
                         )}
                         <div className="flex flex-col gap-4 w-full">
-                          <div data-testid="message-content" className="flex flex-row gap-2 items-start">
-                            <div className={message.role === 'user' ? 'bg-primary text-primary-foreground px-3 py-2 rounded-xl' : ''}>
-                              {message.content}
+                          {message.content ? (
+                            <div
+                              data-testid="message-content"
+                              className="flex flex-row gap-2 items-start"
+                            >
+                              <div
+                                className={
+                                  message.role === 'user'
+                                    ? 'bg-primary text-primary-foreground px-3 py-2 rounded-xl'
+                                    : ''
+                                }
+                              >
+                                {message.content}
+                              </div>
                             </div>
-                          </div>
+                          ) : null}
+                          {message.toolInvocations?.map(tool => (
+                            <HighlightTool
+                              key={tool.toolCallId}
+                              toolInvocation={tool}
+                            />
+                          ))}
                         </div>
                       </div>
                     </div>
                   ))}
-                  <div ref={messagesEndRef} className="shrink-0 min-w-[24px] min-h-[24px]" />
+                  <div
+                    ref={messagesEndRef}
+                    className="shrink-0 min-w-[24px] min-h-[24px]"
+                  />
                 </div>
 
                 <div className="p-4 border-t border-zinc-200 dark:border-zinc-700 relative">
-                  <form onSubmit={handleSubmit}>
+                  <form onSubmit={onFormSubmit}>
                     <div className="relative w-full flex flex-col gap-4">
                       <Textarea
                         data-testid="multimodal-input"
                         placeholder="Send a message..."
                         value={input}
-                        onChange={e => setInput(e.target.value)}
-                        className="px-3 py-2 min-h-[24px] max-h-[calc(75dvh)] overflow-hidden resize-none rounded-2xl !text-base bg-muted pb-10 dark:border-zinc-700"
+                        onChange={handleInputChange}
+                        className="px-3 py-2 min-h-[24px] max-h-[calc(75dvh)] overflow-hidden resize-none rounded-lg !text-base bg-muted pb-10 dark:border-zinc-700"
                         rows={2}
                         autoFocus
                         onKeyDown={e => {
                           if (e.key === 'Enter' && !e.shiftKey) {
                             e.preventDefault();
-                            handleSubmit(e as any);
+                            onFormSubmit(e as any);
                           }
                         }}
                       />

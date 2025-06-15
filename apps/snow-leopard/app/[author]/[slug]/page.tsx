@@ -5,6 +5,7 @@ import { eq, and } from 'drizzle-orm';
 import { Blog } from '@/components/blog';
 import AIChatWidget from '@/components/ai-chat-widget';
 import ThemeToggle from '@/components/theme-toggle';
+import { HighlightProvider } from '@/hooks/highlight-context';
 
 export default async function Page({ params }: any) {
   const { author, slug } = await params;
@@ -15,8 +16,8 @@ export default async function Page({ params }: any) {
       and(
         eq(schema.Document.author, author),
         eq(schema.Document.slug, slug),
-        eq(schema.Document.visibility, 'public')
-      )
+        eq(schema.Document.visibility, 'public'),
+      ),
     )
     .limit(1);
   const doc = result[0];
@@ -28,7 +29,7 @@ export default async function Page({ params }: any) {
   const accentColor = styleObj.accentColor as string;
   const dateString = new Date(doc.createdAt).toLocaleDateString('en-US');
   return (
-    <>
+    <HighlightProvider>
       <ThemeToggle />
       <Blog
         title={doc.title}
@@ -39,6 +40,6 @@ export default async function Page({ params }: any) {
         date={dateString}
       />
       <AIChatWidget context={doc.content || ''} />
-    </>
+    </HighlightProvider>
   );
 } 

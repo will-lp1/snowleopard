@@ -92,6 +92,7 @@
     "react-mentions": "^4.4.10",
     "react-resizable-panels": "^2.1.7",
     "react-textarea-autosize": "^8.5.8",
+    "rehype-raw": "^7.0.0",
     "remark-gfm": "^4.0.0",
     "resend": "^4.3.0",
     "server-only": "^0.0.1",

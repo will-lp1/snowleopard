@@ -1,7 +1,7 @@
 "use client";
-import React from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { Markdown } from '@/components/markdown';
-// blog.css removed: rely on global CSS and typography plugin
+import { useHighlight } from '@/hooks/highlight-context';
 
 export type FontOption = 'sans' | 'serif' | 'mono';
 
@@ -23,10 +23,30 @@ export const Blog: React.FC<BlogProps> = ({
   date,
 }) => {
   const fontClass = `font-${font}`;
+  const { highlightedText } = useHighlight();
 
   const style: React.CSSProperties = accentColor
     ? ({ '--accent-color': accentColor } as any)
     : {};
+
+  const processedContent = useMemo(() => {
+    if (!highlightedText || !content.includes(highlightedText)) {
+      return content;
+    }
+    return content.replace(
+      highlightedText,
+      `<mark id="highlighted-text" class="bg-yellow-300/25 dark:bg-yellow-300/50 transition-colors duration-300 ease-in-out rounded px-1 py-0.5">${highlightedText}</mark>`,
+    );
+  }, [content, highlightedText]);
+
+  useEffect(() => {
+    if (highlightedText) {
+      const element = document.getElementById('highlighted-text');
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [highlightedText]);
 
   return (
     <main className="min-h-screen bg-background text-foreground" style={style}>
@@ -38,7 +58,7 @@ export const Blog: React.FC<BlogProps> = ({
             {date && <span>{date}</span>}
           </div>
         )}
-        <Markdown>{content}</Markdown>
+        <Markdown>{processedContent}</Markdown>
       </article>
     </main>
   );
