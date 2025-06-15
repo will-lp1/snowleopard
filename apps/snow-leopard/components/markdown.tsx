@@ -2,7 +2,6 @@
 import React, { memo } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import rehypeRaw from 'rehype-raw';
 
 const components: Partial<Components> = {
   pre: ({ children }) => <>{children}</>,
@@ -37,10 +36,9 @@ const components: Partial<Components> = {
 };
 
 const remarkPlugins = [remarkGfm];
-const rehypePlugins = [rehypeRaw];
 
 const NonMemoizedMarkdown = ({ children }: { children: string | React.ReactNode }) => (
-  <ReactMarkdown remarkPlugins={remarkPlugins} rehypePlugins={rehypePlugins} components={components}>
+  <ReactMarkdown remarkPlugins={remarkPlugins} components={components}>
     {children?.toString() || ''}
   </ReactMarkdown>
 );

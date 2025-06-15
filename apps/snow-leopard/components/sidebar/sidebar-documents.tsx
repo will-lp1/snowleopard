@@ -6,11 +6,8 @@ import { useParams, useRouter } from 'next/navigation';
 import type { User } from '@/lib/auth';
 import { memo, useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import useSWR from 'swr';
 import { cn, fetcher } from '@/lib/utils';
 import {
-  CheckCircleFillIcon,
-  FileIcon,
   MoreHorizontalIcon,
   PlusIcon,
   TrashIcon,
@@ -45,15 +42,10 @@ import type { Document } from '@snow-leopard/db';
 import { useArtifact } from '@/hooks/use-artifact';
 import { ArtifactKind } from '@/components/artifact';
 import { useDocumentUtils } from '@/hooks/use-document-utils';
-import { useDocumentContext } from '@/hooks/use-document-context';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { MessageSquare as MessageSquareIcon } from 'lucide-react';
-import { ArrowRightCircle } from 'lucide-react';
-import { Loader2 } from 'lucide-react';
 import useSWRInfinite from 'swr/infinite';
-import { motion } from 'framer-motion';
 
 type GroupedDocuments = {
   today: Document[];

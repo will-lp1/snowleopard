@@ -1,6 +1,4 @@
 import './globals.css';
-// import './blog.css';
-import { Inter } from 'next/font/google';
 import type { Metadata } from 'next';
 import { Toaster } from 'sonner';
 

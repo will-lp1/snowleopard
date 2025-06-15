@@ -15,9 +15,7 @@ interface HighlightToolProps {
 function PureHighlightTool({ toolInvocation }: HighlightToolProps) {
   const { toolName, state } = toolInvocation;
 
-  if (toolName !== 'highlightBlogText') {
-    return null;
-  }
+  if (toolName !== 'highlightBlogText') return null;
 
   const isCalling = state === 'call';
   const isResult = state === 'result';
@@ -28,28 +26,24 @@ function PureHighlightTool({ toolInvocation }: HighlightToolProps) {
 
   return (
     <div className="bg-background border rounded-xl w-full max-w-md flex flex-col items-start text-sm overflow-hidden">
-      {/* Header */}
-      <div className="p-3 flex flex-row gap-3 items-center w-full bg-muted/30 border-b">
+      <div className="p-3 flex items-center gap-3 w-full bg-muted/30 border-b">
         <div className="flex-shrink-0 text-muted-foreground">
           <SearchIcon size={16} />
         </div>
-        <div className="text-left flex-grow font-medium text-foreground">
-          {isCalling && 'Finding reference in text...'}
-          {isResult && 'Reference found'}
-        </div>
+        <span className="flex-grow text-foreground font-medium">
+          {isCalling ? 'Finding reference in text...' : 'Reference found'}
+        </span>
         {isCalling && (
-          <div className="animate-spin text-muted-foreground flex-shrink-0">
+          <div className="animate-spin text-muted-foreground">
             <LoaderIcon size={16} />
           </div>
         )}
         {isResult && (
-          <div className="text-green-600 flex-shrink-0">
+          <div className="text-green-600">
             <CheckCircleFillIcon size={16} />
           </div>
         )}
       </div>
-
-      {/* Content */}
       {isResult && quote && (
         <div className="p-3 w-full text-xs text-muted-foreground">
           <blockquote className="border-l-2 pl-2 italic">
