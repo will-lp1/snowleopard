@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useScrollToBottom } from '@/hooks/use-scroll-to-bottom';
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Plus, X, ArrowUpIcon } from 'lucide-react';
@@ -10,53 +9,100 @@ import { Textarea } from '@/components/ui/textarea';
 
 interface AIChatWidgetProps {
   context: string;
+  title: string;
+  author: string;
+  date: string;
 }
 
-export default function AIChatWidget({ context }: AIChatWidgetProps) {
+export default function AIChatWidget({ context, title, author, date }: AIChatWidgetProps) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Array<{ id: string; role: 'user' | 'assistant'; content: string }>>([]);
+  const messagesRef = useRef(messages);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
   const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [messagesContainerRef, messagesEndRef] = useScrollToBottom<HTMLDivElement>();
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleNewChat = () => {
+    abortControllerRef.current?.abort();
     setMessages([]);
     setInput('');
+    setError(null);
+    setLoading(false);
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!input.trim()) return;
-    const newMessage = { id: Date.now().toString(), role: 'user' as const, content: input };
-    setMessages(prev => [...prev, newMessage]);
+    if (!input.trim() || loading) return;
+    setError(null);
+    setLoading(true);
+    // abort any previous
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const userMessage = { id: Date.now().toString(), role: 'user' as const, content: input };
+    // Build next messages array and use for conversation
+    const nextMessages = [...messagesRef.current, userMessage];
+    setMessages(nextMessages);
     setInput('');
-    const conversation = [...messages, newMessage];
-    const res = await fetch('/api/blog-chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: conversation, context }),
-    });
+    const conversation = nextMessages;
+    let res: Response;
+    try {
+      res = await fetch('/api/blog-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: conversation, context, title, author, date }),
+        signal: controller.signal,
+      });
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
+      console.error(err);
+      setError('Network error');
+      setLoading(false);
+      return;
+    }
     if (!res.ok) {
-      console.error(await res.text());
+      const text = await res.text();
+      console.error(text);
+      setError('Failed to load AI response');
+      setLoading(false);
       return;
     }
     const reader = res.body?.getReader();
-    if (!reader) return;
+    if (!reader) {
+      setLoading(false);
+      return;
+    }
     const decoder = new TextDecoder();
     let done = false;
     const assistantId = Date.now().toString() + '-assistant';
     setMessages(prev => [...prev, { id: assistantId, role: 'assistant' as const, content: '' }]);
     while (!done) {
-      const { value, done: doneReading } = await reader.read();
-      done = doneReading;
-      if (value) {
-        const chunk = decoder.decode(value);
-        setMessages(prev =>
-          prev.map(msg =>
-            msg.id === assistantId ? { ...msg, content: msg.content + chunk } : msg
-          )
-        );
+      try {
+        const { value, done: doneReading } = await reader.read();
+        done = doneReading;
+        if (value) {
+          const chunk = decoder.decode(value);
+          setMessages(prev =>
+            prev.map(msg =>
+              msg.id === assistantId ? { ...msg, content: msg.content + chunk } : msg
+            )
+          );
+        }
+      } catch (err: any) {
+        if (err.name === 'AbortError') {
+          return;
+        }
+        console.error(err);
+        break;
       }
     }
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -180,13 +226,14 @@ export default function AIChatWidget({ context }: AIChatWidgetProps) {
                           type="submit"
                           data-testid="send-button"
                           className="rounded-full p-1.5 h-fit border dark:border-zinc-600"
-                          disabled={!input.trim()}
+                          disabled={!input.trim() || loading}
                         >
                           <ArrowUpIcon size={14} />
                         </Button>
                       </div>
                     </div>
                   </form>
+                  {error && <div className="text-xs text-destructive text-center mb-2">{error}</div>}
                 </div>
               </div>
             </motion.div>

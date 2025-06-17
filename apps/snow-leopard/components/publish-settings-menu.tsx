@@ -112,30 +112,34 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
   }, [username, checkUsername, user.username]);
 
   const handleToggle = useCallback(async () => {
-    const newVisibility = isPublished ? 'private' : 'public';
+    const newVisibility = (document.visibility === 'public' ? 'private' : 'public') as 'public' | 'private';
     if (newVisibility === 'public' && !username.trim()) {
       toast.error('Please claim a username first.');
       return;
     }
+    const snapshot = {
+      id: document.id,
+      visibility: newVisibility,
+      author: username,
+      style: { ...(document.style as any), font },
+      slug,
+    };
+    const optimisticDoc = { ...document, ...snapshot };
+    onUpdate(optimisticDoc);
     setProcessing(true);
     try {
       const res = await fetch('/api/document/publish', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: document.id,
-          visibility: newVisibility,
-          author: username,
-          style: { font },
-          slug,
-        }),
+        body: JSON.stringify(snapshot),
       });
       if (!res.ok) throw new Error('Failed to update publication.');
       const updated = await res.json();
       onUpdate(updated);
-      toast.success(isPublished ? 'Unpublished' : 'Published');
+      toast.success(newVisibility === 'public' ? 'Published' : 'Unpublished');
     } catch (e: any) {
       toast.error(e.message || 'Error updating publication');
+      onUpdate(document);
     } finally {
       setProcessing(false);
     }
@@ -186,7 +190,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                       setHasUsername(false);
                     }
                   }}
-                  disabled={claiming || hasUsername}
+                  disabled={claiming || hasUsername || processing}
                   className={cn(
                     "flex-1 h-8",
                     hasUsername
@@ -236,6 +240,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                 value={slug}
                 onChange={handleSlugChange}
                 className="h-8"
+                disabled={processing}
                 placeholder="Page slug"
               />
             </div>
@@ -253,6 +258,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                       font === opt ? 'font-semibold' : 'text-muted-foreground'
                     )}
                     onClick={() => setFont(opt)}
+                    disabled={processing}
                   >
                     {opt}
                   </Button>
@@ -291,6 +297,14 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                 <CopyIcon className="size-4" /> Copy Link
               </Button>
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full justify-start gap-2"
+              onClick={() => window.open(url, '_blank')}
+            >
+              <GlobeIcon className="size-4" /> View
+            </Button>
             <Button
               onClick={handleToggle}
               disabled={processing}

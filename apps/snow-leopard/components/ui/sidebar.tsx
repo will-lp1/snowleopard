@@ -382,9 +382,8 @@ function SidebarTrigger({
       data-slot="sidebar-trigger"
       data-side={targetSide}
       variant="outline"
-      size="icon"
       className={cn(
-        "size-8 p-2 border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground dark:hover:bg-sidebar-accent transition-colors duration-200",
+        "h-8 w-8 p-0 flex items-center justify-center border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground dark:hover:bg-sidebar-accent transition-colors duration-200",
         className
       )}
       onClick={(event) => {

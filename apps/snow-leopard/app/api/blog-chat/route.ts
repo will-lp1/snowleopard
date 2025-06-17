@@ -3,10 +3,14 @@ import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
 import { myProvider } from '@/lib/ai/providers';
 
 export async function POST(request: Request) {
-  const { messages, context } = await request.json();
+  const { messages, context, title, author, date } = await request.json();
 
   const prompt = [
-    'You are a helpful assistant. Keep responses brief.',
+    'You are a helpful AI assistant answering reader questions about the following article. Provide concise, accurate answers.',
+    '',
+    `Title: ${title}`,
+    `Author: ${author}`,
+    `Date: ${date}`,
     '',
     context,
     ...messages.map((m: any) => `${m.role}: ${m.content}`),
