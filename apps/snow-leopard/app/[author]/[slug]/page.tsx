@@ -5,6 +5,8 @@ import { eq, and } from 'drizzle-orm';
 import { Blog } from '@/components/blog';
 import AIChatWidget from '@/components/ai-chat-widget';
 import ThemeToggle from '@/components/theme-toggle';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 
 export default async function Page({ params }: any) {
   const { author, slug } = await params;
@@ -30,6 +32,11 @@ export default async function Page({ params }: any) {
   return (
     <>
       <ThemeToggle />
+      <Link href="/register">
+        <Button variant="outline" className="fixed top-4 right-4 z-50">
+          Sign up to Snow Leopard
+        </Button>
+      </Link>
       <Blog
         title={doc.title}
         content={doc.content || ''}
