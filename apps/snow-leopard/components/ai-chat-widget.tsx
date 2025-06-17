@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Plus, X, ArrowUpIcon } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
+import {Markdown} from '@/components/markdown'
 
 interface AIChatWidgetProps {
   context: string;
@@ -193,7 +194,9 @@ export default function AIChatWidget({ context, title, author, date }: AIChatWid
                         <div className="flex flex-col gap-4 w-full">
                           <div data-testid="message-content" className="flex flex-row gap-2 items-start">
                             <div className={message.role === 'user' ? 'bg-primary text-primary-foreground px-3 py-2 rounded-xl' : ''}>
+                              <Markdown>
                               {message.content}
+                              </Markdown>
                             </div>
                           </div>
                         </div>
