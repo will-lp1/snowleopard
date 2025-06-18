@@ -3,17 +3,14 @@
 import type { Attachment, Message, ChatRequestOptions } from 'ai';
 import { useChat } from '@ai-sdk/react';
 import { useState, useEffect } from 'react';
-import useSWR, { useSWRConfig } from 'swr';
 import { ChatHeader } from '@/components/chat/chat-header';
-import { fetcher, generateUUID } from '@/lib/utils';
+import { generateUUID } from '@/lib/utils';
 import { MultimodalInput } from './multimodal-input';
 import { Messages } from './messages';
 import { toast } from 'sonner';
-import { FileText, RefreshCw } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { FileText } from 'lucide-react';
 import { useDocumentContext } from '@/hooks/use-document-context';
 import { MentionedDocument } from './multimodal-input';
-import { FileIcon } from '../icons';
 import { useArtifact } from '@/hooks/use-artifact';
 import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
 import { DataStreamHandler } from '@/components/data-stream-handler';
@@ -25,7 +22,6 @@ export interface ChatProps {
   initialMessages: Array<Message>;
   selectedChatModel?: string;
   isReadonly?: boolean;
-  hasActiveSubscription?: boolean;
 }
 
 export function Chat({
@@ -33,9 +29,7 @@ export function Chat({
   initialMessages,
   selectedChatModel: initialSelectedChatModel,
   isReadonly = false,
-  hasActiveSubscription = true,
 }: ChatProps) {
-  const { mutate } = useSWRConfig();
   const { documentId, documentTitle, documentContent } = useDocumentContext();
   const [documentContextActive, setDocumentContextActive] = useState(false);
   const { artifact } = useArtifact();
@@ -46,7 +40,6 @@ export function Chat({
   );
   const [isLoadingChat, setIsLoadingChat] = useState(false);
   const [requestedChatLoadId, setRequestedChatLoadId] = useState<string | null>(null);
-  const [isRefreshingSubscription, setIsRefreshingSubscription] = useState(false);
 
   // Callback function to update the model state
   const handleModelChange = (newModelId: string) => {
@@ -263,12 +256,6 @@ export function Chat({
     setConfirmedMentions([]);
   };
 
-  const refreshSubscription = async () => {
-    setIsRefreshingSubscription(true);
-    await mutate('/api/user/subscription-status');
-    setIsRefreshingSubscription(false);
-  };
-
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <ChatHeader
@@ -314,40 +301,23 @@ export function Chat({
 
       {!isReadonly && (
         <div className="p-4 border-t border-zinc-200 dark:border-zinc-700">
-          {hasActiveSubscription ? (
-            <form onSubmit={wrappedSubmit}>
-              <MultimodalInput
-                chatId={chatId}
-                input={input}
-                setInput={setInput}
-                handleSubmit={handleSubmit}
-                status={status}
-                stop={stop}
-                attachments={attachments}
-                setAttachments={setAttachments}
-                messages={messages}
-                setMessages={setMessages}
-                append={append}
-                confirmedMentions={confirmedMentions}
-                onMentionsChange={handleMentionsChange}
-              />
-            </form>
-          ) : (
-            <div className="flex items-center justify-center space-x-2 h-[56px] text-sm text-muted-foreground bg-muted rounded-2xl border border-border">
-              <span>Subscription required to send messages.</span>
-              <button
-                onClick={refreshSubscription}
-                disabled={isRefreshingSubscription}
-                className="p-1"
-              >
-                {isRefreshingSubscription ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-4 w-4" />
-                )}
-              </button>
-            </div>
-          )}
+          <form onSubmit={wrappedSubmit}>
+            <MultimodalInput
+              chatId={chatId}
+              input={input}
+              setInput={setInput}
+              handleSubmit={handleSubmit}
+              status={status}
+              stop={stop}
+              attachments={attachments}
+              setAttachments={setAttachments}
+              messages={messages}
+              setMessages={setMessages}
+              append={append}
+              confirmedMentions={confirmedMentions}
+              onMentionsChange={handleMentionsChange}
+            />
+          </form>
         </div>
       )}
 

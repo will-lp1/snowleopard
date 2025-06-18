@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { updateDocumentPublishSettings } from "@/lib/db/queries";
+import { updateDocumentPublishSettings, getActiveSubscriptionByUserId } from "@/lib/db/queries";
 
 export async function publishDocument(request: NextRequest, body: any): Promise<NextResponse> {
   const readonlyHeaders = await headers();
@@ -11,6 +11,14 @@ export async function publishDocument(request: NextRequest, body: any): Promise<
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const userId = session.user.id;
+  
+  // Server-side subscription check
+  if (process.env.STRIPE_ENABLED === 'true') {
+    const subscription = await getActiveSubscriptionByUserId({ userId });
+    if (!subscription || subscription.status !== 'active') {
+      return NextResponse.json({ error: 'Payment Required: publishing is pro-only' }, { status: 402 });
+    }
+  }
   
   const { id: documentId, visibility, author, style, slug } = body;
   if (!documentId || !slug) {

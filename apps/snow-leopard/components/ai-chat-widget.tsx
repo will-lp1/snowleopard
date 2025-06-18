@@ -124,7 +124,7 @@ export default function AIChatWidget({ context, title, author, date }: AIChatWid
             className="fixed bottom-4 right-4 z-50"
           >
             <Button
-              className="rounded-full px-6 py-3 shadow-lg"
+              className="rounded-full px-6 py-3 shadow-lg" 
               onClick={e => { e.stopPropagation(); setOpen(true); }}
             >
               Ask Leo

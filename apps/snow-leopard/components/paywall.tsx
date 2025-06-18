@@ -23,21 +23,6 @@ interface PaywallProps {
   required?: boolean;
 }
 
-// Define features for plans
-const proFeatures = [
-  "Unlimited documents",
-  "Advanced AI models",
-  "Priority support",
-  "Team collaboration features (coming soon)",
-  "Access to all future updates"
-];
-
-const freeFeatures = [
-  "Up to 5 documents",
-  "Standard AI model",
-  "Basic support"
-];
-
 // Plan display data - separate from the config in lib/auth.ts
 // This array defines how the plans are presented in the UI.
 export const displayPlans = [
@@ -47,10 +32,10 @@ export const displayPlans = [
     price: '$8',
     billing: '/ month',
     features: [
-      'Unlimited Documents',
-      'Advanced AI Features',
-      'Priority Support',
-      'Access all features',
+      'Access to Claude Opus model',
+      'Publish your documents publicly',
+      'Priority support',
+      'Access all future updates',
     ],
     stripePriceId: process.env.STRIPE_PRO_MONTHLY_PRICE_ID || 'monthly_placeholder',
     annual: false,
@@ -61,7 +46,7 @@ export const displayPlans = [
     price: '$49',
     billing: '/ year',
     features: [
-      'All Pro features',
+      'Access to Claude Opus model & publishing',
       'Significant cost savings',
       'Priority support',
     ],
@@ -211,7 +196,13 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
 
             <div className="flex-grow">
               <DialogHeader className="mb-8 text-left">
-                <DialogTitle className="text-2xl sm:text-3xl font-semibold">Join the Pack</DialogTitle>
+                <DialogTitle className="text-2xl sm:text-3xl font-semibold">Upgrade to Pro</DialogTitle>
+                <DialogDescription className="text-sm mb-6">
+                  Subscribe to unlock unlimited Anthropic Claude Opus and {' '}
+                  <Link href="#" className="text-blue-500 underline">
+                    publish your documents
+                  </Link>.
+                </DialogDescription>
               </DialogHeader>
               
               <div className="space-y-4">
@@ -247,7 +238,7 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
 
             <DialogFooter className="mt-8 pt-4 border-t flex items-center">
               <p className="text-xs text-muted-foreground flex-shrink-0">
-                  * A plan is required to continue.
+                  much love, will - founder of snow leopard
               </p>
               <div className="flex-grow"></div>
               <Button

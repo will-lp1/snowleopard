@@ -10,10 +10,14 @@ import {
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { Loader2, GlobeIcon, CopyIcon, Edit2, Check } from 'lucide-react';
+import { Loader2, GlobeIcon, CopyIcon, Edit2, Check, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Document } from '@snow-leopard/db';
 import type { User } from '@/lib/auth';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/utils';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { Paywall } from '@/components/paywall';
 
 type FontOption = 'sans' | 'serif' | 'mono';
 
@@ -24,6 +28,11 @@ interface PublishSettingsMenuProps {
 }
 
 export function PublishSettingsMenu({ document, user, onUpdate }: PublishSettingsMenuProps) {
+  // Subscription gating for publish settings
+  const { data: subscriptionData, isLoading: isSubscriptionLoading } = useSWR<{ hasActiveSubscription: boolean }>('/api/user/subscription-status', fetcher, { revalidateOnFocus: false });
+  const hasSubscription = subscriptionData?.hasActiveSubscription ?? false;
+  const [isPaywallOpen, setPaywallOpen] = useState(false);
+
   const [username, setUsername] = useState<string>(user.username || '');
   const [hasUsername, setHasUsername] = useState<boolean>(!!user.username);
   const [claiming, setClaiming] = useState(false);
@@ -153,6 +162,29 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
     setSlug(formattedSlug);
   };
 
+  // While loading subscription status, don't render anything
+  if (isSubscriptionLoading) return null;
+  // If user is not subscribed, show locked button with upgrade tooltip
+  if (!hasSubscription) {
+    return (
+      <> 
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              onClick={() => setPaywallOpen(true)}
+              className="h-8 w-8 p-0 flex items-center justify-center"
+            >
+              <Lock className="size-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Upgrade to Pro to publish</TooltipContent>
+        </Tooltip>
+        <Paywall isOpen={isPaywallOpen} onOpenChange={setPaywallOpen} required={false} />
+      </>
+    );
+  }
+  // Render publish settings menu for subscribed users
   return (
     <DropdownMenu onOpenChange={(open) => { if (open) { loadUsername(); } }}>
       <DropdownMenuTrigger asChild>

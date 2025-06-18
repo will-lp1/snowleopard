@@ -1,6 +1,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
 import { CheckIcon } from '../icons';
@@ -23,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Paywall } from '@/components/paywall';
 
 export function ModelSelector({
   selectedModelId,
@@ -36,64 +39,99 @@ export function ModelSelector({
   onModelChange: (newModelId: string) => void;
 } & React.ComponentProps<typeof Button>) {
   const [open, setOpen] = useState(false);
+  const [isPaywallOpen, setPaywallOpen] = useState(false);
+
+  const { data: subscriptionData, isLoading: isSubscriptionLoading } = useSWR<{ hasActiveSubscription: boolean }>(
+    '/api/user/subscription-status',
+    fetcher,
+    { revalidateOnFocus: false }
+  );
+  const hasActiveSubscription = subscriptionData?.hasActiveSubscription ?? false;
 
   const selectedChatModel = useMemo(
     () => chatModels.find((chatModel) => chatModel.id === selectedModelId),
     [selectedModelId],
   );
 
-  return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger
-        asChild
-        className={cn(
-          'w-fit data-[state=open]:bg-accent data-[state=open]:text-accent-foreground',
-          className,
-        )}
+  if (isSubscriptionLoading) {
+    return (
+      <Button
+        data-testid="model-selector"
+        variant="outline"
+        className={cn('md:px-2 md:h-[34px]', className)}
+        disabled
       >
-        <Button
-          data-testid="model-selector"
-          variant="outline"
-          className="md:px-2 md:h-[34px]"
-        >
-          {minimal ? selectedModelId.split('-')[0] : selectedChatModel?.name}
-          <ChevronDownIcon />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="min-w-[300px]">
-        {chatModels.map((chatModel) => {
-          const { id } = chatModel;
+        Loading...
+      </Button>
+    );
+  }
 
-          return (
-            <DropdownMenuItem
-              data-testid={`model-selector-item-${id}`}
-              key={id}
-              onSelect={() => {
-                setOpen(false);
-                onModelChange(id);
-              }}
-              data-active={id === selectedModelId}
-              asChild
-            >
-              <button
-                type="button"
-                className="gap-4 group/item flex flex-row justify-between items-center w-full"
+  return (
+    <>
+      <DropdownMenu open={open} onOpenChange={setOpen}>
+        <DropdownMenuTrigger
+          asChild
+          className={cn(
+            'w-fit data-[state=open]:bg-accent data-[state=open]:text-accent-foreground',
+            className,
+          )}
+        >
+          <Button
+            data-testid="model-selector"
+            variant="outline"
+            className="md:px-2 md:h-[34px]"
+          >
+            {minimal ? selectedModelId.split('-')[0] : selectedChatModel?.name}
+            <ChevronDownIcon />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="min-w-[300px]">
+          {chatModels.map((chatModel) => {
+            const { id, proOnly } = chatModel;
+            const isLocked = proOnly === true && !hasActiveSubscription;
+
+            return (
+              <DropdownMenuItem
+                data-testid={`model-selector-item-${id}`}
+                key={id}
+                onSelect={() => {
+                  if (isLocked) {
+                    setPaywallOpen(true);
+                    return;
+                  }
+                  setOpen(false);
+                  onModelChange(id);
+                }}
+                data-active={id === selectedModelId}
+                className="group relative flex w-full gap-4 items-center px-2 py-1.5 cursor-pointer"
               >
-                <div className="flex flex-col gap-1 items-start">
+                <div className="flex flex-col gap-1 items-start flex-1">
                   <div>{chatModel.name}</div>
                   <div className="text-xs text-muted-foreground">
                     {chatModel.description}
                   </div>
                 </div>
-
-                <div className="text-foreground dark:text-foreground opacity-0 group-data-[active=true]/item:opacity-100">
-                  <CheckCircleFillIcon />
-                </div>
-              </button>
-            </DropdownMenuItem>
-          );
-        })}
-      </DropdownMenuContent>
-    </DropdownMenu>
+                {!isLocked && id === selectedModelId && (
+                  <div className="text-foreground dark:text-foreground">
+                    <CheckCircleFillIcon />
+                  </div>
+                )}
+                {isLocked && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={(e) => { e.stopPropagation(); setPaywallOpen(true); }}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    Upgrade
+                  </Button>
+                )}
+              </DropdownMenuItem>
+            );
+          })}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <Paywall isOpen={isPaywallOpen} onOpenChange={setPaywallOpen} required={false} />
+    </>
   );
 }
