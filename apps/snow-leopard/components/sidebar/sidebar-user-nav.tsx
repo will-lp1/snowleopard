@@ -77,13 +77,24 @@ export function SidebarUserNav({ user }: { user: User | null }) {
 
     const fetchSubscription = async () => {
       try {
-        const res = await fetch('/api/user/subscription');
+        const res = await fetch('/api/user/subscription-status');
         const result = await res.json();
         if (!isMounted) return;
         if (!res.ok) {
           throw new Error(result.error || 'Failed to load subscription info.');
         }
-        setSubscription(result.subscription || null);
+        if (result.hasActiveSubscription) {
+          setSubscription({
+            id: '',
+            plan: 'pro',
+            status: 'active',
+            trialEnd: null,
+            periodEnd: null,
+            cancelAtPeriodEnd: false,
+          });
+        } else {
+          setSubscription(null);
+        }
       } catch (err: any) {
         if (!isMounted) return;
         console.error('Error fetching subscription:', err);
