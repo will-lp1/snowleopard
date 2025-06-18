@@ -2,7 +2,7 @@
 
 import { isToday, isYesterday, subMonths, subWeeks } from 'date-fns';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import type { User } from '@/lib/auth';
 import { memo, useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -30,7 +30,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import {
   SidebarGroup,
@@ -113,15 +112,11 @@ const PureDocumentItem = ({
 
   const router = useRouter();
 
-  const handleStartChatWithDocument = (documentId: string) => {
-    router.push(`/documents/${documentId}`);
-  };
-
   return (
     <SidebarMenuItem>
       <div className="flex items-center w-full">
         {isSelectionMode && (
-          <div className="pl-2 pr-1">
+          <div className="flex items-center pl-2 pr-1">
             <Checkbox
               checked={isSelected}
               onCheckedChange={(checked) => onToggleSelect(document.id, !!checked)}
@@ -181,28 +176,21 @@ export const DocumentItem = memo(PureDocumentItem, (prevProps, nextProps) => {
 
 export function SidebarDocuments({ user }: { user: User | undefined }) {
   const { setOpenMobile } = useSidebar();
-  const { id: chatId } = useParams();
   const router = useRouter();
   const { setArtifact } = useArtifact();
   const { 
     createNewDocument, 
-    loadDocument,
     deleteDocument,
     isCreatingDocument
   } = useDocumentUtils();
-  // const { updateDocument } = useDocumentContext();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [isExpanded, setIsExpanded] = useState(true);
-  const [forceUpdate, setForceUpdate] = useState(0);
   
   const {
     data: paginatedDocumentsData,
     isLoading,
-    mutate,
-    size,
-    setSize,
-    isValidating
+    mutate
   } = useSWRInfinite<PaginatedDocuments>(
     (pageIndex, previousPageData) => {
       if (!user) return null;
@@ -620,53 +608,45 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
             </div>
             
             {filteredDocuments.length > 0 && (
-              <div className="flex items-center justify-between px-2 py-1 mb-2">
-                <div className="flex items-center gap-1">
-                  {isSelectionMode ? (
-                    <>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={handleSelectAll}
-                        className="h-7 text-xs px-1"
-                      >
-                        {selectedDocuments.size === filteredDocuments.length ? 'Deselect All' : 'Select All'}
-                      </Button>
-                      <Button 
-                        variant="destructive" 
-                        size="sm" 
-                        onClick={() => {
-                          if (selectedDocuments.size > 0) {
-                            setShowMultiDeleteDialog(true);
-                          }
-                        }}
-                        disabled={selectedDocuments.size === 0}
-                        className="h-7 text-xs px-1"
-                      >
-                        Delete ({selectedDocuments.size})
-                      </Button>
-                    </>
-                  ) : (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={handleToggleSelectionMode}
-                      className="h-7 text-xs px-1"
-                    >
-                      Select
-                    </Button>
-                  )}
-                </div>
-                
-                {isSelectionMode && (
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+              <div className="flex flex-wrap items-center justify-start px-2 py-1 mb-2 gap-2">
+                {!isSelectionMode && (
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={handleToggleSelectionMode}
                     className="h-7 text-xs px-1"
                   >
-                    Cancel
+                    Select
                   </Button>
+                )}
+                {isSelectionMode && (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleSelectAll}
+                      className="h-7 text-xs px-1"
+                    >
+                      {selectedDocuments.size === filteredDocuments.length ? 'Deselect All' : 'Select All'}
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => selectedDocuments.size > 0 && setShowMultiDeleteDialog(true)}
+                      disabled={selectedDocuments.size === 0}
+                      className="h-7 text-xs px-1"
+                    >
+                      Delete ({selectedDocuments.size})
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleToggleSelectionMode}
+                      className="h-7 text-xs px-1"
+                    >
+                      Cancel
+                    </Button>
+                  </>
                 )}
               </div>
             )}
