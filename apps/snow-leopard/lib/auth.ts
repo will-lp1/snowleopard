@@ -1,3 +1,4 @@
+'use client';
 import 'server-only';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
@@ -18,12 +19,11 @@ if (!process.env.BETTER_AUTH_URL) {
     throw new Error('Missing BETTER_AUTH_URL environment variable');
 }
 
-if (process.env.STRIPE_ENABLED === 'true') {
-  if (!process.env.STRIPE_SECRET_KEY) throw new Error('Missing STRIPE_SECRET_KEY but STRIPE_ENABLED is true');
-  if (!process.env.STRIPE_WEBHOOK_SECRET) throw new Error('Missing STRIPE_WEBHOOK_SECRET but STRIPE_ENABLED is true');
-  if (!process.env.STRIPE_PRO_MONTHLY_PRICE_ID) throw new Error('Missing STRIPE_PRO_MONTHLY_PRICE_ID but STRIPE_ENABLED is true'); // Example Price ID env var
-  if (!process.env.STRIPE_PRO_YEARLY_PRICE_ID) throw new Error('Missing STRIPE_PRO_YEARLY_PRICE_ID but STRIPE_ENABLED is true'); // Add check for yearly price ID
-}
+// Unconditional Stripe key checks
+if (!process.env.STRIPE_SECRET_KEY) throw new Error('Missing STRIPE_SECRET_KEY');
+if (!process.env.STRIPE_WEBHOOK_SECRET) throw new Error('Missing STRIPE_WEBHOOK_SECRET');
+if (!process.env.STRIPE_PRO_MONTHLY_PRICE_ID) throw new Error('Missing STRIPE_PRO_MONTHLY_PRICE_ID');
+if (!process.env.STRIPE_PRO_YEARLY_PRICE_ID) throw new Error('Missing STRIPE_PRO_YEARLY_PRICE_ID');
 
 const emailVerificationEnabled = process.env.EMAIL_VERIFY_ENABLED === 'true';
 console.log(`Email Verification Enabled: ${emailVerificationEnabled}`);
@@ -66,24 +66,19 @@ console.log('BETTER_AUTH_SECRET:', process.env.BETTER_AUTH_SECRET ? 'Set' : 'MIS
 console.log('BETTER_AUTH_URL:', process.env.BETTER_AUTH_URL ? 'Set' : 'MISSING!');
 console.log('-----------------------------------------\n'); // Added newline for clarity
 
-
-const stripeClient = process.env.STRIPE_ENABLED === 'true' && process.env.STRIPE_SECRET_KEY
-  ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2025-02-24.acacia" })
-  : null;
-
+const stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2025-02-24.acacia" });
 
 const resend = emailVerificationEnabled && process.env.RESEND_API_KEY 
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
 
-const plans = process.env.STRIPE_ENABLED === 'true' ? [
+const plans = [
   {
-    name: "snowleopard", 
-    priceId: process.env.STRIPE_PRO_MONTHLY_PRICE_ID!,        
-    annualDiscountPriceId: process.env.STRIPE_PRO_YEARLY_PRICE_ID!, 
-    // freeTrial is now handled via a separate onboarding flow
+    name: "snowleopard",
+    priceId: process.env.STRIPE_PRO_MONTHLY_PRICE_ID!,
+    annualDiscountPriceId: process.env.STRIPE_PRO_YEARLY_PRICE_ID!,
   },
-] : [];
+];
 
 type HookUser = {
   id: string;
@@ -92,33 +87,18 @@ type HookUser = {
 
 const authPlugins: any[] = [];
 
-if (process.env.STRIPE_ENABLED === 'true') {
-  console.log('Stripe is ENABLED. Adding Stripe plugin to Better Auth.');
-  if (!stripeClient) {
-    throw new Error('STRIPE_ENABLED is true, but STRIPE_SECRET_KEY is missing or Stripe client failed to initialize.');
-  }
-  if (!process.env.STRIPE_WEBHOOK_SECRET) {
-    throw new Error('STRIPE_ENABLED is true, but STRIPE_WEBHOOK_SECRET is missing.');
-  }
-  if (plans.length === 0 || !process.env.STRIPE_PRO_MONTHLY_PRICE_ID || !process.env.STRIPE_PRO_YEARLY_PRICE_ID) {
-     throw new Error('STRIPE_ENABLED is true, but required Stripe Price IDs (Monthly/Yearly) are missing or plans array is misconfigured.');
-  }
-
-  authPlugins.push(
-    stripe({
-      stripeClient,
-      stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET!,
-      createCustomerOnSignUp: true,
-      subscription: {
-        enabled: true,
-        plans: plans,
-        requireEmailVerification: true,
-      },
-    })
-  );
-} else {
-  console.log('Stripe is DISABLED. Skipping Stripe plugin for Better Auth.');
-}
+authPlugins.push(
+  stripe({
+    stripeClient,
+    stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET!,
+    createCustomerOnSignUp: true,
+    subscription: {
+      enabled: process.env.STRIPE_ENABLED === 'true',
+      plans,
+      requireEmailVerification: emailVerificationEnabled,
+    },
+  })
+);
 
 authPlugins.push(nextCookies());
 
