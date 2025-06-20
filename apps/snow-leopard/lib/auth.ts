@@ -1,4 +1,4 @@
-'use client';
+
 import 'server-only';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
