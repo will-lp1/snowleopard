@@ -288,7 +288,7 @@ export async function POST(request: Request) {
           model: myProvider.languageModel(selectedChatModel),
           system: dynamicSystemPrompt,
           messages,
-          maxSteps: 5,
+          maxSteps: 1,
           toolCallStreaming: true,
           experimental_activeTools: activeToolsList,
           experimental_generateMessageId: generateUUID,
