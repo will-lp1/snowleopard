@@ -10,13 +10,12 @@ import {
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { Loader2, GlobeIcon, CopyIcon, Edit2, Check, Lock } from 'lucide-react';
+import { Loader2, GlobeIcon, CopyIcon, Edit2, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Document } from '@snow-leopard/db';
 import type { User } from '@/lib/auth';
 import useSWR from 'swr';
 import { fetcher } from '@/lib/utils';
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Paywall } from '@/components/paywall';
 
 type FontOption = 'sans' | 'serif' | 'mono';
@@ -162,28 +161,10 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
     setSlug(formattedSlug);
   };
 
+  const disabled = !hasSubscription;
+
   // While loading subscription status, don't render anything
   if (isSubscriptionLoading) return null;
-  // If user is not subscribed, show locked button with upgrade tooltip
-  if (!hasSubscription) {
-    return (
-      <> 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="outline"
-              onClick={() => setPaywallOpen(true)}
-              className="h-8 w-8 p-0 flex items-center justify-center"
-            >
-              <Lock className="size-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Upgrade to Pro to publish</TooltipContent>
-        </Tooltip>
-        <Paywall isOpen={isPaywallOpen} onOpenChange={setPaywallOpen} required={false} />
-      </>
-    );
-  }
   // Render publish settings menu for subscribed users
   return (
     <DropdownMenu onOpenChange={(open) => { if (open) { loadUsername(); } }}>
@@ -199,9 +180,22 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        className="w-64 p-3 shadow-lg rounded-lg border bg-popover space-y-4"
+        className="group w-64 p-3 shadow-lg rounded-lg border bg-popover space-y-4 relative"
         align="end"
       >
+        {/* Hover overlay for unsubscribed users */}
+        {disabled && (
+          <div className="absolute inset-0 z-10 bg-background/70 backdrop-blur-sm rounded-lg flex items-center justify-center opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity">
+            <Button
+              size="sm"
+              variant="outline"
+              className="pointer-events-auto"
+              onClick={() => setPaywallOpen(true)}
+            >
+              Upgrade
+            </Button>
+          </div>
+        )}
         <div>
           <Label className="text-sm font-medium">Publish Settings</Label>
         </div>
@@ -222,7 +216,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                       setHasUsername(false);
                     }
                   }}
-                  disabled={claiming || hasUsername || processing}
+                  disabled={claiming || hasUsername || processing || disabled}
                   className={cn(
                     "flex-1 h-8",
                     hasUsername
@@ -256,6 +250,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                       setHasUsername(false);
                       setUsernameCheck({ checking: false, available: null });
                     }}
+                    disabled={disabled}
                   >
                     <Edit2 className="size-4" />
                   </Button>
@@ -272,7 +267,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                 value={slug}
                 onChange={handleSlugChange}
                 className="h-8"
-                disabled={processing}
+                disabled={processing || disabled}
                 placeholder="Page slug"
               />
             </div>
@@ -290,7 +285,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                       font === opt ? 'font-semibold' : 'text-muted-foreground'
                     )}
                     onClick={() => setFont(opt)}
-                    disabled={processing}
+                    disabled={processing || disabled}
                   >
                     {opt}
                   </Button>
@@ -301,8 +296,14 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
             <div className="flex justify-end p-2 border-t bg-background/50 -mx-3 -mb-3 mt-4">
               <Button
                 size="sm"
-                onClick={handleToggle}
-                disabled={processing || !hasUsername}
+                onClick={() => {
+                  if (disabled) {
+                    setPaywallOpen(true);
+                    return;
+                  }
+                  handleToggle();
+                }}
+                disabled={processing || !hasUsername || disabled}
               >
                 {processing ? (
                   <Loader2 className="size-4 animate-spin" />
@@ -325,6 +326,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                   navigator.clipboard.writeText(url);
                   toast.success('Link copied');
                 }}
+                disabled={disabled}
               >
                 <CopyIcon className="size-4" /> Copy Link
               </Button>
@@ -334,12 +336,13 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
               size="sm"
               className="w-full justify-start gap-2"
               onClick={() => window.open(url, '_blank')}
+              disabled={disabled}
             >
               <GlobeIcon className="size-4" /> View
             </Button>
             <Button
               onClick={handleToggle}
-              disabled={processing}
+              disabled={processing || disabled}
               variant="outline"
               className="w-full"
             >
@@ -348,6 +351,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
           </>
         )}
       </DropdownMenuContent>
+      <Paywall isOpen={isPaywallOpen} onOpenChange={setPaywallOpen} required={false} />
     </DropdownMenu>
   );
 } 

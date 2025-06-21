@@ -888,3 +888,10 @@ export async function setUsername({ userId, username }: { userId: string; userna
     .set({ username })
     .where(eq(schema.user.id, userId));
 }
+
+export async function clearUsername({ userId }: { userId: string }): Promise<void> {
+  await db
+    .update(schema.user)
+    .set({ username: null })
+    .where(eq(schema.user.id, userId));
+}
