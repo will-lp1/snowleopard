@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 export default function MobileWarning() {
   const pathname = usePathname();
 
-  const shouldShow = ['/', '/documents'].some(
+  const shouldShow = ['/documents'].some(
     (p) => pathname === p || pathname.startsWith(`${p}/`)
   );
   if (!shouldShow) {
