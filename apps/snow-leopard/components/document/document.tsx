@@ -1,12 +1,18 @@
 import { memo, useState, useCallback, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 
 import type { ArtifactKind } from '@/components/artifact';
 import { FileIcon, LoaderIcon, MessageIcon, PencilEditIcon, CheckIcon, CheckCircleFillIcon } from '@/components/icons';
 import { toast } from 'sonner';
 import { useArtifact } from '@/hooks/use-artifact';
-import { DiffView } from './diffview';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+
+// Lazy-load diff viewer to keep initial bundle small.
+const DiffView = dynamic(() => import('./diffview').then(m => m.DiffView), {
+  ssr: false,
+  loading: () => <div className="p-3 text-xs text-muted-foreground">Loading diff…</div>,
+});
 
 const getActionText = (
   type: 'create' | 'stream' | 'update' | 'request-suggestions',
