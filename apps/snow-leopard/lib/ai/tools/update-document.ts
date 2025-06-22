@@ -56,7 +56,6 @@ export const updateDocument = ({ session, documentId: defaultDocumentId }: Updat
         
         const prompt = `Given the following document content (Original):\n\n${originalContent}\n\nUpdate it based on this description: \"${description}\". Output ONLY the complete, fully updated document content.`;
 
-        // Use generateText from 'ai' library
         const { text: newContent } = await generateText({
            model: myProvider.languageModel('artifact-model'), 
            prompt: prompt,

@@ -39,6 +39,7 @@ import { synonymsPlugin } from "@/lib/editor/synonym-plugin";
 import { EditorToolbar } from "@/components/editor-toolbar";
 import { creationStreamingPlugin } from "@/lib/editor/creation-streaming-plugin";
 import { selectionContextPlugin } from "@/lib/editor/selection-context-plugin";
+import { diffEditor } from "@/lib/editor/diff";
 
 const { nodes, marks } = documentSchema;
 
@@ -103,6 +104,10 @@ function PureEditor({
   const savePromiseRef = useRef<Promise<Partial<SaveState> | void> | null>(
     null
   );
+
+  // State refs for update preview handling
+  const previewOriginalContentRef = useRef<string | null>(null);
+  const previewActiveRef = useRef<boolean>(false);
 
   const { suggestionLength, customInstructions } = useAiOptionsValue();
   const suggestionLengthRef = useRef(suggestionLength);
@@ -597,53 +602,77 @@ function PureEditor({
   }, [documentId]);
 
   useEffect(() => {
-    const handleApplyUpdate = (event: CustomEvent) => {
+    const handlePreviewUpdate = (event: CustomEvent) => {
       if (!editorRef.current || !event.detail) return;
+      const { documentId: previewDocId, newContent } = event.detail;
+      if (previewDocId !== documentId) return;
+
       const editorView = editorRef.current;
-      const { state, dispatch } = editorView;
 
-      const { documentId: updateDocId, newContent } = event.detail;
-
-      if (updateDocId !== documentId) {
-        console.warn(
-          `[Editor apply-document-update] Event ignored: Document ID mismatch. Expected ${documentId}, got ${updateDocId}.`
-        );
-        return;
+      if (!previewActiveRef.current) {
+        // store original content only once
+        previewOriginalContentRef.current = buildContentFromDocument(editorView.state.doc);
       }
 
-      console.log(
-        `[Editor apply-document-update] Event received for doc: ${documentId}. Replacing entire content.`
-      );
+      const oldContent = previewOriginalContentRef.current ?? buildContentFromDocument(editorView.state.doc);
+      const oldDocNode = buildDocumentFromContent(oldContent);
+      const newDocNode = buildDocumentFromContent(newContent);
 
-      try {
-        const newDocumentNode = buildDocumentFromContent(newContent);
-        const transaction = state.tr.replaceWith(
-          0,
-          state.doc.content.size,
-          newDocumentNode.content
-        );
+      const diffedDoc = diffEditor(documentSchema, oldDocNode.toJSON(), newDocNode.toJSON());
 
-        dispatch(transaction);
+      const tr = editorView.state.tr.replaceWith(0, editorView.state.doc.content.size, diffedDoc.content);
+      editorView.dispatch(tr);
 
-        toast.success("Document updated");
-      } catch (error) {
-        console.error(
-          "[Editor apply-document-update] Error processing update:",
-          error
-        );
-        toast.error("Failed to apply document update.");
-      }
+      previewActiveRef.current = true;
     };
 
-    window.addEventListener(
-      "apply-document-update",
-      handleApplyUpdate as EventListener
-    );
-    return () =>
-      window.removeEventListener(
-        "apply-document-update",
-        handleApplyUpdate as EventListener
+    const handleCancelPreview = (event: CustomEvent) => {
+      if (!editorRef.current || !event.detail) return;
+      const { documentId: cancelDocId } = event.detail;
+      if (cancelDocId !== documentId) return;
+      if (!previewActiveRef.current || previewOriginalContentRef.current === null) return;
+
+      const editorView = editorRef.current;
+      const originalDocNode = buildDocumentFromContent(previewOriginalContentRef.current);
+      const tr = editorView.state.tr.replaceWith(0, editorView.state.doc.content.size, originalDocNode.content);
+      editorView.dispatch(tr);
+
+      previewActiveRef.current = false;
+      previewOriginalContentRef.current = null;
+    };
+
+    window.addEventListener('preview-document-update', handlePreviewUpdate as EventListener);
+    window.addEventListener('cancel-document-update', handleCancelPreview as EventListener);
+
+    return () => {
+      window.removeEventListener('preview-document-update', handlePreviewUpdate as EventListener);
+      window.removeEventListener('cancel-document-update', handleCancelPreview as EventListener);
+    };
+  }, [documentId]);
+
+  // When final apply-document-update happens, apply clean new content, clear preview, and flash highlight
+  useEffect(() => {
+    const handleApply = (event: CustomEvent) => {
+      if (!editorRef.current || !event.detail) return;
+      const { documentId: applyDocId, newContent } = event.detail;
+      if (applyDocId !== documentId) return;
+
+      // Replace editor content with the clean new content (no diff marks)
+      const editorView = editorRef.current;
+      const newDocNode = buildDocumentFromContent(newContent);
+      const tr = editorView.state.tr.replaceWith(
+        0,
+        editorView.state.doc.content.size,
+        newDocNode.content
       );
+      editorView.dispatch(tr);
+
+      // Reset preview state
+      previewActiveRef.current = false;
+      previewOriginalContentRef.current = null;
+    };
+    window.addEventListener('apply-document-update', handleApply as EventListener);
+    return () => window.removeEventListener('apply-document-update', handleApply as EventListener);
   }, [documentId]);
 
   useEffect(() => {

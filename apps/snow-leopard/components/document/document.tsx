@@ -1,4 +1,4 @@
-import { memo, useState, useCallback } from 'react';
+import { memo, useState, useCallback, useEffect } from 'react';
 
 import type { ArtifactKind } from '@/components/artifact';
 import { FileIcon, LoaderIcon, MessageIcon, PencilEditIcon, CheckIcon, CheckCircleFillIcon } from '@/components/icons';
@@ -48,8 +48,14 @@ function PureDocumentToolResult({
   result,
   isReadonly,
 }: DocumentToolResultProps) {
-  const { setArtifact } = useArtifact();
-  const [isApplied, setIsApplied] = useState(false);
+  const { artifact, setArtifact } = useArtifact();
+  const [isSaving, setIsSaving] = useState(false);
+  const [isApplied, setIsApplied] = useState(() => {
+    if (type === 'update' && result.id && artifact.documentId === result.id) {
+      return artifact.content === result.newContent;
+    }
+    return false;
+  });
 
   const isUpdateProposal = 
     type === 'update' && 
@@ -57,20 +63,63 @@ function PureDocumentToolResult({
     result.newContent !== undefined &&
     result.originalContent !== result.newContent;
 
-  const handleApplyUpdate = useCallback(() => {
-    if (type !== 'update' || !result.newContent || !result.id) return;
-    
-    console.log(`[DocumentToolResult] Dispatching apply-document-update for ${result.id}`);
-    const event = new CustomEvent('apply-document-update', {
+  useEffect(() => {
+    if (isUpdateProposal && result.id && result.newContent) {
+      const event = new CustomEvent('preview-document-update', {
+        detail: {
+          documentId: result.id,
+          newContent: result.newContent,
+          originalContent: result.originalContent,
+        },
+      });
+      window.dispatchEvent(event);
+    }
+  }, [isUpdateProposal, result.id, result.newContent, result.originalContent]);
+
+  const handleApplyUpdate = useCallback(async () => {
+    if (type !== 'update' || !result.newContent || !result.id || isSaving) return;
+    setIsSaving(true);
+    try {
+      // Persist to backend
+      const response = await fetch('/api/document', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: result.id, content: result.newContent }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || response.statusText);
+      }
+      // Update local artifact state
+      setArtifact(current => ({
+        ...current,
+        content: result.newContent!,
+      }));
+      // Notify editor to apply clean content
+      window.dispatchEvent(new CustomEvent('apply-document-update', {
+        detail: { documentId: result.id, newContent: result.newContent },
+      }));
+      setIsApplied(true);
+      toast.success('Changes saved and applied.');
+    } catch (err: any) {
+      console.error('[DocumentToolResult] Save update error:', err);
+      toast.error(`Failed to save update: ${err.message}`);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [result.id, result.newContent, type, isSaving, setArtifact]);
+
+  const handleRejectUpdate = useCallback(() => {
+    if (type !== 'update' || !result.id || !result.originalContent) return;
+
+    const event = new CustomEvent('cancel-document-update', {
       detail: {
         documentId: result.id,
-        newContent: result.newContent,
-      }
+      },
     });
     window.dispatchEvent(event);
-    setIsApplied(true);
-    toast.success('Changes applied to the editor.');
-  }, [result.id, result.newContent, type]);
+    toast.info('Update proposal rejected.');
+  }, [result.id, result.originalContent, type]);
 
   if (result.error) {
      return (
@@ -103,29 +152,40 @@ function PureDocumentToolResult({
           </div>
         </div>
 
-        <div className="p-3 w-full max-h-60 overflow-y-auto text-xs">
-          <DiffView 
-            oldContent={result.originalContent ?? ''} 
-            newContent={result.newContent ?? ''} 
-          />
-        </div>
-
-        <div className="p-2 border-t w-full flex justify-end bg-muted/30">
-          <Button
-            size="sm"
-            onClick={handleApplyUpdate}
-            disabled={isApplied}
-            className={cn(
-              "text-xs flex items-center",
-              isApplied && "bg-green-600 hover:bg-green-700 text-white"
-            )}
-          >
-            <span className="mr-1.5">
-              <CheckIcon size={14} />
-            </span>
-            {isApplied ? 'Applied' : 'Apply Changes'}
-          </Button>
-        </div>
+        {!isApplied ? (
+          <>
+            <div className="p-3 w-full max-h-60 overflow-y-auto text-xs">
+              <DiffView
+                oldContent={result.originalContent ?? ''}
+                newContent={result.newContent ?? ''}
+              />
+            </div>
+            <div className="p-2 border-t w-full flex justify-end bg-muted/30 gap-2">
+              <Button
+                size="sm"
+                onClick={handleApplyUpdate}
+                disabled={isSaving || isApplied}
+                className="text-xs flex items-center gap-1.5"
+              >
+                <CheckIcon size={14} />
+                {isSaving ? 'Saving…' : 'Accept'}
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={handleRejectUpdate}
+                className="text-xs"
+              >
+                Reject
+              </Button>
+            </div>
+          </>
+        ) : (
+          <div className="flex items-center gap-2 p-3 w-full bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300">
+            <CheckCircleFillIcon size={16} />
+            <span className="text-sm">Update applied to document.</span>
+          </div>
+        )}
       </div>
     );
   }
