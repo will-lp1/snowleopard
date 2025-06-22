@@ -20,6 +20,8 @@ export const streamingDocument = ({ session, dataStream }: CreateDocumentProps) 
       kind: z.enum(artifactKinds).describe('The kind of content to generate (e.g., text).')
     }),
     execute: async ({ title, kind }) => {
+      // Delay to allow page navigation and editor initialization (align with createDocument)
+      await new Promise((resolve) => setTimeout(resolve, 3000));
       const documentHandler = documentHandlersByArtifactKind.find(
         (documentHandlerByArtifactKind) =>
           documentHandlerByArtifactKind.kind === kind,
