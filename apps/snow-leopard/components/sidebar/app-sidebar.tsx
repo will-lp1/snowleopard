@@ -11,7 +11,6 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import Link from 'next/link';
-import { useWindowSize } from 'usehooks-ts';
 import { SidebarDocuments } from '@/components/sidebar/sidebar-documents';
 import { FeedbackWidget } from '@/components/sidebar/feedback-widget';
 import { cn } from '@/lib/utils';
@@ -26,8 +25,6 @@ const crimson = Crimson_Text({
 
 export function AppSidebar({ user }: { user: User | undefined }) {
   const { setOpenMobile } = useSidebar();
-  const { width } = useWindowSize();
-  const isMobile = width < 768;
 
   return (
     <Sidebar className="border-none shadow-none">
@@ -40,7 +37,8 @@ export function AppSidebar({ user }: { user: User | undefined }) {
               className="flex items-center gap-2"
             >
               <span className={`text-2xl ${crimson.className} hover:bg-muted rounded-md px-2 py-1 transition-colors`}>
-                {isMobile ? "SL" : "Snow Leopard"}
+                <span className="hidden md:inline">Snow Leopard</span>
+                <span className="inline md:hidden">SL</span>
               </span>
             </Link>
           </div>
