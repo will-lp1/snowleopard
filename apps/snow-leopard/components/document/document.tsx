@@ -2,7 +2,7 @@ import { memo, useState, useCallback, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 
 import type { ArtifactKind } from '@/components/artifact';
-import { FileIcon, LoaderIcon, MessageIcon, PencilEditIcon, CheckIcon, CheckCircleFillIcon, CrossIcon } from '@/components/icons';
+import { FileIcon, LoaderIcon, MessageIcon, PencilEditIcon, CheckIcon, CheckCircleFillIcon } from '@/components/icons';
 import { toast } from 'sonner';
 import { useArtifact } from '@/hooks/use-artifact';
 import { Button } from '@/components/ui/button';
@@ -47,14 +47,12 @@ interface DocumentToolResultProps {
     content?: string;
   };
   isReadonly: boolean;
-  chatId?: string;
 }
 
 function PureDocumentToolResult({
   type,
   result,
   isReadonly,
-  chatId,
 }: DocumentToolResultProps) {
   const { artifact, setArtifact } = useArtifact();
   const [isSaving, setIsSaving] = useState(false);
@@ -64,7 +62,6 @@ function PureDocumentToolResult({
     }
     return false;
   });
-  const [isRejected, setIsRejected] = useState(false);
 
   const isUpdateProposal = 
     type === 'update' && 
@@ -89,11 +86,11 @@ function PureDocumentToolResult({
     if (type !== 'update' || !result.newContent || !result.id || isSaving) return;
     setIsSaving(true);
     try {
-      // Persist to backend with chat link
+      // Persist to backend
       const response = await fetch('/api/document', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: result.id, content: result.newContent, chatId }),
+        body: JSON.stringify({ id: result.id, content: result.newContent }),
       });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -116,7 +113,7 @@ function PureDocumentToolResult({
     } finally {
       setIsSaving(false);
     }
-  }, [result.id, result.newContent, type, isSaving, setArtifact, chatId]);
+  }, [result.id, result.newContent, type, isSaving, setArtifact]);
 
   const handleRejectUpdate = useCallback(() => {
     if (type !== 'update' || !result.id || !result.originalContent) return;
@@ -128,7 +125,6 @@ function PureDocumentToolResult({
     });
     window.dispatchEvent(event);
     toast.info('Update proposal rejected.');
-    setIsRejected(true);
   }, [result.id, result.originalContent, type]);
 
   if (result.error) {
@@ -162,7 +158,7 @@ function PureDocumentToolResult({
           </div>
         </div>
 
-        {(!isApplied && !isRejected) ? (
+        {!isApplied ? (
           <>
         <div className="p-3 w-full max-h-60 overflow-y-auto text-xs">
           <DiffView 
@@ -174,31 +170,18 @@ function PureDocumentToolResult({
           <Button
             size="sm"
             onClick={handleApplyUpdate}
-                disabled={isSaving || isApplied || isRejected}
-                className="text-xs flex items-center gap-1.5"
-              >
-              <CheckIcon size={14} />
-                {isSaving ? 'Saving…' : 'Accept'}
-              </Button>
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={handleRejectUpdate}
-                className="text-xs"
-              >
-                Reject
+            disabled={isSaving || isApplied}
+            className="text-xs flex items-center gap-1.5"
+          >
+            <CheckIcon size={14} />
+            {isSaving ? 'Saving…' : 'Accept'}
           </Button>
         </div>
           </>
-        ) : isApplied ? (
+        ) : (
           <div className="flex items-center gap-2 p-3 w-full bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300">
             <CheckCircleFillIcon size={16} />
             <span className="text-sm">Update applied to document.</span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 p-3 w-full bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300">
-            <CrossIcon size={16} />
-            <span className="text-sm">Update rejected.</span>
           </div>
         )}
       </div>

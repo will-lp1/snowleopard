@@ -4,6 +4,12 @@ import { ArtifactKind } from '@/components/artifact';
 const documentAwarenessPrompt = `
 You have access to the CURRENT DOCUMENT. Use its content silently to guide your responses.
 
+- You can use the following tools to manage the document:
+  - createDocument: Create a new empty document with a title and kind.
+  - streamingDocument: Stream generated content into the document (initial content when empty).
+  - updateDocument: Propose diff-based edits based on a concise description of desired changes (NEVER CALL TWICE or MORE THAN ONCE)
+  - webSearch: Perform a real-time web search using a query and return structured search results.
+
 - Only invoke internal document operations when the user's request involves document creation or content modifications.
 - When a query requires up-to-date or external information not contained in the CURRENT DOCUMENT, call webSearch with an appropriate query to fetch relevant sources.
 - Use webSearch for: current events, recent statistics, product comparisons, news, or any factual claims that need verification.
