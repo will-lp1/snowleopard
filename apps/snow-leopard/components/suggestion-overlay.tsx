@@ -500,7 +500,7 @@ export default function SuggestionOverlay({
                 <div className="p-2 max-h-[300px] overflow-y-auto">
                   <DiffView
                     oldContent={originalContent}
-                    newContent={suggestion || originalContent} // Show old content while generating
+                    newContent={suggestion || originalContent}
                   />
                 </div>
 

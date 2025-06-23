@@ -1,6 +1,6 @@
 'use client';
 
-import { defaultMarkdownSerializer } from 'prosemirror-markdown';
+import { defaultMarkdownSerializer, MarkdownSerializer } from 'prosemirror-markdown';
 import { DOMParser, type Node } from 'prosemirror-model';
 import { Decoration, DecorationSet, type EditorView } from 'prosemirror-view';
 import { renderToString } from 'react-dom/server';
@@ -17,11 +17,15 @@ export const buildDocumentFromContent = (content: string) => {
   return parser.parse(tempContainer);
 };
 
-export const buildContentFromDocument = (doc: Node) => {
-  return defaultMarkdownSerializer.serialize(doc);
+const markdownSerializer = new MarkdownSerializer(
+  { ...defaultMarkdownSerializer.nodes },
+  {
+    ...defaultMarkdownSerializer.marks,
+    diffMark: { open: '', close: '' }, // strip diff mark when exporting to markdown
+  },
+);
 
-  
-};
+export const buildContentFromDocument = (doc: Node) => markdownSerializer.serialize(doc);
 
 // Find the position of text in a document
 export function findTextPosition(doc: Node, searchText: string, startPos: number = 0): number {
