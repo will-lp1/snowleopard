@@ -156,24 +156,28 @@ const PurePreviewMessage = ({
                             type="create"
                             result={result}
                             isReadonly={isReadonly}
+                            chatId={chatId}
                           />
                         ) : toolName === 'streamingDocument' ? (
                           <DocumentToolResult
                             type="stream"
                             result={result}
                             isReadonly={isReadonly}
+                            chatId={chatId}
                           />
                         ) : toolName === 'updateDocument' ? (
                           <DocumentToolResult
                             type="update"
                             result={result}
                             isReadonly={isReadonly}
+                            chatId={chatId}
                           />
                         ) : toolName === 'requestSuggestions' ? (
                           <DocumentToolResult
                             type="request-suggestions"
                             result={result}
                             isReadonly={isReadonly}
+                            chatId={chatId}
                           />
                         ) : (
                           <pre>{JSON.stringify(result, null, 2)}</pre>
