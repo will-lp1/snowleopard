@@ -160,20 +160,20 @@ function PureDocumentToolResult({
 
         {!isApplied ? (
           <>
-            <div className="p-3 w-full max-h-60 overflow-y-auto text-xs">
-              <DiffView
-                oldContent={result.originalContent ?? ''}
-                newContent={result.newContent ?? ''}
-              />
-            </div>
+        <div className="p-3 w-full max-h-60 overflow-y-auto text-xs">
+          <DiffView 
+            oldContent={result.originalContent ?? ''} 
+            newContent={result.newContent ?? ''} 
+          />
+        </div>
             <div className="p-2 border-t w-full flex justify-end bg-muted/30 gap-2">
-              <Button
-                size="sm"
-                onClick={handleApplyUpdate}
+          <Button
+            size="sm"
+            onClick={handleApplyUpdate}
                 disabled={isSaving || isApplied}
                 className="text-xs flex items-center gap-1.5"
               >
-                <CheckIcon size={14} />
+              <CheckIcon size={14} />
                 {isSaving ? 'Saving…' : 'Accept'}
               </Button>
               <Button
@@ -183,8 +183,8 @@ function PureDocumentToolResult({
                 className="text-xs"
               >
                 Reject
-              </Button>
-            </div>
+          </Button>
+        </div>
           </>
         ) : (
           <div className="flex items-center gap-2 p-3 w-full bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300">
