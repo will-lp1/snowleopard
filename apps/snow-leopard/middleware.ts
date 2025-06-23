@@ -16,8 +16,10 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Prevent logged-in users from accessing auth pages
-  if (sessionCookie && (pathname === '/login' || pathname === '/register')) {
+  if (
+    sessionCookie &&
+    (pathname === '/' || pathname === '/login' || pathname === '/register')
+  ) {
     const homeUrl = request.nextUrl.clone();
     homeUrl.pathname = '/documents';
     return NextResponse.redirect(homeUrl);
@@ -27,5 +29,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/documents/:path*', '/login', '/register'],
+  matcher: ['/', '/documents/:path*', '/login', '/register'],
 };
