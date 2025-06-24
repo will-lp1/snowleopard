@@ -82,37 +82,38 @@ function PureDocumentToolResult({
     }
   }, [isUpdateProposal, result.id, result.newContent, result.originalContent]);
 
-  const handleApplyUpdate = useCallback(async () => {
+  const handleApplyUpdate = useCallback(() => {
     if (type !== 'update' || !result.newContent || !result.id || isSaving) return;
     setIsSaving(true);
-    try {
-      // Persist to backend
-      const response = await fetch('/api/document', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: result.id, content: result.newContent }),
+    // Optimistically apply locally
+    setArtifact(current => ({
+      ...current,
+      content: result.newContent!,
+    }));
+    window.dispatchEvent(new CustomEvent('apply-document-update', {
+      detail: { documentId: result.id, newContent: result.newContent },
+    }));
+    setIsApplied(true);
+    // Persist to backend in background
+    fetch('/api/document', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: result.id, content: result.newContent }),
+    })
+      .then(async response => {
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || response.statusText);
+        }
+        toast.success('Changes saved.');
+      })
+      .catch(err => {
+        console.error('[DocumentToolResult] Save update error:', err);
+        toast.error(`Failed to save update: ${err.message}`);
+      })
+      .finally(() => {
+        setIsSaving(false);
       });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || response.statusText);
-      }
-      // Update local artifact state
-      setArtifact(current => ({
-        ...current,
-        content: result.newContent!,
-      }));
-      // Notify editor to apply clean content
-      window.dispatchEvent(new CustomEvent('apply-document-update', {
-        detail: { documentId: result.id, newContent: result.newContent },
-      }));
-      setIsApplied(true);
-      toast.success('Changes saved and applied.');
-    } catch (err: any) {
-      console.error('[DocumentToolResult] Save update error:', err);
-      toast.error(`Failed to save update: ${err.message}`);
-    } finally {
-      setIsSaving(false);
-    }
   }, [result.id, result.newContent, type, isSaving, setArtifact]);
 
   const handleRejectUpdate = useCallback(() => {
