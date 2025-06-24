@@ -13,30 +13,34 @@ import React, { useEffect, useRef } from 'react';
 import { renderToString } from 'react-dom/server';
 import { Markdown } from '@/components/markdown';
 
-import { diffEditor, DiffType } from '@/lib/editor/diff';
+import { diffEditor } from '@/lib/editor/diff';
 
 const diffSchema = new Schema({
   nodes: addListNodes(schema.spec.nodes, 'paragraph block*', 'block'),
   marks: OrderedMap.from({
     ...schema.spec.marks.toObject(),
-    diffMark: {
-      attrs: { type: { default: '' } },
-      toDOM(mark) {
-        let className = '';
-
-        switch (mark.attrs.type) {
-          case DiffType.Inserted:
-            className =
-              'bg-green-100 text-green-700 dark:bg-green-500/70 dark:text-green-300';
-            break;
-          case DiffType.Deleted:
-            className =
-              'bg-red-100 line-through text-red-600 dark:bg-red-500/70 dark:text-red-300';
-            break;
-          default:
-            className = '';
-        }
-        return ['span', { class: className }, 0];
+    insertion: {
+      toDOM() {
+        return [
+          'ins',
+          {
+            class:
+              'bg-green-100 text-green-700 dark:bg-green-500/70 dark:text-green-300',
+          },
+          0,
+        ];
+      },
+    } as MarkSpec,
+    deletion: {
+      toDOM() {
+        return [
+          'del',
+          {
+            class:
+              'bg-red-100 text-red-600 dark:bg-red-500/70 dark:text-red-300',
+          },
+          0,
+        ];
       },
     } as MarkSpec,
   }),

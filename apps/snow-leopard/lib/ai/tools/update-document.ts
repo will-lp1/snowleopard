@@ -48,7 +48,7 @@ export const updateDocument = ({ session: _session, documentId: defaultDocumentI
         const originalContent = document.content || '';
 
         // Generate full replacement content
-        const prompt = `You are an expert editor. Here is the ORIGINAL document:\n\n${originalContent}\n\n---\n\nTASK: Apply the following edits succinctly, returning ONLY the fully updated document.\nDESCRIPTION: "${description}"`;
+        const prompt = `You are an expert editor. Here is the ORIGINAL document in :\n\n${originalContent}\n\n---\n\nTASK: Apply the following edits succinctly, returning ONLY the fully updated document in Markdown format.\nDESCRIPTION: "${description}"`;
 
         const { text: newContent } = await generateText({
           model: myProvider.languageModel('artifact-model'),

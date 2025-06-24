@@ -21,7 +21,7 @@ import { SidebarTrigger } from '@/components/ui/sidebar';
 import type { SaveState } from '@/lib/editor/save-plugin';
 import type { User } from '@/lib/auth';
 
-const Editor = dynamic(() => import('@/components/document/text-editor').then(mod => mod.Editor), {
+const Editor = dynamic(() => import('@/components/document/text-editor'), {
   ssr: false, 
   loading: () => <EditorSkeleton />, 
 });

@@ -6,7 +6,6 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const sessionCookie = getSessionCookie(request);
 
-  // Redirect unauthenticated users away from protected routes
   if (pathname.startsWith('/documents')) {
     if (!sessionCookie) {
       const loginUrl = request.nextUrl.clone();

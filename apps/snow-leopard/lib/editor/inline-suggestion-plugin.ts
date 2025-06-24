@@ -20,7 +20,7 @@ export const SET_SUGGESTION = 'setSuggestion';
 export const CLEAR_SUGGESTION = 'clearSuggestion';
 export const FINISH_SUGGESTION_LOADING = 'finishSuggestionLoading';
 
-export function inlineSuggestionPlugin(options: { requestSuggestion: (state: EditorState) => void }): Plugin<InlineSuggestionState> {
+export function inlineSuggestionPlugin(options: { requestSuggestion: (state: EditorState, view: EditorView) => void }): Plugin<InlineSuggestionState> {
   return new Plugin<InlineSuggestionState>({
     key: inlineSuggestionPluginKey,
     state: {
@@ -120,7 +120,7 @@ export function inlineSuggestionPlugin(options: { requestSuggestion: (state: Edi
           }
           event.preventDefault();
           view.dispatch(view.state.tr.setMeta(START_SUGGESTION_LOADING, true));
-          options.requestSuggestion(view.state);
+          options.requestSuggestion(view.state, view);
           return true;
         }
 

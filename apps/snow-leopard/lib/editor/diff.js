@@ -456,10 +456,10 @@ function mapDocumentNode(node, mapper) {
 
 export const createDiffMark = (schema, type) => {
   if (type === DiffType.Inserted) {
-    return schema.mark('diffMark', { type });
+    return schema.marks.insertion.create();
   }
   if (type === DiffType.Deleted) {
-    return schema.mark('diffMark', { type });
+    return schema.marks.deletion.create();
   }
   throw new Error('type is not valid');
 };

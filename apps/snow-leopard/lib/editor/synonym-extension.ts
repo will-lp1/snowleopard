@@ -1,3 +1,4 @@
+import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey, EditorState, Transaction } from 'prosemirror-state';
 import { Decoration, DecorationSet, EditorView } from 'prosemirror-view';
 import { Node as ProseMirrorNode } from 'prosemirror-model';
@@ -35,7 +36,7 @@ function buildDecorations(doc: ProseMirrorNode, loadingPos: { from: number; to: 
   return DecorationSet.create(doc, decorations);
 }
 
-export function synonymsPlugin(): Plugin<SynonymPluginState> {
+function createSynonymPlugin(): Plugin<SynonymPluginState> {
   let overlayContainer: HTMLDivElement | null = null;
   let currentFetchController: AbortController | null = null;
   let closeOverlayListener: ((event: MouseEvent) => void) | null = null;
@@ -53,7 +54,6 @@ export function synonymsPlugin(): Plugin<SynonymPluginState> {
       overlayContainer.remove();
       overlayContainer = null;
     }
-    // If view is provided, ensure loading state is also cleared when hiding
     if (view && synonymsPluginKey.getState(view.state)?.loadingPos) {
         dispatchLoadingState(view, null);
     }
@@ -109,7 +109,7 @@ export function synonymsPlugin(): Plugin<SynonymPluginState> {
         const meta = tr.getMeta(synonymsPluginKey);
         let nextLoadingPos = pluginState.loadingPos;
 
-        if (meta !== undefined) {
+        if (meta !== undefined && meta.loadingPos !== undefined) {
           nextLoadingPos = meta.loadingPos;
         }
 
@@ -121,17 +121,14 @@ export function synonymsPlugin(): Plugin<SynonymPluginState> {
           const nextDecorationSet = buildDecorations(newState.doc, nextLoadingPos);
           return { decorationSet: nextDecorationSet, loadingPos: nextLoadingPos };
         }
-
-        if (nextLoadingPos === pluginState.loadingPos && pluginState.decorationSet === pluginState.decorationSet) {
-             return pluginState;
-        }
-
-        return { ...pluginState, loadingPos: nextLoadingPos };
+        
+        return pluginState;
       },
     },
     props: {
-      decorations(state: EditorState): DecorationSet | null {
-        return this.getState(state)?.decorationSet ?? null;
+      decorations(state: EditorState) {
+        const pluginState = this.getState(state);
+        return pluginState ? pluginState.decorationSet : null;
       },
       handleDOMEvents: {
         mouseover(view, event) {
@@ -146,71 +143,10 @@ export function synonymsPlugin(): Plugin<SynonymPluginState> {
           const to = Number(target.getAttribute('data-to'));
           const currentState = synonymsPluginKey.getState(view.state);
 
-          if (!word) return false;
+          if (!word || isNaN(from) || isNaN(to)) return false;
 
-          const resolvedPos = view.state.doc.resolve(from);
-          const paragraphStart = resolvedPos.start();
-          const paragraphEnd = resolvedPos.end();
+          const context = view.state.doc.textBetween(Math.max(0, from - 50), Math.min(view.state.doc.content.size, to + 50));
 
-          // Find current sentence boundaries
-          let currentSentStart = from;
-          while (currentSentStart > paragraphStart && !/[.!?]/.test(view.state.doc.textBetween(currentSentStart - 1, currentSentStart))) {
-              currentSentStart--;
-          }
-          if (currentSentStart > paragraphStart + 1 && /[.!?]\s/.test(view.state.doc.textBetween(currentSentStart - 2, currentSentStart))) {
-              // Keep it after the space if present
-          } else if (currentSentStart > paragraphStart && /[.!?]/.test(view.state.doc.textBetween(currentSentStart - 1, currentSentStart))) {
-             // Keep it right after punctuation if no space
-          }
-
-          let currentSentEnd = to;
-          while (currentSentEnd < paragraphEnd && !/[.!?]/.test(view.state.doc.textBetween(currentSentEnd, currentSentEnd + 1))) {
-              currentSentEnd++;
-          }
-          if (currentSentEnd < paragraphEnd) currentSentEnd++; // Include punctuation
-
-          // Find previous sentence boundaries
-          let prevSentStart = -1, prevSentEnd = -1;
-          if (currentSentStart > paragraphStart) {
-              prevSentEnd = currentSentStart;
-              while(prevSentEnd > paragraphStart && /\s/.test(view.state.doc.textBetween(prevSentEnd - 1, prevSentEnd))) {
-                  prevSentEnd--; // Skip whitespace before current sentence
-              }
-              prevSentStart = prevSentEnd;
-               while (prevSentStart > paragraphStart && !/[.!?]/.test(view.state.doc.textBetween(prevSentStart - 1, prevSentStart))) {
-                  prevSentStart--;
-              }
-          }
-
-          // Find next sentence boundaries
-          let nextSentStart = -1, nextSentEnd = -1;
-          if (currentSentEnd < paragraphEnd) {
-              nextSentStart = currentSentEnd;
-               while(nextSentStart < paragraphEnd && /\s/.test(view.state.doc.textBetween(nextSentStart, nextSentStart + 1))) {
-                  nextSentStart++; // Skip whitespace after current sentence
-              }
-              nextSentEnd = nextSentStart;
-              while (nextSentEnd < paragraphEnd && !/[.!?]/.test(view.state.doc.textBetween(nextSentEnd, nextSentEnd + 1))) {
-                  nextSentEnd++;
-              }
-              if (nextSentEnd < paragraphEnd) nextSentEnd++; // Include punctuation
-          }
-
-          // Extract sentences safely
-          const getSafeText = (start: number, end: number): string => {
-              if (start === -1 || end === -1 || start >= end || start < paragraphStart || end > paragraphEnd) return '';
-              try {
-                  return view.state.doc.textBetween(start, end, ' ');
-              } catch { return ''; } // Safeguard against invalid ranges
-          }
-
-          const prevSentText = getSafeText(prevSentStart, prevSentEnd);
-          const currSentText = getSafeText(currentSentStart, currentSentEnd);
-          const nextSentText = getSafeText(nextSentStart, nextSentEnd);
-
-          const context = [prevSentText, currSentText, nextSentText].map(s => s.trim()).filter(Boolean).join(' ');
-
-          // Don't re-fetch if already loading this exact word
           if (currentState?.loadingPos?.from === from && currentState.loadingPos.to === to) {
             return false;
           }
@@ -234,6 +170,7 @@ export function synonymsPlugin(): Plugin<SynonymPluginState> {
             })
             .then(data => {
               const latestState = synonymsPluginKey.getState(view.state);
+              if (controller.signal.aborted) return;
               if (latestState?.loadingPos?.from === from && latestState.loadingPos.to === to) {
                   if (data.synonyms?.length > 0) {
                       showOverlay(target, data.synonyms, from, to, view);
@@ -249,42 +186,27 @@ export function synonymsPlugin(): Plugin<SynonymPluginState> {
                     dispatchLoadingState(view, null);
                   }
               }
-            })
-            .finally(() => {
-              if (currentFetchController === controller) {
-                 currentFetchController = null;
-              }
             });
-          return true; 
+            
+          return false;
         },
-        mouseout(view, event) {
-            const e = event as MouseEvent;
-            if (!e.shiftKey) {
-                 hideOverlay(view); 
-                 currentFetchController?.abort();
-                 currentFetchController = null;
-            }
-            return false;
-          },
-          keydown(view, event) {
-            if (event.key === "Escape") {
-                let handled = false;
-                if (overlayContainer) {
-                    hideOverlay(view);
-                    currentFetchController?.abort();
-                    currentFetchController = null;
-                    handled = true;
-                } else if (synonymsPluginKey.getState(view.state)?.loadingPos) {
-                    currentFetchController?.abort();
-                    currentFetchController = null;
-                    dispatchLoadingState(view, null);
-                    handled = true;
-                }
-                return handled;
-            }
-            return false;
-          }
+      },
+    },
+    view() {
+      return {
+        destroy() {
+            hideOverlay();
+            currentFetchController?.abort();
+        }
       }
     }
   });
-} 
+}
+
+export const Synonym = Extension.create({
+  name: 'synonym',
+
+  addProseMirrorPlugins() {
+    return [createSynonymPlugin()];
+  },
+}); 

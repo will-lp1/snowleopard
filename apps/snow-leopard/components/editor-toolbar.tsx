@@ -1,100 +1,92 @@
 'use client';
 
 import React from 'react';
-import { toggleMark, setBlockType } from 'prosemirror-commands';
-import { wrapInList } from 'prosemirror-schema-list';
-import { Heading1, Heading2, List, ListOrdered, Pilcrow, Bold, Italic } from 'lucide-react';
-
-import { documentSchema } from '@/lib/editor/config';
-import { getActiveEditorView } from '@/lib/editor/editor-state';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
+import type { Editor } from '@tiptap/react';
+import { Heading1, Heading2, List, ListOrdered, Pilcrow, Bold, Italic, ChevronsUpDown, Sigma, Minus } from 'lucide-react';
+import { Toggle } from './ui/toggle';
+import { Separator } from './ui/separator';
 import { cn } from '@/lib/utils';
-
-const { nodes, marks } = documentSchema;
-
-function runCommand(command: (state: any, dispatch?: any) => boolean) {
-  const view = getActiveEditorView();
-  if (!view) return;
-  command(view.state, view.dispatch);
-  view.focus();
-}
 
 interface EditorToolbarProps {
   activeFormats: Record<string, boolean>;
+  editor: Editor;
 }
 
-export function EditorToolbar({ activeFormats }: EditorToolbarProps) {
-  const buttonClass = (format: string) =>
-    cn(
-      'h-8 w-8 p-0',
-      activeFormats[format] && 'bg-accent text-accent-foreground'
-    );
+export const EditorToolbar = ({ activeFormats, editor }: EditorToolbarProps) => {
+  if (!editor) {
+    return null;
+  }
 
   return (
-    <div className="sticky top-0 z-10 flex h-10 items-center gap-1 bg-background/90 px-3 backdrop-blur-sm">
-      <Button
-        variant="ghost"
-        className={buttonClass('h1')}
-        onClick={() => runCommand(setBlockType(nodes.heading, { level: 1 }))}
-        title="Heading 1"
-      >
-        <Heading1 className="size-4" />
-      </Button>
-      <Button
-        variant="ghost"
-        className={buttonClass('h2')}
-        onClick={() => runCommand(setBlockType(nodes.heading, { level: 2 }))}
-        title="Heading 2"
-      >
-        <Heading2 className="size-4" />
-      </Button>
-      <Button
-        variant="ghost"
-        className={buttonClass('p')}
-        onClick={() => runCommand(setBlockType(nodes.paragraph))}
-        title="Paragraph"
-      >
-        <Pilcrow className="size-4" />
-      </Button>
-
-      <Separator orientation="vertical" className="mx-1 h-5" />
-
-      <Button
-        variant="ghost"
-        className={buttonClass('bulletList')}
-        onClick={() => runCommand(wrapInList(nodes.bullet_list))}
-        title="Bullet List"
-      >
-        <List className="size-4" />
-      </Button>
-      <Button
-        variant="ghost"
-        className={buttonClass('orderedList')}
-        onClick={() => runCommand(wrapInList(nodes.ordered_list))}
-        title="Ordered List"
-      >
-        <ListOrdered className="size-4" />
-      </Button>
-
-      <Separator orientation="vertical" className="mx-1 h-5" />
-
-      <Button
-        variant="ghost"
-        className={buttonClass('bold')}
-        onClick={() => runCommand(toggleMark(marks.strong))}
-        title="Bold"
-      >
-        <Bold className="size-4" />
-      </Button>
-      <Button
-        variant="ghost"
-        className={buttonClass('italic')}
-        onClick={() => runCommand(toggleMark(marks.em))}
-        title="Italic"
-      >
-        <Italic className="size-4" />
-      </Button>
+    <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm py-2 mb-4 -mx-2 px-2 border-b border-border">
+      <div className="border border-input dark:border-neutral-700 bg-transparent rounded-md p-1 flex items-center gap-1 w-fit mx-auto">
+        <Toggle
+          size="sm"
+          pressed={activeFormats.h1}
+          onPressedChange={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+          className="h-8 w-8"
+        >
+          <Heading1 className="h-4 w-4" />
+        </Toggle>
+        <Toggle
+          size="sm"
+          pressed={activeFormats.h2}
+          onPressedChange={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+          className="h-8 w-8"
+        >
+          <Heading2 className="h-4 w-4" />
+        </Toggle>
+        <Toggle
+          size="sm"
+          pressed={activeFormats.p}
+          onPressedChange={() => editor.chain().focus().setParagraph().run()}
+          className="h-8 w-8"
+        >
+          <Pilcrow className="h-4 w-4" />
+        </Toggle>
+        <Separator orientation="vertical" className="h-6 mx-1" />
+        <Toggle
+          size="sm"
+          pressed={activeFormats.bold}
+          onPressedChange={() => editor.chain().focus().toggleBold().run()}
+          className="h-8 w-8"
+        >
+          <Bold className="h-4 w-4" />
+        </Toggle>
+        <Toggle
+          size="sm"
+          pressed={activeFormats.italic}
+          onPressedChange={() => editor.chain().focus().toggleItalic().run()}
+          className="h-8 w-8"
+        >
+          <Italic className="h-4 w-4" />
+        </Toggle>
+        <Separator orientation="vertical" className="h-6 mx-1" />
+        <Toggle
+          size="sm"
+          pressed={activeFormats.bulletList}
+          onPressedChange={() => editor.chain().focus().toggleBulletList().run()}
+          className="h-8 w-8"
+        >
+          <List className="h-4 w-4" />
+        </Toggle>
+        <Toggle
+          size="sm"
+          pressed={activeFormats.orderedList}
+          onPressedChange={() => editor.chain().focus().toggleOrderedList().run()}
+          className="h-8 w-8"
+        >
+          <ListOrdered className="h-4 w-4" />
+        </Toggle>
+        <Separator orientation="vertical" className="h-6 mx-1" />
+        <Toggle
+          size="sm"
+          onPressedChange={() => editor.chain().focus().setHorizontalRule().run()}
+          className="h-8 w-8"
+        >
+          <Minus className="h-4 w-4" />
+        </Toggle>
+      </div>
     </div>
   );
-} 
+}; 

@@ -2,7 +2,7 @@
 
 import { Artifact } from '@/components/create-artifact';
 import { DiffView } from '@/components/document/diffview';
-import { Editor } from '@/components/document/text-editor';
+import Editor from '@/components/document/text-editor';
 import {
   ClockRewind,
   RedoIcon,
