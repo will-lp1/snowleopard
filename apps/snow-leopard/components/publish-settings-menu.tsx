@@ -17,13 +17,44 @@ import type { User } from '@/lib/auth';
 import useSWR from 'swr';
 import { fetcher } from '@/lib/utils';
 import { Paywall } from '@/components/paywall';
-
-type FontOption = 'sans' | 'serif' | 'mono';
+import { googleFonts, FontOption } from '@/lib/fonts';
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { HuePicker } from 'react-color';
 
 interface PublishSettingsMenuProps {
   document: Document;
   user: User;
   onUpdate: (updatedDoc: Document) => void;
+}
+
+// Utility to convert hex to HSL components
+function hexToHSL(H: string) {
+  // Remove '#'
+  let r = 0, g = 0, b = 0;
+  if (H.length === 7) {
+    r = parseInt(H.slice(1, 3), 16) / 255;
+    g = parseInt(H.slice(3, 5), 16) / 255;
+    b = parseInt(H.slice(5, 7), 16) / 255;
+  }
+  const cMin = Math.min(r, g, b);
+  const cMax = Math.max(r, g, b);
+  const delta = cMax - cMin;
+  let h = 0;
+  if (delta !== 0) {
+    if (cMax === r) {
+      h = ((g - b) / delta) % 6;
+    } else if (cMax === g) {
+      h = (b - r) / delta + 2;
+    } else {
+      h = (r - g) / delta + 4;
+    }
+    h = Math.round(h * 60);
+    if (h < 0) h += 360;
+  }
+  const l = (cMax + cMin) / 2;
+  const s = delta === 0 ? 0 : delta / (1 - Math.abs(2 * l - 1));
+  return { h, s: Math.round(s * 100), l: Math.round(l * 100) };
 }
 
 export function PublishSettingsMenu({ document, user, onUpdate }: PublishSettingsMenuProps) {
@@ -37,7 +68,8 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
   const [claiming, setClaiming] = useState(false);
   const [usernameCheck, setUsernameCheck] = useState<{ checking: boolean; available: boolean | null }>({ checking: false, available: null });
   const [slug, setSlug] = useState('');
-  const [font, setFont] = useState<FontOption>('serif');
+  const [font, setFont] = useState<FontOption>('montserrat');
+  const [textColor, setTextColor] = useState<string | undefined>(undefined);
   const [processing, setProcessing] = useState(false);
   
   const isPublished = document.visibility === 'public';
@@ -57,7 +89,8 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
           .replace(/[^a-z0-9-]/g, '')
     );
     const styleObj = (document.style as any) || {};
-    setFont(styleObj.font || 'serif');
+    setFont(styleObj.font || 'montserrat');
+    setTextColor(styleObj.textColor);
   }, [document.slug, document.title, document.style]);
 
   const loadUsername = useCallback(async () => {
@@ -125,11 +158,24 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
       toast.error('Please claim a username first.');
       return;
     }
+    // Compute light/dark variants and resolve overlay URL
+    let textColorLight: string | undefined;
+    let textColorDark: string | undefined;
+    if (textColor !== undefined) {
+      const { h, s } = hexToHSL(textColor);
+      textColorLight = `hsl(${h}, ${s}%, 90%)`;
+      textColorDark = `hsl(${h}, ${s}%, 20%)`;
+    }
     const snapshot = {
       id: document.id,
       visibility: newVisibility,
       author: username,
-      style: { ...(document.style as any), font },
+      style: {
+        ...(document.style as any),
+        font,
+        textColorLight,
+        textColorDark,
+      },
       slug,
     };
     const optimisticDoc = { ...document, ...snapshot };
@@ -151,7 +197,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
     } finally {
       setProcessing(false);
     }
-  }, [document.id, isPublished, slug, username, onUpdate, font]);
+  }, [document.id, isPublished, slug, username, onUpdate, font, textColor]);
   
   const handleSlugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formattedSlug = e.target.value
@@ -162,6 +208,17 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
   };
 
   const disabled = !hasSubscription;
+
+  const handleColorModeChange = (mode: string) => {
+    if (mode === 'default' || !mode) {
+      setTextColor(undefined);
+    } else if (mode === 'custom') {
+      // If switching to custom and no color was previously selected, set a default
+      if (textColor === undefined) {
+        setTextColor('#0f172a');
+      }
+    }
+  };
 
   // While loading subscription status, don't render anything
   if (isSubscriptionLoading) return null;
@@ -180,8 +237,9 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        className="group w-64 p-3 shadow-lg rounded-lg border bg-popover space-y-4 relative"
+        className="group w-64 p-3 shadow-lg rounded-lg border bg-popover space-y-3 relative"
         align="end"
+        sideOffset={6}
       >
         {/* Hover overlay for unsubscribed users */}
         {disabled && (
@@ -244,7 +302,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                 {hasUsername && (
                   <Button
                     size="icon"
-                    variant="ghost"
+                    variant="outline"
                     className="h-8 w-8 flex-shrink-0"
                     onClick={() => {
                       setHasUsername(false);
@@ -272,26 +330,71 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
               />
             </div>
             
+            {/* Style controls start */}
             <div className="space-y-2">
-              <Label className="text-xs font-medium block">Font</Label>
-              <div className="flex items-center gap-1.5">
-                {(['sans', 'serif', 'mono'] as FontOption[]).map((opt) => (
-                  <Button
-                    key={opt}
-                    variant={font === opt ? 'secondary' : 'ghost'}
-                    size="sm"
-                    className={cn(
-                      'flex-1 h-8 text-xs capitalize',
-                      font === opt ? 'font-semibold' : 'text-muted-foreground'
-                    )}
-                    onClick={() => setFont(opt)}
-                    disabled={processing || disabled}
-                  >
-                    {opt}
-                  </Button>
-                ))}
+              <div className="space-y-1">
+                <Label className="text-xs font-medium block">Text Color</Label>
+                <ToggleGroup
+                  type="single"
+                  value={textColor === undefined ? 'default' : 'custom'}
+                  onValueChange={handleColorModeChange}
+                  className="grid grid-cols-2"
+                  disabled={processing || disabled}
+                >
+                  <ToggleGroupItem value="default" className="text-xs h-8">Default</ToggleGroupItem>
+                  <ToggleGroupItem value="custom" className="text-xs h-8">Custom</ToggleGroupItem>
+                </ToggleGroup>
+                {textColor !== undefined && (
+                  <>
+                    <div className="pt-2">
+                      <HuePicker
+                        color={textColor}
+                        onChangeComplete={(c) => setTextColor(c.hex)}
+                        width="100%"
+                      />
+                    </div>
+                    {(() => {
+                      const { h, s } = hexToHSL(textColor);
+                      const light = `hsl(${h}, ${s}%, 90%)`;
+                      const dark = `hsl(${h}, ${s}%, 20%)`;
+                      return (
+                        <div className="grid grid-cols-2 gap-2 pt-2 text-xs">
+                          <div className="flex flex-col items-center">
+                            <div className="h-6 w-full rounded" style={{ backgroundColor: light }} />
+                            <span className="mt-1">Light</span>
+                          </div>
+                          <div className="flex flex-col items-center">
+                            <div className="h-6 w-full rounded" style={{ backgroundColor: dark }} />
+                            <span className="mt-1">Dark</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs font-medium block">Font</Label>
+                <Select
+                  value={font}
+                  onValueChange={(val) => setFont(val as FontOption)}
+                  disabled={processing || disabled}
+                >
+                  <SelectTrigger className={cn('h-8 w-full text-xs', googleFonts[font].className)}>
+                    <SelectValue placeholder="Font" />
+                  </SelectTrigger>
+                  <SelectContent className="text-xs">
+                    {(Object.keys(googleFonts) as FontOption[]).map((key) => (
+                      <SelectItem key={key} value={key} className={cn('capitalize', googleFonts[key].className)}>
+                        {key}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
+            {/* Style controls end */}
             
             <div className="flex justify-end p-2 border-t bg-background/50 -mx-3 -mb-3 mt-4">
               <Button

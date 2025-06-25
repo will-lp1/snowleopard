@@ -28,6 +28,8 @@ export default async function Page({ params }: any) {
   const styleObj = (doc.style as any) || {};
   const font = styleObj.font as any;
   const accentColor = styleObj.accentColor as string;
+  const textColorLight = styleObj.textColorLight as string;
+  const textColorDark = styleObj.textColorDark as string;
   const dateString = new Date(doc.createdAt).toLocaleDateString('en-US');
   return (
     <>
@@ -42,6 +44,8 @@ export default async function Page({ params }: any) {
         content={doc.content || ''}
         font={font}
         accentColor={accentColor}
+        textColorLight={textColorLight}
+        textColorDark={textColorDark}
         author={doc.author || author}
         date={dateString}
       />
