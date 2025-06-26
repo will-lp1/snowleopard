@@ -16,10 +16,12 @@ const diffMarkSpec = {
     let className = '';
     switch (mark.attrs.type) {
       case DiffType.Inserted:
-        className = 'bg-green-100 text-green-700 dark:bg-green-500/70 dark:text-green-300';
+        className =
+          'bg-green-100 text-green-700 dark:bg-green-500/70 dark:text-green-300';
         break;
       case DiffType.Deleted:
-        className = 'bg-red-100 line-through text-red-600 dark:bg-red-500/70 dark:text-red-300';
+        className =
+          'bg-red-100 line-through text-red-600 dark:bg-red-500/70 dark:text-red-300';
         break;
       default:
         className = '';

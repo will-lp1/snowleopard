@@ -639,26 +639,59 @@ function PureEditor({
   useEffect(() => {
     const handleApply = (event: CustomEvent) => {
       if (!editorRef.current || !event.detail) return;
-      const { documentId: applyDocId, newContent } = event.detail;
+      const { documentId: applyDocId } = event.detail;
       if (applyDocId !== documentId) return;
 
-      // Replace editor content with the clean new content (no diff marks)
       const editorView = editorRef.current;
-      const currentContent = buildContentFromDocument(editorView.state.doc);
-      if (currentContent === newContent) return;
+      const animationDuration = 500; // ms
 
-      const newDocNode = buildDocumentFromContent(newContent);
-      const tr = editorView.state.tr
-        .replaceWith(0, editorView.state.doc.content.size, newDocNode.content)
-        .setMeta('external', true)
-        .setMeta('addToHistory', false);
+      const finalizeApply = async () => {
+        const { state } = editorView;
+        let tr = state.tr;
+        const diffMarkType = state.schema.marks.diffMark;
+        const { DiffType } = await import('@/lib/editor/diff');
 
-      editorView.dispatch(tr);
+        // Find all ranges to delete and marks to remove in one pass.
+        const rangesToDelete: { from: number; to: number }[] = [];
+        state.doc.descendants((node, pos) => {
+          if (!node.isText) return;
 
-      // Reset preview state
-      previewActiveRef.current = false;
-      previewOriginalContentRef.current = null;
-      lastPreviewContentRef.current = null;
+          const deletedMark = node.marks.find(
+            (mark) => mark.type === diffMarkType && mark.attrs.type === DiffType.Deleted
+          );
+          if (deletedMark) {
+            rangesToDelete.push({ from: pos, to: pos + node.nodeSize });
+          }
+        });
+
+        // Delete ranges in reverse order to avoid position shifting.
+        for (let i = rangesToDelete.length - 1; i >= 0; i--) {
+          const { from, to } = rangesToDelete[i];
+          tr.delete(from, to);
+        }
+        
+        // Remove all (remaining) diff marks.
+        tr.removeMark(0, tr.doc.content.size, diffMarkType);
+        
+        // Don't add this transaction to history.
+        tr.setMeta('addToHistory', false);
+
+        editorView.dispatch(tr);
+
+        // 3. Clean up animation class
+        editorView.dom.classList.remove('applying-changes');
+
+        // Reset preview state
+        previewActiveRef.current = false;
+        previewOriginalContentRef.current = null;
+        lastPreviewContentRef.current = null;
+      };
+
+      // 1. Add class to trigger animations
+      editorView.dom.classList.add('applying-changes');
+
+      // 2. After animation, clean up the state
+      setTimeout(finalizeApply, animationDuration);
     };
     window.addEventListener('apply-document-update', handleApply as EventListener);
     return () => window.removeEventListener('apply-document-update', handleApply as EventListener);
@@ -898,6 +931,20 @@ function PureEditor({
           100% {
             background-color: rgba(255, 220, 0, 0.35);
           }
+        }
+
+        /* Diff animation styles */
+        [data-diff] {
+          transition: background-color 0.5s ease-in-out, color 0.5s ease-in-out, opacity 0.5s ease-in-out, max-height 0.5s ease-in-out;
+        }
+        .applying-changes [data-diff="1"] {
+          background-color: transparent;
+        }
+        .applying-changes [data-diff="-1"] {
+          text-decoration: none;
+          opacity: 0;
+          overflow: hidden;
+          max-height: 0;
         }
       `}</style>
     </>
