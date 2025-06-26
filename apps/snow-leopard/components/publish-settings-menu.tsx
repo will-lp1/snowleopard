@@ -187,7 +187,16 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(snapshot),
       });
-      if (!res.ok) throw new Error('Failed to update publication.');
+
+      if (!res.ok) {
+        let errorMsg = 'Failed to update publication.';
+        try {
+          const data = await res.json();
+          if (data?.error) errorMsg = data.error;
+        } catch (_) { }
+        throw new Error(errorMsg);
+      }
+
       const updated = await res.json();
       onUpdate(updated);
       toast.success(newVisibility === 'public' ? 'Published' : 'Unpublished');

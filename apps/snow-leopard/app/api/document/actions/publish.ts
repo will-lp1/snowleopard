@@ -30,6 +30,9 @@ export async function publishDocument(request: NextRequest, body: any): Promise<
     return NextResponse.json(updatedDocument);
   } catch (error: any) {
     console.error('[API /document/publish] Failed to update publish settings:', error);
+    if (typeof error?.message === 'string' && error.message.toLowerCase().includes('already published')) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
     return NextResponse.json({ error: error.message || 'Failed to update publish settings' }, { status: 500 });
   }
 } 

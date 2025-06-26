@@ -179,14 +179,14 @@ export async function saveDocument({
   kind,
   content,
   userId,
-  chatId, // Added optional chatId
+  chatId,
 }: {
   id: string;
   title: string;
   kind: ArtifactKind;
   content: string;
   userId: string;
-  chatId?: string | null; // Make it optional
+  chatId?: string | null;
 }): Promise<(typeof schema.Document.$inferSelect)> {
   try {
     const now = new Date();
@@ -767,7 +767,6 @@ export async function createNewDocumentVersion({
  * Useful for fetching the very latest record after an update or creation.
  */
 export async function getLatestDocumentById({ id }: { id: string }): Promise<(typeof schema.Document.$inferSelect) | null> {
-  // FIX: Reimplemented using Drizzle
   try {
     // Validate document ID
     if (!id || id === 'undefined' || id === 'null' || id === 'init') {
@@ -861,15 +860,51 @@ export async function updateDocumentPublishSettings({
   style: { theme: string; font?: string };
   slug: string;
 }): Promise<(typeof schema.Document.$inferSelect)> {
-  const updated = await db
-    .update(schema.Document)
-    .set({ visibility, author, style, slug })
-    .where(and(eq(schema.Document.id, documentId), eq(schema.Document.userId, userId)))
-    .returning();
-  if (!updated || updated.length === 0) {
-    throw new Error('Failed to update publish settings');
-  }
-  return updated[0];
+  return await db.transaction(async (tx) => {
+    // prevent slug collision with other documents
+    if (slug) {
+      const dup = await tx
+        .select({ id: schema.Document.id })
+        .from(schema.Document)
+        .where(
+          and(
+            eq(schema.Document.userId, userId),
+            eq(schema.Document.slug, slug),
+            sql`"Document"."id" <> ${documentId}`
+          )
+        )
+        .limit(1);
+
+      if (dup.length) throw new Error('A document with this name is already published');
+    }
+
+    // clear slug on old versions to satisfy unique index
+    await tx
+      .update(schema.Document)
+      .set({ slug: null })
+      .where(
+        and(
+          eq(schema.Document.id, documentId),
+          eq(schema.Document.userId, userId),
+          eq(schema.Document.is_current, false)
+        )
+      );
+
+    const [result] = await tx
+      .update(schema.Document)
+      .set({ visibility, author, style, slug })
+      .where(
+        and(
+          eq(schema.Document.id, documentId),
+          eq(schema.Document.userId, userId),
+          eq(schema.Document.is_current, true)
+        )
+      )
+      .returning();
+
+    if (!result) throw new Error('Failed to update publish settings');
+    return result;
+  });
 }
 
 // Add username availability check
