@@ -40,7 +40,7 @@ export const createDocument = ({ session, dataStream }: CreateDocumentProps) =>
         // Stream the new ID to the client
         dataStream.writeData({ type: 'id', content: newDocumentId });
         // Delay to allow page navigation and editor initialization
-        await new Promise((resolve) => setTimeout(resolve, 4000));
+        await new Promise((resolve) => setTimeout(resolve, 4500));
         // Signal that creation is finished
         dataStream.writeData({ type: 'finish', content: '' });
 

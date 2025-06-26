@@ -8,14 +8,12 @@ export async function GET() {
   try {
     const session = await getSession();
 
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // Default to allowing access. If Stripe is enabled and the requester is authenticated, evaluate their subscription.
+    let hasActiveSubscription = true;
 
-    let hasActiveSubscription = true; // Assume true by default or if Stripe disabled
-
-    if (process.env.STRIPE_ENABLED === 'true') {
+    if (process.env.STRIPE_ENABLED === 'true' && session?.user?.id) {
       const subscription = await getActiveSubscriptionByUserId({ userId: session.user.id });
+
       if (subscription) {
         if (subscription.status === 'active') {
           hasActiveSubscription = true;
@@ -31,10 +29,13 @@ export async function GET() {
       } else {
         hasActiveSubscription = false;
       }
+
       console.log(`[api/user/subscription-status] User: ${session.user.id}, Sub Status: ${subscription?.status}, HasActive: ${hasActiveSubscription}`);
+    } else if (process.env.STRIPE_ENABLED === 'true') {
+      // Stripe is enabled but there's no authenticated user; default to granting access.
+      console.log('[api/user/subscription-status] No authenticated user detected. Granting access by default.');
     } else {
-      console.log(`[api/user/subscription-status] Stripe DISABLED, granting access.`);
-      hasActiveSubscription = true;
+      console.log('[api/user/subscription-status] Stripe DISABLED, granting access.');
     }
 
     return NextResponse.json({ hasActiveSubscription });
