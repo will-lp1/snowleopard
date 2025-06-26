@@ -376,6 +376,8 @@ function PureEditor({
             newSaveState.initialContent &&
             onCreateDocumentRequest
           ) {
+            onCreateDocumentRequest(newSaveState.initialContent);
+
             setTimeout(() => {
               if (editorView) {
                 setSaveStatus(editorView, { createDocument: false });
