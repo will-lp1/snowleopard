@@ -47,8 +47,8 @@ export const updateDocument = ({ session: _session, documentId: defaultDocumentI
         }
         const originalContent = document.content || '';
 
-        // Generate full replacement content
-        const prompt = `You are an expert editor. Here is the ORIGINAL document:\n\n${originalContent}\n\n---\n\nTASK: Apply the following edits succinctly, returning ONLY the fully updated document.\nDESCRIPTION: "${description}"`;
+        // Generate full replacement content.  Encourage the model to perform the *smallest* possible change set so that our diff visualisation remains concise.
+        const prompt = `You are an expert editor. Here is the ORIGINAL document:\n\n${originalContent}\n\n---\n\nTASK: Apply the following edits.\n- Make only the minimal changes required to satisfy the description.\n- Keep paragraphs, sentences, and words that do **not** need to change exactly as they are.\n- Do **not** paraphrase or re-flow content unless strictly necessary.\n- Preserve existing formatting and line breaks.\n\nReturn ONLY the updated document with no additional commentary.\n\nDESCRIPTION: "${description}"`;
 
         const { text: newContent } = await generateText({
           model: myProvider.languageModel('artifact-model'),
