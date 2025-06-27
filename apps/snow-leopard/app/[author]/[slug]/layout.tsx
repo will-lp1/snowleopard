@@ -4,8 +4,7 @@ import { db } from '@snow-leopard/db';
 import * as schema from '@snow-leopard/db';
 import { eq, and } from 'drizzle-orm';
 
-// Generate metadata for individual blog posts
-export async function generateMetadata({ params }: { params: { author: string; slug: string } }): Promise<Metadata> {
+export async function generateMetadata({ params }: any) {
   const { author, slug } = params;
   const result = await db
     .select()
