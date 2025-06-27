@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Crimson_Text } from "next/font/google";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { CardHeader, Card, CardContent } from "@/components/ui/card";
@@ -40,6 +40,8 @@ export default function Home() {
   const proof2InView = useInView(proof2Ref, { once: true, amount: 0.5 });
   const proof3InView = useInView(proof3Ref, { once: true, amount: 0.5 });
 
+  const [hasSession, setHasSession] = useState<boolean>(false);
+
   useEffect(() => {
     const checkSession = async () => {
       try {
@@ -48,19 +50,20 @@ export default function Home() {
           console.error("Error fetching session:", error);
           return;
         }
-        if (session?.user) {
-          router.push("/documents");
-        }
+
+        const isLoggedIn = !!session?.user;
+        setHasSession(isLoggedIn);
+
       } catch (error) {
         console.error("Error checking session unexpectedly:", error);
       }
     };
+
     checkSession();
   }, [router]);
 
-  const handleBeginClick = async () => {
-    const { data: session } = await authClient.getSession();
-    if (session?.user) {
+  const handleBeginClick = () => {
+    if (hasSession) {
       router.push("/documents");
     } else {
       router.push("/login?redirect=/documents");
@@ -75,8 +78,13 @@ export default function Home() {
           <h1 className="text-xl font-normal tracking-tighter text-foreground/90">
             snow leopard
           </h1>
-          <Button variant="outline" size="sm" className="rounded-full" onClick={handleBeginClick}>
-            Begin
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-full"
+            onClick={handleBeginClick}
+          >
+            {hasSession ? "Open Snow Leopard" : "Begin"}
           </Button>
         </div>
       </header>
@@ -351,7 +359,14 @@ export default function Home() {
             </div>
           </TooltipProvider>
           <div className="mt-10 text-center">
-            <Button variant="secondary" size="lg" className="rounded-full px-8 py-3" onClick={handleBeginClick}>Get Started</Button>
+            <Button
+              variant="secondary"
+              size="lg"
+              className="rounded-full px-8 py-3"
+              onClick={handleBeginClick}
+            >
+              {hasSession ? "Open Snow Leopard" : "Get Started"}
+            </Button>
             <p className="mt-2 text-xs text-muted-foreground">No credit card required</p>
           </div>
         </div>

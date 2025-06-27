@@ -277,7 +277,7 @@ export function Chat({
           exit={{ opacity: 0, y: 10 }}
           className="px-3 py-1 text-xs text-muted-foreground text-center border-b border-zinc-200 dark:border-zinc-700 bg-muted/20"
         >
-          No messages in this chat yet.
+          No active document.
         </motion.div>
       )}
 

@@ -8,6 +8,7 @@ import { DocumentProvider } from '@/hooks/use-document-context';
 import { CSPostHogProvider } from '@/providers/posthog-provider';
 import { PostHogPageView } from '@/providers/posthog-pageview';
 import { Analytics } from "@vercel/analytics/react"
+import MobileWarning from '@/components/mobile-warning';
 
 export const metadata: Metadata = {
   title: 'Snow Leopard',
@@ -100,6 +101,8 @@ export default async function RootLayout({
                 
                 {/* Render children ALWAYS */}
                 {children} 
+
+                <MobileWarning />
 
                 <Analytics />
               </DocumentProvider>

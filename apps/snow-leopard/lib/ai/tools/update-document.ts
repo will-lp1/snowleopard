@@ -2,15 +2,15 @@ import { tool, generateText } from 'ai';
 import { Session } from '@/lib/auth';
 import { z } from 'zod';
 import { getDocumentById } from '@/lib/db/queries';
-import type { Document } from '@snow-leopard/db';
 import { myProvider } from '@/lib/ai/providers';
 
 interface UpdateDocumentProps {
+  // Session is currently not used by this tool, but we keep it for future ACL needs.
   session: Session;
   documentId?: string;
 }
 
-export const updateDocument = ({ session, documentId: defaultDocumentId }: UpdateDocumentProps) =>
+export const updateDocument = ({ session: _session, documentId: defaultDocumentId }: UpdateDocumentProps) =>
   tool({
     description: 'Update a document based on a description. Returns the original and proposed new content for review.',
     parameters: z.object({
@@ -23,20 +23,21 @@ export const updateDocument = ({ session, documentId: defaultDocumentId }: Updat
 
       try {
         // --- Validation ---
+        if (!description.trim()) {
+          return { error: 'No update description provided.' };
+        }
+
         if (!documentId ||
             documentId === 'undefined' ||
             documentId === 'null' ||
-            documentId.length < 32) { 
-          console.error('[AI Tool] Invalid document ID provided:', documentId);
-          // No dataStream, just return error
+            documentId.length < 32) {
           return { error: `Invalid document ID: "${documentId}".` };
         }
+
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
         if (!uuidRegex.test(documentId)) {
-          console.error('[AI Tool] Document ID is not a valid UUID format:', documentId);
           return { error: `Invalid document ID format: "${documentId}".` };
         }
-        console.log(`[AI Tool] Generating update proposal for document ID: ${documentId}`);
 
         // --- Fetch Document ---
         const document = await getDocumentById({ id: documentId });
@@ -46,23 +47,15 @@ export const updateDocument = ({ session, documentId: defaultDocumentId }: Updat
         }
         const originalContent = document.content || '';
 
-        // --- Find Handler (Optional - could simplify if only text) ---
-        // Assuming text for now, but handler logic could be kept if needed for prompt generation
-        // const documentHandler = ...; 
-        // if (!documentHandler) ... return error ...
+        // Generate full replacement content.  Encourage the model to perform the *smallest* possible change set so that our diff visualisation remains concise.
+        const prompt = `You are an expert editor. Here is the ORIGINAL document:\n\n${originalContent}\n\n---\n\nTASK: Apply the following edits.\n- Make only the minimal changes required to satisfy the description.\n- Keep paragraphs, sentences, and words that do **not** need to change exactly as they are.\n- Do **not** paraphrase or re-flow content unless strictly necessary.\n- Preserve existing formatting and line breaks.\n\nReturn ONLY the updated document with no additional commentary.\n\nDESCRIPTION: "${description}"`;
 
-        // --- Generate FULL New Content --- 
-        console.log(`[AI Tool] Generating full update based on description.`);
-        
-        const prompt = `Given the following document content (Original):\n\n${originalContent}\n\nUpdate it based on this description: \"${description}\". Output ONLY the complete, fully updated document content.`;
-
-        // Use generateText from 'ai' library
         const { text: newContent } = await generateText({
-           model: myProvider.languageModel('artifact-model'), 
-           prompt: prompt,
+          model: myProvider.languageModel('artifact-model'),
+          prompt,
+          // Asking for lower temperature for deterministic updates.
+          temperature: 0.2,
         });
-
-        console.log(`[AI Tool] Update generation complete for document ${documentId}.`);
 
         // --- Return Result with Both Contents ---
         return {
@@ -75,7 +68,7 @@ export const updateDocument = ({ session, documentId: defaultDocumentId }: Updat
         };
 
       } catch (error: any) {
-        console.error('[AI Tool] Error generating document update proposal:', error);
+        console.error('[AI Tool] updateDocument failed:', error);
         const errorMessage = error instanceof Error ? error.message : String(error);
         // No dataStream to write to, just return error
         return {

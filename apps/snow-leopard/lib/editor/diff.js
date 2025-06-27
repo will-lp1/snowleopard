@@ -219,87 +219,79 @@ const patchRemainNodes = (schema, oldChildren, newChildren) => {
 };
 
 // Updated function to perform sentence-level diffs
-export const patchTextNodes = (schema, oldNode, newNode) => {
+export const patchTextNodes = (schema, oldNodes, newNodes) => {
   const dmp = new diff_match_patch();
 
-  // Concatenate the text from the text nodes
-  const oldText = oldNode.map((n) => getNodeText(n)).join('');
-  const newText = newNode.map((n) => getNodeText(n)).join('');
+  // Join the accumulated text from the contiguous text nodes on each side.
+  const oldText = oldNodes.map((n) => getNodeText(n)).join('');
+  const newText = newNodes.map((n) => getNodeText(n)).join('');
 
-  // Tokenize the text into sentences
-  const oldSentences = tokenizeSentences(oldText);
-  const newSentences = tokenizeSentences(newText);
+  // Tokenize into words *including* whitespace & punctuation so we can rebuild
+  // the exact string afterwards while still diff-ing at word granularity.
+  const oldTokens = tokenizeWords(oldText);
+  const newTokens = tokenizeWords(newText);
 
-  // Map sentences to unique characters
-  const { chars1, chars2, lineArray } = sentencesToChars(
-    oldSentences,
-    newSentences,
-  );
+  // Convert token arrays → unique char sequences for diff-match-patch.
+  const { chars1, chars2, tokenArray } = tokensToChars(oldTokens, newTokens);
 
-  // Perform the diff
+  // Calculate the diff and clean it up semantically so neighbouring inserts/
+  // deletes are merged where appropriate.
   let diffs = dmp.diff_main(chars1, chars2, false);
+  dmp.diff_cleanupSemantic(diffs);
 
-  // Convert back to sentences
+  // Map back from the char sequences to the original tokens.
   diffs = diffs.map(([type, text]) => {
-    const sentences = text
-      .split('')
-      .map((char) => lineArray[char.charCodeAt(0)]);
-    return [type, sentences];
+    const tokens = text.split('').map((ch) => tokenArray[ch.charCodeAt(0)]);
+    return [type, tokens];
   });
 
-  // Map diffs to nodes
-  const res = diffs.flatMap(([type, sentences]) => {
-    return sentences.map((sentence) => {
-      const node = createTextNode(
+  // Convert the token-level diffs to ProseMirror text nodes, applying the
+  // diffMark only to the changed tokens.
+  const res = diffs.flatMap(([type, tokens]) => {
+    return tokens.map((token) =>
+      createTextNode(
         schema,
-        sentence,
+        token,
         type !== DiffType.Unchanged ? [createDiffMark(schema, type)] : [],
-      );
-      return node;
-    });
+      ),
+    );
   });
 
   return res;
 };
 
-// Function to tokenize text into sentences
-const tokenizeSentences = (text) => {
-  return text.match(/[^.!?]+[.!?]*\s*/g) || [];
+// Word-level tokeniser that keeps whitespace & punctuation separate so we can
+// faithfully rebuild the original string while still diff-ing meaningfully.
+const tokenizeWords = (text) => {
+  // Split on word boundaries while capturing the delimiters (spaces, line
+  // breaks, punctuation).  This regex keeps everything we need in the result
+  // whilst discarding empty strings.
+  return text.split(/(\s+|[^\w\s]+)/g).filter((t) => t.length > 0);
 };
 
-// Function to map sentences to unique characters
-const sentencesToChars = (oldSentences, newSentences) => {
-  const lineArray = [];
-  const lineHash = {};
-  let lineStart = 0;
+// Map tokens to unique chars for diff-match-patch the same way its internal
+// `diff_linesToChars_` method works for lines.  Re-used for words instead.
+const tokensToChars = (oldTokens, newTokens) => {
+  const tokenArray = [];
+  const tokenHash = {};
+  let tokenStart = 0;
 
-  const chars1 = oldSentences
-    .map((sentence) => {
-      const line = sentence;
-      if (line in lineHash) {
-        return String.fromCharCode(lineHash[line]);
-      }
-      lineHash[line] = lineStart;
-      lineArray[lineStart] = line;
-      lineStart++;
-      return String.fromCharCode(lineHash[line]);
-    })
-    .join('');
+  const encode = (tokens) =>
+    tokens
+      .map((tok) => {
+        if (tok in tokenHash) {
+          return String.fromCharCode(tokenHash[tok]);
+        }
+        tokenHash[tok] = tokenStart;
+        tokenArray[tokenStart] = tok;
+        return String.fromCharCode(tokenStart++);
+      })
+      .join('');
 
-  const chars2 = newSentences
-    .map((sentence) => {
-      const line = sentence;
-      if (line in lineHash) {
-        return String.fromCharCode(lineHash[line]);
-      }
-      lineHash[line] = lineStart;
-      lineArray[lineStart] = line;
-      lineStart++;
-      return String.fromCharCode(lineHash[line]);
-    })
-    .join('');
+  const chars1 = encode(oldTokens);
+  const chars2 = encode(newTokens);
 
-  return { chars1, chars2, lineArray };
+  return { chars1, chars2, tokenArray };
 };
 
 export const computeChildEqualityFactor = (node1, node2) => {

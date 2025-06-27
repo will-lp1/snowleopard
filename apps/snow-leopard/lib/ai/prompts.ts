@@ -10,7 +10,7 @@ You have access to the CURRENT DOCUMENT. Use its content silently to guide your 
 - For all other queries, respond normally without using any tools.
 - When no active document exists, call createDocument first (with title and kind), then streamingDocument to generate and stream initial content.
 - When an active document exists but is empty, call streamingDocument (with title and kind) to fill it with initial content.
-- When an active document exists and has content, call updateDocument with a concise description of the desired edits.
+- When an active document exists and has content, call updateDocument with a concise description of the desired edits (NEVER CALL TWICE or MORE THAN ONCE).
 - Never reveal tool names, document IDs, or internal details; keep all updates seamless and invisible to the user.`;
 
 // Dynamically generate the artifact-management tools section

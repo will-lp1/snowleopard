@@ -39,6 +39,7 @@ import { synonymsPlugin } from "@/lib/editor/synonym-plugin";
 import { EditorToolbar } from "@/components/editor-toolbar";
 import { creationStreamingPlugin } from "@/lib/editor/creation-streaming-plugin";
 import { selectionContextPlugin } from "@/lib/editor/selection-context-plugin";
+import { diffEditor } from "@/lib/editor/diff";
 
 const { nodes, marks } = documentSchema;
 
@@ -104,6 +105,11 @@ function PureEditor({
     null
   );
 
+  // State refs for update preview handling
+  const previewOriginalContentRef = useRef<string | null>(null);
+  const previewActiveRef = useRef<boolean>(false);
+  const lastPreviewContentRef = useRef<string | null>(null);
+
   const { suggestionLength, customInstructions } = useAiOptionsValue();
   const suggestionLengthRef = useRef(suggestionLength);
   const customInstructionsRef = useRef(customInstructions);
@@ -136,7 +142,6 @@ function PureEditor({
         throw new Error("Cannot save with invalid or initial document ID.");
       }
 
-      console.log(`[Editor Save Callback] Saving document ${docId}...`);
       try {
         const response = await fetch(`/api/document`, {
           method: "POST",
@@ -161,10 +166,6 @@ function PureEditor({
         }
 
         const result = await response.json();
-        console.log(
-          `[Editor Save Callback] Save successful for ${docId}. UpdatedAt:`,
-          result.updatedAt
-        );
         return { updatedAt: result.updatedAt || new Date().toISOString() };
       } catch (error) {
         console.error(
@@ -205,13 +206,6 @@ function PureEditor({
           }
           return;
         }
-
-        console.log(
-          "[Editor Component] Requesting inline suggestion via plugin callback..."
-        );
-
-        const { suggestionLength, customInstructions } =
-          useAiOptions.getState();
 
         const response = await fetch("/api/inline-suggestion", {
           method: "POST",
@@ -272,14 +266,10 @@ function PureEditor({
           }
         }
         if (!controller.signal.aborted && editorRef.current) {
-          console.log(
-            "[Editor Component] Stream finished, dispatching FINISH_SUGGESTION_LOADING"
-          );
           editorRef.current.dispatch(
             editorRef.current.state.tr.setMeta(FINISH_SUGGESTION_LOADING, true)
           );
         } else if (controller.signal.aborted) {
-          console.log("[Editor Component] Suggestion request aborted.");
           if (editorRef.current) {
             editorRef.current.dispatch(
               editorRef.current.state.tr.setMeta(CLEAR_SUGGESTION, true)
@@ -311,7 +301,6 @@ function PureEditor({
   useEffect(() => {
     let view: EditorView | null = null;
     if (containerRef.current && !editorRef.current) {
-      console.log(`[Editor] Initializing for documentId: ${documentId}`);
       const plugins = [
         creationStreamingPlugin(documentId),
         placeholderPlugin(
@@ -350,14 +339,10 @@ function PureEditor({
         state: initialEditorState,
         handleDOMEvents: {
           focus: (view) => {
-            console.log("[Editor] Focus event");
             setActiveEditorView(view);
             return false;
           },
-          blur: (view) => {
-            console.log("[Editor] Blur event");
-            return false;
-          },
+          blur: () => false,
         },
         dispatchTransaction: (transaction: Transaction) => {
           if (!editorRef.current) return;
@@ -391,10 +376,8 @@ function PureEditor({
             newSaveState.initialContent &&
             onCreateDocumentRequest
           ) {
-            console.log(
-              "[Editor] Detected createDocument flag from plugin state."
-            );
             onCreateDocumentRequest(newSaveState.initialContent);
+
             setTimeout(() => {
               if (editorView) {
                 setSaveStatus(editorView, { createDocument: false });
@@ -426,10 +409,6 @@ function PureEditor({
       const currentDocId = currentDocumentIdRef.current;
 
       if (documentId !== currentDocId) {
-        console.log(
-          `[Editor] Document ID changed from ${currentDocId} to ${documentId}. Re-initializing editor state with new plugins.`
-        );
-
         // Re-create plugins with the new documentId to ensure save plugin has correct doc ID
         const newPlugins = [
           creationStreamingPlugin(documentId),
@@ -597,53 +576,125 @@ function PureEditor({
   }, [documentId]);
 
   useEffect(() => {
-    const handleApplyUpdate = (event: CustomEvent) => {
+    const handlePreviewUpdate = (event: CustomEvent) => {
       if (!editorRef.current || !event.detail) return;
+      const { documentId: previewDocId, newContent } = event.detail;
+      if (previewDocId !== documentId) return;
+
       const editorView = editorRef.current;
-      const { state, dispatch } = editorView;
 
-      const { documentId: updateDocId, newContent } = event.detail;
+      if (lastPreviewContentRef.current === newContent) return; // no-op if same preview
 
-      if (updateDocId !== documentId) {
-        console.warn(
-          `[Editor apply-document-update] Event ignored: Document ID mismatch. Expected ${documentId}, got ${updateDocId}.`
-        );
-        return;
+      if (!previewActiveRef.current) {
+        // store original content only once per preview lifecycle
+        previewOriginalContentRef.current = buildContentFromDocument(editorView.state.doc);
       }
 
-      console.log(
-        `[Editor apply-document-update] Event received for doc: ${documentId}. Replacing entire content.`
-      );
+      const oldContent = previewOriginalContentRef.current ?? buildContentFromDocument(editorView.state.doc);
+      if (newContent === oldContent) return; // nothing to diff
 
-      try {
-        const newDocumentNode = buildDocumentFromContent(newContent);
-        const transaction = state.tr.replaceWith(
-          0,
-          state.doc.content.size,
-          newDocumentNode.content
-        );
+      const oldDocNode = buildDocumentFromContent(oldContent);
+      const newDocNode = buildDocumentFromContent(newContent);
 
-        dispatch(transaction);
+      const diffedDoc = diffEditor(documentSchema, oldDocNode.toJSON(), newDocNode.toJSON());
 
-        toast.success("Document updated");
-      } catch (error) {
-        console.error(
-          "[Editor apply-document-update] Error processing update:",
-          error
-        );
-        toast.error("Failed to apply document update.");
-      }
+      const tr = editorView.state.tr
+        .replaceWith(0, editorView.state.doc.content.size, diffedDoc.content)
+        .setMeta('external', true)
+        .setMeta('addToHistory', false);
+
+      // batch DOM updates
+      requestAnimationFrame(() => editorView.dispatch(tr));
+
+      previewActiveRef.current = true;
+      lastPreviewContentRef.current = newContent;
     };
 
-    window.addEventListener(
-      "apply-document-update",
-      handleApplyUpdate as EventListener
-    );
-    return () =>
-      window.removeEventListener(
-        "apply-document-update",
-        handleApplyUpdate as EventListener
-      );
+    const handleCancelPreview = (event: CustomEvent) => {
+      if (!editorRef.current || !event.detail) return;
+      const { documentId: cancelDocId } = event.detail;
+      if (cancelDocId !== documentId) return;
+      if (!previewActiveRef.current || previewOriginalContentRef.current === null) return;
+
+      const editorView = editorRef.current;
+      const originalDocNode = buildDocumentFromContent(previewOriginalContentRef.current);
+      const tr = editorView.state.tr.replaceWith(0, editorView.state.doc.content.size, originalDocNode.content);
+      editorView.dispatch(tr);
+
+      previewActiveRef.current = false;
+      previewOriginalContentRef.current = null;
+      lastPreviewContentRef.current = null;
+    };
+
+    window.addEventListener('preview-document-update', handlePreviewUpdate as EventListener);
+    window.addEventListener('cancel-document-update', handleCancelPreview as EventListener);
+
+    return () => {
+      window.removeEventListener('preview-document-update', handlePreviewUpdate as EventListener);
+      window.removeEventListener('cancel-document-update', handleCancelPreview as EventListener);
+    };
+  }, [documentId]);
+
+  // When final apply-document-update happens, apply clean new content, clear preview, and flash highlight
+  useEffect(() => {
+    const handleApply = (event: CustomEvent) => {
+      if (!editorRef.current || !event.detail) return;
+      const { documentId: applyDocId } = event.detail;
+      if (applyDocId !== documentId) return;
+
+      const editorView = editorRef.current;
+      const animationDuration = 500; // ms
+
+      const finalizeApply = async () => {
+        const { state } = editorView;
+        let tr = state.tr;
+        const diffMarkType = state.schema.marks.diffMark;
+        const { DiffType } = await import('@/lib/editor/diff');
+
+        // Find all ranges to delete and marks to remove in one pass.
+        const rangesToDelete: { from: number; to: number }[] = [];
+        state.doc.descendants((node, pos) => {
+          if (!node.isText) return;
+
+          const deletedMark = node.marks.find(
+            (mark) => mark.type === diffMarkType && mark.attrs.type === DiffType.Deleted
+          );
+          if (deletedMark) {
+            rangesToDelete.push({ from: pos, to: pos + node.nodeSize });
+          }
+        });
+
+        // Delete ranges in reverse order to avoid position shifting.
+        for (let i = rangesToDelete.length - 1; i >= 0; i--) {
+          const { from, to } = rangesToDelete[i];
+          tr.delete(from, to);
+        }
+        
+        // Remove all (remaining) diff marks.
+        tr.removeMark(0, tr.doc.content.size, diffMarkType);
+        
+        // Don't add this transaction to history.
+        tr.setMeta('addToHistory', false);
+
+        editorView.dispatch(tr);
+
+        // 3. Clean up animation class
+        editorView.dom.classList.remove('applying-changes');
+
+        // Reset preview state
+        previewActiveRef.current = false;
+        previewOriginalContentRef.current = null;
+        lastPreviewContentRef.current = null;
+      };
+
+      // 1. Add class to trigger animations
+      editorView.dom.classList.add('applying-changes');
+
+      // 2. After animation, clean up the state
+      setTimeout(finalizeApply, animationDuration);
+    };
+    window.addEventListener('apply-document-update', handleApply as EventListener);
+    return () => window.removeEventListener('apply-document-update', handleApply as EventListener);
   }, [documentId]);
 
   useEffect(() => {
@@ -880,6 +931,20 @@ function PureEditor({
           100% {
             background-color: rgba(255, 220, 0, 0.35);
           }
+        }
+
+        /* Diff animation styles */
+        [data-diff] {
+          transition: background-color 0.5s ease-in-out, color 0.5s ease-in-out, opacity 0.5s ease-in-out, max-height 0.5s ease-in-out;
+        }
+        .applying-changes [data-diff="1"] {
+          background-color: transparent;
+        }
+        .applying-changes [data-diff="-1"] {
+          text-decoration: none;
+          opacity: 0;
+          overflow: hidden;
+          max-height: 0;
         }
       `}</style>
     </>
