@@ -25,8 +25,8 @@ export const chatModels: Array<ChatModel> = [
   },
   {
     id: 'claude-opus',
-    name: 'Claude Opus',
-    description: 'Powerful AI model for advanced tasks',
+    name: 'Claude Opus 4',
+    description: 'Most powerful model for advanced tasks',
     proOnly: true,
   },
 ];
