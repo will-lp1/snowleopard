@@ -19,14 +19,6 @@ export const metadata: Metadata = {
     description: 'The most satisfying, intuitive AI writing tool, and it\'s open source.',
     url: 'https://www.cursorforwrit.ing',
     siteName: 'snowleopard',
-    images: [
-      {
-        url: '/api/og', 
-        width: 1200,
-        height: 630,
-        alt: 'Snow Leopard - Tab, Tab, Apply Brilliance',
-      },
-    ],
     locale: 'en_US',
     type: 'website',
   },
