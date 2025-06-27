@@ -930,3 +930,25 @@ export async function clearUsername({ userId }: { userId: string }): Promise<voi
     .set({ username: null })
     .where(eq(schema.user.id, userId));
 }
+
+export async function unpublishAllDocumentsByUserId({ userId }: { userId: string }): Promise<void> {
+  try {
+    const updated = await db
+      .update(schema.Document)
+      .set({ visibility: 'private', slug: null, updatedAt: new Date() })
+      .where(
+        and(
+          eq(schema.Document.userId, userId),
+          eq(schema.Document.visibility, 'public')
+        )
+      )
+      .returning({ id: schema.Document.id });
+    
+    if (updated.length > 0) {
+      console.log(`[DB Query - unpublishAllDocumentsByUserId] Un-published ${updated.length} documents for user ${userId}.`);
+    }
+  } catch (error) {
+    console.error(`[DB Query - unpublishAllDocumentsByUserId] Error un-publishing documents for user ${userId}:`, error);
+    throw new Error('Failed to un-publish documents.');
+  }
+}
