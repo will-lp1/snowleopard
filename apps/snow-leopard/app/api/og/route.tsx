@@ -122,7 +122,7 @@ export async function GET(req: NextRequest) {
             lineHeight: 1.4,
           }}
         >
-          The most satisfying, intuitive AI writing tool, and it's open source.
+          The most satisfying, intuitive AI writing tool, and it&apos;s open source.
         </div>
       </div>
     ),
