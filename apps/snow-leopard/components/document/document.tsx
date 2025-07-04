@@ -2,7 +2,7 @@ import { memo, useState, useCallback, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 
 import type { ArtifactKind } from '@/components/artifact';
-import { FileIcon, LoaderIcon, MessageIcon, PencilEditIcon, CheckIcon, CheckCircleFillIcon } from '@/components/icons';
+import { FileIcon, LoaderIcon, MessageIcon, PencilEditIcon, CheckIcon, CheckCircleFillIcon, CrossIcon } from '@/components/icons';
 import { toast } from 'sonner';
 import { useArtifact } from '@/hooks/use-artifact';
 import { Button } from '@/components/ui/button';
@@ -62,6 +62,7 @@ function PureDocumentToolResult({
     }
     return false;
   });
+  const [isRejected, setIsRejected] = useState(false);
 
   const isUpdateProposal = 
     type === 'update' && 
@@ -119,6 +120,8 @@ function PureDocumentToolResult({
   const handleRejectUpdate = useCallback(() => {
     if (type !== 'update' || !result.id || !result.originalContent) return;
 
+    setIsRejected(true);
+
     const event = new CustomEvent('cancel-document-update', {
       detail: {
         documentId: result.id,
@@ -159,7 +162,7 @@ function PureDocumentToolResult({
           </div>
         </div>
 
-        {!isApplied ? (
+        {!isApplied && !isRejected ? (
           <>
         <div className="p-3 w-full max-h-60 overflow-y-auto text-xs">
           <DiffView 
@@ -170,8 +173,18 @@ function PureDocumentToolResult({
             <div className="p-2 border-t w-full flex justify-end bg-muted/30 gap-2">
           <Button
             size="sm"
+            variant="destructive"
+            onClick={handleRejectUpdate}
+            disabled={isSaving || isApplied || isRejected}
+            className="text-xs flex items-center gap-1.5"
+          >
+            <CrossIcon size={14} />
+            Reject
+          </Button>
+          <Button
+            size="sm"
             onClick={handleApplyUpdate}
-            disabled={isSaving || isApplied}
+            disabled={isSaving || isApplied || isRejected}
             className="text-xs flex items-center gap-1.5"
           >
             <CheckIcon size={14} />
@@ -180,10 +193,17 @@ function PureDocumentToolResult({
         </div>
           </>
         ) : (
-          <div className="flex items-center gap-2 p-3 w-full bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300">
-            <CheckCircleFillIcon size={16} />
-            <span className="text-sm">Update applied to document.</span>
-          </div>
+          isApplied ? (
+            <div className="flex items-center gap-2 p-3 w-full bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300">
+              <CheckCircleFillIcon size={16} />
+              <span className="text-sm">Update applied to document.</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 p-3 w-full bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300">
+              <CrossIcon size={16} />
+              <span className="text-sm">Update proposal rejected.</span>
+            </div>
+          )
         )}
       </div>
     );
