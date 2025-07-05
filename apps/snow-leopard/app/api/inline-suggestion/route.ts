@@ -7,7 +7,9 @@ import { headers } from 'next/headers';
 async function handleInlineSuggestionRequest(
   currentContent: string,
   suggestionLength: 'short' | 'medium' | 'long' = 'medium',
-  customInstructions?: string | null
+  customInstructions?: string | null,
+  writingStyleSummary?: string | null,
+  applyStyle: boolean = true
 ) {
   const stream = new TransformStream();
   const writer = stream.writable.getWriter();
@@ -18,7 +20,7 @@ async function handleInlineSuggestionRequest(
     try {
       console.log("Starting to process inline suggestion stream");
 
-      await streamInlineSuggestion({ currentContent, suggestionLength, customInstructions, write: async (type, content) => {
+      await streamInlineSuggestion({ currentContent, suggestionLength, customInstructions, writingStyleSummary, applyStyle, write: async (type, content) => {
         if (writerClosed) return;
 
         try {
@@ -89,13 +91,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Authentication error' }, { status: 401 });
     }
     const { currentContent, aiOptions = {} } = await request.json();
-    const { suggestionLength, customInstructions } = aiOptions;
+    const { suggestionLength, customInstructions, writingStyleSummary, applyStyle } = aiOptions;
 
     if (!currentContent) {
       return NextResponse.json({ error: 'Missing content parameter' }, { status: 400 });
     }
 
-    return handleInlineSuggestionRequest(currentContent, suggestionLength, customInstructions);
+    return handleInlineSuggestionRequest(currentContent, suggestionLength, customInstructions, writingStyleSummary, applyStyle);
   } catch (error: any) {
     console.error('Inline suggestion route error:', error);
     return NextResponse.json({ error: error.message || 'An error occurred' }, { status: 400 });
@@ -106,16 +108,20 @@ async function streamInlineSuggestion({
   currentContent,
   suggestionLength,
   customInstructions,
+  writingStyleSummary,
+  applyStyle,
   write
 }: {
   currentContent: string;
   suggestionLength: 'short' | 'medium' | 'long';
   customInstructions?: string | null;
+  writingStyleSummary?: string | null;
+  applyStyle: boolean;
   write: (type: string, content: string) => Promise<void>;
 }) {
-  console.log("Starting text inline suggestion generation with options:", { suggestionLength, customInstructions });
+  console.log("Starting text inline suggestion generation with options:", { suggestionLength, customInstructions, writingStyleSummary, applyStyle });
 
-  const prompt = buildPrompt(currentContent, suggestionLength, customInstructions);
+  const prompt = buildPrompt(currentContent, suggestionLength, customInstructions, writingStyleSummary, applyStyle);
 
   const maxTokens = { short: 20, medium: 50, long: 80 }[suggestionLength || 'medium'];
 
@@ -147,7 +153,9 @@ function getSystemPrompt(): string {
 function buildPrompt(
   currentContent: string,
   suggestionLength: 'short' | 'medium' | 'long' = 'medium',
-  customInstructions?: string | null
+  customInstructions?: string | null,
+  writingStyleSummary?: string | null,
+  applyStyle: boolean = true
 ): string {
   const contextWindow = 200;
   const relevantContent = currentContent.slice(-contextWindow);
@@ -156,6 +164,11 @@ function buildPrompt(
   let promptContent = `Text before cursor:\n"""${relevantContent}"""\n\nContinue this text with ${lengthInstruction}.`;
   if (customInstructions) {
     promptContent = `${customInstructions}\n\n${promptContent}`;
+  }
+
+  if (applyStyle && writingStyleSummary) {
+    const styleBlock = `PERSONAL STYLE GUIDE\n• Emulate the author\'s tone, rhythm, sentence structure, vocabulary choice, and punctuation habits.\n• Do NOT copy phrases or introduce topics from the reference text.\n• Only transform wording; keep meaning intact.\nStyle description: ${writingStyleSummary}`;
+    promptContent = `${styleBlock}\n\n${promptContent}`;
   }
   return promptContent;
 } 

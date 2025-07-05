@@ -62,7 +62,7 @@ export default function SuggestionOverlay({
   const inputRef = useRef<HTMLInputElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
-  const { customInstructions } = useAiOptionsValue();
+  const { customInstructions, writingStyleSummary, applyStyle } = useAiOptionsValue();
   const { setSuggestionIsLoading } = useSuggestionOverlay();
 
   // Effect to inform provider about loading state changes
@@ -300,6 +300,12 @@ export default function SuggestionOverlay({
         if (customInstructions) {
           params.append("customInstructions", customInstructions);
         }
+        if (applyStyle && writingStyleSummary) {
+          params.append("writingStyleSummary", writingStyleSummary);
+        }
+        if (applyStyle) {
+          params.append("applyStyle", "true");
+        }
 
         const url = `/api/suggestion?${params.toString()}`;
         console.log("[SuggestionOverlay] Requesting suggestion with options:", {
@@ -370,7 +376,7 @@ export default function SuggestionOverlay({
         setIsGenerating(false);
       }
     },
-    [documentId, selectedText, customInstructions]
+    [documentId, selectedText, customInstructions, writingStyleSummary, applyStyle]
   );
 
   const handleSubmit = useCallback(

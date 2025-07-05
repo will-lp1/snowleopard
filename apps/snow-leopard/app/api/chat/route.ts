@@ -44,12 +44,16 @@ async function createEnhancedSystemPrompt({
   activeDocumentId,
   mentionedDocumentIds,
   customInstructions,
+  writingStyleSummary,
+  applyStyle,
   availableTools = ['createDocument','streamingDocument','updateDocument','webSearch'] as Array<'createDocument'|'streamingDocument'|'updateDocument'|'webSearch'>,
 }: {
   selectedChatModel: string;
   activeDocumentId?: string | null;
   mentionedDocumentIds?: string[] | null;
   customInstructions?: string | null;
+  writingStyleSummary?: string | null;
+  applyStyle?: boolean;
   availableTools?: Array<'createDocument'|'streamingDocument'|'updateDocument'|'webSearch'>;
 }) {
 
@@ -58,6 +62,11 @@ async function createEnhancedSystemPrompt({
 
   if (customInstructions) {
     basePrompt = customInstructions + "\n\n" + basePrompt;
+  }
+
+  if (applyStyle && writingStyleSummary) {
+    const styleBlock = `PERSONAL STYLE GUIDE\n• Emulate the author\'s tone, rhythm, sentence structure, vocabulary choice, and punctuation habits.\n• Do NOT copy phrases or introduce topics from the reference text.\n• Only transform wording to match style; keep semantic content from the current conversation.\nStyle description: ${writingStyleSummary}`;
+    basePrompt = styleBlock + "\n\n" + basePrompt;
   }
 
   if (activeDocumentId) {
@@ -177,6 +186,8 @@ export async function POST(request: Request) {
       aiOptions?: {
         customInstructions?: string | null;
         suggestionLength?: 'short' | 'medium' | 'long';
+        writingStyleSummary?: string | null;
+        applyStyle?: boolean;
       } | null;
     } = await request.json();
 
@@ -184,6 +195,8 @@ export async function POST(request: Request) {
     const mentionedDocumentIds = requestData?.mentionedDocumentIds ?? undefined;
     const customInstructions = aiOptions?.customInstructions ?? null;
     const suggestionLength = aiOptions?.suggestionLength ?? 'medium';
+    const writingStyleSummary = aiOptions?.writingStyleSummary ?? null;
+    const applyStyle = aiOptions?.applyStyle ?? true;
 
     const userMessage = getMostRecentUserMessage(messages);
 
@@ -281,6 +294,8 @@ export async function POST(request: Request) {
           activeDocumentId,
           mentionedDocumentIds,
           customInstructions,
+          writingStyleSummary,
+          applyStyle,
           availableTools: activeToolsList,
         });
 

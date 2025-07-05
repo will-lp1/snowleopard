@@ -110,15 +110,23 @@ function PureEditor({
   const previewActiveRef = useRef<boolean>(false);
   const lastPreviewContentRef = useRef<string | null>(null);
 
-  const { suggestionLength, customInstructions } = useAiOptionsValue();
+  const { suggestionLength, customInstructions, writingStyleSummary, applyStyle } = useAiOptionsValue();
   const suggestionLengthRef = useRef(suggestionLength);
   const customInstructionsRef = useRef(customInstructions);
+  const writingStyleSummaryRef = useRef(writingStyleSummary);
+  const applyStyleRef = useRef(applyStyle);
   useEffect(() => {
     suggestionLengthRef.current = suggestionLength;
   }, [suggestionLength]);
   useEffect(() => {
     customInstructionsRef.current = customInstructions;
   }, [customInstructions]);
+  useEffect(() => {
+    writingStyleSummaryRef.current = writingStyleSummary;
+  }, [writingStyleSummary]);
+  useEffect(() => {
+    applyStyleRef.current = applyStyle;
+  }, [applyStyle]);
 
   useEffect(() => {
     currentDocumentIdRef.current = documentId;
@@ -219,6 +227,8 @@ function PureEditor({
             aiOptions: {
               suggestionLength: suggestionLengthRef.current,
               customInstructions: customInstructionsRef.current,
+              writingStyleSummary: writingStyleSummaryRef.current,
+              applyStyle: applyStyleRef.current,
             },
           }),
           signal: controller.signal,

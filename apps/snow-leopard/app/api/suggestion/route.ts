@@ -12,7 +12,9 @@ async function handleSuggestionRequest(
   userId: string,
   selectedText?: string,
   suggestionLength: 'short' | 'medium' | 'long' = 'medium',
-  customInstructions?: string | null
+  customInstructions?: string | null,
+  writingStyleSummary?: string | null,
+  applyStyle: boolean = true
 ) {
   const document = await getDocumentById({ id: documentId });
 
@@ -60,6 +62,8 @@ async function handleSuggestionRequest(
         selectedText,
         suggestionLength,
         customInstructions,
+        writingStyleSummary,
+        applyStyle,
         write: async (type, content) => {
           await writer.write(encoder.encode(`data: ${JSON.stringify({
             type,
@@ -111,12 +115,14 @@ export async function GET(request: Request) {
     const selectedText = url.searchParams.get('selectedText') || undefined;
     const suggestionLength = (url.searchParams.get('suggestionLength') as 'short' | 'medium' | 'long' | null) || 'medium';
     const customInstructions = url.searchParams.get('customInstructions') || null;
+    const writingStyleSummary = url.searchParams.get('writingStyleSummary') || null;
+    const applyStyle = url.searchParams.get('applyStyle') === 'true';
 
     if (!documentId || !description) {
       return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
     }
 
-    return handleSuggestionRequest(documentId, description, userId, selectedText, suggestionLength, customInstructions);
+    return handleSuggestionRequest(documentId, description, userId, selectedText, suggestionLength, customInstructions, writingStyleSummary, applyStyle);
   } catch (error: any) {
     console.error('Suggestion GET route error:', error);
     return NextResponse.json({ error: error.message || 'An error occurred' }, { status: 400 });
@@ -141,13 +147,13 @@ export async function POST(request: Request) {
       aiOptions = {}
     } = await request.json();
 
-    const { suggestionLength = 'medium', customInstructions = null } = aiOptions;
+    const { suggestionLength = 'medium', customInstructions = null, writingStyleSummary = null, applyStyle = true } = aiOptions;
 
     if (!documentId || !description) {
       return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
     }
 
-    return handleSuggestionRequest(documentId, description, userId, selectedText, suggestionLength, customInstructions);
+    return handleSuggestionRequest(documentId, description, userId, selectedText, suggestionLength, customInstructions, writingStyleSummary, applyStyle);
   } catch (error: any) {
     console.error('Suggestion POST route error:', error);
     return NextResponse.json({ error: error.message || 'An error occurred' }, { status: 400 });
@@ -160,6 +166,8 @@ async function streamSuggestion({
   selectedText,
   suggestionLength,
   customInstructions,
+  writingStyleSummary,
+  applyStyle,
   write
 }: {
   document: any;
@@ -167,6 +175,8 @@ async function streamSuggestion({
   selectedText?: string;
   suggestionLength: 'short' | 'medium' | 'long';
   customInstructions?: string | null;
+  writingStyleSummary?: string | null;
+  applyStyle: boolean;
   write: (type: string, content: string) => Promise<void>;
 }) {
   let draftContent = '';
@@ -183,6 +193,11 @@ Instruction: "${description}"`
 
   if (customInstructions) {
     promptContext = `${customInstructions}\n\n${promptContext}`;
+  }
+
+  if (applyStyle && writingStyleSummary) {
+    const styleBlock = `PERSONAL STYLE GUIDE\n• Emulate the author\'s tone, rhythm, sentence structure, vocabulary choice, and punctuation habits.\n• Do NOT copy phrases or introduce topics from the reference text.\n• Only transform wording; preserve original meaning.\nStyle description: ${writingStyleSummary}`;
+    promptContext = `${styleBlock}\n\n${promptContext}`;
   }
 
   const lengthMap = { short: 'concise', medium: 'a moderate amount of detail', long: 'comprehensively' };

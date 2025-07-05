@@ -16,6 +16,7 @@ import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
 import { DataStreamHandler } from '@/components/data-stream-handler';
 import { motion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
+import { useAiOptionsValue } from '@/hooks/ai-options';
 
 export interface ChatProps {
   id?: string;
@@ -35,6 +36,7 @@ export function Chat({
   const { documentId, documentTitle, documentContent } = useDocumentContext();
   const [documentContextActive, setDocumentContextActive] = useState(false);
   const { artifact } = useArtifact();
+  const { writingStyleSummary, applyStyle } = useAiOptionsValue();
   const [chatId, setChatId] = useState(() => initialId || generateUUID());
   
   const [selectedChatModel, setSelectedChatModel] = useState(
@@ -83,6 +85,10 @@ export function Chat({
     body: {
       id: chatId,
       selectedChatModel: selectedChatModel,
+      aiOptions: {
+        writingStyleSummary,
+        applyStyle,
+      },
     },
     onResponse: (res) => {
       if (res.status === 401) {
