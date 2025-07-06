@@ -273,22 +273,6 @@ export function Chat({
         onModelChange={handleModelChange}
       />
 
-      {documentContextActive ? (
-        <div className="px-3 py-1 text-xs text-muted-foreground text-center border-b border-zinc-200 dark:border-zinc-700 bg-muted/20">
-          Active Document: <span className="font-medium text-foreground">{documentTitle}</span>
-        </div>
-      ) : (
-        <motion.div
-          key="no-messages"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 10 }}
-          className="px-3 py-1 text-xs text-muted-foreground text-center border-b border-zinc-200 dark:border-zinc-700 bg-muted/20"
-        >
-          No active document.
-        </motion.div>
-      )}
-
       <div className="flex-1 overflow-y-auto relative">
         {isLoadingChat ? (
            <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm z-10">
