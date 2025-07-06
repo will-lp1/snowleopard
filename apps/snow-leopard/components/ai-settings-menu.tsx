@@ -1,6 +1,6 @@
 "use client";
 
-import { Settings } from "lucide-react";
+import { Settings, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -22,6 +22,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 
 export function AiSettingsMenu() {
   const { suggestionLength, customInstructions, writingSample, writingStyleSummary, applyStyle } = useAiOptionsValue();
@@ -117,14 +119,12 @@ export function AiSettingsMenu() {
             align="end"
             sideOffset={6}
           >
-            <div className="mb-3">
-              <span className="text-sm font-medium">AI Preferences</span>
+            <div className="mb-4">
+              <span className="text-sm font-semibold text-foreground">AI Preferences</span>
             </div>
 
-            <div className="mb-4 space-y-2">
-              <Label className="text-xs font-medium block">
-                Suggestion Length
-              </Label>
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Suggestion Length</Label>
               <div className="flex items-center gap-1.5">
                 {(["short", "medium", "long"] as SuggestionLength[]).map(
                   (len) => (
@@ -162,31 +162,25 @@ export function AiSettingsMenu() {
                 onChange={(e) => setCustomInstructions(e.target.value)}
               />
               <p className="text-[11px] text-muted-foreground leading-tight">
-                Leave blank for default behavior. Your instructions shape the
-                AI&apos;s responses.
+                Your instructions guide the AI's tone and behavior.
               </p>
             </div>
 
-            {/* Writing Voice Section */}
-            <div className="mt-6 space-y-2">
-              <Label className="text-xs font-medium block">Writing Voice</Label>
+            <Separator className="my-4" />
 
+            {/* Writing Voice Section */}
+            <div className="space-y-4">
               {isEditingSample ? (
-                <>
+                <div className="space-y-3">
+                  <Label className="text-xs font-medium">Train Writing Voice</Label>
                   <Textarea
-                    placeholder="Paste about 200-400 words that *sound like you*. This stays on your device."
-                    className="h-24 text-sm resize-none bg-background border focus-visible:ring-1 focus-visible:ring-ring"
+                    placeholder="Paste ~200 characters of your writing so the AI can learn your style. This sample stays on your device."
+                    className="h-28 text-sm resize-none bg-background border focus-visible:ring-1 focus-visible:ring-ring"
                     value={localWritingSample}
                     onChange={(e) => setLocalWritingSample(e.target.value)}
                   />
 
-                  {/* Character count & progress */}
-                  <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                    <span>{localWritingSample.length} / 200</span>
-                    <span>{localWritingSample.length < 200 ? "Need a bit more…" : "Good to go"}</span>
-                  </div>
-
-                  <Progress value={Math.min(100, (localWritingSample.length / 200) * 100)} className="h-1" />
+                  <Progress value={Math.min(100, (localWritingSample.length / 200) * 100)} className="h-1.5" />
 
                   {generationError && (
                     <p className="text-[11px] text-destructive leading-tight">{generationError}</p>
@@ -195,20 +189,45 @@ export function AiSettingsMenu() {
                   <Button
                     size="sm"
                     className="w-full"
+                    variant='outline'
                     disabled={isGeneratingSummary || localWritingSample.length < 200}
                     onClick={handleGenerateSummary}
                   >
-                    {isGeneratingSummary ? "Analysing…" : "Create Voice"}
+                    {isGeneratingSummary && (
+                      <Loader2 className="mr-2 size-4 animate-spin" />
+                    )}
+                    {isGeneratingSummary ? "Analyzing..." : "Create Voice Profile"}
                   </Button>
-                </>
+                </div>
               ) : (
-                <div className="border rounded-md p-3 bg-muted/25 space-y-2">
-                  <p className="text-sm">Writing voice ready.</p>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={startRetrain}>
+                // Trained State
+                <div className="space-y-3 rounded-md border p-3">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="apply-style" className="text-xs font-medium">
+                      Apply Writing Voice
+                    </Label>
+                    <Switch
+                      id="apply-style"
+                      checked={applyStyle}
+                      onCheckedChange={toggleApplyStyle}
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="flex-1"
+                      onClick={startRetrain}
+                    >
                       Retrain
                     </Button>
-                    <Button size="sm" variant="outline" onClick={handleClearProfile}>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="flex-1"
+                      onClick={handleClearProfile}
+                    >
                       Clear
                     </Button>
                   </div>
