@@ -10,6 +10,7 @@ import {
   Italic,
   Quote,
   Code,
+  ChevronDown,
 } from 'lucide-react';
 
 import { documentSchema } from '@/lib/editor/config';
@@ -48,11 +49,9 @@ interface EditorToolbarProps {
 export function EditorToolbar({ activeFormats }: EditorToolbarProps) {
   const buttonClass = (format: string) =>
     cn(
-      'h-6 w-6 p-1 rounded-md flex items-center justify-center transition-colors outline-none ring-0',
-      'border border-border bg-background dark:hover:bg-zinc-700',
-      activeFormats[format]
-        ? 'bg-accent text-accent-foreground border-accent'
-        : 'hover:bg-muted hover:text-foreground',
+      'h-8 w-8 p-0 flex items-center justify-center rounded-md border border-border bg-background text-foreground',
+      activeFormats[format] ? 'border-accent' : '',
+      'transition-none',
     );
 
   const currentTextStyle = activeFormats.h1
@@ -101,6 +100,7 @@ export function EditorToolbar({ activeFormats }: EditorToolbarProps) {
           className={buttonClass(formatKey)}
           onClick={onClick}
           type="button"
+          aria-label={label}
         >
           {children}
         </Button>
@@ -110,15 +110,15 @@ export function EditorToolbar({ activeFormats }: EditorToolbarProps) {
   );
 
   return (
-    <div className="w-full flex items-center gap-1 overflow-x-auto whitespace-nowrap rounded-md py-1 text-foreground bg-background dark:bg-black">
-
+    <div className="sticky top-4 z-20 w-full h-[45px] flex items-center gap-2 px-3 py-0 overflow-x-auto whitespace-nowrap rounded-lg bg-background border border-border">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" className="h-6 px-2 min-w-[6rem] flex items-center justify-between gap-1 text-sm">
+          <Button variant="outline" className="h-8 px-3 min-w-[7rem] flex items-center justify-between gap-2 text-sm rounded-md border border-border bg-background text-foreground" tabIndex={0}>
             <span className="truncate text-sm font-medium">{currentTextStyle}</span>
+            <ChevronDown className="size-4 ml-1 text-muted-foreground" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-40 p-1 shadow-lg rounded-md border bg-popover" align="start">
+        <DropdownMenuContent className="w-44 p-1 shadow-lg rounded-lg border bg-popover" align="start">
           {textOptions.map((opt) => (
             <DropdownMenuItem
               key={opt.label}
@@ -126,7 +126,7 @@ export function EditorToolbar({ activeFormats }: EditorToolbarProps) {
                 e.preventDefault();
                 opt.command();
               }}
-              className={cn('text-sm', opt.formatKey && activeFormats[opt.formatKey] && 'bg-accent text-accent-foreground')}
+              className={cn('text-sm rounded-md', opt.formatKey && activeFormats[opt.formatKey] && 'bg-accent text-accent-foreground')}
             >
               {opt.label}
             </DropdownMenuItem>
@@ -145,7 +145,7 @@ export function EditorToolbar({ activeFormats }: EditorToolbarProps) {
             : runCommand(wrapInList(nodes.bullet_list))
         }
       >
-        <List className="size-4" />
+        <List className="size-5 text-foreground" />
       </ButtonWithTooltip>
       <ButtonWithTooltip
         label="Numbered List"
@@ -156,7 +156,7 @@ export function EditorToolbar({ activeFormats }: EditorToolbarProps) {
             : runCommand(wrapInList(nodes.ordered_list))
         }
       >
-        <ListOrdered className="size-4" />
+        <ListOrdered className="size-5 text-foreground" />
       </ButtonWithTooltip>
 
       <Separator orientation="vertical" className="mx-2 h-6" />
@@ -166,14 +166,14 @@ export function EditorToolbar({ activeFormats }: EditorToolbarProps) {
         formatKey="bold"
         onClick={() => runCommand(toggleMark(marks.strong))}
       >
-        <Bold className="size-4" />
+        <Bold className="size-5 text-foreground" />
       </ButtonWithTooltip>
       <ButtonWithTooltip
         label="Italic"
         formatKey="italic"
         onClick={() => runCommand(toggleMark(marks.em))}
       >
-        <Italic className="size-4" />
+        <Italic className="size-5 text-foreground" />
       </ButtonWithTooltip>
 
       <ButtonWithTooltip
@@ -181,7 +181,7 @@ export function EditorToolbar({ activeFormats }: EditorToolbarProps) {
         formatKey="code"
         onClick={() => runCommand(toggleMark(marks.code))}
       >
-        <Code className="size-4" />
+        <Code className="size-5 text-foreground" />
       </ButtonWithTooltip>
 
       <Separator orientation="vertical" className="mx-2 h-6" />
@@ -195,7 +195,7 @@ export function EditorToolbar({ activeFormats }: EditorToolbarProps) {
             : runCommand(wrapIn(nodes.blockquote))
         }
       >
-        <Quote className="size-4" />
+        <Quote className="size-5 text-foreground" />
       </ButtonWithTooltip>
 
       <ButtonWithTooltip
@@ -207,7 +207,7 @@ export function EditorToolbar({ activeFormats }: EditorToolbarProps) {
             : runCommand(setBlockType(nodes.code_block))
         }
       >
-        <Code className="size-4" />
+        <Code className="size-5 text-foreground" />
       </ButtonWithTooltip>
     </div>
   );

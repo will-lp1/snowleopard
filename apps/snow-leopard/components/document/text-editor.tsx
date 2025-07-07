@@ -813,7 +813,7 @@ function PureEditor({
       {isCurrentVersion && documentId !== "init" && (
         <EditorToolbar activeFormats={activeFormats} />
       )}
-      <div className="editor-area bg-background text-foreground dark:bg-black dark:text-white prose prose-slate dark:prose-invert pt-2" ref={containerRef} />
+      <div className="editor-area bg-background text-foreground dark:bg-black dark:text-white prose prose-slate dark:prose-invert pt-4" ref={containerRef} />
       <style jsx global>{`
         .suggestion-decoration-inline {
           /* Removed display: contents; */

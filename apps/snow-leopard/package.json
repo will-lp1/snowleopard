@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@radix-ui/react-slot": "^1.1.0",
     "@snow-leopard/db": "workspace:*",
     "@vercel/og": "^0.6.8",
     "autoprefixer": "^10.4.18",

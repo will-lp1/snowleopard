@@ -36,7 +36,7 @@ export const Overview = () => {
             className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5"
             asChild
           >
-            <Link href="https://discord.gg/X49bQmnYbd" target="_blank" rel="noopener noreferrer">
+            <Link href="https://discord.gg/TwG73aHE" target="_blank" rel="noopener noreferrer">
               <Image src="/images/discord-logo.png" alt="Discord" width={16} height={16} />
               Join the Discord
             </Link>
