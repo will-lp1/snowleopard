@@ -956,6 +956,12 @@ function PureEditor({
           overflow: hidden;
           max-height: 0;
         }
+
+        .editor-area,
+        .toolbar {
+          max-width: 720px;
+          margin: 0 auto;
+        }
       `}</style>
     </>
   );

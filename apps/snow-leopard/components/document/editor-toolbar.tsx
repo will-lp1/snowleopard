@@ -110,7 +110,7 @@ export function EditorToolbar({ activeFormats }: EditorToolbarProps) {
   );
 
   return (
-    <div className="sticky top-4 z-20 w-full h-[45px] flex items-center gap-2 px-3 py-0 overflow-x-auto whitespace-nowrap rounded-lg bg-background border border-border">
+    <div className="toolbar sticky top-4 z-20 w-full h-[45px] flex items-center gap-2 px-3 py-0 overflow-x-auto whitespace-nowrap rounded-lg bg-background border border-border">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" className="h-8 px-3 min-w-[7rem] flex items-center justify-between gap-2 text-sm rounded-md border border-border bg-background text-foreground" tabIndex={0}>
@@ -174,40 +174,6 @@ export function EditorToolbar({ activeFormats }: EditorToolbarProps) {
         onClick={() => runCommand(toggleMark(marks.em))}
       >
         <Italic className="size-5 text-foreground" />
-      </ButtonWithTooltip>
-
-      <ButtonWithTooltip
-        label="Inline Code"
-        formatKey="code"
-        onClick={() => runCommand(toggleMark(marks.code))}
-      >
-        <Code className="size-5 text-foreground" />
-      </ButtonWithTooltip>
-
-      <Separator orientation="vertical" className="mx-2 h-6" />
-
-      <ButtonWithTooltip
-        label="Block Quote"
-        formatKey="blockquote"
-        onClick={() =>
-          activeFormats.blockquote
-            ? runCommand(lift)
-            : runCommand(wrapIn(nodes.blockquote))
-        }
-      >
-        <Quote className="size-5 text-foreground" />
-      </ButtonWithTooltip>
-
-      <ButtonWithTooltip
-        label="Code Block"
-        formatKey="codeBlock"
-        onClick={() =>
-          activeFormats.codeBlock
-            ? runCommand(setBlockType(nodes.paragraph))
-            : runCommand(setBlockType(nodes.code_block))
-        }
-      >
-        <Code className="size-5 text-foreground" />
       </ButtonWithTooltip>
     </div>
   );
