@@ -27,7 +27,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
   const { setOpenMobile } = useSidebar();
 
   return (
-    <Sidebar className="shadow-none border-r">
+    <Sidebar className="shadow-none">
       <SidebarHeader>
         <SidebarMenu>
           <div className="flex flex-row justify-between items-center px-2">

@@ -323,7 +323,6 @@ function Sidebar({
           <div
             className={cn(
               "duration-200 relative h-svh w-[--sidebar-width] bg-transparent transition-[width] ease-linear",
-              "border-r border-sidebar-border",
               state === "collapsed" && collapsible === "offcanvas" ? "w-0" : "",
               variant === "floating" || variant === "inset"
                 ? "group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4))]"
