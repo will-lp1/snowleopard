@@ -290,7 +290,7 @@ export function AlwaysVisibleArtifact({
   if (showCreateDocumentForId) {
     return (
       <div className="flex flex-col h-dvh bg-background">
-         <div className="flex flex-row justify-between items-center border-b border-zinc-200 dark:border-zinc-700 px-3 h-[45px]">
+         <div className="flex flex-row justify-between items-center border-b px-3 h-[45px]">
            <div className="flex flex-row gap-2 items-center min-w-0">
              <SidebarTrigger />
              <div className="font-medium truncate h-6 leading-6 px-1">Document Not Found</div>
@@ -330,7 +330,7 @@ export function AlwaysVisibleArtifact({
 
   return (
     <div className="flex flex-col h-dvh bg-background">
-      <div className="flex flex-row justify-between items-center border-b border-zinc-200 dark:border-zinc-700 px-3 h-[45px]">
+      <div className="flex flex-row justify-between items-center border-b px-3 h-[45px]">
         <div className="flex flex-row gap-2 items-center min-w-0">
           <SidebarTrigger />
           {isPending ? (
@@ -383,7 +383,7 @@ export function AlwaysVisibleArtifact({
         </div>
       </div>
       
-      <div className="dark:bg-muted bg-background h-full overflow-y-auto !max-w-full items-center relative">
+      <div className="bg-background text-foreground dark:bg-black dark:text-white h-full overflow-y-auto !max-w-full items-center relative">
         {!isCurrentVersion && documents && documents.length > 1 && (
           <VersionHeader
             key={`${currentDocument?.id}-${currentVersionIndex}`}

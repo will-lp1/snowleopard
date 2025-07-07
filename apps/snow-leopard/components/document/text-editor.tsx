@@ -36,7 +36,7 @@ import {
 } from "@/lib/editor/save-plugin";
 
 import { synonymsPlugin } from "@/lib/editor/synonym-plugin";
-import { EditorToolbar } from "@/components/editor-toolbar";
+import { EditorToolbar } from "@/components/document/editor-toolbar";
 import { creationStreamingPlugin } from "@/lib/editor/creation-streaming-plugin";
 import { selectionContextPlugin } from "@/lib/editor/selection-context-plugin";
 import { diffEditor } from "@/lib/editor/diff";
@@ -110,15 +110,23 @@ function PureEditor({
   const previewActiveRef = useRef<boolean>(false);
   const lastPreviewContentRef = useRef<string | null>(null);
 
-  const { suggestionLength, customInstructions } = useAiOptionsValue();
+  const { suggestionLength, customInstructions, writingStyleSummary, applyStyle } = useAiOptionsValue();
   const suggestionLengthRef = useRef(suggestionLength);
   const customInstructionsRef = useRef(customInstructions);
+  const writingStyleSummaryRef = useRef(writingStyleSummary);
+  const applyStyleRef = useRef(applyStyle);
   useEffect(() => {
     suggestionLengthRef.current = suggestionLength;
   }, [suggestionLength]);
   useEffect(() => {
     customInstructionsRef.current = customInstructions;
   }, [customInstructions]);
+  useEffect(() => {
+    writingStyleSummaryRef.current = writingStyleSummary;
+  }, [writingStyleSummary]);
+  useEffect(() => {
+    applyStyleRef.current = applyStyle;
+  }, [applyStyle]);
 
   useEffect(() => {
     currentDocumentIdRef.current = documentId;
@@ -219,6 +227,8 @@ function PureEditor({
             aiOptions: {
               suggestionLength: suggestionLengthRef.current,
               customInstructions: customInstructionsRef.current,
+              writingStyleSummary: writingStyleSummaryRef.current,
+              applyStyle: applyStyleRef.current,
             },
           }),
           signal: controller.signal,
@@ -803,7 +813,7 @@ function PureEditor({
       {isCurrentVersion && documentId !== "init" && (
         <EditorToolbar activeFormats={activeFormats} />
       )}
-      <div className="prose dark:prose-invert pt-2" ref={containerRef} />
+      <div className="editor-area bg-background text-foreground dark:bg-black dark:text-white prose prose-slate dark:prose-invert pt-4" ref={containerRef} />
       <style jsx global>{`
         .suggestion-decoration-inline {
           /* Removed display: contents; */
@@ -945,6 +955,12 @@ function PureEditor({
           opacity: 0;
           overflow: hidden;
           max-height: 0;
+        }
+
+        .editor-area,
+        .toolbar {
+          max-width: 720px;
+          margin: 0 auto;
         }
       `}</style>
     </>

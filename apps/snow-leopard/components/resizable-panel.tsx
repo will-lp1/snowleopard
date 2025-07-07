@@ -2,6 +2,7 @@
 
 import { useState, useEffect, ReactNode } from 'react';
 import { GripVertical } from 'lucide-react';
+
 import { cn } from '@/lib/utils';
 import { useSidebarWithSide } from '@/components/ui/sidebar';
 
@@ -24,7 +25,7 @@ export function ResizablePanel({
 }: ResizablePanelProps) {
   const [size, setSize] = useState(defaultSize);
   const [isResizing, setIsResizing] = useState(false);
-  const [isHovering, setIsHovering] = useState(false);
+
   const { open: isOpen } = useSidebarWithSide(side);
 
   // Handle mouse down on resize handle
@@ -94,8 +95,7 @@ export function ResizablePanel({
     };
   }, [isResizing, minSize, maxSize, side]);
 
-  const handleMouseEnter = () => setIsHovering(true);
-  const handleMouseLeave = () => setIsHovering(false);
+
 
   return (
     <div className="flex flex-row h-full">
@@ -111,50 +111,44 @@ export function ResizablePanel({
       
       {/* Resize handle - only show for right panel when open or animating */}
       {(side === 'left' || isOpen) && (
-        <div 
-          className={cn(
-            "w-1 cursor-col-resize flex flex-col items-center justify-center transition-colors",
-            isResizing && "bg-primary/30",
-            isHovering && !isResizing && "bg-primary/10"
-          )}
+        <div
           onMouseDown={startResizing}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
+          className={cn(
+            'group relative flex w-2.5 cursor-col-resize items-center justify-center rounded-full',
+            'transition-colors',
+            isResizing
+              ? 'bg-primary/30'
+              : 'hover:bg-primary/10 dark:hover:bg-primary/20'
+          )}
         >
-          <div className="h-16 w-4 flex items-center justify-center rounded-sm">
-            <GripVertical 
-              className={cn(
-                "h-4 w-4 text-muted-foreground/40 transition-colors",
-                isResizing && "text-primary",
-                isHovering && !isResizing && "text-primary/70"
-              )} 
-            />
-          </div>
+          <GripVertical
+            className={cn(
+              'h-4 w-4 text-muted-foreground/40 transition-colors',
+              isResizing
+                ? 'text-primary'
+                : 'group-hover:text-primary/80 dark:group-hover:text-primary'
+            )}
+          />
         </div>
       )}
       
-      {/* Right side panel - use sidebar-style animation */}
       {side === 'right' && (
         <>
-          {/* Spacer div for smooth width transition */}
           <div
-            className="duration-200 relative h-full bg-transparent transition-[width] ease-linear"
+            className="relative h-full bg-transparent transition-all duration-200 ease-linear"
             style={{ width: isOpen ? `${size}px` : '0px' }}
           />
-          {/* Content div with slide animation */}
           <div
             className={cn(
-              "duration-200 fixed top-0 h-full transition-[right,width] ease-linear",
+              'fixed top-0 h-full transition-all duration-200 ease-linear',
               className
             )}
-            style={{ 
+            style={{
               width: `${size}px`,
-              right: isOpen ? '0px' : `-${size}px`
+              right: isOpen ? '0px' : `-${size}px`,
             }}
           >
-            <div className="h-full w-full">
-              {children}
-            </div>
+            <div className="h-full w-full">{children}</div>
           </div>
         </>
       )}

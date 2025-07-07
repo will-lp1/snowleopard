@@ -16,6 +16,7 @@ import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
 import { DataStreamHandler } from '@/components/data-stream-handler';
 import { motion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
+import { useAiOptionsValue } from '@/hooks/ai-options';
 
 export interface ChatProps {
   id?: string;
@@ -35,6 +36,7 @@ export function Chat({
   const { documentId, documentTitle, documentContent } = useDocumentContext();
   const [documentContextActive, setDocumentContextActive] = useState(false);
   const { artifact } = useArtifact();
+  const { writingStyleSummary, applyStyle } = useAiOptionsValue();
   const [chatId, setChatId] = useState(() => initialId || generateUUID());
   
   const [selectedChatModel, setSelectedChatModel] = useState(
@@ -83,6 +85,10 @@ export function Chat({
     body: {
       id: chatId,
       selectedChatModel: selectedChatModel,
+      aiOptions: {
+        writingStyleSummary,
+        applyStyle,
+      },
     },
     onResponse: (res) => {
       if (res.status === 401) {
@@ -266,22 +272,6 @@ export function Chat({
         isReadonly={isReadonly}
         onModelChange={handleModelChange}
       />
-
-      {documentContextActive ? (
-        <div className="px-3 py-1 text-xs text-muted-foreground text-center border-b border-zinc-200 dark:border-zinc-700 bg-muted/20">
-          Active Document: <span className="font-medium text-foreground">{documentTitle}</span>
-        </div>
-      ) : (
-        <motion.div
-          key="no-messages"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 10 }}
-          className="px-3 py-1 text-xs text-muted-foreground text-center border-b border-zinc-200 dark:border-zinc-700 bg-muted/20"
-        >
-          No active document.
-        </motion.div>
-      )}
 
       <div className="flex-1 overflow-y-auto relative">
         {isLoadingChat ? (

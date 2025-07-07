@@ -1,5 +1,3 @@
-
-
 import { createWithEqualityFn } from "zustand/traditional";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { shallow } from "zustand/shallow";
@@ -11,8 +9,14 @@ export type SuggestionLength = "short" | "medium" | "long";
 interface AiOptionsState {
   suggestionLength: SuggestionLength;
   customInstructions: string;
+  writingSample: string;
+  writingStyleSummary: string;
+  applyStyle: boolean;
   setSuggestionLength: (length: SuggestionLength) => void;
   setCustomInstructions: (instructions: string) => void;
+  setWritingSample: (sample: string) => void;
+  setWritingStyleSummary: (summary: string) => void;
+  setApplyStyle: (val: boolean) => void;
   syncFromStorage: () => void;
 }
 
@@ -26,9 +30,15 @@ export const useAiOptions = createWithEqualityFn<AiOptionsState>()(
     (set) => ({
       suggestionLength: "medium",
       customInstructions: "",
+      writingSample: "",
+      writingStyleSummary: "",
+      applyStyle: true,
       setSuggestionLength: (length) => set({ suggestionLength: length }),
       setCustomInstructions: (instructions) =>
         set({ customInstructions: instructions }),
+      setWritingSample: (sample) => set({ writingSample: sample }),
+      setWritingStyleSummary: (summary) => set({ writingStyleSummary: summary }),
+      setApplyStyle: (val) => set({ applyStyle: val }),
       syncFromStorage: () => {
         try {
           const stored = localStorage.getItem(AI_STORAGE_KEY);
@@ -37,11 +47,18 @@ export const useAiOptions = createWithEqualityFn<AiOptionsState>()(
           const data = JSON.parse(stored);
           const length = data?.state?.suggestionLength;
           const instructions = data?.state?.customInstructions;
+          const writingSample = data?.state?.writingSample;
+          const writingStyleSummary = data?.state?.writingStyleSummary;
+          const applyStyle = data?.state?.applyStyle;
 
           set({
             suggestionLength: isSuggestionLength(length) ? length : "medium",
             customInstructions:
               typeof instructions === "string" ? instructions : "",
+            writingSample: typeof writingSample === "string" ? writingSample : "",
+            writingStyleSummary:
+              typeof writingStyleSummary === "string" ? writingStyleSummary : "",
+            applyStyle: typeof applyStyle === "boolean" ? applyStyle : true,
           });
         } catch (error) {
           console.error("Failed to sync AI options from storage:", error);
@@ -54,6 +71,9 @@ export const useAiOptions = createWithEqualityFn<AiOptionsState>()(
       partialize: (state) => ({
         suggestionLength: state.suggestionLength,
         customInstructions: state.customInstructions,
+        writingSample: state.writingSample,
+        writingStyleSummary: state.writingStyleSummary,
+        applyStyle: state.applyStyle,
       }),
     }
   ),
@@ -74,4 +94,7 @@ export const useAiOptionsValue = () =>
   useAiOptions((state) => ({
     suggestionLength: state.suggestionLength,
     customInstructions: state.customInstructions,
+    writingSample: state.writingSample,
+    writingStyleSummary: state.writingStyleSummary,
+    applyStyle: state.applyStyle,
   }));

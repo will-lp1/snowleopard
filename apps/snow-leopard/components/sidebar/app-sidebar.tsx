@@ -27,7 +27,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
   const { setOpenMobile } = useSidebar();
 
   return (
-    <Sidebar className="border-none shadow-none">
+    <Sidebar className="shadow-none">
       <SidebarHeader>
         <SidebarMenu>
           <div className="flex flex-row justify-between items-center px-2">
@@ -36,7 +36,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
               onClick={() => setOpenMobile(false)}
               className="flex items-center gap-2"
             >
-              <span className={`text-2xl ${crimson.className} hover:bg-muted rounded-md px-2 py-1 transition-colors`}>
+              <span className={`text-2xl ${crimson.className} hover:bg-accent rounded-md px-2 py-1 transition-colors`}>
                 <span className="hidden md:inline">Snow Leopard</span>
                 <span className="inline md:hidden">SL</span>
               </span>

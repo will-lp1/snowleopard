@@ -1,6 +1,6 @@
 "use client";
 
-import { Settings } from "lucide-react";
+import { Settings, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -14,39 +14,79 @@ import {
   useAiOptionsValue,
   SuggestionLength,
 } from "@/hooks/ai-options";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 
 export function AiSettingsMenu() {
-  const { suggestionLength, customInstructions } = useAiOptionsValue();
-  const { setSuggestionLength, setCustomInstructions } = useAiOptions();
+  const { suggestionLength, customInstructions, writingSample, writingStyleSummary, applyStyle } = useAiOptionsValue();
+  const {
+    setSuggestionLength,
+    setCustomInstructions,
+    setWritingSample,
+    setWritingStyleSummary,
+    setApplyStyle,
+  } = useAiOptions();
 
-  // Local state to prevent Textarea lag
-  const [localInstructions, setLocalInstructions] =
-    useState(customInstructions);
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
+  const isEditingSample = !writingStyleSummary;
 
-  // Update local state if global state changes externally
-  useEffect(() => {
-    setLocalInstructions(customInstructions);
-  }, [customInstructions]);
+  const handleGenerateSummary = async () => {
+    if (!writingSample || writingSample.trim().length < 200) {
+      setGenerationError("Please provide at least ~200 characters of sample text.");
+      return;
+    }
 
-  // Debounce saving custom instructions
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      if (localInstructions !== customInstructions) {
-        setCustomInstructions(localInstructions);
+    setIsGeneratingSummary(true);
+    setGenerationError(null);
+
+    try {
+      const res = await fetch("/api/user-style", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sampleText: writingSample }),
+      });
+
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(err || "Failed to generate style summary");
       }
-    }, 500); // Save after 500ms of inactivity
 
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [localInstructions, customInstructions, setCustomInstructions]);
+      const { summary } = await res.json();
+
+      // Persist to store
+      setWritingStyleSummary(summary);
+    } catch (err: any) {
+      console.error("Style summary generation failed", err);
+      setGenerationError(err.message || "Unknown error");
+    } finally {
+      setIsGeneratingSummary(false);
+    }
+  };
+
+  const handleClearProfile = () => {
+    setWritingStyleSummary("");
+    setWritingSample("");
+    setGenerationError(null);
+  };
+
+  const startRetrain = () => {
+    setWritingStyleSummary("");
+    setWritingSample("");
+    setGenerationError(null);
+  };
+
+  const toggleApplyStyle = (val: boolean) => {
+    setApplyStyle(val);
+  };
 
   return (
     <Tooltip>
@@ -65,14 +105,12 @@ export function AiSettingsMenu() {
             align="end"
             sideOffset={6}
           >
-            <div className="mb-3">
-              <span className="text-sm font-medium">AI Preferences</span>
+            <div className="mb-4">
+              <span className="text-sm font-semibold text-foreground">AI Preferences</span>
             </div>
 
-            <div className="mb-4 space-y-2">
-              <Label className="text-xs font-medium block">
-                Suggestion Length
-              </Label>
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Suggestion Length</Label>
               <div className="flex items-center gap-1.5">
                 {(["short", "medium", "long"] as SuggestionLength[]).map(
                   (len) => (
@@ -106,13 +144,82 @@ export function AiSettingsMenu() {
                 id="custom-instructions"
                 placeholder="Guide the AI... e.g., 'Be concise', 'Act like a helpful expert', 'Translate to French'"
                 className="h-24 text-sm resize-none bg-background border focus-visible:ring-1 focus-visible:ring-ring"
-                value={localInstructions}
-                onChange={(e) => setLocalInstructions(e.target.value)}
+                value={customInstructions}
+                onChange={(e) => setCustomInstructions(e.target.value)}
               />
               <p className="text-[11px] text-muted-foreground leading-tight">
-                Leave blank for default behavior. Your instructions shape the
-                AI&apos;s responses.
+                Your instructions guide the AI`&apos;`s tone and behavior.
               </p>
+            </div>
+
+            <Separator className="my-4" />
+
+            {/* Writing Voice Section */}
+            <div className="space-y-4">
+              {isEditingSample ? (
+                <div className="space-y-3">
+                  <Label className="text-xs font-medium">Train Writer Style</Label>
+                  <Textarea
+                    placeholder="Paste ~200 characters of your writing so the AI can learn your style. This sample stays on your device."
+                    className="h-28 text-sm resize-none bg-background border focus-visible:ring-1 focus-visible:ring-ring"
+                    value={writingSample}
+                    onChange={(e) => setWritingSample(e.target.value)}
+                  />
+
+                  <Progress value={Math.min(100, (writingSample.length / 200) * 100)} className="h-1.5" />
+
+                  {generationError && (
+                    <p className="text-[11px] text-destructive leading-tight">{generationError}</p>
+                  )}
+
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    variant='outline'
+                    disabled={isGeneratingSummary || writingSample.length < 200}
+                    onClick={handleGenerateSummary}
+                  >
+                    {isGeneratingSummary && (
+                      <Loader2 className="mr-2 size-4 animate-spin" />
+                    )}
+                    {isGeneratingSummary ? "Analyzing..." : "Train"}
+                  </Button>
+                </div>
+              ) : (
+                // Trained State
+                <div className="space-y-3 rounded-md border p-3">
+                  <div className="flex items-center justify-between h-8">
+                    <Label htmlFor="apply-style" className="text-xs font-medium">
+                      Apply Writer Style
+                    </Label>
+                    <Switch
+                      id="apply-style"
+                      checked={applyStyle}
+                      onCheckedChange={toggleApplyStyle}
+                      className="scale-110"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="flex-1"
+                      onClick={startRetrain}
+                    >
+                      Retrain
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="flex-1"
+                      onClick={handleClearProfile}
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </DropdownMenuContent>
         </DropdownMenu>
