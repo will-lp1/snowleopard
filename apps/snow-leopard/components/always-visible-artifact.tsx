@@ -20,6 +20,7 @@ import { AiSettingsMenu } from './ai-settings-menu';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import type { SaveState } from '@/lib/editor/save-plugin';
 import type { User } from '@/lib/auth';
+import { EditorToolbar } from '@/components/document/editor-toolbar';
 
 const Editor = dynamic(() => import('@/components/document/text-editor').then(mod => mod.Editor), {
   ssr: false, 
@@ -99,6 +100,8 @@ export function AlwaysVisibleArtifact({
       return null;
   }, [documents]);
 
+  const [toolbarFormats, setToolbarFormats] = useState<Record<string, boolean>>({});
+
   useEffect(() => {
     startTransition(() => {
         const docs = initialDocuments || [];
@@ -161,6 +164,15 @@ export function AlwaysVisibleArtifact({
     window.addEventListener('document-renamed', handleDocumentRenamed as EventListener);
     return () => window.removeEventListener('document-renamed', handleDocumentRenamed as EventListener);
   }, [artifact.documentId, editingTitle, newTitle, setArtifact]);
+
+  useEffect(() => {
+    const handleToolbarUpdate = (e: any) => {
+      const { activeFormats } = e.detail || {};
+      setToolbarFormats(activeFormats || {});
+    };
+    window.addEventListener('editor:toolbar-update', handleToolbarUpdate);
+    return () => window.removeEventListener('editor:toolbar-update', handleToolbarUpdate);
+  }, []);
 
   const handleEditTitle = useCallback(() => {
     if (!latestDocument) return;
@@ -330,7 +342,7 @@ export function AlwaysVisibleArtifact({
 
   return (
     <div className="flex flex-col h-dvh bg-background">
-      <div className="flex flex-row justify-between items-center border-b border-zinc-200 dark:border-zinc-700 px-3 h-[45px]">
+      <div className="flex flex-row items-center border-b border-zinc-200 dark:border-zinc-700 px-3 h-[45px]">
         <div className="flex flex-row gap-2 items-center min-w-0">
           <SidebarTrigger />
           {isPending ? (
@@ -366,7 +378,14 @@ export function AlwaysVisibleArtifact({
             </div>
           )}
         </div>
-        <div className="flex items-center gap-1 flex-shrink-0">
+
+        {/* Center toolbar */}
+        <div className="flex-1 flex justify-center pointer-events-auto">
+          <EditorToolbar activeFormats={toolbarFormats} />
+        </div>
+
+        {/* Right side actions */}
+        <div className="flex items-center gap-2 flex-shrink-0">
           {documents && documents.length > 0 && (
             <ArtifactActions
               artifact={artifact}
@@ -383,7 +402,7 @@ export function AlwaysVisibleArtifact({
         </div>
       </div>
       
-      <div className="dark:bg-muted bg-background h-full overflow-y-auto !max-w-full items-center relative">
+      <div className="h-full overflow-y-auto !max-w-full items-center relative editor-area">
         {!isCurrentVersion && documents && documents.length > 1 && (
           <VersionHeader
             key={`${currentDocument?.id}-${currentVersionIndex}`}
