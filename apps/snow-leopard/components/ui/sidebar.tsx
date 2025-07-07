@@ -336,7 +336,7 @@ function Sidebar({
               state === "collapsed" && collapsible === "offcanvas" ? "-left-[calc(var(--sidebar-width))]" : "left-0",
               variant === "floating" || variant === "inset"
                 ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4)_+2px)]"
-                : "group-data-[collapsible=icon]:w-[--sidebar-width-icon] border-r",
+                : "group-data-[collapsible=icon]:w-[--sidebar-width-icon]",
               className,
             )}
             data-state={state}
@@ -348,7 +348,7 @@ function Sidebar({
           >
             <div
               data-sidebar="sidebar"
-              className="flex h-full w-full flex-col bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow"
+              className="flex h-full w-full flex-col bg-sidebar border-r group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow"
             >
               {children}
             </div>

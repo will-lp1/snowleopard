@@ -14,7 +14,7 @@ import {
   useAiOptionsValue,
   SuggestionLength,
 } from "@/hooks/ai-options";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   Tooltip,
@@ -35,22 +35,12 @@ export function AiSettingsMenu() {
     setApplyStyle,
   } = useAiOptions();
 
-  const [localWritingSample, setLocalWritingSample] = useState("");
-  const [isEditingSample, setIsEditingSample] = useState(!writingStyleSummary);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
-
-  // Whenever store updates externally, sync local states
-  useEffect(() => {
-    if (!writingStyleSummary) {
-      setIsEditingSample(true);
-    } else {
-      setIsEditingSample(false);
-    }
-  }, [writingStyleSummary]);
+  const isEditingSample = !writingStyleSummary;
 
   const handleGenerateSummary = async () => {
-    if (!localWritingSample || localWritingSample.trim().length < 200) {
+    if (!writingSample || writingSample.trim().length < 200) {
       setGenerationError("Please provide at least ~200 characters of sample text.");
       return;
     }
@@ -62,7 +52,7 @@ export function AiSettingsMenu() {
       const res = await fetch("/api/user-style", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sampleText: localWritingSample }),
+        body: JSON.stringify({ sampleText: writingSample }),
       });
 
       if (!res.ok) {
@@ -73,11 +63,7 @@ export function AiSettingsMenu() {
       const { summary } = await res.json();
 
       // Persist to store
-      setWritingSample(localWritingSample);
       setWritingStyleSummary(summary);
-
-      setIsEditingSample(false);
-      // No longer injecting into customInstructions; backend will add style summary automatically.
     } catch (err: any) {
       console.error("Style summary generation failed", err);
       setGenerationError(err.message || "Unknown error");
@@ -87,15 +73,15 @@ export function AiSettingsMenu() {
   };
 
   const handleClearProfile = () => {
-    setWritingSample("");
     setWritingStyleSummary("");
-    setLocalWritingSample("");
-    setIsEditingSample(true);
+    setWritingSample("");
+    setGenerationError(null);
   };
 
   const startRetrain = () => {
-    setLocalWritingSample("");
-    setIsEditingSample(true);
+    setWritingStyleSummary("");
+    setWritingSample("");
+    setGenerationError(null);
   };
 
   const toggleApplyStyle = (val: boolean) => {
@@ -176,11 +162,11 @@ export function AiSettingsMenu() {
                   <Textarea
                     placeholder="Paste ~200 characters of your writing so the AI can learn your style. This sample stays on your device."
                     className="h-28 text-sm resize-none bg-background border focus-visible:ring-1 focus-visible:ring-ring"
-                    value={localWritingSample}
-                    onChange={(e) => setLocalWritingSample(e.target.value)}
+                    value={writingSample}
+                    onChange={(e) => setWritingSample(e.target.value)}
                   />
 
-                  <Progress value={Math.min(100, (localWritingSample.length / 200) * 100)} className="h-1.5" />
+                  <Progress value={Math.min(100, (writingSample.length / 200) * 100)} className="h-1.5" />
 
                   {generationError && (
                     <p className="text-[11px] text-destructive leading-tight">{generationError}</p>
@@ -190,26 +176,27 @@ export function AiSettingsMenu() {
                     size="sm"
                     className="w-full"
                     variant='outline'
-                    disabled={isGeneratingSummary || localWritingSample.length < 200}
+                    disabled={isGeneratingSummary || writingSample.length < 200}
                     onClick={handleGenerateSummary}
                   >
                     {isGeneratingSummary && (
                       <Loader2 className="mr-2 size-4 animate-spin" />
                     )}
-                    {isGeneratingSummary ? "Analyzing..." : "Create Voice Profile"}
+                    {isGeneratingSummary ? "Analyzing..." : "Create Writer Style"}
                   </Button>
                 </div>
               ) : (
                 // Trained State
                 <div className="space-y-3 rounded-md border p-3">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between h-8">
                     <Label htmlFor="apply-style" className="text-xs font-medium">
-                      Apply Writing Voice
+                      Apply Writer Style
                     </Label>
                     <Switch
                       id="apply-style"
                       checked={applyStyle}
                       onCheckedChange={toggleApplyStyle}
+                      className="scale-110"
                     />
                   </div>
 
