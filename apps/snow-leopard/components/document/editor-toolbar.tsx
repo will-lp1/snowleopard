@@ -49,7 +49,7 @@ export function EditorToolbar({ activeFormats }: EditorToolbarProps) {
   const buttonClass = (format: string) =>
     cn(
       'h-8 w-8 p-0 rounded-md flex items-center justify-center transition-colors outline-none ring-0',
-      'border border-sidebar-border bg-background hover:bg-sidebar-accent hover:text-sidebar-accent-foreground dark:hover:bg-sidebar-accent transition-colors duration-200',
+      'border border-border bg-background dark:hover:bg-zinc-700',
       activeFormats[format]
         ? 'bg-accent text-accent-foreground border-accent'
         : 'hover:bg-muted hover:text-foreground',

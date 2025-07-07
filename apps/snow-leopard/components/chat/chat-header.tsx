@@ -8,7 +8,6 @@ import Image from 'next/image';
 import useSWR from 'swr';
 
 import { ModelSelector } from '@/components/chat/model-selector';
-import { SidebarToggle } from '@/components/sidebar/sidebar-toggle';
 import { Button } from '@/components/ui/button';
 import { PlusIcon, ClockRewind, MessageIcon } from '../icons';
 import { useSidebar } from '../ui/sidebar';
@@ -105,7 +104,7 @@ function PureChatHeader({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
-            variant="ghost"
+            variant="outline"
             size="icon"
             className="size-8 ml-auto text-muted-foreground hover:text-foreground"
           >
