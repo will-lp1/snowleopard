@@ -48,7 +48,7 @@ interface EditorToolbarProps {
 export function EditorToolbar({ activeFormats }: EditorToolbarProps) {
   const buttonClass = (format: string) =>
     cn(
-      'h-8 w-8 p-0 rounded-md flex items-center justify-center transition-colors outline-none ring-0',
+      'h-6 w-6 p-1 rounded-md flex items-center justify-center transition-colors outline-none ring-0',
       'border border-border bg-background dark:hover:bg-zinc-700',
       activeFormats[format]
         ? 'bg-accent text-accent-foreground border-accent'
@@ -110,11 +110,11 @@ export function EditorToolbar({ activeFormats }: EditorToolbarProps) {
   );
 
   return (
-    <div className="w-full flex items-center gap-2 overflow-x-auto whitespace-nowrap rounded-2xl py-2 px-4 text-accent-foreground border border-border bg-background/80 dark:bg-muted/90 backdrop-blur-sm">
+    <div className="w-full flex items-center gap-1 overflow-x-auto whitespace-nowrap rounded-md py-1 text-foreground bg-background dark:bg-black">
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" className="h-8 px-2 min-w-[7rem] flex items-center justify-between gap-1">
+          <Button variant="outline" className="h-6 px-2 min-w-[6rem] flex items-center justify-between gap-1 text-sm">
             <span className="truncate text-sm font-medium">{currentTextStyle}</span>
           </Button>
         </DropdownMenuTrigger>

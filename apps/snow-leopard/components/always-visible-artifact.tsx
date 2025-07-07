@@ -383,7 +383,7 @@ export function AlwaysVisibleArtifact({
         </div>
       </div>
       
-      <div className="dark:bg-muted bg-background h-full overflow-y-auto !max-w-full items-center relative">
+      <div className="bg-background text-foreground dark:bg-black dark:text-white h-full overflow-y-auto !max-w-full items-center relative">
         {!isCurrentVersion && documents && documents.length > 1 && (
           <VersionHeader
             key={`${currentDocument?.id}-${currentVersionIndex}`}
