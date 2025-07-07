@@ -50,7 +50,9 @@ export function EditorToolbar({ activeFormats }: EditorToolbarProps) {
   const buttonClass = (format: string) =>
     cn(
       'h-8 w-8 p-0 flex items-center justify-center rounded-md border border-border bg-background text-foreground',
-      activeFormats[format] ? 'border-accent' : '',
+      activeFormats[format]
+        ? 'border-accent bg-accent text-accent-foreground'
+        : '',
       'transition-none',
     );
 
