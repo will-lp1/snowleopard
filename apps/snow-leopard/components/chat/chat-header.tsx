@@ -64,14 +64,13 @@ function PureChatHeader({
   return (
     <header
       className={cn(
-        'flex sticky top-0 bg-background/80 backdrop-blur-sm z-10 border-b border-border items-center px-3 h-[45px] gap-2 transition-all duration-200',
+        'flex sticky top-0 bg-background/80 backdrop-blur-sm z-10 border-b border-border border-r border-border items-center px-3 h-[45px] gap-2 transition-all duration-200',
         className,
       )}
     >
       <Button
-        variant="ghost"
-        size="icon"
-        className="size-8 shrink-0"
+        variant="outline"
+        className="h-8 flex items-center justify-center dark:hover:bg-zinc-700 w-8 p-0 border-r border-border"
         onClick={handleResetChat}
         disabled={isCreatingChat}
         title="New Chat"
@@ -86,7 +85,6 @@ function PureChatHeader({
         )}
       </Button>
 
-      {/* Model Selector - Only show if not readonly */}
       {!isReadonly && mounted && (
         <div className="transition-all duration-200 min-w-0 flex-shrink">
           <ModelSelector
@@ -100,7 +98,6 @@ function PureChatHeader({
         </div>
       )}
       
-      {/* History Dropdown */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -142,7 +139,6 @@ function PureChatHeader({
                       })}
                     </span>
                   </div>
-                  {/* Display Active/Mentioned Docs from context */}
                   {(chat.document_context?.active || (chat.document_context?.mentioned && chat.document_context.mentioned.length > 0)) && (
                     <div className="mt-1.5 pt-1.5 border-t border-border/50 text-xs flex flex-col gap-1 overflow-hidden">
                       {chat.document_context.active && (
@@ -151,7 +147,7 @@ function PureChatHeader({
                           <Link 
                             href={`/documents/${chat.document_context.active}`}
                             className="truncate hover:underline text-blue-500 dark:text-blue-400"
-                            onClick={(e) => e.stopPropagation()} // Prevent dropdown item click
+                            onClick={(e) => e.stopPropagation()} 
                             title={chat.document_context.activeTitle || chat.document_context.active}
                           >
                             {chat.document_context.activeTitle || chat.document_context.active}

@@ -373,33 +373,7 @@ function PureEditor({
             orderedList: isListActive(newState, nodes.ordered_list),
             bold: isMarkActive(newState, marks.strong),
             italic: isMarkActive(newState, marks.em),
-            code: isMarkActive(newState, marks.code),
-            blockquote: isBlockActive(newState, nodes.blockquote),
-            codeBlock: isBlockActive(newState, nodes.code_block),
           });
-
-          // Broadcast toolbar state to parent components
-          const hasSelection = !newState.selection.empty;
-          window.dispatchEvent(
-            new CustomEvent('editor:toolbar-update', {
-              detail: {
-                documentId,
-                activeFormats: {
-                  h1: isBlockActive(newState, nodes.heading, { level: 1 }),
-                  h2: isBlockActive(newState, nodes.heading, { level: 2 }),
-                  p: isBlockActive(newState, nodes.paragraph),
-                  bulletList: isListActive(newState, nodes.bullet_list),
-                  orderedList: isListActive(newState, nodes.ordered_list),
-                  bold: isMarkActive(newState, marks.strong),
-                  italic: isMarkActive(newState, marks.em),
-                  code: isMarkActive(newState, marks.code),
-                  blockquote: isBlockActive(newState, nodes.blockquote),
-                  codeBlock: isBlockActive(newState, nodes.code_block),
-                },
-                selectionActive: hasSelection,
-              },
-            }),
-          );
 
           const newSaveState = savePluginKey.getState(newState);
 
@@ -439,31 +413,7 @@ function PureEditor({
         orderedList: isListActive(initialEditorState, nodes.ordered_list),
         bold: isMarkActive(initialEditorState, marks.strong),
         italic: isMarkActive(initialEditorState, marks.em),
-        code: isMarkActive(initialEditorState, marks.code),
-        blockquote: isBlockActive(initialEditorState, nodes.blockquote),
-        codeBlock: isBlockActive(initialEditorState, nodes.code_block),
       });
-
-      window.dispatchEvent(
-        new CustomEvent('editor:toolbar-update', {
-          detail: {
-            documentId,
-            activeFormats: {
-              h1: isBlockActive(initialEditorState, nodes.heading, { level: 1 }),
-              h2: isBlockActive(initialEditorState, nodes.heading, { level: 2 }),
-              p: isBlockActive(initialEditorState, nodes.paragraph),
-              bulletList: isListActive(initialEditorState, nodes.bullet_list),
-              orderedList: isListActive(initialEditorState, nodes.ordered_list),
-              bold: isMarkActive(initialEditorState, marks.strong),
-              italic: isMarkActive(initialEditorState, marks.em),
-              code: isMarkActive(initialEditorState, marks.code),
-              blockquote: isBlockActive(initialEditorState, nodes.blockquote),
-              codeBlock: isBlockActive(initialEditorState, nodes.code_block),
-            },
-            selectionActive: false,
-          },
-        }),
-      );
     } else if (editorRef.current) {
       const currentView = editorRef.current;
       const currentDocId = currentDocumentIdRef.current;
@@ -860,6 +810,9 @@ function PureEditor({
 
   return (
     <>
+      {isCurrentVersion && documentId !== "init" && (
+        <EditorToolbar activeFormats={activeFormats} />
+      )}
       <div className="prose dark:prose-invert pt-2" ref={containerRef} />
       <style jsx global>{`
         .suggestion-decoration-inline {

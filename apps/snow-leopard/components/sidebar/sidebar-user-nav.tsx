@@ -188,7 +188,7 @@ export function SidebarUserNav({ user }: { user: User | null }) {
         <SidebarMenuItem>
           <DropdownMenu>
             <DropdownMenuTrigger asChild disabled={isLoading}>
-              <SidebarMenuButton className="data-[state=open]:bg-sidebar-accent bg-background data-[state=open]:text-sidebar-accent-foreground h-10">
+              <SidebarMenuButton className="border border-r data-[state=open]:border-border text-accent-foreground data-[state=open]:text-sidebar-accent-foreground h-10">
                 <span className="truncate">{user.email ?? 'User'}</span>
                 <ChevronUp className="ml-auto" />
               </SidebarMenuButton>

@@ -110,9 +110,8 @@ export function EditorToolbar({ activeFormats }: EditorToolbarProps) {
   );
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="w-full flex items-center gap-2 overflow-x-auto whitespace-nowrap rounded-2xl py-2 px-4 text-accent-foreground border border-border bg-background/80 dark:bg-muted/90 backdrop-blur-sm">
 
-      {/* Text style dropdown */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" className="h-8 px-2 min-w-[7rem] flex items-center justify-between gap-1">

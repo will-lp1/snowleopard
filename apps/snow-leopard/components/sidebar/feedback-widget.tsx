@@ -96,7 +96,7 @@ export function FeedbackWidget({ className }: { className?: string }) {
       <SidebarMenuItem>
         <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
           <DropdownMenuTrigger asChild>
-            <SidebarMenuButton className="group data-[state=open]:bg-sidebar-accent bg-background data-[state=open]:text-sidebar-accent-foreground h-10 hover:bg-muted/50 transition-colors duration-200">
+            <SidebarMenuButton className="group data-[state=open]: border border-r text-accent-foreground data-[state=open]:text-sidebar-accent-foreground h-10 hover:bg-accent/50 transition-colors duration-200">
               <span className="group-hover:text-primary transition-colors duration-200">Feedback</span>
               <span className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                 <Heart className="size-3 text-primary" />
