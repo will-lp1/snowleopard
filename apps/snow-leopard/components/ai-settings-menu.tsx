@@ -158,7 +158,7 @@ export function AiSettingsMenu() {
             <div className="space-y-4">
               {isEditingSample ? (
                 <div className="space-y-3">
-                  <Label className="text-xs font-medium">Train Writing Voice</Label>
+                  <Label className="text-xs font-medium">Train Writer Style</Label>
                   <Textarea
                     placeholder="Paste ~200 characters of your writing so the AI can learn your style. This sample stays on your device."
                     className="h-28 text-sm resize-none bg-background border focus-visible:ring-1 focus-visible:ring-ring"
@@ -182,7 +182,7 @@ export function AiSettingsMenu() {
                     {isGeneratingSummary && (
                       <Loader2 className="mr-2 size-4 animate-spin" />
                     )}
-                    {isGeneratingSummary ? "Analyzing..." : "Create Writer Style"}
+                    {isGeneratingSummary ? "Analyzing..." : "Train"}
                   </Button>
                 </div>
               ) : (
