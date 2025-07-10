@@ -141,7 +141,7 @@ export default function Home() {
           <div className="mt-16 flex justify-center w-full">
             <div className="hero-frame">
               <Image
-                src="/images/SLlight.jpeg"
+                src="/images/lightmode.png"
                 alt="Snow Leopard Demo Preview"
                 width={1200}
                 height={675}
@@ -149,7 +149,7 @@ export default function Home() {
                 priority={true}
               />
               <Image
-                src="/images/SLdark.jpeg"
+                src="/images/darkmode.png"
                 alt="Snow Leopard Demo Preview (Dark Mode)"
                 width={1200}
                 height={675}
@@ -223,7 +223,6 @@ export default function Home() {
                       <h3 className="text-xs font-medium">Suggestion</h3>
                     </div>
                     <div className="demo-overlay-input-placeholder">
-                      {/* Text will be animated by CSS ::before */}
                     </div>
                     <div className="demo-overlay-diff-view">
                       <span className="text-red-500 line-through dark:text-red-400/70">is a bit weak and verbose.</span>
@@ -699,6 +698,7 @@ export default function Home() {
           to { opacity: 1; }
         }
         html.dark .inline-tab-icon {
+          background: linear-gradient(145deg, #2c2c2c, #1f1f1f);
           border-color: #444444;
           box-shadow: 0 2px 0 rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
           color: hsl(var(--muted-foreground));
