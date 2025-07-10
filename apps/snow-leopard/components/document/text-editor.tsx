@@ -105,7 +105,6 @@ function PureEditor({
     null
   );
 
-  // State refs for update preview handling
   const previewOriginalContentRef = useRef<string | null>(null);
   const previewActiveRef = useRef<boolean>(false);
   const lastPreviewContentRef = useRef<string | null>(null);

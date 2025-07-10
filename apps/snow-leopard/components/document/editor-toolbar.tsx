@@ -47,6 +47,9 @@ interface EditorToolbarProps {
 }
 
 export function EditorToolbar({ activeFormats }: EditorToolbarProps) {
+  const view = getActiveEditorView();
+  const textContent = view?.state.doc.textContent || '';
+  const wordCount = textContent.trim().split(/\s+/).filter(Boolean).length;
   const buttonClass = (format: string) =>
     cn(
       'h-8 w-8 p-0 flex items-center justify-center rounded-md border border-border bg-background text-foreground',
@@ -113,6 +116,7 @@ export function EditorToolbar({ activeFormats }: EditorToolbarProps) {
 
   return (
     <div className="toolbar sticky top-4 z-20 w-full h-[45px] flex items-center gap-2 px-3 py-0 overflow-x-auto whitespace-nowrap rounded-lg bg-background border border-border">
+      {/* Toolbar left side */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" className="h-8 px-3 min-w-[7rem] flex items-center justify-between gap-2 text-sm rounded-md border border-border bg-background text-foreground" tabIndex={0}>
@@ -177,6 +181,9 @@ export function EditorToolbar({ activeFormats }: EditorToolbarProps) {
       >
         <Italic className="size-5 text-foreground" />
       </ButtonWithTooltip>
+
+      <div className="flex-1" />
+      <span className="ml-auto text-xs text-muted-foreground whitespace-nowrap pr-2">{wordCount} word{wordCount === 1 ? '' : 's'}</span>
     </div>
   );
 }
