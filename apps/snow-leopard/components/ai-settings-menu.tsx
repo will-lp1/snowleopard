@@ -148,7 +148,7 @@ export function AiSettingsMenu() {
                 onChange={(e) => setCustomInstructions(e.target.value)}
               />
               <p className="text-[11px] text-muted-foreground leading-tight">
-                Your instructions guide the AI`&apos;`s tone and behavior.
+                Your instructions guide the AI&apos;s tone and behavior.
               </p>
             </div>
 

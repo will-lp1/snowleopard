@@ -2,7 +2,7 @@ import { ArtifactKind } from '@/components/artifact';
 
 // Document awareness instructions
 const documentAwarenessPrompt = `
-You have access to the CURRENT DOCUMENT. Use its content silently to guide your responses.
+You have access to the CURRENT DOCUMENT. Use its content silently to guide your responses - answer with a few sentences - don't over write or include the edited document content in your response.
 
 - Only invoke internal document operations when the user's request involves document creation or content modifications.
 - When a query requires up-to-date or external information not contained in the CURRENT DOCUMENT, call webSearch with an appropriate query to fetch relevant sources.
