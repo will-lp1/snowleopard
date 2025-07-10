@@ -187,8 +187,8 @@ export function AiSettingsMenu() {
                 </div>
               ) : (
                 // Trained State
-                <div className="space-y-3 rounded-md border p-3">
-                  <div className="flex items-center justify-between h-8">
+                <div className="space-y-4 rounded-md border p-4">
+                  <div className="flex items-center justify-between">
                     <Label htmlFor="apply-style" className="text-xs font-medium">
                       Apply Writer Style
                     </Label>
@@ -200,7 +200,7 @@ export function AiSettingsMenu() {
                     />
                   </div>
 
-                  <div className="flex items-center gap-2 pt-2">
+                  <div className="flex items-center gap-3">
                     <Button
                       variant="secondary"
                       size="sm"
