@@ -845,6 +845,26 @@ function PureEditor({
           height: 0;
         }
 
+        .inline-suggestion-loader {
+          display: inline-block;
+          width: 1.5px;
+          height: 1.2em;
+          background-color: currentColor;
+          animation: inline-suggestion-caret-pulse 1.1s infinite;
+          vertical-align: text-bottom;
+          opacity: 0.5;
+        }
+
+        @keyframes inline-suggestion-caret-pulse {
+          0%,
+          100% {
+            opacity: 0.8;
+          }
+          50% {
+            opacity: 0.1;
+          }
+        }
+
         div.ProseMirror {
           position: relative;
         }

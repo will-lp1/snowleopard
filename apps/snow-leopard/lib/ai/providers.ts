@@ -13,7 +13,7 @@ export const myProvider = customProvider({
           model: groq('deepseek-r1-distill-llama-70b'),
           middleware: extractReasoningMiddleware({ tagName: 'think' }),
         }),
-        'title-model': groq('llama-3.1-8b-instant'),
-        'artifact-model': groq('meta-llama/llama-4-maverick-17b-128e-instruct'),
+    'title-model': groq('llama-3.1-8b-instant'),
+    'artifact-model': groq('meta-llama/llama-4-maverick-17b-128e-instruct'), 
       },
     });

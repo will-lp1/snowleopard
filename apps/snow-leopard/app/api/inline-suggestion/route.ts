@@ -126,7 +126,6 @@ async function streamInlineSuggestion({
 
   const { fullStream } = streamText({
     model: myProvider.languageModel('artifact-model'),
-    system: getSystemPrompt(),
     prompt,
     temperature: 0.4,
     maxTokens,
@@ -143,10 +142,6 @@ async function streamInlineSuggestion({
       await write('suggestion-delta', textDelta);
     }
   }
-}
-
-function getSystemPrompt(): string {
-  return `You are a helpful assistant that continues the given text. Only output the continuation without extra commentary or quotes.`;
 }
 
 interface BuildPromptParams {
@@ -169,28 +164,22 @@ function buildPrompt({
   const contextWindow = 200;
   const beforeSnippet = contextBefore.slice(-contextWindow);
   const afterSnippet = contextAfter.slice(0, contextWindow);
-
   const wordLimitMap = { short: 5, medium: 10, long: 15 } as const;
-  const wordLimit = wordLimitMap[suggestionLength] ?? 10;
+  const maxWords = wordLimitMap[suggestionLength] ?? 10;
 
-  let prompt = `<task>
-You are an autocompletion system that suggests text completions between the given snippets.
+  const prompt = `You are an expert autocomplete assistant - ALWAYS USE A (U+0020) at the start of the continuation unless it's really not needed.
 
 Rules:
-- Suggest up to ${wordLimit} words maximum.
-- Maintain the original tone and meaning.
-- Return ONLY the continuation text (no quotes, tags, or surrounding punctuation beyond what naturally fits).
-</task>`;
+1. Return ONLY the continuation at ▮ (no quotes, no line breaks).
+2. Limit the continuation to ${maxWords} words.
+3. Take the user's writing style and custom instructions into account.
 
-  if (customInstructions) {
-    prompt += `\n\n<instructions>\n${customInstructions}\n</instructions>`;
-  }
+Example (spacing rule 3):
+Input: "She laughed."▮
+Output: " And left."
 
-  if (applyStyle && writingStyleSummary) {
-    prompt += `\n\n<style-guide>\n${writingStyleSummary}\n</style-guide>`;
-  }
-
-  prompt += `\n\n<input>\n${beforeSnippet}▮${afterSnippet}\n</input>\n\nYour completion:`;
+${customInstructions ? `Extra instruction: ${customInstructions}\n\n` : ''}${applyStyle && writingStyleSummary ? `: ${writingStyleSummary}\n\n` : ''}Context:
+${beforeSnippet}▮${afterSnippet}`;
 
   return prompt;
 } 

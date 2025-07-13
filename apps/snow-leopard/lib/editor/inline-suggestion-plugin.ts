@@ -69,31 +69,51 @@ export function inlineSuggestionPlugin(options: { requestSuggestion: (state: Edi
     props: {
       decorations(state: EditorState): DecorationSet | null {
         const pluginState = inlineSuggestionPluginKey.getState(state);
-        if (!pluginState?.suggestionText || pluginState.suggestionPos === null) {
+        if (!pluginState || pluginState.suggestionPos === null) {
           return null;
         }
-        const decoration = Decoration.widget(
-          pluginState.suggestionPos,
-          () => {
-            const wrapper = document.createElement('span');
-            wrapper.className = 'inline-suggestion-wrapper';
 
-            const suggestionSpan = document.createElement('span');
-            suggestionSpan.className = 'suggestion-decoration-inline';
-            suggestionSpan.setAttribute('data-suggestion', pluginState.suggestionText || '');
-            wrapper.appendChild(suggestionSpan);
+        const { isLoading, suggestionText, suggestionPos } = pluginState;
 
-            const kbd = document.createElement('kbd');
-            kbd.className = 'inline-tab-icon';
-            kbd.style.marginLeft = '0.25em';
-            kbd.textContent = 'Tab';
-            wrapper.appendChild(kbd);
+        if (isLoading && !suggestionText) {
+          const decoration = Decoration.widget(
+            suggestionPos,
+            () => {
+              const el = document.createElement('span');
+              el.className = 'inline-suggestion-loader';
+              return el;
+            },
+            { side: 1 }
+          );
+          return DecorationSet.create(state.doc, [decoration]);
+        }
 
-            return wrapper;
-          },
-          { side: 1 }
-        );
-        return DecorationSet.create(state.doc, [decoration]);
+        if (suggestionText) {
+          const decoration = Decoration.widget(
+            suggestionPos,
+            () => {
+              const wrapper = document.createElement('span');
+              wrapper.className = 'inline-suggestion-wrapper';
+
+              const suggestionSpan = document.createElement('span');
+              suggestionSpan.className = 'suggestion-decoration-inline';
+              suggestionSpan.setAttribute('data-suggestion', suggestionText || '');
+              wrapper.appendChild(suggestionSpan);
+
+              const kbd = document.createElement('kbd');
+              kbd.className = 'inline-tab-icon';
+              kbd.style.marginLeft = '0.25em';
+              kbd.textContent = 'Tab';
+              wrapper.appendChild(kbd);
+
+              return wrapper;
+            },
+            { side: 1 }
+          );
+          return DecorationSet.create(state.doc, [decoration]);
+        }
+
+        return null;
       },
       handleKeyDown(view: EditorView, event: KeyboardEvent): boolean {
         const pluginState = inlineSuggestionPluginKey.getState(view.state);
@@ -103,15 +123,6 @@ export function inlineSuggestionPlugin(options: { requestSuggestion: (state: Edi
           if (pluginState.suggestionText && pluginState.suggestionPos !== null) {
             event.preventDefault();
             let text = pluginState.suggestionText;
-            if (pluginState.suggestionPos > 0) {
-              const prevChar = view.state.doc.textBetween(
-                pluginState.suggestionPos - 1,
-                pluginState.suggestionPos
-              );
-              if (/\w|[\.\?!,;:]/.test(prevChar) && !text.startsWith(' ')) {
-                text = ' ' + text;
-              }
-            }
             let tr = view.state.tr.insertText(text, pluginState.suggestionPos);
             tr = tr.setMeta(CLEAR_SUGGESTION, true);
             tr = tr.scrollIntoView();
