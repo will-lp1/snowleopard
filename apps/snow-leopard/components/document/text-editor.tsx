@@ -205,21 +205,12 @@ function PureEditor({
         const contextAfter = state.doc.textBetween(head, endOfNode, "\n");
         const fullContent = state.doc.textContent;
 
-        if (contextBefore.length < 3) {
-          if (editorRef.current) {
-            editorRef.current.dispatch(
-              editorRef.current.state.tr.setMeta(CLEAR_SUGGESTION, true)
-            );
-          }
-          return;
-        }
-
         const response = await fetch("/api/inline-suggestion", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             documentId,
-            currentContent: contextBefore,
+            contextBefore,
             contextAfter,
             fullContent,
             nodeType: "paragraph",

@@ -5,7 +5,9 @@ import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 
 async function handleInlineSuggestionRequest(
-  currentContent: string,
+  contextBefore: string,
+  contextAfter: string,
+  fullContent: string,
   suggestionLength: 'short' | 'medium' | 'long' = 'medium',
   customInstructions?: string | null,
   writingStyleSummary?: string | null,
@@ -20,7 +22,7 @@ async function handleInlineSuggestionRequest(
     try {
       console.log("Starting to process inline suggestion stream");
 
-      await streamInlineSuggestion({ currentContent, suggestionLength, customInstructions, writingStyleSummary, applyStyle, write: async (type, content) => {
+      await streamInlineSuggestion({ contextBefore, contextAfter, fullContent, suggestionLength, customInstructions, writingStyleSummary, applyStyle, write: async (type, content) => {
         if (writerClosed) return;
 
         try {
@@ -90,14 +92,10 @@ export async function POST(request: Request) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Authentication error' }, { status: 401 });
     }
-    const { currentContent, aiOptions = {} } = await request.json();
+    const { contextBefore = '', contextAfter = '', fullContent = '', aiOptions = {} } = await request.json();
     const { suggestionLength, customInstructions, writingStyleSummary, applyStyle } = aiOptions;
 
-    if (!currentContent) {
-      return NextResponse.json({ error: 'Missing content parameter' }, { status: 400 });
-    }
-
-    return handleInlineSuggestionRequest(currentContent, suggestionLength, customInstructions, writingStyleSummary, applyStyle);
+    return handleInlineSuggestionRequest(contextBefore, contextAfter, fullContent, suggestionLength, customInstructions, writingStyleSummary, applyStyle);
   } catch (error: any) {
     console.error('Inline suggestion route error:', error);
     return NextResponse.json({ error: error.message || 'An error occurred' }, { status: 400 });
@@ -105,23 +103,24 @@ export async function POST(request: Request) {
 }
 
 async function streamInlineSuggestion({
-  currentContent,
+  contextBefore,
+  contextAfter,
   suggestionLength,
   customInstructions,
   writingStyleSummary,
   applyStyle,
   write
 }: {
-  currentContent: string;
+  contextBefore: string;
+  contextAfter: string;
+  fullContent?: string;
   suggestionLength: 'short' | 'medium' | 'long';
   customInstructions?: string | null;
   writingStyleSummary?: string | null;
   applyStyle: boolean;
   write: (type: string, content: string) => Promise<void>;
 }) {
-  console.log("Starting text inline suggestion generation with options:", { suggestionLength, customInstructions, writingStyleSummary, applyStyle });
-
-  const prompt = buildPrompt(currentContent, suggestionLength, customInstructions, writingStyleSummary, applyStyle);
+  const prompt = buildPrompt({ contextBefore, contextAfter, suggestionLength, customInstructions, writingStyleSummary, applyStyle });
 
   const maxTokens = { short: 20, medium: 50, long: 80 }[suggestionLength || 'medium'];
 
@@ -150,25 +149,48 @@ function getSystemPrompt(): string {
   return `You are a helpful assistant that continues the given text. Only output the continuation without extra commentary or quotes.`;
 }
 
-function buildPrompt(
-  currentContent: string,
-  suggestionLength: 'short' | 'medium' | 'long' = 'medium',
-  customInstructions?: string | null,
-  writingStyleSummary?: string | null,
-  applyStyle: boolean = true
-): string {
+interface BuildPromptParams {
+  contextBefore: string;
+  contextAfter: string;
+  suggestionLength: 'short' | 'medium' | 'long';
+  customInstructions?: string | null;
+  writingStyleSummary?: string | null;
+  applyStyle: boolean;
+}
+
+function buildPrompt({
+  contextBefore,
+  contextAfter,
+  suggestionLength,
+  customInstructions,
+  writingStyleSummary,
+  applyStyle,
+}: BuildPromptParams): string {
   const contextWindow = 200;
-  const relevantContent = currentContent.slice(-contextWindow);
-  const lengthMap = { short: '1-5 words', medium: '5-10 words', long: '10-15 words' };
-  const lengthInstruction = lengthMap[suggestionLength] || lengthMap.medium;
-  let promptContent = `Text before cursor:\n"""${relevantContent}"""\n\nContinue this text with ${lengthInstruction}.`;
+  const beforeSnippet = contextBefore.slice(-contextWindow);
+  const afterSnippet = contextAfter.slice(0, contextWindow);
+
+  const wordLimitMap = { short: 5, medium: 10, long: 15 } as const;
+  const wordLimit = wordLimitMap[suggestionLength] ?? 10;
+
+  let prompt = `<task>
+You are an autocompletion system that suggests text completions between the given snippets.
+
+Rules:
+- Suggest up to ${wordLimit} words maximum.
+- Maintain the original tone and meaning.
+- Return ONLY the continuation text (no quotes, tags, or surrounding punctuation beyond what naturally fits).
+</task>`;
+
   if (customInstructions) {
-    promptContent = `${customInstructions}\n\n${promptContent}`;
+    prompt += `\n\n<instructions>\n${customInstructions}\n</instructions>`;
   }
 
   if (applyStyle && writingStyleSummary) {
-    const styleBlock = `PERSONAL STYLE GUIDE\n• Emulate the author\'s tone, rhythm, sentence structure, vocabulary choice, and punctuation habits.\n• Do NOT copy phrases or introduce topics from the reference text.\n• Only transform wording; keep meaning intact.\nStyle description: ${writingStyleSummary}`;
-    promptContent = `${styleBlock}\n\n${promptContent}`;
+    prompt += `\n\n<style-guide>\n${writingStyleSummary}\n</style-guide>`;
   }
-  return promptContent;
+
+  prompt += `\n\n<input>\n${beforeSnippet}▮${afterSnippet}\n</input>\n\nYour completion:`;
+
+  return prompt;
 } 

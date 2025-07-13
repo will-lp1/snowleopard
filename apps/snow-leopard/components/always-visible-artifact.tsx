@@ -22,8 +22,8 @@ import type { SaveState } from '@/lib/editor/save-plugin';
 import type { User } from '@/lib/auth';
 
 const Editor = dynamic(() => import('@/components/document/text-editor').then(mod => mod.Editor), {
-  ssr: false, 
-  loading: () => <EditorSkeleton />, 
+  ssr: false,
+  loading: () => <EditorSkeleton />,
 });
 
 const EditorSkeleton = () => (
