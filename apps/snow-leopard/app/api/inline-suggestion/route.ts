@@ -1,8 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { streamText } from 'ai';
 import { myProvider } from '@/lib/ai/providers';
-import { auth } from '@/lib/auth';
-import { headers } from 'next/headers';
+import { getSessionCookie } from 'better-auth/cookies';
 
 async function handleInlineSuggestionRequest(
   contextBefore: string,
@@ -84,13 +83,11 @@ async function handleInlineSuggestionRequest(
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const readonlyHeaders = await headers();
-    const requestHeaders = new Headers(readonlyHeaders);
-    const session = await auth.api.getSession({ headers: requestHeaders });
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Authentication error' }, { status: 401 });
+    const sessionCookie = getSessionCookie(request);
+    if (!sessionCookie) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     const { contextBefore = '', contextAfter = '', fullContent = '', aiOptions = {} } = await request.json();
     const { suggestionLength, customInstructions, writingStyleSummary, applyStyle } = aiOptions;
