@@ -164,13 +164,14 @@ function buildPrompt({
   const wordLimitMap = { short: 5, medium: 10, long: 15 } as const;
   const maxWords = wordLimitMap[suggestionLength] ?? 10;
 
-  const prompt = `You are an expert autocomplete assistant - pretty much always use a space(U+0020) at the start of the continuation unless there is already a space before the cursor - NEVER LIKE THIS: it is(  )a good idea to get some too.
+  const prompt = `You are an expert autocomplete assistant.
 
 Rules:
-1. Return ONLY the continuation at ▮ (no quotes, no line breaks, no thinking or commentary).
+1. Return ONLY the continuation (no quotes, no line breaks, no thinking or commentary).
 2. Use ${maxWords} words.
+3. No lowercase letters after sentence ending punctuation.
 3. Take the user's writing style and custom instructions into account.
-4. DO NOT generate mid-word continuations, only generate continuations at the end of a word.
+4. DO NOT generate mid-word continuations, only generate continuations at the end of a word - i.e. don't generate continuations in the middle of a word.
 
 ${customInstructions ? `Extra instruction: ${customInstructions}\n\n` : ''}${applyStyle && writingStyleSummary ? `: ${writingStyleSummary}\n\n` : ''}Context:
 ${beforeSnippet}▮${afterSnippet}`;

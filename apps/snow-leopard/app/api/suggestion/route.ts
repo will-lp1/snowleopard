@@ -1,10 +1,9 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { streamText, smoothStream } from 'ai';
 import { getDocumentById } from '@/lib/db/queries';
 import { myProvider } from '@/lib/ai/providers';
 import { updateDocumentPrompt } from '@/lib/ai/prompts';
-import { auth } from "@/lib/auth";
-import { headers } from 'next/headers';
+import { getSessionCookie } from 'better-auth/cookies';
 
 async function handleSuggestionRequest(
   documentId: string,
@@ -100,14 +99,11 @@ async function handleSuggestionRequest(
 
 export async function GET(request: Request) {
   try {
-    const readonlyHeaders = await headers();
-    const requestHeaders = new Headers(readonlyHeaders);
-    const session = await auth.api.getSession({ headers: requestHeaders });
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Authentication error' }, { status: 401 });
+    const sessionCookie = getSessionCookie(request);
+    if (!sessionCookie) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    const userId = session.user.id;
+    const userId = sessionCookie;
 
     const url = new URL(request.url);
     const documentId = url.searchParams.get('documentId');
@@ -129,16 +125,13 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const readonlyHeaders = await headers();
-    const requestHeaders = new Headers(readonlyHeaders);
-    const session = await auth.api.getSession({ headers: requestHeaders });
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Authentication error' }, { status: 401 });
+    const sessionCookie = getSessionCookie(request);
+    if (!sessionCookie) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    const userId = session.user.id;
+    const userId = sessionCookie;
 
     const {
       documentId,
