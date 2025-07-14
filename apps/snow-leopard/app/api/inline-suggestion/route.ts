@@ -170,7 +170,7 @@ Rules:
 1. Return ONLY the continuation at ▮ (no quotes, no line breaks, no thinking or commentary).
 2. Use ${maxWords} words.
 3. Take the user's writing style and custom instructions into account.
-4. DO NOT generate mid-word continuations, only generate continuations at the end of a word - i.e.
+4. DO NOT generate mid-word continuations, only generate continuations at the end of a word.
 
 ${customInstructions ? `Extra instruction: ${customInstructions}\n\n` : ''}${applyStyle && writingStyleSummary ? `: ${writingStyleSummary}\n\n` : ''}Context:
 ${beforeSnippet}▮${afterSnippet}`;

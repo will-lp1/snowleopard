@@ -123,6 +123,15 @@ export function inlineSuggestionPlugin(options: { requestSuggestion: (state: Edi
           if (pluginState.suggestionText && pluginState.suggestionPos !== null) {
             event.preventDefault();
             let text = pluginState.suggestionText;
+            if (pluginState.suggestionPos > 0) {
+              const prevChar = view.state.doc.textBetween(
+                pluginState.suggestionPos - 1,
+                pluginState.suggestionPos
+              );
+              if (prevChar === ' ') {
+                text = text.replace(/^ +/, '');
+              }
+            }
             let tr = view.state.tr.insertText(text, pluginState.suggestionPos);
             tr = tr.setMeta(CLEAR_SUGGESTION, true);
             tr = tr.scrollIntoView();
