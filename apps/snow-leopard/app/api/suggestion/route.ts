@@ -15,43 +15,24 @@ async function handleSuggestionRequest(
   writingStyleSummary?: string | null,
   applyStyle: boolean = true
 ) {
-  const document = await getDocumentById({ id: documentId });
-
-  if (!document) {
-    throw new Error('Document not found');
-  }
-
-  if (document.userId !== userId) { 
-    throw new Error('Unauthorized');
-  }
-
   const stream = new TransformStream();
   const writer = stream.writable.getWriter();
   const encoder = new TextEncoder();
 
   (async () => {
     try {
+      const document = await getDocumentById({ id: documentId });
+      if (!document) throw new Error('Document not found');
       console.log("Starting to process suggestion stream");
-      
-      await writer.write(encoder.encode(`data: ${JSON.stringify({
-        type: 'id',
-        content: documentId
-      })}\n\n`));
+      await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'id', content: documentId })}\n\n`));
 
       const isPartialEdit = !!selectedText;
-      
       if (isPartialEdit) {
         console.log("Processing partial edit with selected text");
-        await writer.write(encoder.encode(`data: ${JSON.stringify({
-          type: 'original',
-          content: selectedText
-        })}\n\n`));
+        await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'original', content: selectedText })}\n\n`));
       } else {
         console.log("Processing full document edit");
-        await writer.write(encoder.encode(`data: ${JSON.stringify({
-          type: 'clear',
-          content: ''
-        })}\n\n`));
+        await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'clear', content: '' })}\n\n`));
       }
 
       console.log("Starting to stream suggestion with prompt:", description);
@@ -64,24 +45,15 @@ async function handleSuggestionRequest(
         writingStyleSummary,
         applyStyle,
         write: async (type, content) => {
-          await writer.write(encoder.encode(`data: ${JSON.stringify({
-            type,
-            content
-          })}\n\n`));
+          await writer.write(encoder.encode(`data: ${JSON.stringify({ type, content })}\n\n`));
         }
       });
 
       console.log("Finished processing suggestion, sending finish event");
-      await writer.write(encoder.encode(`data: ${JSON.stringify({
-        type: 'finish',
-        content: ''
-      })}\n\n`));
+      await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'finish', content: '' })}\n\n`));
     } catch (e: any) {
       console.error('Error in stream processing:', e);
-      await writer.write(encoder.encode(`data: ${JSON.stringify({
-        type: 'error',
-        content: e.message || 'An error occurred'
-      })}\n\n`));
+      await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'error', content: e.message || 'An error occurred' })}\n\n`));
     } finally {
       await writer.close();
       console.log("Stream closed");
