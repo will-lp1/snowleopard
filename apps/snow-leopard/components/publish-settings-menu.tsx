@@ -58,7 +58,6 @@ function hexToHSL(H: string) {
 }
 
 export function PublishSettingsMenu({ document, user, onUpdate }: PublishSettingsMenuProps) {
-  // Subscription gating for publish settings
   const { data: subscriptionData, isLoading: isSubscriptionLoading } = useSWR<{ hasActiveSubscription: boolean }>('/api/user/subscription-status', fetcher, { revalidateOnFocus: false });
   const hasSubscription = subscriptionData?.hasActiveSubscription ?? false;
   const [isPaywallOpen, setPaywallOpen] = useState(false);
@@ -222,16 +221,13 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
     if (mode === 'default' || !mode) {
       setTextColor(undefined);
     } else if (mode === 'custom') {
-      // If switching to custom and no color was previously selected, set a default
       if (textColor === undefined) {
         setTextColor('#0f172a');
       }
     }
   };
 
-  // While loading subscription status, don't render anything
   if (isSubscriptionLoading) return null;
-  // Render publish settings menu for subscribed users
   return (
     <DropdownMenu onOpenChange={(open) => { if (open) { loadUsername(); } }}>
       <DropdownMenuTrigger asChild>
