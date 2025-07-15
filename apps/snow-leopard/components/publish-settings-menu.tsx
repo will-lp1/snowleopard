@@ -358,7 +358,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                     <div className="pt-2">
                       <HuePicker
                         color={textColor}
-                        onChangeComplete={(c) => setTextColor(c.hex)}
+                        onChange={(c) => setTextColor(c.hex)}
                         width="100%"
                       />
                     </div>
