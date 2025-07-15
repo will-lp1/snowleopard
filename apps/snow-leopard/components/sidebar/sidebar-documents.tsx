@@ -174,7 +174,7 @@ export const DocumentItem = memo(PureDocumentItem, (prevProps, nextProps) => {
   return true;
 });
 
-export function SidebarDocuments({ user }: { user: User | undefined }) {
+export function SidebarDocuments({ user, initialDocuments }: { user?: User; initialDocuments?: any[] }) {
   const { setOpenMobile } = useSidebar();
   const router = useRouter();
   const { setArtifact } = useArtifact();
@@ -203,7 +203,7 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
     },
     fetcher,
     {
-      fallbackData: [],
+      fallbackData: initialDocuments ? [{ documents: initialDocuments, hasMore: false }] : [],
       revalidateOnFocus: false,
       dedupingInterval: 5000,
     }

@@ -63,6 +63,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
 
   const [username, setUsername] = useState<string>(user.username || '');
   const [hasUsername, setHasUsername] = useState<boolean>(!!user.username);
+  const [usernameLoading, setUsernameLoading] = useState(true);
   const [claiming, setClaiming] = useState(false);
   const [usernameCheck, setUsernameCheck] = useState<{ checking: boolean; available: boolean | null }>({ checking: false, available: null });
   const [slug, setSlug] = useState('');
@@ -93,6 +94,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
   }, [document.slug, document.title, document.style]);
 
   const loadUsername = useCallback(async () => {
+    setUsernameLoading(true);
     try {
       const res = await fetch('/api/user');
       if (!res.ok) return;
@@ -104,6 +106,8 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
       }
     } catch (err) {
       console.error('[PublishSettingsMenu] Failed to load username:', err);
+    } finally {
+      setUsernameLoading(false);
     }
   }, []);
 
@@ -277,7 +281,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                       setHasUsername(false);
                     }
                   }}
-                  disabled={claiming || hasUsername || processing || disabled}
+                  disabled={usernameLoading || claiming || hasUsername || processing || disabled}
                   className={cn(
                     "flex-1 h-8",
                     hasUsername
@@ -288,8 +292,9 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                           ? "border-green-500 text-green-500 focus-visible:ring-green-500"
                           : ""
                   )}
-                  placeholder="Choose a username"
+                  placeholder={usernameLoading ? 'Loading username...' : 'Choose a username'}
                 />
+                {usernameLoading && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
                 {usernameCheck.checking && !hasUsername && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
                 {!hasUsername && !usernameCheck.checking && usernameCheck.available && (
                   <Button
