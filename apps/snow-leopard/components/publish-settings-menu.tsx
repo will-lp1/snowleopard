@@ -268,7 +268,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                   id="pub-username"
                   value={hasUsername ? `@${username}` : username}
                   onChange={(e) => {
-                    setUsername(e.target.value);
+                    setUsername(e.target.value.trimEnd());
                     if (usernameCheck.available !== null) {
                       setUsernameCheck({ checking: false, available: null });
                     }

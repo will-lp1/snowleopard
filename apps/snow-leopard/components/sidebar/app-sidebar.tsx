@@ -1,7 +1,7 @@
 'use client';
 
-import dynamic from 'next/dynamic';
 import { SidebarUserNav } from '@/components/sidebar/sidebar-user-nav';
+import { SidebarDocuments } from '@/components/sidebar/sidebar-documents';
 import {
   Sidebar,
   SidebarContent,
@@ -12,14 +12,8 @@ import {
 } from '@/components/ui/sidebar';
 import Link from 'next/link';
 import { FeedbackWidget } from '@/components/sidebar/feedback-widget';
-
 import type { User } from '@/lib/auth';
 import { Crimson_Text } from 'next/font/google'
-
-const SidebarDocuments = dynamic(() => import('@/components/sidebar/sidebar-documents').then(mod => mod.SidebarDocuments), {
-  loading: () => null,
-  ssr: false,
-});
 
 const crimson = Crimson_Text({
   weight: ['400', '700'],
