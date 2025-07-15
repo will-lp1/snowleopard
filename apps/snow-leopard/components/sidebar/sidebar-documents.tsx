@@ -474,7 +474,7 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
     );
   };
 
-  if (isLoading) {
+  if (isLoading && documents.length === 0) {
     return (
       <SidebarGroup>
         <div className="px-2 py-1 text-xs text-sidebar-foreground/50">
