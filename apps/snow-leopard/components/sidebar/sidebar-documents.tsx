@@ -214,10 +214,6 @@ export function SidebarDocuments({ user }: { user: User | undefined }) {
   const hasReachedEnd = lastPage ? !lastPage.hasMore : false;
   const hasEmptyDocuments = paginatedDocumentsData?.every(page => page.documents.length === 0) ?? false;
 
-  useEffect(() => {
-    mutate();
-  }, [mutate]);
-
   const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
   
