@@ -23,6 +23,7 @@
     "react-dom": "19.0.0-rc-45804af1-20241021",
     "tailwindcss": "^3.4.1",
     "@ai-sdk/groq": "^1.1.13",
+    "@ai-sdk/anthropic": "^1.2.12",
     "@ai-sdk/react": "^1.1.20",
     "@better-auth/stripe": "^1.2.7",
     "@radix-ui/react-alert-dialog": "^1.1.2",
