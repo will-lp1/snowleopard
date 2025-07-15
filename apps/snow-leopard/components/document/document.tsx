@@ -106,7 +106,6 @@ function PureDocumentToolResult({
           const errorData = await response.json().catch(() => ({}));
           throw new Error(errorData.error || response.statusText);
         }
-        toast.success('Changes saved.');
       })
       .catch(err => {
         console.error('[DocumentToolResult] Save update error:', err);

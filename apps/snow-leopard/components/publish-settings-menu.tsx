@@ -157,7 +157,6 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
       toast.error('Please claim a username first.');
       return;
     }
-    // Compute light/dark variants and resolve overlay URL
     let textColorLight: string | undefined;
     let textColorDark: string | undefined;
     if (textColor !== undefined) {
@@ -179,7 +178,6 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
     };
     const optimisticDoc = { ...document, ...snapshot };
     onUpdate(optimisticDoc);
-    setProcessing(true);
     try {
       const res = await fetch('/api/document/publish', {
         method: 'POST',
@@ -203,7 +201,6 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
       toast.error(e.message || 'Error updating publication');
       onUpdate(document);
     } finally {
-      setProcessing(false);
     }
   }, [document.id, isPublished, slug, username, onUpdate, font, textColor]);
   
@@ -411,15 +408,9 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                   }
                   handleToggle();
                 }}
-                disabled={processing || !hasUsername || disabled}
+                disabled={!hasUsername || disabled}
               >
-                {processing ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <>
-                    <Check className="size-4 mr-1" /> Publish
-                  </>
-                )}
+                <Check className="size-4 mr-1" /> Publish
               </Button>
             </div>
           </>
@@ -450,11 +441,11 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
             </Button>
             <Button
               onClick={handleToggle}
-              disabled={processing || disabled}
+              disabled={disabled}
               variant="outline"
               className="w-full"
             >
-              {processing ? <Loader2 className="size-4 animate-spin" /> : 'Unpublish'}
+              Unpublish
             </Button>
           </>
         )}
