@@ -5,7 +5,7 @@ import * as schema from '@snow-leopard/db';
 import { eq, and } from 'drizzle-orm';
 
 export async function generateMetadata({ params }: any) {
-  const { author, slug } = params;
+  const { author, slug } = await params;
   const result = await db
     .select()
     .from(schema.Document)

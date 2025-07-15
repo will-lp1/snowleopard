@@ -106,6 +106,10 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
     }
   }, []);
 
+  useEffect(() => {
+    loadUsername();
+  }, [loadUsername]);
+
   const checkUsername = useCallback(async () => {
     if (!username.trim()) return;
     setUsernameCheck({ checking: true, available: null });
