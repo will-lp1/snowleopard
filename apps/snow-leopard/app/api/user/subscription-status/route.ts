@@ -12,12 +12,10 @@ export async function GET() {
 
   const userId = session.user.id;
 
-  // If Stripe disabled, grant access
   if (process.env.STRIPE_ENABLED !== 'true') {
     return NextResponse.json({ hasActiveSubscription: true }, { status: 200 });
   }
 
-  // Otherwise check active subscription status
   const subscription = await getActiveSubscriptionByUserId({ userId });
   const hasActiveSubscription = subscription?.status === 'active' || subscription?.status === 'trialing';
 
@@ -27,7 +25,6 @@ export async function GET() {
       await unpublishAllDocumentsByUserId({ userId });
     } catch (error) {
       console.error(`[API /user/subscription-status] Failed to unpublish documents for user ${userId}:`, error);
-      // We don't want to block the user from using the app if this fails, so we just log the error.
     }
   }
 

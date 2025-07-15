@@ -10,22 +10,22 @@ interface ChatModel {
 export const chatModels: Array<ChatModel> = [
   {
     id: 'chat-model-small',
-    name: 'Small model',
-    description: 'Small model for fast, lightweight tasks - Llama 4',
+    name: 'Llama 4',
+    description: 'Small and fast model',
   },
   {
     id: 'chat-model-large',
-    name: 'Large model',
-    description: 'Large model for complex, multi-step tasks - Kimi K2',  },
+    name: 'Kimi K2',
+    description: 'Large and powerful model',  },
   {
     id: 'chat-model-reasoning',
-    name: 'Reasoning model',
-    description: 'Uses advanced reasoning - Deepseek R1',
+    name: 'Deepseek R1',
+    description: 'Advanced reasoning model',
   },
   {
     id: 'claude-opus',
     name: 'Claude Opus 4',
-    description: 'Most powerful model for advanced tasks',
+    description: 'Most powerful model',
     proOnly: true,
   },
 ];
