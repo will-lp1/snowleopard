@@ -23,7 +23,6 @@ export interface ChatProps {
   initialMessages: Array<Message>;
   selectedChatModel?: string;
   isReadonly?: boolean;
-  hasActiveSubscription?: boolean;
 }
 
 export function Chat({
@@ -31,7 +30,6 @@ export function Chat({
   initialMessages,
   selectedChatModel: initialSelectedChatModel,
   isReadonly = false,
-  hasActiveSubscription = true,
 }: ChatProps) {
   const { documentId, documentTitle, documentContent } = useDocumentContext();
   const [documentContextActive, setDocumentContextActive] = useState(false);

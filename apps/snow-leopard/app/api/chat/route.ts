@@ -29,7 +29,6 @@ import { NextResponse } from 'next/server';
 import { myProvider } from '@/lib/ai/providers';
 import { auth } from "@/lib/auth";
 import { headers } from 'next/headers';
-import { ArtifactKind } from '@/components/artifact';
 import type { Document } from '@snow-leopard/db';
 import { createDocument as aiCreateDocument } from '@/lib/ai/tools/create-document';
 import { webSearch } from '@/lib/ai/tools/web-search';

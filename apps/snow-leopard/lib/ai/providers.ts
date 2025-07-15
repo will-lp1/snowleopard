@@ -4,6 +4,7 @@ import {
   wrapLanguageModel,
 } from 'ai';
 import { groq } from '@ai-sdk/groq';
+import { anthropic } from '@ai-sdk/anthropic';
 
 export const myProvider = customProvider({
   languageModels: {
@@ -13,7 +14,8 @@ export const myProvider = customProvider({
           model: groq('deepseek-r1-distill-llama-70b'),
           middleware: extractReasoningMiddleware({ tagName: 'think' }),
         }),
+        'claude-opus': anthropic('claude-4-opus-20250514'),
     'title-model': groq('llama-3.1-8b-instant'),
-    'artifact-model': groq('meta-llama/llama-4-maverick-17b-128e-instruct'), 
-      },
-    });
+    'artifact-model': groq('meta-llama/llama-4-maverick-17b-128e-instruct'),
+  },
+});

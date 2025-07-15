@@ -9,7 +9,8 @@ import {
   primaryKey,
   integer,
   pgEnum,
-  unique
+  unique,
+  uniqueIndex
 } from 'drizzle-orm/pg-core';
 import { relations, Many, One } from 'drizzle-orm';
 import { InferSelectModel } from 'drizzle-orm';
@@ -18,6 +19,7 @@ export const user = pgTable("user", {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   email: text('email').notNull().unique(),
+  username: text('username').unique(),
   emailVerified: boolean('email_verified').notNull(),
   image: text('image'),
   createdAt: timestamp('created_at').notNull(),
@@ -87,6 +89,8 @@ export type Message = InferSelectModel<typeof Message>;
 
 export const artifactKindEnum = pgEnum('artifact_kind', ['text', 'code', 'image', 'sheet']);
 
+export const documentVisibilityEnum = pgEnum('document_visibility', ['public', 'private']);
+
 export const Document = pgTable(
   'Document',
   {
@@ -106,10 +110,15 @@ export const Document = pgTable(
     chatId: uuid('chatId')
       .references(() => Chat.id),
     is_current: boolean('is_current').notNull(),
+    visibility: text('visibility', { enum: ['public', 'private'] }).notNull().default('private'),
+    style: jsonb('style'),
+    author: text('author'),
+    slug: text('slug'),
   },
   (table) => {
     return {
       pk: primaryKey({ columns: [table.id, table.createdAt] }),
+      userSlugUnique: uniqueIndex('Document_userId_slug_unique').on(table.userId, table.slug),
     };
   },
 );

@@ -23,34 +23,15 @@ interface PaywallProps {
   required?: boolean;
 }
 
-// Define features for plans
-const proFeatures = [
-  "Unlimited documents",
-  "Advanced AI models",
-  "Priority support",
-  "Team collaboration features (coming soon)",
-  "Access to all future updates"
-];
-
-const freeFeatures = [
-  "Up to 5 documents",
-  "Standard AI model",
-  "Basic support"
-];
-
-// Plan display data - separate from the config in lib/auth.ts
-// This array defines how the plans are presented in the UI.
 export const displayPlans = [
   {
     displayName: 'Monthly',
     planName: 'snowleopard',
-    price: '$8',
+    price: '$15',
     billing: '/ month',
     features: [
-      'Unlimited Documents',
-      'Advanced AI Features',
-      'Priority Support',
-      'Access all features',
+      'Access to unlimited Claude Opus 4',
+      'Publish your documents publicly',
     ],
     stripePriceId: process.env.STRIPE_PRO_MONTHLY_PRICE_ID || 'monthly_placeholder',
     annual: false,
@@ -58,13 +39,14 @@ export const displayPlans = [
   {
     displayName: 'Annual',
     planName: 'snowleopard',
-    price: '$49',
-    billing: '/ year',
+    price: '$10.50',
+    billing: '/ month*',
+    subLabel: 'Billed annually at $126',
     features: [
-      'All Pro features',
-      'Significant cost savings',
-      'Priority support',
+      'Access to unlimited Claude Opus 4',
+      'Publish your documents publicly',
     ],
+    discount: 30,
     stripePriceId: process.env.STRIPE_PRO_YEARLY_PRICE_ID || 'yearly_placeholder',
     annual: true,
   },
@@ -211,7 +193,13 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
 
             <div className="flex-grow">
               <DialogHeader className="mb-8 text-left">
-                <DialogTitle className="text-2xl sm:text-3xl font-semibold">Join the Pack</DialogTitle>
+                <DialogTitle className="text-2xl sm:text-3xl font-semibold">Upgrade to Pro</DialogTitle>
+                <DialogDescription className="text-sm mb-6">
+                  Subscribe to unlock Claude Opus and {' '}
+                  <Link href="#" className="text-blue-500 underline">
+                    publish your documents
+                  </Link>.
+                </DialogDescription>
               </DialogHeader>
               
               <div className="space-y-4">
@@ -219,25 +207,45 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
                   <div 
                     key={plan.displayName} 
                     className={cn(
-                      "border rounded-lg p-5 flex flex-col gap-4 transition-colors h-48",
+                      "border rounded-lg p-6 flex flex-col transition-colors",
+                      { 'bg-muted/30': plan.annual }
                     )}
                   >
                     <div className="flex-grow">
-                      <div className="flex-grow">
-                        <h4 className="font-semibold text-base mb-1">{plan.displayName}</h4>
-                        <p className="text-lg font-bold text-foreground/90">{plan.price} <span className="text-sm font-normal text-muted-foreground">{plan.billing}</span></p>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-semibold text-lg">{plan.displayName}</h4>
+                        {plan.annual && <div className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">Save {plan.discount}%</div>}
                       </div>
+                      <p className="text-3xl font-bold text-foreground">
+                        {plan.price}
+                        <span className="text-base font-normal text-muted-foreground">{plan.billing}</span>
+                      </p>
+                      
+                      {plan.subLabel && (
+                        <p className="text-xs text-muted-foreground mt-1">{plan.subLabel}</p>
+                      )}
+                      
+                      <ul className="mt-6 space-y-2">
+                        {plan.features.map((feature) => (
+                          <li key={feature} className="flex items-center gap-3 text-sm text-muted-foreground">
+                            <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                            <span>{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-                    <div className="mt-auto">
+                    
+                    <div className="mt-8">
                       <Button 
                         onClick={() => handleUpgrade(plan.planName, plan.annual)}
                         disabled={isLoading}
-                        className="w-full px-5 py-2 rounded-full bg-card text-card-foreground border border-border shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:bg-muted transition-colors text-sm shrink-0"
-                        variant={"default"}
+                        className="w-full"
+                        size="lg"
+                        variant={plan.annual ? "default" : "outline"}
                       >
                         {isLoading && loadingPlanId === plan.stripePriceId ? (
                           <><Loader2 className="mr-2 size-4 animate-spin" /> Processing...</>
-                        ) : plan.annual ? 'Subscribe Annually' : 'Subscribe Monthly'}
+                        ) : 'Subscribe'}
                       </Button>
                     </div>
                   </div>
@@ -247,7 +255,7 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
 
             <DialogFooter className="mt-8 pt-4 border-t flex items-center">
               <p className="text-xs text-muted-foreground flex-shrink-0">
-                  * A plan is required to continue.
+                  much love, will - founder of snow leopard
               </p>
               <div className="flex-grow"></div>
               <Button

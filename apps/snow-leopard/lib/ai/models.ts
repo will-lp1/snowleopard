@@ -4,6 +4,7 @@ interface ChatModel {
   id: string;
   name: string;
   description: string;
+  proOnly?: boolean;
 }
 
 export const chatModels: Array<ChatModel> = [
@@ -21,5 +22,11 @@ export const chatModels: Array<ChatModel> = [
     id: 'chat-model-reasoning',
     name: 'Reasoning model',
     description: 'Uses advanced reasoning',
+  },
+  {
+    id: 'claude-opus',
+    name: 'Claude Opus 4',
+    description: 'Most powerful model for advanced tasks',
+    proOnly: true,
   },
 ];

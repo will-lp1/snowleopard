@@ -11,10 +11,10 @@ const runMigrate = async () => {
     throw new Error('DATABASE_URL environment variable is required in packages/db/.env');
   }
 
-  // Configure postgres client for SSL connection required by Render
+  // Configure postgres client (SSL only in production)
   const migrationClient = postgres(process.env.DATABASE_URL, {
     max: 1,
-    ssl: 'require' // Explicitly require SSL for the connection
+    ssl: process.env.NODE_ENV === 'production' ? 'require' : false
   });
 
   console.log('⏳ Running migrations...');

@@ -5,68 +5,124 @@ export const runtime = 'edge';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
+  const type = searchParams.get('type');
 
-  // ?title=<title>
-  const hasTitle = searchParams.has('title');
-  const title = hasTitle
-    ? searchParams.get('title')?.slice(0, 100)
-    : 'Snow Leopard';
+  if (
+    type === 'post' &&
+    searchParams.has('title') &&
+    searchParams.has('author') &&
+    searchParams.has('date')
+  ) {
+    const title = searchParams.get('title')?.slice(0, 100) ?? 'Untitled';
+    const author = searchParams.get('author')?.slice(0, 50) ?? 'Anonymous';
+    const date = searchParams.get('date') ?? '';
+
+    return new ImageResponse(
+      (
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            background: 'white',
+            padding: '60px',
+            fontFamily: '"SF Pro Display", "Helvetica Neue", "Arial", sans-serif',
+            position: 'relative',
+          }}
+        >
+          <div
+            style={{
+              position: 'absolute',
+              top: 60,
+              left: 60,
+              fontSize: 28,
+              fontWeight: 500,
+              color: '#1f2937',
+            }}
+          >
+            snow leopard
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
+              flexGrow: 1,
+              paddingTop: 80,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 72,
+                fontWeight: 800,
+                color: '#1f2937',
+                lineHeight: 1.1,
+                maxWidth: '95%',
+                textAlign: 'center',
+              }}
+            >
+              {title}
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                marginTop: 32,
+                fontSize: 32,
+                fontWeight: 400,
+                color: '#6b7280',
+              }}
+            >
+              <span>{author}</span>
+              <span style={{ margin: '0 12px' }}>•</span>
+              <span>{date}</span>
+            </div>
+          </div>
+        </div>
+      ),
+      { width: 1200, height: 630 }
+    );
+  }
 
   return new ImageResponse(
     (
-      <div style={{
-        width: 1200,
-        height: 630,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'radial-gradient(circle at center, #ffffff 60%, #f0f0f0 100%)', // floating backdrop
-      }}>
-        <div style={{
-          width: 600,
-          height: 600,
-          borderRadius: '50%',
-          background: 'radial-gradient(circle at center, #f9f9f9 0%, #e0e0e0 100%)',
-          border: '8px solid #c0c0c0', // silver border
-          boxShadow: '0 20px 40px rgba(0,0,0,0.15), inset 0 0 30px rgba(0,0,0,0.03)', // drop shadow for floating effect
-          fontFamily: '"SF Pro Display", "Helvetica Neue", "Arial", sans-serif',
-          position: 'relative',
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-        }}>
-          <div style={{
-            fontSize: 72,
-            fontWeight: 800,
+          background: 'white',
+          fontFamily: '"SF Pro Display", "Helvetica Neue", "Arial", sans-serif',
+          padding: '60px',
+        }}
+      >
+        <div
+          style={{
+            fontSize: 84,
+            fontWeight: 500,
             letterSpacing: '-0.05em',
-            lineHeight: 1,
-            textAlign: 'center',
-            fontFamily: '"SF Pro Display", "Helvetica Neue", "Arial", sans-serif',
-            color: '#1f2937', // gray-800
-          }}>
-            {title}
-          </div>
-          <div style={{
-            fontSize: 28,
-            fontWeight: 400,
+            color: '#1f2937',
+          }}
+        >
+          Snow Leopard
+        </div>
+        <div
+          style={{
+            fontSize: 32,
             marginTop: 24,
-            color: '#6b7280', // gray-500
-            textAlign: 'center',
-            fontFamily: '"SF Pro Display", "Helvetica Neue", "Arial", sans-serif',
-          }}>
-            Tab, Tab, Apply
-          </div>
-          <div style={{
-            fontSize: 28,
             fontWeight: 400,
-            marginTop: 8,
             color: '#6b7280',
             textAlign: 'center',
-            fontFamily: '"SF Pro Display", "Helvetica Neue", "Arial", sans-serif',
-          }}>
-            Brilliance
-          </div>
+            maxWidth: '75%',
+            lineHeight: 1.4,
+          }}
+        >
+          The most satisfying, intuitive AI writing tool, and it&apos;s open source.
         </div>
       </div>
     ),

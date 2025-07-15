@@ -2,8 +2,6 @@ import { notFound } from 'next/navigation';
 import { getUser } from '@/app/(auth)/auth';
 import { getDocumentsById } from '@/lib/db/queries';
 import { AlwaysVisibleArtifact } from '@/components/always-visible-artifact';
-import { checkSubscriptionStatus } from '@/lib/subscription';
-import { Paywall } from '@/components/paywall'; 
 import type { Document } from '@snow-leopard/db';
 
 export const dynamic = 'auto';
@@ -20,19 +18,9 @@ export default async function DocumentPage(props: { params: Promise<{ id: string
       return notFound(); 
     }
 
-    const { hasActiveSubscription } = await checkSubscriptionStatus();
-    
-    if (!hasActiveSubscription) {
-      return <Paywall isOpen={true} required={true} />;
-    }
-
-    const [documentsResult, user] = await Promise.all([
-      getDocumentsById({ ids: [documentId], userId: 'placeholder' }),
-      getUser(),
-    ]);
-
+    const user = await getUser();
     if (!user) {
-      console.warn(`[DocumentPage] User not found after subscription check. Redirecting.`);
+      console.warn(`[DocumentPage] User not found. Redirecting.`);
       return notFound(); 
     }
 

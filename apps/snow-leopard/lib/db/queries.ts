@@ -179,14 +179,14 @@ export async function saveDocument({
   kind,
   content,
   userId,
-  chatId, // Added optional chatId
+  chatId,
 }: {
   id: string;
   title: string;
   kind: ArtifactKind;
   content: string;
   userId: string;
-  chatId?: string | null; // Make it optional
+  chatId?: string | null;
 }): Promise<(typeof schema.Document.$inferSelect)> {
   try {
     const now = new Date();
@@ -767,7 +767,6 @@ export async function createNewDocumentVersion({
  * Useful for fetching the very latest record after an update or creation.
  */
 export async function getLatestDocumentById({ id }: { id: string }): Promise<(typeof schema.Document.$inferSelect) | null> {
-  // FIX: Reimplemented using Drizzle
   try {
     // Validate document ID
     if (!id || id === 'undefined' || id === 'null' || id === 'init') {
@@ -842,5 +841,114 @@ export async function getActiveSubscriptionByUserId({ userId }: { userId: string
   } catch (error) {
     console.error(`[DB Query - getActiveSubscriptionByUserId] Error fetching active subscription for user ${userId}:`, error);
     return null;
+  }
+}
+
+// Add publish settings update
+export async function updateDocumentPublishSettings({
+  documentId,
+  userId,
+  visibility,
+  author,
+  style,
+  slug,
+}: {
+  documentId: string;
+  userId: string;
+  visibility: 'public' | 'private';
+  author: string;
+  style: { theme: string; font?: string };
+  slug: string;
+}): Promise<(typeof schema.Document.$inferSelect)> {
+  return await db.transaction(async (tx) => {
+    // prevent slug collision with other documents
+    if (slug) {
+      const dup = await tx
+        .select({ id: schema.Document.id })
+        .from(schema.Document)
+        .where(
+          and(
+            eq(schema.Document.userId, userId),
+            eq(schema.Document.slug, slug),
+            sql`"Document"."id" <> ${documentId}`
+          )
+        )
+        .limit(1);
+
+      if (dup.length) throw new Error('A document with this name is already published');
+    }
+
+    // clear slug on old versions to satisfy unique index
+    await tx
+      .update(schema.Document)
+      .set({ slug: null })
+      .where(
+        and(
+          eq(schema.Document.id, documentId),
+          eq(schema.Document.userId, userId),
+          eq(schema.Document.is_current, false)
+        )
+      );
+
+    const [result] = await tx
+      .update(schema.Document)
+      .set({ visibility, author, style, slug })
+      .where(
+        and(
+          eq(schema.Document.id, documentId),
+          eq(schema.Document.userId, userId),
+          eq(schema.Document.is_current, true)
+        )
+      )
+      .returning();
+
+    if (!result) throw new Error('Failed to update publish settings');
+    return result;
+  });
+}
+
+// Add username availability check
+export async function checkUsernameAvailability({ username }: { username: string }): Promise<boolean> {
+  const [{ count }] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(schema.user)
+    .where(eq(schema.user.username, username));
+  return Number(count) === 0;
+}
+
+// Add set username for a user
+export async function setUsername({ userId, username }: { userId: string; username: string }): Promise<void> {
+  await db
+    .update(schema.user)
+    .set({ username })
+    .where(eq(schema.user.id, userId));
+}
+
+export async function clearUsername({ userId }: { userId: string }): Promise<void> {
+  await db
+    .update(schema.user)
+    .set({ username: null })
+    .where(eq(schema.user.id, userId));
+}
+
+export async function unpublishAllDocumentsByUserId({ userId }: { userId: string }): Promise<void> {
+  try {
+    const updated = await db
+      .update(schema.Document)
+      .set({ visibility: 'private', slug: null, updatedAt: new Date() })
+      .where(
+        and(
+          eq(schema.Document.userId, userId),
+          eq(schema.Document.visibility, 'public')
+        )
+      )
+      .returning({ id: schema.Document.id });
+    
+    if (updated.length > 0) {
+      console.log(`[DB Query - unpublishAllDocumentsByUserId] Un-published ${updated.length} documents for user ${userId}.`);
+    }
+  } catch (error) {
+    console.error(`[DB Query - unpublishAllDocumentsByUserId] Error un-publishing documents for user ${userId}:`, error);
+    throw new Error('Failed to un-publish documents.');
   }
 }
