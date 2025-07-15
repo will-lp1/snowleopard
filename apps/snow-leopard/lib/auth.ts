@@ -162,6 +162,12 @@ export const auth = betterAuth({
 
   plugins: authPlugins,
   
+  trustedOrigins: [
+    "https://www.cursorforwrit.ing",
+    ...(process.env.NODE_ENV === "development" ? ["http://localhost:3000"] : []),
+    ...(process.env.VERCEL_URL ? [`https://${process.env.VERCEL_URL}`] : []),
+  ],
+  
   secret: process.env.BETTER_AUTH_SECRET,
   baseURL: process.env.BETTER_AUTH_URL,
 });
