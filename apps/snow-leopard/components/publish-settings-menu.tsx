@@ -397,8 +397,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
               </div>
             </div>
             {/* Style controls end */}
-            
-            <div className="flex justify-end p-2 border-t bg-background/50 -mx-3 -mb-3 mt-4">
+            <div className="flex justify-end px-3 pt-4 pb-2 border-t bg-background/50 -mx-3 -mb-3 mt-4">
               <Button
                 size="sm"
                 onClick={() => {
