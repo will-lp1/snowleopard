@@ -13,7 +13,7 @@ export async function getUserAction(request: NextRequest) {
     let hasActiveSubscription = true;
     if (process.env.STRIPE_ENABLED === 'true') {
       const subscription = await getActiveSubscriptionByUserId({ userId: userDetails.id });
-      hasActiveSubscription = subscription?.status === 'active';
+      hasActiveSubscription = Boolean(subscription);
     }
     if (!hasActiveSubscription) {
       if (userDetails.username) {
