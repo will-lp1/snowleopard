@@ -155,7 +155,6 @@ export const auth = betterAuth({
           console.log(`Verification email sent successfully to ${user.email}. ID: ${data?.id}`);
         } catch (err) {
           console.error('Failed to send verification email:', err);
-          // Handle error appropriately
         }
     } : undefined,
   },
