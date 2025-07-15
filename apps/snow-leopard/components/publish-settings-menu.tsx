@@ -69,9 +69,10 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
   const [font, setFont] = useState<FontOption>('montserrat');
   const [textColor, setTextColor] = useState<string | undefined>(undefined);
   const [processing, setProcessing] = useState(false);
+  const sanitizedUsername = username.trim().replace(/^@/, '');
   
   const isPublished = document.visibility === 'public';
-  const url = typeof window !== 'undefined' ? `${window.location.origin}/${username}/${slug}` : `/${username}/${slug}`;
+  const url = typeof window !== 'undefined' ? `${window.location.origin}/${sanitizedUsername}/${slug}` : `/${sanitizedUsername}/${slug}`;
 
   useEffect(() => {
     setUsername(user.username || '');
@@ -113,7 +114,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
   const checkUsername = useCallback(async () => {
     if (!username.trim()) return;
     setUsernameCheck({ checking: true, available: null });
-    const res = await fetch(`/api/user?username=${encodeURIComponent(username)}`);
+    const res = await fetch(`/api/user?username=${encodeURIComponent(username.trim().replace(/^@/, ''))}`);
     if (res.ok) {
       const { available } = await res.json();
       setUsernameCheck({ checking: false, available });
@@ -128,7 +129,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
     const res = await fetch('/api/user', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username }),
+      body: JSON.stringify({ username: username.trim().replace(/^@/, '') }),
     });
     if (res.ok) {
       setHasUsername(true);
@@ -139,7 +140,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
   }, [username, usernameCheck.available]);
 
   useEffect(() => {
-    if (!username.trim() || username === user.username) {
+    if (!sanitizedUsername || sanitizedUsername === user.username) {
         setUsernameCheck({ checking: false, available: null });
         return;
     }
@@ -150,11 +151,11 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
     return () => {
         clearTimeout(handler);
     };
-  }, [username, checkUsername, user.username]);
+  }, [username, checkUsername, user.username, sanitizedUsername]);
 
   const handleToggle = useCallback(async () => {
     const newVisibility = (document.visibility === 'public' ? 'private' : 'public') as 'public' | 'private';
-    if (newVisibility === 'public' && !username.trim()) {
+    if (newVisibility === 'public' && !sanitizedUsername) {
       return;
     }
     let textColorLight: string | undefined;
@@ -167,7 +168,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
     const snapshot = {
       id: document.id,
       visibility: newVisibility,
-      author: username,
+      author: sanitizedUsername,
       style: {
         ...(document.style as any),
         font,
@@ -202,7 +203,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
     } finally {
       setProcessing(false);
     }
-  }, [document.id, isPublished, slug, username, onUpdate, font, textColor]);
+  }, [document.id, isPublished, slug, sanitizedUsername, onUpdate, font, textColor]);
   
   const handleSlugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formattedSlug = e.target.value
@@ -268,7 +269,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                   id="pub-username"
                   value={hasUsername ? `@${username}` : username}
                   onChange={(e) => {
-                    setUsername(e.target.value.trimEnd());
+                    setUsername(e.target.value);
                     if (usernameCheck.available !== null) {
                       setUsernameCheck({ checking: false, available: null });
                     }
@@ -407,7 +408,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                   }
                   handleToggle();
                 }}
-                disabled={processing || !hasUsername || disabled}
+                disabled={processing || !hasUsername || disabled || !sanitizedUsername}
               >
                 {processing ? (
                   <Loader2 className="size-4 animate-spin" />
