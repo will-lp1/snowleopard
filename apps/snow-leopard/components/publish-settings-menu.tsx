@@ -178,6 +178,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
     };
     const optimisticDoc = { ...document, ...snapshot };
     onUpdate(optimisticDoc);
+    setProcessing(true);
     try {
       const res = await fetch('/api/document/publish', {
         method: 'POST',
@@ -199,6 +200,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
     } catch (e: any) {
       onUpdate(document);
     } finally {
+      setProcessing(false);
     }
   }, [document.id, isPublished, slug, username, onUpdate, font, textColor]);
   
@@ -406,9 +408,13 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                   }
                   handleToggle();
                 }}
-                disabled={!hasUsername || disabled}
+                disabled={processing || !hasUsername || disabled}
               >
-                <Check className="size-4 mr-1" /> Publish
+                {processing ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <><Check className="size-4 mr-1" /> Publish</>
+                )}
               </Button>
             </div>
           </>
@@ -438,11 +444,11 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
             </Button>
             <Button
               onClick={handleToggle}
-              disabled={disabled}
+              disabled={processing || disabled}
               variant="outline"
               className="w-full"
             >
-              Unpublish
+              {processing ? <Loader2 className="size-4 animate-spin" /> : 'Unpublish'}
             </Button>
           </>
         )}
