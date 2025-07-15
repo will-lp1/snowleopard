@@ -11,7 +11,6 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { Loader2, GlobeIcon, CopyIcon, Edit2, Check } from 'lucide-react';
-import { toast } from 'sonner';
 import type { Document } from '@snow-leopard/db';
 import type { User } from '@/lib/auth';
 import useSWR from 'swr';
@@ -130,9 +129,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
     if (res.ok) {
       setHasUsername(true);
       setUsernameCheck({ checking: false, available: true });
-      toast.success('Username claimed!');
     } else {
-      toast.error('Failed to claim username');
     }
     setClaiming(false);
   }, [username, usernameCheck.available]);
@@ -154,7 +151,6 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
   const handleToggle = useCallback(async () => {
     const newVisibility = (document.visibility === 'public' ? 'private' : 'public') as 'public' | 'private';
     if (newVisibility === 'public' && !username.trim()) {
-      toast.error('Please claim a username first.');
       return;
     }
     let textColorLight: string | undefined;
@@ -196,9 +192,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
 
       const updated = await res.json();
       onUpdate(updated);
-      toast.success(newVisibility === 'public' ? 'Published' : 'Unpublished');
     } catch (e: any) {
-      toast.error(e.message || 'Error updating publication');
       onUpdate(document);
     } finally {
     }
@@ -423,7 +417,6 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                 className="w-full justify-start gap-2"
                 onClick={() => {
                   navigator.clipboard.writeText(url);
-                  toast.success('Link copied');
                 }}
                 disabled={disabled}
               >
