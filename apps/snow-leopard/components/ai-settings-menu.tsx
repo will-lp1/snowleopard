@@ -24,6 +24,9 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import useSWR from 'swr';
+import { fetcher } from '@/lib/utils';
+import { Paywall } from '@/components/paywall';
 
 export function AiSettingsMenu() {
   const { suggestionLength, customInstructions, writingSample, writingStyleSummary, applyStyle } = useAiOptionsValue();
@@ -38,6 +41,10 @@ export function AiSettingsMenu() {
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const isEditingSample = !writingStyleSummary;
+
+  const { data: subscriptionData, isLoading: isSubscriptionLoading } = useSWR<{ hasActiveSubscription: boolean }>('/api/user/subscription-status', fetcher, { revalidateOnFocus: false });
+  const hasSubscription = subscriptionData?.hasActiveSubscription ?? false;
+  const [isPaywallOpen, setPaywallOpen] = useState(false);
 
   const handleGenerateSummary = async () => {
     if (!writingSample || writingSample.trim().length < 200) {
@@ -87,6 +94,8 @@ export function AiSettingsMenu() {
   const toggleApplyStyle = (val: boolean) => {
     setApplyStyle(val);
   };
+
+  if (isSubscriptionLoading) return null;
 
   return (
     <Tooltip>
@@ -155,7 +164,19 @@ export function AiSettingsMenu() {
             <Separator className="my-4" />
 
             {/* Writing Voice Section */}
-            <div className="space-y-4">
+            <div className="space-y-4 relative group">
+              {!hasSubscription && (
+                <div className="absolute inset-0 z-10 bg-background/70 backdrop-blur-sm rounded-lg flex items-center justify-center opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="pointer-events-auto"
+                    onClick={() => setPaywallOpen(true)}
+                  >
+                    Upgrade
+                  </Button>
+                </div>
+              )}
               {isEditingSample ? (
                 <div className="space-y-3">
                   <Label className="text-xs font-medium">Train Writer Style</Label>
@@ -164,6 +185,7 @@ export function AiSettingsMenu() {
                     className="h-28 text-sm resize-none bg-background border focus-visible:ring-1 focus-visible:ring-ring"
                     value={writingSample}
                     onChange={(e) => setWritingSample(e.target.value)}
+                    disabled={!hasSubscription}
                   />
 
                   <Progress value={Math.min(100, (writingSample.length / 200) * 100)} className="h-1.5" />
@@ -176,7 +198,7 @@ export function AiSettingsMenu() {
                     size="sm"
                     className="w-full"
                     variant='outline'
-                    disabled={isGeneratingSummary || writingSample.length < 200}
+                    disabled={isGeneratingSummary || writingSample.length < 200 || !hasSubscription}
                     onClick={handleGenerateSummary}
                   >
                     {isGeneratingSummary && (
@@ -197,6 +219,7 @@ export function AiSettingsMenu() {
                       checked={applyStyle}
                       onCheckedChange={toggleApplyStyle}
                       className="scale-110"
+                      disabled={!hasSubscription}
                     />
                   </div>
 
@@ -206,6 +229,7 @@ export function AiSettingsMenu() {
                       size="sm"
                       className="flex-1"
                       onClick={startRetrain}
+                      disabled={!hasSubscription}
                     >
                       Retrain
                     </Button>
@@ -214,12 +238,14 @@ export function AiSettingsMenu() {
                       size="sm"
                       className="flex-1"
                       onClick={handleClearProfile}
+                      disabled={!hasSubscription}
                     >
                       Clear
                     </Button>
                   </div>
                 </div>
               )}
+              <Paywall isOpen={isPaywallOpen} onOpenChange={setPaywallOpen} required={false} />
             </div>
           </DropdownMenuContent>
         </DropdownMenu>

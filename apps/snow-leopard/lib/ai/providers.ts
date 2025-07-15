@@ -9,7 +9,7 @@ import { anthropic } from '@ai-sdk/anthropic';
 export const myProvider = customProvider({
   languageModels: {
         'chat-model-small': groq('meta-llama/llama-4-maverick-17b-128e-instruct'),
-        'chat-model-large': groq('llama-3.3-70b-versatile'),
+        'chat-model-large': groq('moonshotai/kimi-k2-instruct'),
         'chat-model-reasoning': wrapLanguageModel({
           model: groq('deepseek-r1-distill-llama-70b'),
           middleware: extractReasoningMiddleware({ tagName: 'think' }),

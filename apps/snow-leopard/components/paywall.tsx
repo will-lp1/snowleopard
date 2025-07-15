@@ -32,11 +32,12 @@ export const displayPlans = [
     features: [
       'Access to unlimited Claude Opus 4',
       'Publish your documents publicly',
+      'AI trained on the way you write',
     ],
     stripePriceId: process.env.STRIPE_PRO_MONTHLY_PRICE_ID || 'monthly_placeholder',
     annual: false,
   },
-  {
+  { 
     displayName: 'Annual',
     planName: 'snowleopard',
     price: '$10.50',
@@ -45,6 +46,7 @@ export const displayPlans = [
     features: [
       'Access to unlimited Claude Opus 4',
       'Publish your documents publicly',
+      'AI trained on the way you write',
     ],
     discount: 30,
     stripePriceId: process.env.STRIPE_PRO_YEARLY_PRICE_ID || 'yearly_placeholder',
@@ -139,8 +141,8 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent 
-        className="sm:max-w-3xl md:max-w-4xl lg:max-w-5xl p-0 overflow-hidden"
+      <DialogContent
+        className="sm:max-w-[425px] md:max-w-2xl lg:max-w-4xl p-0 overflow-hidden"
         onInteractOutside={handleInteractOutside}
         onEscapeKeyDown={(event) => {
           if (required) {
@@ -150,7 +152,7 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
         hideCloseButton={required}
       >
         <div className="grid grid-cols-1 md:grid-cols-2">
-          <div className="relative h-64 md:h-full overflow-hidden">
+          <div className="relative h-48 md:h-full overflow-hidden">
             <Image
               src="/images/snowleopards.jpg"
               alt="Snow Leopard"
@@ -167,7 +169,7 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
              </div>
           </div>
 
-          <div className="p-8 md:p-10 flex flex-col relative">
+          <div className="p-6 md:p-8 flex flex-col relative">
             {required && (
               <div className="absolute top-4 right-4 z-20">
                 <DropdownMenu>
@@ -192,10 +194,10 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
             )}
 
             <div className="flex-grow">
-              <DialogHeader className="mb-8 text-left">
-                <DialogTitle className="text-2xl sm:text-3xl font-semibold">Upgrade to Pro</DialogTitle>
+              <DialogHeader className="mb-6 text-left">
+                <DialogTitle className="text-xl md:text-2xl font-semibold">Upgrade to Pro</DialogTitle>
                 <DialogDescription className="text-sm mb-6">
-                  Subscribe to unlock Claude Opus and {' '}
+                  Subscribe to unlock Claude Opus, AI trained on the way you write, and {' '}
                   <Link href="#" className="text-blue-500 underline">
                     publish your documents
                   </Link>.
@@ -253,11 +255,11 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
               </div>
             </div>
 
-            <DialogFooter className="mt-8 pt-4 border-t flex items-center">
+            <DialogFooter className="mt-6 pt-4 border-t flex flex-col sm:flex-row items-center gap-2 sm:gap-0">
               <p className="text-xs text-muted-foreground flex-shrink-0">
                   much love, will - founder of snow leopard
               </p>
-              <div className="flex-grow"></div>
+              <div className="flex-grow" />
               <Button
                 variant="ghost"
                 className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5" // Style from overview.tsx
