@@ -12,10 +12,9 @@ export async function publishDocument(request: NextRequest, body: any): Promise<
   }
   const userId = session.user.id;
   
-  // Server-side subscription check
   if (process.env.STRIPE_ENABLED === 'true') {
     const subscription = await getActiveSubscriptionByUserId({ userId });
-    if (!subscription || subscription.status !== 'active') {
+    if (!subscription) {
       return NextResponse.json({ error: 'Payment Required: publishing is pro-only' }, { status: 402 });
     }
   }
