@@ -204,7 +204,7 @@ export default function Home() {
               transition={{ duration: 0.6, delay: 0.1 }}
               className="w-full"
             >
-              <Card className="flex flex-col min-h-[320px] rounded-xl overflow-visible">
+              <Card className="flex flex-col min-h-[320px] md:h-[380px] rounded-xl overflow-visible">
                 <CardHeader className="p-6 text-base font-medium">
                   Real-time Inline Suggestions
                 </CardHeader>
@@ -228,7 +228,7 @@ export default function Home() {
               transition={{ duration: 0.6, delay: 0.2 }}
               className="w-full"
             >
-              <Card className="flex flex-col min-h-[320px] rounded-xl overflow-visible">
+              <Card className="flex flex-col min-h-[320px] md:h-[380px] rounded-xl overflow-visible">
                 <CardHeader className="p-6 text-base font-medium">
                   Powerful Selection Edits
                 </CardHeader>
@@ -268,7 +268,7 @@ export default function Home() {
               transition={{ duration: 0.6, delay: 0.3 }}
               className="w-full"
             >
-              <Card className="flex flex-col min-h-[320px] rounded-xl overflow-visible">
+              <Card className="flex flex-col min-h-[320px] md:h-[380px] rounded-xl overflow-visible">
                 <CardHeader className="p-6 text-base font-medium">
                   Instant Synonym Finder
                 </CardHeader>
@@ -297,7 +297,7 @@ export default function Home() {
               transition={{ duration: 0.6, delay: 0.2 }}
               className="w-full"
             >
-              <Card className="flex flex-col min-h-[320px] rounded-xl overflow-visible">
+              <Card className="flex flex-col min-h-[320px] md:h-[380px] rounded-xl overflow-visible">
                 <CardHeader className="p-6 text-base font-medium">
                   AI Writing That Sounds Like You
                 </CardHeader>
@@ -318,7 +318,7 @@ export default function Home() {
               transition={{ duration: 0.6, delay: 0.25 }}
               className="w-full"
             >
-              <Card className="flex flex-col min-h-[320px] rounded-xl">
+              <Card className="flex flex-col min-h-[320px] md:h-[380px] rounded-xl overflow-visible">
                 <CardHeader className="p-6 text-base font-medium">
                   Access Premium Models
                 </CardHeader>
@@ -360,7 +360,7 @@ export default function Home() {
               transition={{ duration: 0.6, delay: 0.3 }}
               className="w-full"
             >
-              <Card className="flex flex-col min-h-[320px] rounded-xl">
+              <Card className="flex flex-col min-h-[320px] md:h-[380px] rounded-xl overflow-visible">
                 <CardHeader className="p-6 text-base font-medium">
                   One-Click Publish & Share
                 </CardHeader>
