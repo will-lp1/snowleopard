@@ -9,7 +9,7 @@ import {
   ACTIVATE_SUGGESTION_CONTEXT,
   DEACTIVATE_SUGGESTION_CONTEXT,
   SET_SUGGESTION_LOADING_STATE
-} from '@/lib/editor/selection-context-plugin';
+} from '@/lib/editor/suggestion-plugin';
 
 interface SuggestionOverlayContextType {
   openSuggestionOverlay: (options: {

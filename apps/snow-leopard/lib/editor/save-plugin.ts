@@ -1,7 +1,6 @@
 import { Plugin, PluginKey, Transaction, EditorState } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
-import { Node } from 'prosemirror-model';
-import { buildContentFromDocument } from './functions'; // Assuming functions.tsx exports this
+import { buildContentFromDocument } from './functions'; 
 
 export const savePluginKey = new PluginKey<SaveState>('save');
 
@@ -22,6 +21,39 @@ interface SavePluginOptions {
   debounceMs?: number;
   initialLastSaved?: Date | null;
   documentId: string; 
+}
+
+export function createSaveFunction(currentDocumentIdRef: React.MutableRefObject<string>) {
+  return async (contentToSave: string): Promise<{ updatedAt: string | Date } | null> => {
+    const docId = currentDocumentIdRef.current;
+    if (!docId || docId === "init" || docId === "undefined" || docId === "null") {
+      console.warn("[Save Function] Attempted to save with invalid or init documentId:", docId);
+      throw new Error("Cannot save with invalid or initial document ID.");
+    }
+
+    try {
+      const response = await fetch(`/api/document`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: docId,
+          content: contentToSave,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Unknown API error" }));
+        console.error(`[Save Function] Save failed: ${response.status}`, errorData);
+        throw new Error(`API Error: ${errorData.error || response.statusText}`);
+      }
+
+      const result = await response.json();
+      return { updatedAt: result.updatedAt || new Date().toISOString() };
+    } catch (error) {
+      console.error(`[Save Function] Error during save for ${docId}:`, error);
+      throw error;
+    }
+  };
 }
 
 export function savePlugin({
@@ -171,4 +203,42 @@ export function setSaveStatus(view: EditorView, statusUpdate: Partial<SaveState>
                  ? { ...statusUpdate, initialContent: '' } 
                  : statusUpdate;
   view.dispatch(view.state.tr.setMeta(savePluginKey, update));
+}
+
+export function createForceSaveHandler(currentDocumentIdRef: React.MutableRefObject<string>) {
+  return async (event: CustomEvent) => {
+    const forceSaveDocId = event.detail.documentId;
+    const currentEditorPropId = currentDocumentIdRef.current;
+
+    if (forceSaveDocId !== currentEditorPropId || currentEditorPropId === "init") {
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/document", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: currentEditorPropId,
+          content: event.detail.content || "",
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log(`[Save Plugin] Force-save successful for ${currentEditorPropId}`);
+      
+      return {
+        status: "saved" as const,
+        lastSaved: new Date(data.updatedAt || new Date().toISOString()),
+        isDirty: false,
+      };
+    } catch (error) {
+      console.error(`[Save Plugin] Force-save failed for ${currentEditorPropId}:`, error);
+      throw error;
+    }
+  };
 } 
