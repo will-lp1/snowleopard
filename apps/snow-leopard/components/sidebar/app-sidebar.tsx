@@ -2,6 +2,7 @@
 
 import { SidebarUserNav } from '@/components/sidebar/sidebar-user-nav';
 import { SidebarDocuments } from '@/components/sidebar/sidebar-documents';
+import type { Document } from '@snow-leopard/db';
 import {
   Sidebar,
   SidebarContent,
@@ -21,7 +22,7 @@ const crimson = Crimson_Text({
   display: 'swap',
 })
 
-export function AppSidebar({ user }: { user: User | undefined }) {
+export function AppSidebar({ user, initialDocuments }: { user: User | undefined; initialDocuments?: any[] }) {
   const { setOpenMobile } = useSidebar();
 
   return (
@@ -45,7 +46,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
       
       <SidebarContent>
         <div className="px-2">
-          <SidebarDocuments user={user} />
+          <SidebarDocuments user={user} initialDocuments={initialDocuments} />
         </div>
       </SidebarContent>
       
