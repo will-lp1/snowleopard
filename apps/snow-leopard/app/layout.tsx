@@ -76,7 +76,7 @@ export default async function RootLayout({
             __html: THEME_COLOR_SCRIPT,
           }}
         />
-        <link rel="icon" href="/SLprint.png" />
+        <link rel="icon" href="/favicon.ico" />
       </head>
       <body className="antialiased">
         <ThemeProvider
