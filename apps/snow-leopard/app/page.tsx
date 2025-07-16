@@ -12,6 +12,7 @@ import Image from 'next/image';
 import { motion, useInView } from "framer-motion";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import Script from 'next/script';
+import { Switch } from "@/components/ui/switch";
 
 const crimson = Crimson_Text({
   weight: ["400", "700"],
@@ -19,26 +20,41 @@ const crimson = Crimson_Text({
   display: "swap",
 });
 
+const StyleToggleDemo = ({ inView }: { inView: boolean }) => {
+  const [isEnabled, setIsEnabled] = useState(false);
+  useEffect(() => {
+    if (inView) {
+      const timer = setTimeout(() => setIsEnabled(true), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [inView]);
+
+  return (
+    <div className="rounded-md border p-4 w-full">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium">Apply Writer Style</span>
+        <Switch checked={isEnabled} onCheckedChange={setIsEnabled} className="scale-110" />
+      </div>
+    </div>
+  );
+};
+
 export default function Home() {
   const router = useRouter();
   const featuresRef = useRef<HTMLElement>(null);
   const isFeaturesInView = useInView(featuresRef, { once: true, amount: 0.3 });
-  // Individual card in-view refs for staggered, per-card animations
   const card1Ref = useRef<HTMLDivElement>(null);
   const card2Ref = useRef<HTMLDivElement>(null);
   const card3Ref = useRef<HTMLDivElement>(null);
+  const card4Ref = useRef<HTMLDivElement>(null);
+  const card5Ref = useRef<HTMLDivElement>(null);
+  const card6Ref = useRef<HTMLDivElement>(null);
   const card1InView = useInView(card1Ref, { once: true, amount: 0.5 });
   const card2InView = useInView(card2Ref, { once: true, amount: 0.5 });
   const card3InView = useInView(card3Ref, { once: true, amount: 0.5 });
-
-  const socialProofRef = useRef<HTMLElement>(null);
-  const isSocialProofInView = useInView(socialProofRef, { once: true, amount: 0.2 });
-  const proof1Ref = useRef<HTMLDivElement>(null);
-  const proof2Ref = useRef<HTMLDivElement>(null);
-  const proof3Ref = useRef<HTMLDivElement>(null);
-  const proof1InView = useInView(proof1Ref, { once: true, amount: 0.5 });
-  const proof2InView = useInView(proof2Ref, { once: true, amount: 0.5 });
-  const proof3InView = useInView(proof3Ref, { once: true, amount: 0.5 });
+  const card4InView = useInView(card4Ref, { once: true, amount: 0.5 });
+  const card5InView = useInView(card5Ref, { once: true, amount: 0.5 });
+  const card6InView = useInView(card6Ref, { once: true, amount: 0.5 });
 
   const [hasSession, setHasSession] = useState<boolean>(false);
 
@@ -69,6 +85,9 @@ export default function Home() {
       router.push("/login?redirect=/documents");
     }
   };
+
+  const modelNames = ["Llama", "Kimi", "Deepseek", "Claude"] as const;
+  const proIndex = 3; 
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
@@ -265,6 +284,108 @@ export default function Home() {
                         </span>
                     </span>
                     <span className="demo-text-base"> synonyms.</span>
+                  </p>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Card 4: AI Writing That Sounds Like You */}
+            <motion.div
+              ref={card4Ref}
+              initial={{ opacity: 0, y: 20 }}
+              animate={card4InView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="w-full"
+            >
+              <Card className="flex flex-col min-h-[320px] rounded-xl overflow-visible">
+                <CardHeader className="p-6 text-base font-medium">
+                  AI Writing That Sounds Like You
+                </CardHeader>
+                <CardContent className="p-6 text-sm text-muted-foreground flex-grow flex flex-col justify-between items-center">
+                  <div className="w-full flex flex-col items-center flex-grow justify-center">
+                    <StyleToggleDemo inView={card4InView} />
+                  </div>
+                  <p className="text-center w-full mt-8">Trained on your writing to apply your unique style.</p>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Card 5: Access Premium Models */}
+            <motion.div
+              ref={card5Ref}
+              initial={{ opacity: 0, y: 20 }}
+              animate={card5InView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.6, delay: 0.25 }}
+              className="w-full"
+            >
+              <Card className="flex flex-col min-h-[320px] rounded-xl">
+                <CardHeader className="p-6 text-base font-medium">
+                  Access Premium Models
+                </CardHeader>
+                <CardContent className="p-6 text-sm text-muted-foreground flex-grow flex flex-col justify-between items-center">
+                  <div className="w-full flex items-center justify-center gap-0" style={{ height: '112px' }}>
+                    {modelNames.map((name, i) => {
+                      const mid = (modelNames.length - 1) / 2;
+                      const offset = i - mid;
+                      const rot = offset * 8;
+                      const y = Math.abs(offset) * 8;
+                      return (
+                        <motion.div
+                          key={name}
+                          initial={{ opacity: 0, rotate: 0, y: 0 }}
+                          animate={card5InView ? { opacity: 1, rotate: rot, y, transition: { delay: 0.2 + i * 0.1, type: 'spring', stiffness: 140, damping: 15 } } : {}}
+                          className="w-20 h-28 bg-background border border-border rounded-lg flex items-center justify-center mx-[-4px] shadow-sm relative"
+                          style={{ zIndex: 10 - Math.abs(offset) }}
+                        >
+                          {i === proIndex && (
+                            <span className="absolute top-1 right-1 bg-accent text-accent-foreground text-[10px] px-1 rounded">Pro</span>
+                          )}
+                          <span className="text-xs font-medium">{name}</span>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                  <p className="text-sm text-muted-foreground text-center w-full mt-8">
+                    Unlimited, free access to the best AI models.
+                  </p>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Card 6: One-Click Publish & Share */}
+            <motion.div
+              ref={card6Ref}
+              initial={{ opacity: 0, y: 20 }}
+              animate={card6InView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.6, delay: 0.3 }}
+              className="w-full"
+            >
+              <Card className="flex flex-col min-h-[320px] rounded-xl">
+                <CardHeader className="p-6 text-base font-medium">
+                  One-Click Publish & Share
+                </CardHeader>
+                <CardContent className="p-6 text-sm text-muted-foreground flex-grow flex flex-col justify-between items-center">
+                  <div className="w-full flex flex-col items-center">
+                    {/* Mini page preview */}
+                    <div className="relative w-44 h-32 rounded-lg border border-border bg-background shadow-sm overflow-hidden">
+                      {/* URL bar */}
+                      <div className="h-5 bg-muted flex items-center px-2 text-[9px] text-muted-foreground/90 font-mono gap-1">
+                        <span className="truncate">you/your-post</span>
+                      </div>
+                       {/* Content preview */}
+                      <div className="p-3 space-y-1">
+                        <div className="h-2.5 bg-muted rounded w-2/3" />
+                        <div className="h-2.5 bg-muted rounded w-full" />
+                        <div className="h-2.5 bg-muted rounded w-5/6" />
+                      </div>
+                      {/* Chat bubble */}
+                      <div className="absolute bottom-2 right-2 w-8 h-4 rounded-full bg-primary flex items-center justify-center text-[6px] text-primary-foreground shadow">
+                        Ask Leo
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground text-center w-full mt-8">
+                    Publish in one click & share with AI chat support.
                   </p>
                 </CardContent>
               </Card>
