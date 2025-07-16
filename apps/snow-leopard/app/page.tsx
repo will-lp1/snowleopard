@@ -202,9 +202,9 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               animate={card1InView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.6, delay: 0.1 }}
-              className="w-full"
+              className="w-full h-full"
             >
-              <Card className="flex flex-col min-h-[320px] md:h-[380px] rounded-xl overflow-visible">
+              <Card className="h-full flex flex-col min-h-[320px] rounded-xl overflow-visible">
                 <CardHeader className="p-6 text-base font-medium">
                   Real-time Inline Suggestions
                 </CardHeader>
@@ -226,9 +226,9 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               animate={card2InView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.6, delay: 0.2 }}
-              className="w-full"
+              className="w-full h-full"
             >
-              <Card className="flex flex-col min-h-[320px] md:h-[380px] rounded-xl overflow-visible">
+              <Card className="h-full flex flex-col min-h-[320px] rounded-xl overflow-visible">
                 <CardHeader className="p-6 text-base font-medium">
                   Powerful Selection Edits
                 </CardHeader>
@@ -266,9 +266,9 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               animate={card3InView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.6, delay: 0.3 }}
-              className="w-full"
+              className="w-full h-full"
             >
-              <Card className="flex flex-col min-h-[320px] md:h-[380px] rounded-xl overflow-visible">
+              <Card className="h-full flex flex-col min-h-[320px] rounded-xl overflow-visible">
                 <CardHeader className="p-6 text-base font-medium">
                   Instant Synonym Finder
                 </CardHeader>
@@ -295,9 +295,9 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               animate={card4InView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.6, delay: 0.2 }}
-              className="w-full"
+              className="w-full h-full"
             >
-              <Card className="flex flex-col min-h-[320px] md:h-[380px] rounded-xl overflow-visible">
+              <Card className="h-full flex flex-col min-h-[320px] rounded-xl overflow-visible">
                 <CardHeader className="p-6 text-base font-medium">
                   AI Writing That Sounds Like You
                 </CardHeader>
@@ -316,9 +316,9 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               animate={card5InView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.6, delay: 0.25 }}
-              className="w-full"
+              className="w-full h-full"
             >
-              <Card className="flex flex-col min-h-[320px] md:h-[380px] rounded-xl overflow-visible">
+              <Card className="h-full flex flex-col min-h-[320px] rounded-xl">
                 <CardHeader className="p-6 text-base font-medium">
                   Access Premium Models
                 </CardHeader>
@@ -358,9 +358,9 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               animate={card6InView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.6, delay: 0.3 }}
-              className="w-full"
+              className="w-full h-full"
             >
-              <Card className="flex flex-col min-h-[320px] md:h-[380px] rounded-xl overflow-visible">
+              <Card className="h-full flex flex-col min-h-[320px] rounded-xl">
                 <CardHeader className="p-6 text-base font-medium">
                   One-Click Publish & Share
                 </CardHeader>
