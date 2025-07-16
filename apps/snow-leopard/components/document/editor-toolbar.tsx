@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { T, useGT, Var, Plural } from 'gt-next';
 import { toggleMark, setBlockType } from 'prosemirror-commands';
 import { wrapInList, liftListItem } from 'prosemirror-schema-list';
 import {
@@ -59,11 +60,12 @@ export function EditorToolbar({ activeFormats }: EditorToolbarProps) {
       'transition-none',
     );
 
+  const t = useGT();
   const currentTextStyle = activeFormats.h1
-    ? 'Heading 1'
+    ? t('Heading 1')
     : activeFormats.h2
-    ? 'Heading 2'
-    : 'Paragraph';
+    ? t('Heading 2')
+    : t('Paragraph');
 
   const textOptions: {
     label: string;
@@ -71,17 +73,17 @@ export function EditorToolbar({ activeFormats }: EditorToolbarProps) {
     command: () => void;
   }[] = [
     {
-      label: 'Heading 1',
+      label: t('Heading 1'),
       formatKey: 'h1',
       command: () => runCommand(setBlockType(nodes.heading, { level: 1 })),
     },
     {
-      label: 'Heading 2',
+      label: t('Heading 2'),
       formatKey: 'h2',
       command: () => runCommand(setBlockType(nodes.heading, { level: 2 })),
     },
     {
-      label: 'Paragraph',
+      label: t('Paragraph'),
       formatKey: 'p',
       command: () => runCommand(setBlockType(nodes.paragraph)),
     },
@@ -110,7 +112,7 @@ export function EditorToolbar({ activeFormats }: EditorToolbarProps) {
           {children}
         </Button>
       </TooltipTrigger>
-      <TooltipContent side="bottom">{label}</TooltipContent>
+      <TooltipContent side="bottom"><T><Var>{label}</Var></T></TooltipContent>
     </Tooltip>
   );
 
@@ -143,7 +145,7 @@ export function EditorToolbar({ activeFormats }: EditorToolbarProps) {
       <Separator orientation="vertical" className="mx-2 h-6" />
 
       <ButtonWithTooltip
-        label="Bullet List"
+        label={t('Bullet List')}
         formatKey="bulletList"
         onClick={() =>
           activeFormats.bulletList
@@ -154,7 +156,7 @@ export function EditorToolbar({ activeFormats }: EditorToolbarProps) {
         <List className="size-5 text-foreground" />
       </ButtonWithTooltip>
       <ButtonWithTooltip
-        label="Numbered List"
+        label={t('Numbered List')}
         formatKey="orderedList"
         onClick={() =>
           activeFormats.orderedList
@@ -168,14 +170,14 @@ export function EditorToolbar({ activeFormats }: EditorToolbarProps) {
       <Separator orientation="vertical" className="mx-2 h-6" />
 
       <ButtonWithTooltip
-        label="Bold"
+        label={t('Bold')}
         formatKey="bold"
         onClick={() => runCommand(toggleMark(marks.strong))}
       >
         <Bold className="size-5 text-foreground" />
       </ButtonWithTooltip>
       <ButtonWithTooltip
-        label="Italic"
+        label={t('Italic')}
         formatKey="italic"
         onClick={() => runCommand(toggleMark(marks.em))}
       >
@@ -183,7 +185,11 @@ export function EditorToolbar({ activeFormats }: EditorToolbarProps) {
       </ButtonWithTooltip>
 
       <div className="flex-1" />
-      <span className="ml-auto text-xs text-muted-foreground whitespace-nowrap pr-2">{wordCount} word{wordCount === 1 ? '' : 's'}</span>
+      <span className="ml-auto text-xs text-muted-foreground whitespace-nowrap pr-2">
+        <T>
+          <Plural n={wordCount} one={<><Var>{wordCount}</Var> word</>} other={<><Var>{wordCount}</Var> words</>} />
+        </T>
+      </span>
     </div>
   );
 }

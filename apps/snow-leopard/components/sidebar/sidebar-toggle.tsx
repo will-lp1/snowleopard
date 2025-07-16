@@ -1,4 +1,5 @@
 import type { ComponentProps } from 'react';
+import { T } from 'gt-next';
 
 import { type SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import {
@@ -26,7 +27,7 @@ export function SidebarToggle({
           <SidebarLeftIcon size={16} />
         </Button>
       </TooltipTrigger>
-      <TooltipContent align="start">Toggle Sidebar</TooltipContent>
+      <TooltipContent align="start"><T>Toggle Sidebar</T></TooltipContent>
     </Tooltip>
   );
 }

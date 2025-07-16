@@ -18,6 +18,7 @@ import { MultimodalInput } from './chat/multimodal-input';
 import { Toolbar } from './toolbar';
 import { ArtifactActions } from './artifact-actions';
 import { useArtifact } from '@/hooks/use-artifact';
+import { T } from 'gt-next';
 import { textArtifact } from '@/artifacts/text/client';
 import equal from 'fast-deep-equal';
 import { UseChatHelpers } from '@ai-sdk/react';
@@ -27,6 +28,7 @@ import { toast } from 'sonner';
 import { Input } from './ui/input';
 import { useDocumentUtils } from '@/hooks/use-document-utils';
 import { Pencil as PencilIcon, X as XIcon } from 'lucide-react';
+import { useGT } from 'gt-next';
 
 export const artifactDefinitions = [
   textArtifact,
@@ -107,6 +109,7 @@ export function PureArtifact({
   reload: UseChatHelpers['reload'];
   isReadonly: boolean;
 }) {
+  const t = useGT();
   const { artifact, setArtifact, metadata, setMetadata } = useArtifact();
   const { renameDocument, isRenamingDocument, createDocument } = useDocumentUtils();
   
@@ -144,7 +147,7 @@ export function PureArtifact({
   const createNewDocument = useCallback(async () => {
     // Use the centralized document creation function
     return await createDocument({
-      title: 'Untitled Document',
+      title: t('Untitled Document'),
       content: '',
       kind: 'text',
       chatId: chatId || null,
@@ -157,7 +160,7 @@ export function PureArtifact({
     if (!documents || documents.length === 0) {
       if (documentsError) {
         console.error('[Artifact] Error loading documents:', documentsError);
-        toast.error('Failed to load document');
+        toast.error(t('Failed to load document'));
       }
       return;
     }
@@ -195,7 +198,7 @@ export function PureArtifact({
       // If we don't have a document yet but have content, create a new document
       if (content && content.trim() !== '') {
         await createDocument({
-          title: 'Untitled Document',
+          title: t('Untitled Document'),
           content: content,
           kind: 'text',
           chatId: chatId || null,
@@ -330,7 +333,7 @@ export function PureArtifact({
     if (saveState === 'error') {
       return (
         <span className="text-destructive" title={lastSaveError || undefined}>
-          Save failed - Click to retry
+          <T>Save failed - Click to retry</T>
         </span>
       );
     }

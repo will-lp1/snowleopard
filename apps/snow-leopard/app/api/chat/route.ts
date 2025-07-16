@@ -32,6 +32,7 @@ import { headers } from 'next/headers';
 import type { Document } from '@snow-leopard/db';
 import { createDocument as aiCreateDocument } from '@/lib/ai/tools/create-document';
 import { webSearch } from '@/lib/ai/tools/web-search';
+import { getGT } from 'gt-next/server';
 
 export const maxDuration = 60;
 
@@ -117,9 +118,10 @@ export async function GET(request: Request) {
     const readonlyHeaders = await headers();
     const requestHeaders = new Headers(readonlyHeaders);
     const session = await auth.api.getSession({ headers: requestHeaders });
+    const t = await getGT();
 
     if (!session?.user) {
-      return new Response('Authentication error', { status: 401 });
+      return new Response(t('Authentication error'), { status: 401 });
     }
     
     const userId = session.user.id;
@@ -128,16 +130,16 @@ export async function GET(request: Request) {
     const chatId = searchParams.get('id');
 
     if (!chatId) {
-      return new Response('Chat ID is required', { status: 400 });
+      return new Response(t('Chat ID is required'), { status: 400 });
     }
 
     const chat = await getChatById({ id: chatId });
     if (!chat) {
-      return new Response('Chat not found', { status: 404 });
+      return new Response(t('Chat not found'), { status: 404 });
     }
 
     if (chat.userId !== userId) {
-      return new Response('Unauthorized', { status: 401 });
+      return new Response(t('Unauthorized'), { status: 401 });
     }
 
     const dbMessages = await getMessagesByChatId({ id: chatId });
@@ -151,7 +153,7 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error('Error fetching chat:', error);
-    return new Response('Error fetching chat', { status: 500 });
+    return new Response(t('Error fetching chat'), { status: 500 });
   }
 }
 
@@ -160,9 +162,10 @@ export async function POST(request: Request) {
     const readonlyHeaders = await headers();
     const requestHeaders = new Headers(readonlyHeaders);
     const session = await auth.api.getSession({ headers: requestHeaders });
+    const t = await getGT();
 
     if (!session?.user) {
-      return new Response('Authentication error', { status: 401 });
+      return new Response(t('Authentication error'), { status: 401 });
     }
     
     const userId = session.user.id;
@@ -200,12 +203,12 @@ export async function POST(request: Request) {
     const userMessage = getMostRecentUserMessage(messages);
 
     if (!userMessage) {
-      return new Response('No user message found', { status: 400 });
+      return new Response(t('No user message found'), { status: 400 });
     }
 
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(chatId)) {
-      return new Response('Invalid chat ID format', { status: 400 });
+      return new Response(t('Invalid chat ID format'), { status: 400 });
     }
 
     const chat = await getChatById({ id: chatId });
@@ -223,7 +226,7 @@ export async function POST(request: Request) {
       });
     } else {
       if (chat.userId !== userId) {
-        return new Response('Unauthorized', { status: 401 });
+        return new Response(t('Unauthorized'), { status: 401 });
       }
       
       await updateChatContextQuery({ 
@@ -250,7 +253,7 @@ export async function POST(request: Request) {
 
     const toolSession = session;
     if (!toolSession) {
-      return new Response('Internal Server Error', { status: 500 });
+      return new Response(t('Internal Server Error'), { status: 500 });
     }
 
     let validatedActiveDocumentId: string | undefined;
@@ -355,7 +358,7 @@ export async function POST(request: Request) {
       },
       onError: (error) => {
         console.error('Stream error:', error);
-        return 'Sorry, something went wrong. Please try again.';
+        return t('Sorry, something went wrong. Please try again.');
       },
     });
   } catch (error) {
@@ -369,9 +372,10 @@ export async function DELETE(request: Request) {
     const readonlyHeaders = await headers();
     const requestHeaders = new Headers(readonlyHeaders);
     const session = await auth.api.getSession({ headers: requestHeaders });
+    const t = await getGT();
 
     if (!session?.user) {
-      return new Response('Authentication error', { status: 401 });
+      return new Response(t('Authentication error'), { status: 401 });
     }
     
     const userId = session.user.id;
@@ -380,22 +384,22 @@ export async function DELETE(request: Request) {
     const rawChatId = searchParams.get('id');
 
     if (!rawChatId) {
-      return new Response('Chat ID is required', { status: 400 });
+      return new Response(t('Chat ID is required'), { status: 400 });
     }
 
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(rawChatId)) {
-      return new Response('Invalid chat ID format', { status: 400 });
+      return new Response(t('Invalid chat ID format'), { status: 400 });
     }
 
     const chat = await getChatById({ id: rawChatId });
 
     if (!chat) {
-      return new Response('Chat not found', { status: 404 });
+      return new Response(t('Chat not found'), { status: 404 });
     }
 
     if (chat.userId !== userId) {
-      return new Response('Unauthorized', { status: 401 });
+      return new Response(t('Unauthorized'), { status: 401 });
     }
 
     await deleteChatById({ id: rawChatId });
@@ -403,6 +407,6 @@ export async function DELETE(request: Request) {
     return new Response(null, { status: 204 });
   } catch (error) {
     console.error('Error deleting chat:', error);
-    return new Response('Error deleting chat', { status: 500 });
+    return new Response(t('Error deleting chat'), { status: 500 });
   }
 }

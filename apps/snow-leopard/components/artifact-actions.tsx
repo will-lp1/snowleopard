@@ -6,6 +6,7 @@ import { ArtifactActionContext } from './create-artifact';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Loader2, Copy as CopyIcon } from 'lucide-react';
+import { useGT, T } from 'gt-next';
 
 interface ArtifactActionsProps {
   artifact: UIArtifact;
@@ -28,6 +29,7 @@ function PureArtifactActions({
 }: ArtifactActionsProps) {
   const [isLoading, setIsLoading] = useState(false);
   const isSaving = artifact.saveState === 'saving';
+  const t = useGT();
 
   const artifactDefinition = artifactDefinitions.find(
     (definition) => definition.kind === artifact.kind,
@@ -38,11 +40,11 @@ function PureArtifactActions({
     // Fallback actions for when definition is not found
     const fallbackActions = [
       {
-        description: 'Copy to clipboard',
+        description: t('Copy to clipboard'),
         icon: <CopyIcon size={16} />,
         onClick: () => {
           navigator.clipboard.writeText(artifact.content);
-          toast.success('Copied to clipboard!');
+          toast.success(t('Copied to clipboard!'));
         }
       }
     ];
@@ -63,7 +65,7 @@ function PureArtifactActions({
         {isCurrentVersion && isSaving && (
           <div className="mr-2 text-xs text-muted-foreground flex items-center gap-2">
             <Loader2 size={12} className="animate-spin" />
-            <span>Saving...</span>
+            <span>{t('Saving...')}</span>
           </div>
         )}
         
@@ -101,7 +103,7 @@ function PureArtifactActions({
       {isCurrentVersion && isSaving && (
         <div className="mr-2 text-xs text-muted-foreground flex items-center gap-2">
           <Loader2 size={12} className="animate-spin" />
-          <span>Saving...</span>
+          <T><span>Saving...</span></T>
         </div>
       )}
 
@@ -122,7 +124,7 @@ function PureArtifactActions({
                 try {
                   await Promise.resolve(action.onClick(actionContext));
                 } catch (error) {
-                  toast.error('Failed to execute action');
+                  toast.error(t('Failed to execute action'));
                 } finally {
                   setIsLoading(false);
                 }

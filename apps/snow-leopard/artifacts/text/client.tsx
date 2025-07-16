@@ -12,14 +12,22 @@ import {
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Markdown } from '@/components/markdown';
+import { useGT } from 'gt-next';
 
 interface TextArtifactMetadata {
   [key: string]: any;
 }
 
+function useTextArtifactDescription() {
+  const t = useGT();
+  return t('Useful for text content, like drafting essays and emails.');
+}
+
 export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
   kind: 'text',
-  description: 'Useful for text content, like drafting essays and emails.',
+  get description() {
+    return useTextArtifactDescription();
+  },
   onStreamPart: () => {
     // No-op: handled by creationStreamingPlugin
   },
@@ -66,7 +74,10 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
   actions: [
     {
       icon: <ClockRewind size={18} />,
-      description: 'View changes',
+      get description() {
+        const t = useGT();
+        return t('View changes');
+      },
       onClick: ({ handleVersionChange }) => {
         handleVersionChange('toggle');
       },
@@ -79,7 +90,10 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
     },
     {
       icon: <UndoIcon size={18} />,
-      description: 'View Previous version',
+      get description() {
+        const t = useGT();
+        return t('View Previous version');
+      },
       onClick: ({ handleVersionChange }) => {
         handleVersionChange('prev');
       },
@@ -92,7 +106,10 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
     },
     {
       icon: <RedoIcon size={18} />,
-      description: 'View Next version',
+      get description() {
+        const t = useGT();
+        return t('View Next version');
+      },
       onClick: ({ handleVersionChange }) => {
         handleVersionChange('next');
       },
@@ -105,10 +122,14 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
     },
     {
       icon: <CopyIcon size={18} />,
-      description: 'Copy to clipboard',
+      get description() {
+        const t = useGT();
+        return t('Copy to clipboard');
+      },
       onClick: ({ content }) => {
+        const t = useGT();
         navigator.clipboard.writeText(content);
-        toast.success('Copied to clipboard!');
+        toast.success(t('Copied to clipboard!'));
       },
     },
   ],

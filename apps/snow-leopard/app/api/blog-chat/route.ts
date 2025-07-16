@@ -1,12 +1,14 @@
 import { streamText, smoothStream } from 'ai';
 import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
 import { myProvider } from '@/lib/ai/providers';
+import { getGT } from 'gt-next/server';
 
 export async function POST(request: Request) {
   const { messages, context, title, author, date } = await request.json();
+  const t = await getGT();
 
   const prompt = [
-    'You are a helpful AI assistant answering reader questions about the following article. Provide concise, accurate answers.',
+    t('You are a helpful AI assistant answering reader questions about the following article. Provide concise, accurate answers.'),
     '',
     `Title: ${title}`,
     `Author: ${author}`,

@@ -1,0 +1,943 @@
+{
+  "933fa7740fe8c681": {
+    "i": 1,
+    "k": "_gt_value_1",
+    "v": "v"
+  },
+  "339d3f3a786806eb": "Cerrar Chat",
+  "515cc915d40b3914": "Error al cargar la respuesta de IA",
+  "9f77d965b06c626d": "Pregunta a Leo",
+  "2bb14204a62a4781": "Error al publicar el documento",
+  "4f113bb0bc732b3d": "Limpiar",
+  "81f4dd9973774d67": "Contraseña",
+  "0d61043416b09c17": "Documento no encontrado o no autorizado",
+  "c061766d87ace650": "Cuerpo JSON inválido",
+  "dfe9dee01b6e238b": "Documento Sin Título",
+  "a73f86f6822899c1": {
+    "i": 1,
+    "c": "Preferencias de IA"
+  },
+  "6e7dfa8635f87c59": "Error al guardar - Haz clic para reintentar",
+  "4b5cb8a38b34053b": {
+    "i": 1,
+    "c": "Aplicar Estilo del Escritor"
+  },
+  "78844efa1e9c6043": "Parámetros inválidos",
+  "20f03835f6f6fd03": {
+    "i": 1,
+    "c": "¿Crear Nuevo Documento?"
+  },
+  "628abf5d7d751cbb": "Error al recuperar los datos actualizados del documento.",
+  "f55b98685aae3289": "Google",
+  "adb085564fcf431f": "Reentrenar",
+  "f61ae0560c353148": "Error en la operación de base de datos: {error}",
+  "7031d9740409833b": "Error al crear el documento",
+  "b538de97089784dd": "Faltan parámetros requeridos",
+  "7f829418852b479c": {
+    "i": 1,
+    "c": "Longitud de Sugerencia"
+  },
+  "9c3d8e1311e9d150": "Enviar un mensaje...",
+  "1c489c71a3265c4a": {
+    "i": 1,
+    "c": "Instrucciones Personalizadas"
+  },
+  "33ff59a2388103a0": "Ya tienes una suscripción activa.",
+  "71803061ef44f93b": "Error al obtener usuario",
+  "3ab928741d208f41": "Cargando...",
+  "be958202d3947dee": "Snow Leopard",
+  "a2050560a358cb80": "Copiar al portapapeles",
+  "de6a7627464229df": "Error inesperado al iniciar la prueba.",
+  "a6db917d171c1dff": "O continúa con",
+  "dd4fe1d13c9f0b44": {
+    "i": 1,
+    "c": "Entrenar Estilo de Escritor"
+  },
+  "b38b0b4ea2849cca": "Error al actualizar la configuración de publicación",
+  "bcee5d09f01e9fc7": "Error al renombrar el documento.",
+  "f54290d40c89945d": "Nombre de usuario no válido",
+  "9e8f7fffee3f5a27": "Crear Documento",
+  "affb2379369a0f55": {
+    "i": 1,
+    "c": "¿Te gustaría crearlo?"
+  },
+  "ce27969170ca4565": {
+    "i": 1,
+    "c": "Tus instrucciones guían el tono y comportamiento de la IA."
+  },
+  "931385969e5c3f19": {
+    "i": 1,
+    "c": "Documento No Encontrado"
+  },
+  "d1628ad61c827da9": "¡Prueba gratuita iniciada! Disfrútala.",
+  "7ca9c9a15764489d": "GitHub",
+  "3befbe3dae383b10": "Actualizar",
+  "fda1d1c4bf3c691b": "Error al buscar documentos",
+  "f589e1eef1cf5b37": "Nuevo Chat",
+  "effdcd633af15789": "Correo electrónico",
+  "07ddc4325e6893b7": "No se pudo iniciar la prueba gratuita.",
+  "b129ed77f2fa829f": "Ya tienes una prueba gratuita activa.",
+  "d15d4ce9981708e9": "Cancelar",
+  "0e6a34255eaa0ad7": "Error al recuperar los datos actualizados del documento después de la operación y el respaldo.",
+  "4607e419ece20741": "¡Copiado al portapapeles!",
+  "0247d01133780693": "Error al ejecutar la acción",
+  "32b1f0d2ec364ab4": {
+    "i": 1,
+    "c": "Guardando..."
+  },
+  "6299291dd29639e8": "Renombrar \"{title}\"",
+  "f813d118aaea730a": "Error al cargar el documento",
+  "a7e53bec035db29d": "Error al establecer el nombre de usuario",
+  "d4ba7099e9464b0a": "Editar título del documento",
+  "42504340cfd4130a": {
+    "i": 1,
+    "d": {
+      "t": "b",
+      "b": {
+        "false": "Referencia encontrada",
+        "true": "Buscando referencia en el texto..."
+      }
+    }
+  },
+  "a36464e99f03ec0e": "Pega ~200 caracteres de tu escritura para que la IA pueda aprender tu estilo. Esta muestra permanece en tu dispositivo.",
+  "740c728118e75062": "No autorizado",
+  "edcd60ca2384cd55": "Iniciar Sesión",
+  "1fc100d3af4edfa1": "Se requiere el ID del chat",
+  "90d5b0d7bcccbe0f": "¡Cuenta creada! Redirigiendo...",
+  "a4f2cdbf7179d856": {
+    "i": 1,
+    "d": {
+      "t": "b",
+      "b": {
+        "true": "Analizando...",
+        "false": "Entrenar"
+      }
+    }
+  },
+  "583a7933e91b1a4b": {
+    "i": 1,
+    "c": "Explora la Magia"
+  },
+  "03478bc79a30868f": "Cuerpo de solicitud inválido",
+  "a293f7479b2b46fa": "Registrarse",
+  "9aa5b85816fa3d27": "Configuración de IA",
+  "94097f426322e936": "Aceptar",
+  "2824d74622566ce5": {
+    "i": 1,
+    "c": "Sugerencia"
+  },
+  "a1d86de78613ac1a": {
+    "i": 1,
+    "c": "Buscador Instantáneo de Sinónimos"
+  },
+  "6d87f6789e8e8a82": {
+    "i": 1,
+    "c": "Crea tu cuenta con email y contraseña"
+  },
+  "ace3cd04437b4266": "Estrella",
+  "b2877be12990b6c5": {
+    "i": 1,
+    "c": "La herramienta de escritura con IA más satisfactoria e intuitiva, y es de código abierto."
+  },
+  "3d7d3a43ac811e50": "Error al obtener el historial",
+  "7df9a2523770f278": "Acelerador de IA de Vercel",
+  "684827deb81fcb11": [
+    "Incluyendo ",
+    {
+      "i": 1,
+      "c": "@leerob"
+    }
+  ],
+  "5d651a666af9ebe6": {
+    "i": 1,
+    "c": "Iniciar Sesión"
+  },
+  "9ad3a254e1e37055": {
+    "i": 1,
+    "c": "Ediciones de Selección Potentes"
+  },
+  "dc08e6bb6a2153fc": "Error al obtener documentos paginados",
+  "32fe2ebd935fa02d": "Error de red",
+  "cff91e63491bb863": {
+    "i": 1,
+    "c": [
+      "ID del documento ",
+      {
+        "i": 2,
+        "c": {
+          "i": 3,
+          "k": "_gt_value_3",
+          "v": "v"
+        }
+      },
+      " no encontrado."
+    ]
+  },
+  "c9e1bdc000b75327": "Parámetro de límite inválido",
+  "e350c24e89bf693d": "Lo siento, algo salió mal. Por favor, inténtalo de nuevo.",
+  "b2b48e0d0d11e224": "Falta el parámetro de palabra",
+  "816db88294f53bda": "Parámetros faltantes",
+  "91a88ba13b1521b7": "Error al registrarse/iniciar sesión con {provider}.",
+  "703d89271a63f9ae": {
+    "i": 1,
+    "c": "Parte del"
+  },
+  "b48f7574b864416b": {
+    "i": 1,
+    "c": "Tab, Tab, Aplicar"
+  },
+  "d518cd8373f38c15": {
+    "i": 1,
+    "c": "Inicia sesión con tu correo electrónico y contraseña"
+  },
+  "f2f9b3a5af9d25b0": {
+    "i": 1,
+    "c": "No se requiere tarjeta de crédito"
+  },
+  "aebadb7061558ed5": "Error al obtener sinónimos",
+  "4960404791fbe1a7": "Vista Previa de Demostración de Snow Leopard (Modo Oscuro)",
+  "5c7028fd0e5be5bf": {
+    "i": 1,
+    "c": "Descubre cómo Snow Leopard transforma tu experiencia de escritura con estas funciones principales."
+  },
+  "df82acaf956f8e02": "Error al obtener documentos",
+  "38f3ba97c2a10775": "Stripe",
+  "990a2dca763b2e79": "Documento eliminado exitosamente",
+  "eac06033df5d5642": {
+    "i": 1,
+    "d": {
+      "t": "b",
+      "b": {
+        "false": "Comenzar",
+        "true": "Abrir Snow Leopard"
+      }
+    }
+  },
+  "e285d364efb506d2": "Error al crear la cuenta.",
+  "80ad7a60e6e0408c": "¡Cuenta creada! Revisa tu email para verificar.",
+  "cb33d493ff490d8a": "Vista Previa de Demostración de Snow Leopard",
+  "d2f0bf512cf69344": [
+    "GitHub ",
+    {
+      "i": 1,
+      "c": "›"
+    }
+  ],
+  "2f2305d3b1118227": {
+    "i": 1,
+    "c": [
+      "¿No tienes una cuenta? ",
+      {
+        "i": 2,
+        "c": "Regístrate"
+      }
+    ]
+  },
+  "3a7a70c07c28d467": "Regístrate en Snow Leopard",
+  "af68b817051e1086": {
+    "i": 1,
+    "c": "el ex-CTO de"
+  },
+  "b8cdfff5c128f754": "Rechazar",
+  "a12e8b64c44a66de": "Error al analizar el estilo.",
+  "853c22d443227666": "Se produjo un error",
+  "be2d1c8b34f97a7f": {
+    "i": 1,
+    "c": [
+      "¿Ya tienes una cuenta? ",
+      {
+        "i": 2,
+        "c": "Inicia sesión"
+      },
+      " en su lugar."
+    ]
+  },
+  "1cbfe1e2fd805ec6": "Error al obtener mensajes",
+  "50b0ab564c23db8a": "Error al recuperar los datos del documento creado.",
+  "a9fb14428a1034e4": "Documento no encontrado: {id}",
+  "0e8f7fd466777a6b": "Error al iniciar sesión con {provider}.",
+  "43836db3c642c90b": {
+    "i": 1,
+    "c": [
+      "© ",
+      {
+        "i": 2,
+        "k": "_gt_value_2",
+        "v": "v"
+      },
+      " Snow Leopard. Todos los derechos reservados."
+    ]
+  },
+  "87dfd5538bc825fb": "Pago Requerido: la publicación es solo para usuarios pro",
+  "4f94d167a5957b73": "Por favor, proporciona al menos ~200 caracteres de texto de muestra.",
+  "8a5f221608c50f20": "Dale una estrella a will-lp1/snowleopard en GitHub",
+  "3cb42c3a2b4b019e": {
+    "i": 1,
+    "c": "Snow Leopard funciona mejor en escritorio"
+  },
+  "f6e8a9423f95a20f": "Error al iniciar sesión.",
+  "9e75808e4424302d": {
+    "i": 1,
+    "c": {
+      "i": 2,
+      "c": [
+        "Esta redacción ",
+        {
+          "i": 3,
+          "c": "es un poco débil y verbosa."
+        },
+        " Pidamos a la IA que la mejore."
+      ]
+    }
+  },
+  "380cf4af1a8c003e": "El usuario ya está autenticado.",
+  "3e90d9101e45657d": "David Singleton",
+  "6abb2b14c5db0a1c": {
+    "i": 1,
+    "c": "& utilizado por el equipo de Vercel"
+  },
+  "1cabf602c6b6e60e": "Github",
+  "42babc711552ca99": {
+    "i": 1,
+    "c": [
+      {
+        "i": 2,
+        "c": "Empiezas a escribir, y la IA ofrece"
+      },
+      {
+        "i": 3,
+        "c": [
+          {
+            "i": 4
+          },
+          {
+            "i": 5,
+            "c": "Tab"
+          }
+        ],
+        "t": "span"
+      }
+    ]
+  },
+  "ecd9f4619724c928": "Guía a la IA... ej., 'Sé conciso', 'Actúa como un experto útil', 'Traduce al francés'",
+  "15ee27aba56721c8": {
+    "i": 1,
+    "c": [
+      "Brillantez",
+      {
+        "i": 2,
+        "c": "|"
+      }
+    ]
+  },
+  "f116318769362864": [
+    {
+      "i": 1,
+      "c": "es un poco débil y verboso."
+    },
+    {
+      "i": 2,
+      "c": "carece de fuerza e impacto.",
+      "t": "span"
+    }
+  ],
+  "e1a7cc22f999fb0e": {
+    "i": 1,
+    "d": {
+      "t": "b",
+      "b": {
+        "false": "Comenzar",
+        "true": "Abrir Snow Leopard"
+      }
+    }
+  },
+  "d9e99d8d5401433b": {
+    "i": 1,
+    "c": [
+      {
+        "i": 2,
+        "c": "Encuentra mejores palabras con facilidad. La IA presenta sinónimos contextualmente"
+      },
+      {
+        "i": 3,
+        "c": [
+          "relevantes",
+          {
+            "i": 4,
+            "c": [
+              {
+                "i": 5,
+                "c": "apropiados"
+              },
+              {
+                "i": 6,
+                "c": "pertinentes",
+                "t": "span"
+              },
+              {
+                "i": 7,
+                "c": "adecuados",
+                "t": "span"
+              }
+            ]
+          }
+        ],
+        "t": "span"
+      },
+      {
+        "i": 8,
+        "c": ".",
+        "t": "span"
+      }
+    ]
+  },
+  "992aacbacfa47ed3": [
+    "Comenzar ",
+    {
+      "i": 1,
+      "c": "›"
+    }
+  ],
+  "68475021a79f1e7a": {
+    "i": 1,
+    "c": "Usado por"
+  },
+  "3d3392cd1ff3a9be": {
+    "i": 1,
+    "c": "Querido por muchos"
+  },
+  "498f6645dfa10ccf": {
+    "i": 1,
+    "c": "Sugerencias en Línea en Tiempo Real"
+  },
+  "09e3becd6089279f": "Chat no encontrado",
+  "b3058106a1fbde2a": "Documento no encontrado",
+  "57346e3e919f25bd": "Eres un asistente de IA útil que responde preguntas de lectores sobre el siguiente artículo. Proporciona respuestas concisas y precisas.",
+  "b05adbb429ad212a": {
+    "i": 1,
+    "c": "Somos de código abierto y auto-alojable"
+  },
+  "8ac0e67a1be3cd1b": "Autenticación requerida. Usuario no encontrado en la sesión.",
+  "5b98472ccca3860a": {
+    "i": 1,
+    "c": "Registrarse"
+  },
+  "bd5e110db33c9400": "Error en la búsqueda",
+  "d713be9de28357a7": {
+    "i": 1,
+    "c": "snow leopard"
+  },
+  "85a8bb8614954fb7": "Formato de ID de chat inválido",
+  "ad570f2d2c945dcf": "¡Sesión iniciada correctamente! Redirigiendo...",
+  "018e340033e0b0ba": "Error Interno del Servidor",
+  "2b303e3966f534ac": "Error de autenticación",
+  "3414b088dde8621b": "Guardando...",
+  "24e28c945a61b8ea": "No se encontró mensaje del usuario",
+  "cbe5e57b923944a9": "ID de documento inválido",
+  "116a085ce7ce4fac": {
+    "i": 1,
+    "c": "Para la mejor experiencia, por favor usa un dispositivo de escritorio."
+  },
+  "b50461cb273e45d8": "Formato de ID de documento inválido. Debe ser un UUID válido.",
+  "0f442932c6435aad": {
+    "t": "span",
+    "i": 1,
+    "c": {
+      "i": 2,
+      "k": "_gt_value_2",
+      "v": "v"
+    }
+  },
+  "1fc603140b4b4942": {
+    "i": 1,
+    "c": "Rechazar"
+  },
+  "0466248e715af319": "Documento creado",
+  "1be47899eb7288f8": [
+    {
+      "i": 1
+    },
+    "Hecho"
+  ],
+  "88c5d20552c9f113": "Razonamiento",
+  "644e8fd7dfcca63f": "Universidad",
+  "7fdc3e3843cdbae5": "Escribe un mensaje para iniciar una conversación",
+  "9641da5609e84ff2": "Sesión cerrada exitosamente.",
+  "3fdad70790a340de": {
+    "i": 1,
+    "c": "Comentarios"
+  },
+  "b5702d0b64866b08": "Personalizado",
+  "ef512517569e9622": "Error al procesar la sugerencia. Por favor, inténtalo de nuevo.",
+  "eb552698529269e5": {
+    "i": 1,
+    "c": "Error: Formato de contenido de mensaje inválido"
+  },
+  "202e13f15a3dcd30": "Copiar enlace",
+  "b6a0494146fd63fb": "Documentos sugeridos para mencionar",
+  "81ddc2f127fb63bf": "oscuro",
+  "9ef9b147f480c3f8": {
+    "i": 1,
+    "c": "Generando sugerencia..."
+  },
+  "47858753f0bf09e6": "Transmitiendo contenido para",
+  "5717fb8ba7e64068": "Hoy",
+  "ffd3cdd328e21c9d": "Copiar",
+  "cb5998210755c892": {
+    "i": 1,
+    "c": "Actualizar a Pro"
+  },
+  "06e461bfd3e000e2": {
+    "i": 1,
+    "c": "Configuración de Publicación"
+  },
+  "162e521d81dd8a12": "Enviando...",
+  "43ba2539756c344b": {
+    "i": 1,
+    "c": "Slug"
+  },
+  "2a8dcb4338c0ecd2": {
+    "i": 1,
+    "c": "Propuesta de actualización rechazada."
+  },
+  "988923ddb04958ec": {
+    "i": 1,
+    "c": [
+      "Documentos ",
+      {
+        "i": 2,
+        "k": "_gt_value_2",
+        "v": "v"
+      }
+    ]
+  },
+  "e041804079522d90": "Aún no hay documentos",
+  "e17bae3a53e3c4b3": "Negrita",
+  "67c1b0bd23407be3": {
+    "i": 1,
+    "c": "Color del Texto"
+  },
+  "e7ec857d99d803ef": "Lista Numerada",
+  "4d3e707142aa9f54": [
+    "No se encontraron documentos que coincidan con \"",
+    {
+      "i": 1,
+      "k": "_gt_value_1",
+      "v": "v"
+    },
+    "\""
+  ],
+  "a7c817b23e91f1c2": "Por favor, inicia sesión para enviar comentarios",
+  "d0fce2503472a6f1": "Únete al Discord",
+  "9d05d8ff030526cb": {
+    "i": 1,
+    "c": "Nombre de usuario"
+  },
+  "4cf950f9a0115645": "Mantener nivel actual",
+  "3f6dc0cd147297a2": {
+    "i": 1,
+    "c": "Bienvenido a Snow Leopard"
+  },
+  "daf341b66e986ae1": "Agregando sugerencias para",
+  "a714f1308dff9b8b": "claro",
+  "ed4effb6b6da3e22": "Pensando...",
+  "0a006462e20f0944": "Párrafo",
+  "9f8e300f6b33450f": {
+    "i": 1,
+    "c": [
+      "Resalta el texto y presiona ",
+      {
+        "i": 2,
+        "c": "⌘/Ctrl + K"
+      },
+      " para editar."
+    ]
+  },
+  "f82fff6526a5fc92": "Procesando...",
+  "ead21c395feb3489": "Escuela Secundaria",
+  "9d2934ef57fc1fc3": {
+    "i": 1,
+    "c": "Prueba Snow Leopard gratis durante 3 días. No se requiere tarjeta de crédito."
+  },
+  "73fa62db8d57b05d": "Selecciona texto primero...",
+  "904900eb778c6cf5": "Buscando en la web \"{query}\"...",
+  "52c7a3b03113b84c": {
+    "i": 1,
+    "c": "Claro"
+  },
+  "bd55aed411f34f90": "Ayer",
+  "67d90d33f8b2d47c": {
+    "i": 1,
+    "c": "Una herramienta de escritura moderna diseñada para mejorar tu proceso creativo. Escribe, edita y colabora con asistencia de IA, todo en un entorno integrado."
+  },
+  "b6b5e179c31f7bb2": [
+    {
+      "i": 1,
+      "c": "¡Gracias por tus comentarios!"
+    },
+    {
+      "i": 2,
+      "c": "Tu aportación ayuda a mejorar Snow Leopard para todos.",
+      "t": "p"
+    }
+  ],
+  "6cea3d2f1345f6ff": "Error al cerrar sesión.",
+  "3f22570d5973810d": "No se puede aplicar la sugerencia: No se seleccionó ningún texto.",
+  "1d6f8e944b4f0d28": {
+    "i": 1,
+    "c": "Configura el comportamiento de la IA en el menú de configuración (arriba a la derecha)."
+  },
+  "9a28135e1aa682f9": "Error al subir el archivo, ¡inténtalo de nuevo!",
+  "4342777aad58ae80": "Sugerencias añadidas a",
+  "9028df10f4f78e09": "Envía un mensaje... (escribe @ para mencionar documentos)",
+  "d97588381c030bda": {
+    "i": 1,
+    "c": "No se encontraron fuentes."
+  },
+  "53a93382a5d05a6e": "Creando documento",
+  "cbe5eeaa2e8e16dd": "Por favor, ajusta el nivel de lectura a nivel {level}.",
+  "ed78d317123c69e5": "Ver {count} fuentes",
+  "410db0e872d2852a": "Encabezado 2",
+  "162dd0a9601a79f9": "Encabezado 1",
+  "9a95999a53ea0f79": "Elemental",
+  "693689c79fc3d574": "Actualizar",
+  "196b47c86f9b631b": {
+    "i": 1,
+    "c": [
+      "Ahorra ",
+      {
+        "i": 2,
+        "k": "_gt_value_2",
+        "v": "v"
+      },
+      "%"
+    ]
+  },
+  "37f3be621c6dab31": {
+    "i": 1,
+    "c": "Fuente"
+  },
+  "0533478c72a1fa8b": "Buscar documentos...",
+  "1f91a4136b9914d2": "Error al conectar con el servicio de sugerencias. Por favor, inténtalo de nuevo.",
+  "011070f44afa0e09": {
+    "i": 1,
+    "c": "Actualización aplicada al documento."
+  },
+  "8b846a9566a2c0b8": {
+    "i": 1,
+    "c": "Restaurar"
+  },
+  "5cd89cfd9ef6a613": "Cargando...",
+  "edb4ece52df96685": "Aceptar",
+  "986c8143c433b6c6": "Razonó durante unos segundos",
+  "81f986dcc87a991c": "Se produjo un error inesperado. Por favor, inténtalo de nuevo.",
+  "c320e6056c465117": "Cerrar ventana emergente",
+  "87c4a6e8013172f4": "Cursiva",
+  "1e572425f4d6c821": {
+    "i": 1,
+    "c": "con mucho cariño, will - fundador de snow leopard"
+  },
+  "4647dcc3d75bdc58": "Búsqueda completada para \"{query}\"",
+  "d6cddbee22be7d9c": "Graduado",
+  "6ad5d5a635a11015": "Guardando…",
+  "b6cc9af7a6d5e31b": "Publicar",
+  "3b3f6c7761c33908": {
+    "i": 1,
+    "c": [
+      "Mantén presionado ",
+      {
+        "i": 2,
+        "c": "Shift"
+      },
+      " y pasa el cursor sobre el texto para ver sinónimos."
+    ]
+  },
+  "4c932e04c961d204": "Error al {type} el documento \"{title}\"",
+  "3b468c6d0eb007e3": "Error al enviar comentarios: {message}",
+  "4e5b2bad57ff747d": "Cerrar Sesión",
+  "a58218ce3d943796": {
+    "i": 1,
+    "c": "Oscuro"
+  },
+  "6cce4d42cfa61090": "Fuente",
+  "49333908439d6d1f": "Error desconocido al enviar a Discord",
+  "43abe1f9a134b729": "Error al {type} el documento",
+  "fcbd0f5e40a83cbd": "No hay conversaciones recientes",
+  "0906b6ccb2daf766": "No se puede abrir la ventana de sugerencias: El editor no está activo.",
+  "03f41af7b5d1cc87": "Cambiar al modo {mode}",
+  "8f123057d607425d": "Slug de página",
+  "40c084160c4d0bc7": "No se puede aplicar la sugerencia: Rango de texto no capturado.",
+  "902890ab306f0338": "Ver",
+  "6cf3b042659b9b3a": "Operación exitosa.",
+  "fa9f7b6cfa7879bc": "{action} \"{title}\"",
+  "951f799b9a020c2e": {
+    "i": 1,
+    "c": "Enviando"
+  },
+  "cb3d9a19f6f362c2": "Se produjo un error inesperado durante el cierre de sesión.",
+  "8e83273278e24728": "Texto Seleccionado",
+  "bbfcc1d161e9b2ad": "Seleccionar",
+  "0b0798919ac7cf51": {
+    "i": 1,
+    "c": "Aceptar"
+  },
+  "12607b12bdd4d36d": "No hay ningún documento abierto actualmente",
+  "221dd4241db01d9c": "Iniciando...",
+  "2b2dfb11ee450d54": "Despublicar",
+  "4b723964386799de": "Lista con Viñetas",
+  "fa5af1c41d195719": "Proponiendo actualización para",
+  "44c5fc2303b01bba": "Cargando nombre de usuario...",
+  "32f44319451ad91a": {
+    "i": 1,
+    "c": "Opciones"
+  },
+  "e3c9e251e191fa52": "Mencionado:",
+  "bb081b4501ebd5a7": "Enviar",
+  "b0b86f50544427be": {
+    "i": 1,
+    "c": "Envía un mensaje en el campo de chat de abajo."
+  },
+  "5f6c5b106a4430e4": "Error al guardar la actualización: {message}",
+  "7aeb90b3b09a9c97": {
+    "i": 1,
+    "c": "Comienza Tu Prueba Gratuita"
+  },
+  "c82135b8f447fcbe": "{action} (documento activo)",
+  "89c633a8417c16d9": "{count} documentos eliminados",
+  "2a5ca5a90dc58a42": "Hacer de esta versión la versión actual",
+  "1ae881f29a29aef6": {
+    "i": 1,
+    "c": [
+      "Presiona ",
+      {
+        "i": 2,
+        "c": "TAB"
+      },
+      " para generar una sugerencia."
+    ]
+  },
+  "653405e4ed498d9f": "Enviar",
+  "f75e785137e9c30a": "Describe qué cambios te gustaría hacer...",
+  "4d90384622bcc0e2": "Error al eliminar algunos documentos",
+  "35ac5dbbc7c92b2a": "Elige un nombre de usuario",
+  "0417de53576f34f2": "Bachillerato",
+  "fff856cb2ebcfb0c": "Conversaciones Recientes",
+  "d6f995f4a3c2c314": "Actualización propuesta para",
+  "bb91813d210f7e24": "Iniciar Prueba",
+  "aca1668281d69d89": "Enviar comentarios",
+  "5bd5770a5a02e2d6": "Propuesta de actualización rechazada.",
+  "7c3317a34e8de355": "Selecciona texto en el editor antes de presionar Cmd+K.",
+  "896ccc33cfa0c97c": "Error al conectar con el servicio de sugerencias. Por favor, inténtalo de nuevo.",
+  "aca9af847ec4252a": "Documento inicializado correctamente.",
+  "d04afc2789421979": "¡Por favor, espera a que el modelo termine su respuesta!",
+  "3ec6c718dd3fb6e0": "Salir del Historial",
+  "7e48f74fbef152ba": "No se puede aplicar la sugerencia: No hay ningún documento cargado.",
+  "a00d72402724b185": {
+    "i": 1,
+    "c": [
+      "Suscríbete para desbloquear Claude Opus, IA entrenada en tu forma de escribir, y ",
+      {
+        "i": 2,
+        "c": "publica tus documentos"
+      },
+      "."
+    ]
+  },
+  "17f17cc1230b95a3": "Activo:",
+  "47438987957fe3aa": [
+    "Eliminar (",
+    {
+      "i": 1,
+      "k": "_gt_value_1",
+      "v": "v"
+    },
+    ")"
+  ],
+  "e40e6d4ec89b5365": "Predeterminado",
+  "1c423a665cf3966f": {
+    "i": 1,
+    "c": "Cargando diferencias…"
+  },
+  "655bb02f4c94a6f0": "Error al iniciar el proceso de pago. Por favor, inténtalo de nuevo.",
+  "49f4d8412c2bb38a": {
+    "i": 1,
+    "c": "Eliminar"
+  },
+  "e2f115e0e4debbdc": "Por favor, selecciona texto para generar una sugerencia",
+  "a540c0f03acae547": [
+    {
+      "i": 1,
+      "c": "Sugerencias:"
+    },
+    {
+      "i": 2,
+      "c": [
+        {
+          "i": 3,
+          "c": "• Funciones"
+        },
+        {
+          "i": 4,
+          "c": "• Mejoras",
+          "t": "li"
+        },
+        {
+          "i": 5,
+          "c": "• Problemas",
+          "t": "li"
+        }
+      ]
+    }
+  ],
+  "19171db6be1b4aa5": "Ocultar fuentes",
+  "5f190484bf31a1fd": "Contenido transmitido para",
+  "fde454523e0cd792": "{action} documento",
+  "e760cb3d762e2af0": "Generación de contenido completada.",
+  "0a640fdb2b743bed": [
+    {
+      "i": 1,
+      "c": "Comparte tus ideas"
+    },
+    {
+      "i": 2,
+      "c": "Ayúdanos a mejorar Snow Leopard"
+    }
+  ],
+  "2f12da03b75ad182": {
+    "i": 1,
+    "c": "Seleccionar todo",
+    "d": {
+      "t": "b",
+      "b": {
+        "false": {
+          "i": 2,
+          "c": "Seleccionar todo"
+        },
+        "true": {
+          "i": 2,
+          "c": "Deseleccionar Todo"
+        }
+      }
+    }
+  },
+  "f33ae5af5dc81264": {
+    "i": 1,
+    "d": {
+      "t": "p",
+      "b": {
+        "one": {
+          "i": 2,
+          "c": [
+            {
+              "i": 3,
+              "k": "_gt_value_3",
+              "v": "v"
+            },
+            " palabra"
+          ]
+        },
+        "other": {
+          "i": 2,
+          "c": [
+            {
+              "i": 3,
+              "k": "_gt_value_3",
+              "v": "v"
+            },
+            " palabras"
+          ]
+        }
+      }
+    }
+  },
+  "ec091877b8b8c844": "Suscribirse",
+  "b1494a3f9bfc08bb": "Ayer",
+  "3d7cdab1909733c0": "Gestionar",
+  "db046871e24073f1": "Hoy",
+  "0ee98438909e178b": "Últimos 30 días",
+  "728590e3aa600be7": "Cancela {date}",
+  "31843be87a01cca2": "Prueba finalizada el {date}",
+  "5f02e52a299a42f9": "Barra lateral",
+  "34b440f7dd401997": "Más antiguo",
+  "8b01cd49f23aaa6f": {
+    "i": 1,
+    "c": [
+      {
+        "i": 2
+      },
+      " Cerrando sesión..."
+    ]
+  },
+  "79e4d73c1bc8cf45": "Verificando",
+  "464b990d4afc5566": [
+    "Eliminar ",
+    {
+      "i": 1,
+      "k": "_gt_value_1",
+      "v": "v"
+    },
+    " documentos"
+  ],
+  "6434a69fe7034b46": "Sin plan activo",
+  "c0e287e4508ed785": "Alternar Barra Lateral",
+  "aba29e77e52bca46": "Eliminar",
+  "afc8fb892e52f932": "Error",
+  "a92588726d2e1282": "La prueba termina el {date}",
+  "17d8ba525326ba71": "Gratis",
+  "78a1a02732fc74e8": "Cerrar sesión",
+  "0d546c913535e21d": "Error al cargar el estado",
+  "929348775241f684": "Se renueva el {date}",
+  "0cf0be5f9640aeb9": "Muestra la barra lateral móvil.",
+  "5405438472232bd8": [
+    {
+      "i": 1,
+      "c": "¿Eliminar documento?"
+    },
+    {
+      "i": 2,
+      "c": "Esta acción no se puede deshacer. Esto eliminará permanentemente tu documento y lo removerá de nuestros servidores."
+    }
+  ],
+  "db724a3f3f831f1b": "Últimos 7 días",
+  "daf080584b6c4e5f": {
+    "i": 1,
+    "c": "Cerrar"
+  },
+  "8ebdbcb486fb7060": "Suscripción",
+  "33be9cfa916e224c": {
+    "i": 1,
+    "c": "Alternar modo de tema",
+    "d": {
+      "t": "b",
+      "b": {
+        "dark": {
+          "i": 2,
+          "c": "Alternar modo claro"
+        },
+        "light": {
+          "i": 2,
+          "c": "Alternar modo oscuro"
+        }
+      }
+    }
+  },
+  "c557090df5722838": "Alternar barra lateral",
+  "af35e0c880697208": [
+    {
+      "i": 1,
+      "c": [
+        "¿Eliminar ",
+        {
+          "i": 2,
+          "k": "_gt_value_2",
+          "v": "v"
+        },
+        " documentos?"
+      ]
+    },
+    {
+      "i": 3,
+      "c": "Esta acción no se puede deshacer. Esto eliminará permanentemente los documentos seleccionados y los removerá de nuestros servidores."
+    }
+  ]
+}

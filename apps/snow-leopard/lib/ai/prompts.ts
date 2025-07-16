@@ -1,4 +1,5 @@
 import { ArtifactKind } from '@/components/artifact';
+import { useGT } from 'gt-next';
 
 // Document awareness instructions
 const documentAwarenessPrompt = `
@@ -38,6 +39,11 @@ export function buildArtifactsPrompt(
   }
 
   return prompt;
+}
+
+export function getRegularPrompt() {
+  const t = useGT();
+  return t('You are a friendly assistant. Keep your responses concise and helpful.');
 }
 
 export const regularPrompt =

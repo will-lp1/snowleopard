@@ -7,8 +7,10 @@ import { SuggestionOverlayProvider } from '@/components/suggestion-overlay-provi
 import { DocumentProvider } from '@/hooks/use-document-context';
 import { CSPostHogProvider } from '@/providers/posthog-provider';
 import { PostHogPageView } from '@/providers/posthog-pageview';
-import { Analytics } from "@vercel/analytics/react"
+import { Analytics } from "@vercel/analytics/react";
 import MobileWarning from '@/components/mobile-warning';
+import { getLocale } from "gt-next/server";
+import { GTProvider, LocaleSelector } from "gt-next";
 
 export const metadata: Metadata = {
   title: 'Snow Leopard',
@@ -20,7 +22,7 @@ export const metadata: Metadata = {
     url: 'https://www.cursorforwrit.ing',
     siteName: 'snowleopard',
     locale: 'en_US',
-    type: 'website',
+    type: 'website'
   },
   twitter: {
     card: 'summary_large_image',
@@ -28,16 +30,16 @@ export const metadata: Metadata = {
     description: 'The most satisfying, intuitive AI writing tool, and it\'s open source.',
     creator: '@wlovedaypowell',
     images: [
-      {
-        url: '/api/og',
-        alt: 'Snow Leopard - Tab, Tab, Apply Brilliance',
-      },
-    ],
-  },
+    {
+      url: '/api/og',
+      alt: 'Snow Leopard - Tab, Tab, Apply Brilliance'
+    }]
+
+  }
 };
 
 export const viewport = {
-  maximumScale: 1, 
+  maximumScale: 1
 };
 
 const LIGHT_THEME_COLOR = 'hsl(0 0% 100%)';
@@ -61,35 +63,36 @@ const THEME_COLOR_SCRIPT = `\
 })();`;
 
 export default async function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+  children
+
+
+}: Readonly<{children: React.ReactNode;}>) {
   return (
-    <html
-      lang="en"
-      suppressHydrationWarning
-    >
+  <html
+
+    suppressHydrationWarning lang={await getLocale()}>
+
       <head>
         <script
-          dangerouslySetInnerHTML={{
-            __html: THEME_COLOR_SCRIPT,
-          }}
-        />
+        dangerouslySetInnerHTML={{
+          __html: THEME_COLOR_SCRIPT
+        }} />
+
         <link rel="icon" href="/SLprint.png" />
       </head>
-      <body className="antialiased">
+      <body className="antialiased"><GTProvider>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
-          disableTransitionOnChange
-        >
+          disableTransitionOnChange>
+
           <SuggestionOverlayProvider>
             <CSPostHogProvider>
               <PostHogPageView />
               <DocumentProvider>
                 <Toaster position="top-center" />
+                <LocaleSelector />
                 
                 {/* Render children ALWAYS */}
                 {children} 
@@ -101,7 +104,7 @@ export default async function RootLayout({
             </CSPostHogProvider>
           </SuggestionOverlayProvider>
         </ThemeProvider>
-      </body>
+      </GTProvider></body>
     </html>
   );
 }

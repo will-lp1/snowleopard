@@ -21,13 +21,12 @@ interface ApplicationError extends Error {
   status: number;
 }
 
-export const fetcher = async (url: string) => {
+export const fetcher = async (url: string, t?: (key: string) => string) => {
   const res = await fetch(url);
 
   if (!res.ok) {
-    const error = new Error(
-      'An error occurred while fetching the data.',
-    ) as ApplicationError;
+    const errorMessage = t ? t('An error occurred while fetching the data.') : 'An error occurred while fetching the data.';
+    const error = new Error(errorMessage) as ApplicationError;
 
     error.info = await res.json();
     error.status = res.status;

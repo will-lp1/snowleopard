@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { T, useGT } from 'gt-next';
 import { useSWRConfig } from 'swr';
 import { RotateCcw, Clock, Loader2 } from 'lucide-react';
 import { format, formatDistance, isToday, isYesterday, differenceInDays } from 'date-fns';
@@ -86,9 +87,11 @@ export const VersionHeader = ({
   
   if (!documents || documents.length === 0) return null;
 
+  const t = useGT();
+  
   const formatVersionLabel = (date: Date) => {
-    if (isToday(date)) return "Today";
-    if (isYesterday(date)) return "Yesterday";
+    if (isToday(date)) return t("Today");
+    if (isYesterday(date)) return t("Yesterday");
     
     const days = differenceInDays(new Date(), date);
     if (days < 7) return format(date, 'EEE');
@@ -150,11 +153,11 @@ export const VersionHeader = ({
                     ) : (
                       <RotateCcw className="h-3 w-3" />
                     )}
-                    <span>Restore</span>
+                    <T><span>Restore</span></T>
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" className="text-xs">
-                  Make this version the current version
+                  <T>Make this version the current version</T>
                 </TooltipContent>
               </Tooltip>
               
@@ -164,7 +167,7 @@ export const VersionHeader = ({
                 className="text-xs h-7 px-2.5"
                 onClick={() => handleVersionChange('latest')}
               >
-                Exit History
+                <T>Exit History</T>
               </Button>
             </div>
         </div>

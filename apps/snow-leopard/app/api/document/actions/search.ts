@@ -5,6 +5,7 @@ import {
   getCurrentDocumentByTitle, 
   getDocumentById 
 } from '@/lib/db/queries'; // Import Drizzle queries
+import { getGT } from 'gt-next/server';
 
 /**
  * Gets a file by path - attempts to match ID first, then title.
@@ -15,13 +16,14 @@ import {
  */
 export async function getFileByPath(path: string) {
   try {
+    const t = await getGT();
     // --- Authentication --- 
     const readonlyHeaders = await headers();
     const requestHeaders = new Headers(readonlyHeaders);
     const session = await auth.api.getSession({ headers: requestHeaders });
     
     if (!session?.user?.id) {
-      throw new Error('Unauthorized');
+      throw new Error(t('Unauthorized'));
     }
     const userId = session.user.id;
     
@@ -77,6 +79,7 @@ export async function searchDocuments({
   limit?: number;
 }) {
   try {
+    const t = await getGT();
     // --- Authentication --- 
     const readonlyHeaders = await headers();
     const requestHeaders = new Headers(readonlyHeaders);
@@ -84,7 +87,7 @@ export async function searchDocuments({
     
     if (!session?.user?.id) {
       console.warn('[Document Search] Unauthorized search request');
-      throw new Error('Unauthorized');
+      throw new Error(t('Unauthorized'));
     }
     const userId = session.user.id;
     
@@ -101,7 +104,7 @@ export async function searchDocuments({
     // Format results for the mention UI (same logic)
     const results = documents?.map(doc => ({
       id: doc.id,
-      title: doc.title || 'Untitled Document',
+      title: doc.title || t('Untitled Document'),
       type: 'document' // Assuming a type identifier is needed
     })) || [];
     
@@ -112,9 +115,10 @@ export async function searchDocuments({
 
   } catch (error) {
     console.error('[Document Search] Error executing search:', error);
+    const t = await getGT();
     return {
       results: [],
-      error: 'Failed to search documents'
+      error: t('Failed to search documents')
       // Optionally include the original query in the error response
       // query 
     };

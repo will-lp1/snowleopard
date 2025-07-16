@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { chatModels } from '@/lib/ai/models';
 import { cn } from '@/lib/utils';
+import { T, useGT } from 'gt-next';
 
 import { CheckCircleFillIcon, ChevronDownIcon } from '../icons';
 import {
@@ -40,6 +41,7 @@ export function ModelSelector({
 } & React.ComponentProps<typeof Button>) {
   const [open, setOpen] = useState(false);
   const [isPaywallOpen, setPaywallOpen] = useState(false);
+  const t = useGT();
 
   const { data: subscriptionData, isLoading: isSubscriptionLoading } = useSWR<{ hasActiveSubscription: boolean }>(
     '/api/user/subscription-status',
@@ -61,7 +63,7 @@ export function ModelSelector({
         className={cn('md:px-2 md:h-[34px]', className)}
         disabled
       >
-        Loading...
+        {t('Loading...')}
       </Button>
     );
   }
@@ -123,7 +125,7 @@ export function ModelSelector({
                     onClick={(e) => { e.stopPropagation(); setPaywallOpen(true); }}
                     className="opacity-0 group-hover:opacity-100 transition-opacity"
                   >
-                    Upgrade
+                    <T>Upgrade</T>
                   </Button>
                 )}
               </DropdownMenuItem>

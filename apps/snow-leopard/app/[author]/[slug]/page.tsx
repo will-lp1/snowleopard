@@ -7,6 +7,7 @@ import AIChatWidget from '@/components/ai-chat-widget';
 import ThemeToggle from '@/components/theme-toggle';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { T } from 'gt-next';
 
 export default async function Page({ params }: any) {
   const { author, slug } = await params;
@@ -36,7 +37,7 @@ export default async function Page({ params }: any) {
       <ThemeToggle />
       <Link href="/register">
         <Button variant="outline" className="fixed top-4 right-4 z-50">
-          Sign up to Snow Leopard
+          <T>Sign up to Snow Leopard</T>
         </Button>
       </Link>
       <Blog

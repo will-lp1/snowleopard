@@ -1,5 +1,6 @@
 import { ImageResponse } from 'next/og';
 import { NextRequest } from 'next/server';
+import { T } from 'gt-next';
 
 export const runtime = 'edge';
 

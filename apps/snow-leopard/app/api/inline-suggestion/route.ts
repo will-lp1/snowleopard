@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import { streamText } from 'ai';
 import { myProvider } from '@/lib/ai/providers';
 import { getSessionCookie } from 'better-auth/cookies';
+import { getGT } from 'gt-next/server';
 
 async function handleInlineSuggestionRequest(
   contextBefore: string,
@@ -50,7 +51,7 @@ async function handleInlineSuggestionRequest(
         try {
           await writer.write(encoder.encode(`data: ${JSON.stringify({
             type: 'error',
-            content: e.message || 'An error occurred'
+            content: e.message || (await getGT())('An error occurred')
           })}\n\n`));
         } catch (error) {
           console.error('Error writing error event:', error);
@@ -85,9 +86,10 @@ async function handleInlineSuggestionRequest(
 
 export async function POST(request: NextRequest) {
   try {
+    const t = await getGT();
     const sessionCookie = getSessionCookie(request);
     if (!sessionCookie) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: t('Unauthorized') }, { status: 401 });
     }
     const { contextBefore = '', contextAfter = '', fullContent = '', aiOptions = {} } = await request.json();
     const { suggestionLength, customInstructions, writingStyleSummary, applyStyle } = aiOptions;
@@ -95,7 +97,8 @@ export async function POST(request: NextRequest) {
     return handleInlineSuggestionRequest(contextBefore, contextAfter, fullContent, suggestionLength, customInstructions, writingStyleSummary, applyStyle);
   } catch (error: any) {
     console.error('Inline suggestion route error:', error);
-    return NextResponse.json({ error: error.message || 'An error occurred' }, { status: 400 });
+    const t = await getGT();
+    return NextResponse.json({ error: error.message || t('An error occurred') }, { status: 400 });
   }
 }
 

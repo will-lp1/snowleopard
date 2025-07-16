@@ -7,6 +7,7 @@ import {
   MessageIcon as SearchIcon,
 } from '@/components/icons';
 import type { ToolInvocation } from 'ai';
+import { T, Branch } from 'gt-next';
 
 interface HighlightToolProps {
   toolInvocation: ToolInvocation;
@@ -31,7 +32,13 @@ function PureHighlightTool({ toolInvocation }: HighlightToolProps) {
           <SearchIcon size={16} />
         </div>
         <span className="flex-grow text-foreground font-medium">
-          {isCalling ? 'Finding reference in text...' : 'Reference found'}
+          <T>
+            <Branch
+              branch={isCalling.toString()}
+              true="Finding reference in text..."
+              false="Reference found"
+            />
+          </T>
         </span>
         {isCalling && (
           <div className="animate-spin text-muted-foreground">

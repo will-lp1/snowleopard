@@ -2,16 +2,18 @@ import { NextResponse } from 'next/server';
 import { auth } from "@/lib/auth";
 import { headers } from 'next/headers';
 import { getMessagesByChatId, getChatById } from '@/lib/db/queries';
+import { getGT } from 'gt-next/server';
 
 export async function GET(request: Request) {
   try {
+    const t = await getGT();
     const readonlyHeaders = await headers();
     const requestHeaders = new Headers(readonlyHeaders);
     const session = await auth.api.getSession({ headers: requestHeaders });
 
     if (!session?.user?.id) {
       console.error('Session error in /api/messages');
-      return NextResponse.json({ error: 'Authentication error' }, { status: 401 });
+      return NextResponse.json({ error: t('Authentication error') }, { status: 401 });
     }
     const userId = session.user.id;
 
@@ -19,15 +21,15 @@ export async function GET(request: Request) {
     const chatId = searchParams.get('chatId');
 
     if (!chatId) {
-      return NextResponse.json({ error: 'Chat ID is required' }, { status: 400 });
+      return NextResponse.json({ error: t('Chat ID is required') }, { status: 400 });
     }
 
     const chat = await getChatById({ id: chatId });
     if (!chat) {
-       return NextResponse.json({ error: 'Chat not found' }, { status: 404 });
+       return NextResponse.json({ error: t('Chat not found') }, { status: 404 });
     }
     if (chat.userId !== userId) {
-       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+       return NextResponse.json({ error: t('Unauthorized') }, { status: 403 });
     }
 
     const messages = await getMessagesByChatId({ id: chatId });
@@ -43,6 +45,7 @@ export async function GET(request: Request) {
 
   } catch (error) {
     console.error('Error fetching messages:', error);
-    return NextResponse.json({ error: 'Error fetching messages' }, { status: 500 });
+    const t = await getGT();
+    return NextResponse.json({ error: t('Error fetching messages') }, { status: 500 });
   }
 } 

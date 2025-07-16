@@ -27,8 +27,10 @@ import { Switch } from "@/components/ui/switch";
 import useSWR from 'swr';
 import { fetcher } from '@/lib/utils';
 import { Paywall } from '@/components/paywall';
+import { T, useGT, Branch, Var } from 'gt-next';
 
 export function AiSettingsMenu() {
+  const t = useGT();
   const { suggestionLength, customInstructions, writingSample, writingStyleSummary, applyStyle } = useAiOptionsValue();
   const {
     setSuggestionLength,
@@ -48,7 +50,7 @@ export function AiSettingsMenu() {
 
   const handleGenerateSummary = async () => {
     if (!writingSample || writingSample.trim().length < 200) {
-      setGenerationError("Please provide at least ~200 characters of sample text.");
+      setGenerationError(t("Please provide at least ~200 characters of sample text."));
       return;
     }
 
@@ -115,11 +117,15 @@ export function AiSettingsMenu() {
             sideOffset={6}
           >
             <div className="mb-4">
-              <span className="text-sm font-semibold text-foreground">AI Preferences</span>
+              <T>
+                <span className="text-sm font-semibold text-foreground">AI Preferences</span>
+              </T>
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-medium">Suggestion Length</Label>
+              <T>
+                <Label className="text-xs font-medium">Suggestion Length</Label>
+              </T>
               <div className="flex items-center gap-1.5">
                 {(["short", "medium", "long"] as SuggestionLength[]).map(
                   (len) => (
@@ -135,7 +141,7 @@ export function AiSettingsMenu() {
                       )}
                       onClick={() => setSuggestionLength(len)}
                     >
-                      {len}
+                      <T><Var>{len}</Var></T>
                     </Button>
                   )
                 )}
@@ -143,22 +149,26 @@ export function AiSettingsMenu() {
             </div>
 
             <div className="space-y-2">
-              <Label
-                htmlFor="custom-instructions"
-                className="text-xs font-medium"
-              >
-                Custom Instructions
-              </Label>
+              <T>
+                <Label
+                  htmlFor="custom-instructions"
+                  className="text-xs font-medium"
+                >
+                  Custom Instructions
+                </Label>
+              </T>
               <Textarea
                 id="custom-instructions"
-                placeholder="Guide the AI... e.g., 'Be concise', 'Act like a helpful expert', 'Translate to French'"
+                placeholder={t("Guide the AI... e.g., 'Be concise', 'Act like a helpful expert', 'Translate to French'")}
                 className="h-24 text-sm resize-none bg-background border focus-visible:ring-1 focus-visible:ring-ring"
                 value={customInstructions}
                 onChange={(e) => setCustomInstructions(e.target.value)}
               />
-              <p className="text-[11px] text-muted-foreground leading-tight">
-                Your instructions guide the AI&apos;s tone and behavior.
-              </p>
+              <T>
+                <p className="text-[11px] text-muted-foreground leading-tight">
+                  Your instructions guide the AI&apos;s tone and behavior.
+                </p>
+              </T>
             </div>
 
             <Separator className="my-4" />
@@ -173,15 +183,17 @@ export function AiSettingsMenu() {
                     className="pointer-events-auto"
                     onClick={() => setPaywallOpen(true)}
                   >
-                    Upgrade
+                    <T>Upgrade</T>
                   </Button>
                 </div>
               )}
               {isEditingSample ? (
                 <div className="space-y-3">
-                  <Label className="text-xs font-medium">Train Writer Style</Label>
+                  <T>
+                    <Label className="text-xs font-medium">Train Writer Style</Label>
+                  </T>
                   <Textarea
-                    placeholder="Paste ~200 characters of your writing so the AI can learn your style. This sample stays on your device."
+                    placeholder={t("Paste ~200 characters of your writing so the AI can learn your style. This sample stays on your device.")}
                     className="h-28 text-sm resize-none bg-background border focus-visible:ring-1 focus-visible:ring-ring"
                     value={writingSample}
                     onChange={(e) => setWritingSample(e.target.value)}
@@ -204,16 +216,24 @@ export function AiSettingsMenu() {
                     {isGeneratingSummary && (
                       <Loader2 className="mr-2 size-4 animate-spin" />
                     )}
-                    {isGeneratingSummary ? "Analyzing..." : "Train"}
+                    <T>
+                      <Branch
+                        branch={isGeneratingSummary.toString()}
+                        true="Analyzing..."
+                        false="Train"
+                      />
+                    </T>
                   </Button>
                 </div>
               ) : (
                 // Trained State
                 <div className="space-y-4 rounded-md border p-4">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="apply-style" className="text-xs font-medium">
-                      Apply Writer Style
-                    </Label>
+                    <T>
+                      <Label htmlFor="apply-style" className="text-xs font-medium">
+                        Apply Writer Style
+                      </Label>
+                    </T>
                     <Switch
                       id="apply-style"
                       checked={applyStyle}
@@ -231,7 +251,7 @@ export function AiSettingsMenu() {
                       onClick={startRetrain}
                       disabled={!hasSubscription}
                     >
-                      Retrain
+                      <T>Retrain</T>
                     </Button>
                     <Button
                       variant="destructive"
@@ -240,7 +260,7 @@ export function AiSettingsMenu() {
                       onClick={handleClearProfile}
                       disabled={!hasSubscription}
                     >
-                      Clear
+                      <T>Clear</T>
                     </Button>
                   </div>
                 </div>
@@ -250,7 +270,7 @@ export function AiSettingsMenu() {
           </DropdownMenuContent>
         </DropdownMenu>
       </TooltipTrigger>
-      <TooltipContent side="bottom">AI Settings</TooltipContent>
+      <TooltipContent side="bottom"><T>AI Settings</T></TooltipContent>
     </Tooltip>
   );
 }

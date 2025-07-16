@@ -9,6 +9,7 @@ import {
 } from '@/lib/db/queries';
 import { generateUUID } from '@/lib/utils';
 import type { ArtifactKind } from '@/components/artifact';
+import { getGT } from 'gt-next/server';
 
 /**
  * Handles document creation (POST)
@@ -21,10 +22,11 @@ export async function createDocument(request: NextRequest, body: any) {
     const readonlyHeaders = await headers();
     const requestHeaders = new Headers(readonlyHeaders);
     const session = await auth.api.getSession({ headers: requestHeaders });
+    const t = await getGT();
     
     if (!session?.user?.id) {
       console.warn('[Document API - CREATE] Create request unauthorized - no session');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: t('Unauthorized') }, { status: 401 });
     }
     const userId = session.user.id;
     
@@ -45,7 +47,7 @@ export async function createDocument(request: NextRequest, body: any) {
     if (!uuidRegex.test(documentId)) {
       console.error(`[Document API - CREATE] Invalid document ID format: ${documentId}`);
       return NextResponse.json({ 
-        error: `Invalid document ID format. Must be a valid UUID.` 
+        error: t('Invalid document ID format. Must be a valid UUID.') 
       }, { status: 400 });
     }
 
@@ -76,7 +78,7 @@ export async function createDocument(request: NextRequest, body: any) {
     
     if (!newDocumentVersion) {
        console.error(`[Document API - CREATE] Failed to retrieve document ${documentId} immediately after saving.`);
-       return NextResponse.json({ error: 'Failed to retrieve created document data.'}, { status: 500 });
+       return NextResponse.json({ error: t('Failed to retrieve created document data.')}, { status: 500 });
     }
 
     console.log(`[Document API - CREATE] Document version created successfully: ${documentId}`);
@@ -85,7 +87,7 @@ export async function createDocument(request: NextRequest, body: any) {
   } catch (error: any) {
     console.error('[Document API - CREATE] Create error:', error);
     return NextResponse.json({ 
-      error: `Failed to create document: ${error.message || String(error)}`
+      error: t('Failed to create document: {error}', { error: error.message || String(error) })
     }, { status: 500 });
   }
 } 

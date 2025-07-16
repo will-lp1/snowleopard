@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { ArtifactKind } from '@/components/artifact';
 import { useParams, useRouter } from 'next/navigation';
+import { useGT } from 'gt-next';
 
 interface DocumentContextType {
   documentId: string;
@@ -23,8 +24,9 @@ const DocumentContext = createContext<DocumentContextType>({
 });
 
 export function DocumentProvider({ children }: { children: ReactNode }) {
+  const t = useGT();
   const [documentId, setDocumentId] = useState<string>('init');
-  const [documentTitle, setDocumentTitle] = useState<string>('New Document');
+  const [documentTitle, setDocumentTitle] = useState<string>(t('New Document'));
   const [documentContent, setDocumentContent] = useState<string>('');
   const [documentKind, setDocumentKind] = useState<ArtifactKind>('text');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -40,7 +42,7 @@ export function DocumentProvider({ children }: { children: ReactNode }) {
     if (isValidId(docIdFromParams)) {
       if (docIdFromParams !== documentId) { 
         setDocumentId(docIdFromParams);
-        setDocumentTitle('Loading...');
+        setDocumentTitle(t('Loading...'));
         setDocumentContent('');
         setDocumentKind('text');
         setIsLoading(true);
@@ -51,7 +53,7 @@ export function DocumentProvider({ children }: { children: ReactNode }) {
               if (response.status === 404) {
                  console.warn(`Document ${docIdFromParams} not found.`);
                  setDocumentId('init');
-                 setDocumentTitle('Not Found');
+                 setDocumentTitle(t('Not Found'));
                  setDocumentContent('');
                  setDocumentKind('text');
               } else {
@@ -64,13 +66,13 @@ export function DocumentProvider({ children }: { children: ReactNode }) {
           .then(documents => {
             if (documents && documents.length > 0) {
               const doc = documents[documents.length - 1]; 
-              setDocumentTitle(doc.title || 'Untitled Document');
+              setDocumentTitle(doc.title || t('Untitled Document'));
               setDocumentContent(doc.content || '');
               setDocumentKind((doc.kind as ArtifactKind) || 'text');
             } else if (documentId !== 'init' && documents !== null) {
                console.warn(`No document versions found for ID: ${docIdFromParams}, resetting.`);
                setDocumentId('init');
-               setDocumentTitle('New Document');
+               setDocumentTitle(t('New Document'));
                setDocumentContent('');
                setDocumentKind('text');
             }
@@ -78,7 +80,7 @@ export function DocumentProvider({ children }: { children: ReactNode }) {
           .catch(error => {
             console.error('[DocumentContext] Error fetching document:', error);
             setDocumentId('init');
-            setDocumentTitle('Error Loading');
+            setDocumentTitle(t('Error Loading'));
             setDocumentContent('');
             setDocumentKind('text');
           })
@@ -89,13 +91,13 @@ export function DocumentProvider({ children }: { children: ReactNode }) {
     } else {
        if (documentId !== 'init') {
           setDocumentId('init');
-          setDocumentTitle('New Document');
+          setDocumentTitle(t('New Document'));
           setDocumentContent('');
           setDocumentKind('text');
           setIsLoading(false);
        }
     }
-  }, [params?.id, documentId]);
+  }, [params?.id, documentId, t]);
 
   const updateDocument = (id: string, title: string, content: string, kind: ArtifactKind) => {
     setDocumentId(id);

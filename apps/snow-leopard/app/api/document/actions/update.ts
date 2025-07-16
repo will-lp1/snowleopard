@@ -10,6 +10,7 @@ import {
   getLatestDocumentById // To return the final state
 } from '@/lib/db/queries';
 import { Document } from '@snow-leopard/db';
+import { getGT } from 'gt-next/server';
 
 const VERSION_THRESHOLD_MINUTES = 10;
 
@@ -20,6 +21,7 @@ const VERSION_THRESHOLD_MINUTES = 10;
  */
 export async function updateDocument(request: NextRequest, body: any): Promise<NextResponse> {
   try {
+    const t = await getGT();
     // --- Authentication --- 
     const readonlyHeaders = await headers();
     const requestHeaders = new Headers(readonlyHeaders);
@@ -27,7 +29,7 @@ export async function updateDocument(request: NextRequest, body: any): Promise<N
     
     if (!session?.user?.id) {
       console.warn('[Document API - UPDATE] Update request unauthorized - no session');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: t('Unauthorized') }, { status: 401 });
     }
     const userId = session.user.id;
     
@@ -51,13 +53,13 @@ export async function updateDocument(request: NextRequest, body: any): Promise<N
     // Validate ID format (essential before querying)
     if (!documentId || documentId === 'undefined' || documentId === 'null' || documentId === 'init') {
       console.error(`[Document API - UPDATE] Invalid document ID: ${documentId}`);
-      return NextResponse.json({ error: 'Invalid document ID' }, { status: 400 });
+      return NextResponse.json({ error: t('Invalid document ID') }, { status: 400 });
     }
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(documentId)) {
       console.error(`[Document API - UPDATE] Invalid document ID format: ${documentId}`);
       return NextResponse.json({ 
-        error: `Invalid document ID format. Must be a valid UUID.` 
+        error: t('Invalid document ID format. Must be a valid UUID.') 
       }, { status: 400 });
     }
 
@@ -68,7 +70,7 @@ export async function updateDocument(request: NextRequest, body: any): Promise<N
       const currentVersion = await getCurrentDocumentVersion({ userId, documentId });
       
       let shouldUpdateCurrent = false;
-      let titleForNewVersion = 'Untitled Document';
+      let titleForNewVersion = t('Untitled Document');
 
       if (currentVersion && currentVersion.updatedAt) {
         titleForNewVersion = currentVersion.title;
@@ -146,7 +148,7 @@ export async function updateDocument(request: NextRequest, body: any): Promise<N
                console.warn('[Document API - UPDATE] Returning fallback state after initial retrieval failed.')
                return NextResponse.json(fallbackState);
            } else {
-                return NextResponse.json({ error: 'Failed to retrieve updated document data after operation and fallback.'}, { status: 500 });
+                return NextResponse.json({ error: t('Failed to retrieve updated document data after operation and fallback.')}, { status: 500 });
            }
       }
 
@@ -156,17 +158,17 @@ export async function updateDocument(request: NextRequest, body: any): Promise<N
     } catch (dbError: any) {
       console.error(`[Document API - UPDATE] Database operation error for doc ${documentId}:`, dbError);
       if (dbError.message === 'Document not found or unauthorized.') {
-          return NextResponse.json({ error: 'Document not found or unauthorized' }, { status: 404 });
+          return NextResponse.json({ error: t('Document not found or unauthorized') }, { status: 404 });
       }
       return NextResponse.json({ 
-        error: `Database operation failed: ${dbError.message || String(dbError)}`
+        error: t('Database operation failed: {error}', { error: dbError.message || String(dbError) })
       }, { status: 500 });
     }
 
   } catch (error: any) {
     console.error('[Document API - UPDATE] General update error:', error);
     return NextResponse.json({ 
-      error: `Failed to update document: ${error.message || String(error)}`
+      error: t('Failed to update document: {error}', { error: error.message || String(error) })
     }, { status: 500 });
   }
 } 

@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from "@/lib/auth"; // Import Better Auth
 import { headers } from 'next/headers'; // Import headers
 import { getDocumentsById, getCurrentDocumentsByUserId, getPaginatedDocumentsByUserId } from '@/lib/db/queries'; // Import Drizzle queries
+import { getGT } from 'gt-next/server';
 
 /**
  * Handles document retrieval operations (GET)
  */
 export async function getDocuments(request: NextRequest) {
   try {
+    const t = await getGT();
     // --- Authentication --- 
     const readonlyHeaders = await headers();
     const requestHeaders = new Headers(readonlyHeaders);
@@ -15,7 +17,7 @@ export async function getDocuments(request: NextRequest) {
 
     if (!session?.user?.id) {
       console.warn('[Document API - GET] Unauthorized request');
-      return NextResponse.json({ error: 'Unauthorized', documents: [] }, { status: 401 });
+      return NextResponse.json({ error: t('Unauthorized'), documents: [] }, { status: 401 });
     }
     const userId = session.user.id;
     
@@ -47,14 +49,14 @@ export async function getDocuments(request: NextRequest) {
       try {
         const limit = parseInt(limitParam, 10);
         if (isNaN(limit) || limit <= 0) {
-          return NextResponse.json({ error: 'Invalid limit parameter' }, { status: 400 });
+          return NextResponse.json({ error: t('Invalid limit parameter') }, { status: 400 });
         }
         const result = await getPaginatedDocumentsByUserId({ userId, limit, endingBefore });
         return NextResponse.json(result);
       } catch (error) {
          console.error('[Document API - GET] Error fetching paginated documents:', error);
          return NextResponse.json(
-          { error: 'Failed to fetch paginated documents' }, 
+          { error: t('Failed to fetch paginated documents') }, 
           { status: 500 }
         );
       }
@@ -70,7 +72,7 @@ export async function getDocuments(request: NextRequest) {
       } catch (error) {
         console.error('[Document API - GET] Error fetching all current documents:', error);
         return NextResponse.json(
-          { error: 'Failed to fetch documents', documents: [] }, 
+          { error: t('Failed to fetch documents'), documents: [] }, 
           { status: 500 }
         );
       }
@@ -78,7 +80,7 @@ export async function getDocuments(request: NextRequest) {
   } catch (error) {
     console.error('[Document API - GET] General error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch documents', documents: [] }, 
+      { error: t('Failed to fetch documents'), documents: [] }, 
       { status: 500 }
     );
   }

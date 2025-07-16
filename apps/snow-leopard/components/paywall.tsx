@@ -16,6 +16,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { T, useGT, Var } from 'gt-next';
 
 interface PaywallProps {
   isOpen: boolean;
@@ -58,6 +59,7 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
   const [isLoading, setIsLoading] = useState(false);
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
   const router = useRouter();
+  const t = useGT();
 
   const [isSigningOut, setIsSigningOut] = useState(false);
 
@@ -69,21 +71,21 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
           setIsSigningOut(false);
           router.push('/login');
           router.refresh();
-          toast({ type: 'success', description: 'Signed out successfully.' });
+          toast({ type: 'success', description: t('Signed out successfully.') });
         },
         onError: (ctx) => {
           setIsSigningOut(false);
           console.error('Error signing out:', ctx.error);
           toast({
             type: 'error',
-            description: ctx.error.message || 'Failed to sign out.'
+            description: ctx.error.message || t('Failed to sign out.')
           });
         }
       });
     } catch (error) {
       setIsSigningOut(false);
       console.error('Sign out function error:', error);
-      toast({ type: 'error', description: 'An unexpected error occurred during sign out.' });
+      toast({ type: 'error', description: t('An unexpected error occurred during sign out.') });
     }
   };
 
@@ -111,14 +113,14 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
         console.error('Stripe Checkout Error (via Better Auth):', error);
         toast({ 
           type: 'error', 
-          description: error.message || 'Failed to initiate checkout. Please try again.' 
+          description: error.message || t('Failed to initiate checkout. Please try again.') 
         });
       }
     } catch (err) {
       console.error('Unexpected error during upgrade:', err);
       toast({ 
         type: 'error', 
-        description: 'An unexpected error occurred. Please try again.'
+        description: t('An unexpected error occurred. Please try again.')
       });
     } finally {
       setIsLoading(false);
@@ -176,7 +178,9 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-foreground">
                       <MoreHorizontal className="size-4" />
-                      <span className="sr-only">Options</span>
+                      <T>
+                        <span className="sr-only">Options</span>
+                      </T>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
@@ -186,7 +190,7 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
                       className="text-destructive focus:bg-destructive/10 focus:text-destructive cursor-pointer"
                     >
                       {isSigningOut ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-                      Sign Out
+{t('Sign Out')}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -195,13 +199,17 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
 
             <div className="flex-grow">
               <DialogHeader className="mb-6 text-left">
-                <DialogTitle className="text-xl md:text-2xl font-semibold">Upgrade to Pro</DialogTitle>
-                <DialogDescription className="text-sm mb-6">
-                  Subscribe to unlock Claude Opus, AI trained on the way you write, and {' '}
-                  <Link href="#" className="text-blue-500 underline">
-                    publish your documents
-                  </Link>.
-                </DialogDescription>
+                <T>
+                  <DialogTitle className="text-xl md:text-2xl font-semibold">Upgrade to Pro</DialogTitle>
+                </T>
+                <T>
+                  <DialogDescription className="text-sm mb-6">
+                    Subscribe to unlock Claude Opus, AI trained on the way you write, and {' '}
+                    <Link href="#" className="text-blue-500 underline">
+                      publish your documents
+                    </Link>.
+                  </DialogDescription>
+                </T>
               </DialogHeader>
               
               <div className="space-y-4">
@@ -215,8 +223,10 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
                   >
                     <div className="flex-grow">
                       <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-semibold text-lg">{plan.displayName}</h4>
-                        {plan.annual && <div className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">Save {plan.discount}%</div>}
+                        <T>
+                          <h4 className="font-semibold text-lg"><Var>{plan.displayName}</Var></h4>
+                        </T>
+                        {plan.annual && <T><div className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">Save <Var>{plan.discount}</Var>%</div></T>}
                       </div>
                       <p className="text-3xl font-bold text-foreground">
                         {plan.price}
@@ -224,14 +234,18 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
                       </p>
                       
                       {plan.subLabel && (
-                        <p className="text-xs text-muted-foreground mt-1">{plan.subLabel}</p>
+                        <T>
+                          <p className="text-xs text-muted-foreground mt-1"><Var>{plan.subLabel}</Var></p>
+                        </T>
                       )}
                       
                       <ul className="mt-6 space-y-2">
                         {plan.features.map((feature) => (
                           <li key={feature} className="flex items-center gap-3 text-sm text-muted-foreground">
                             <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
-                            <span>{feature}</span>
+                            <T>
+                              <span><Var>{feature}</Var></span>
+                            </T>
                           </li>
                         ))}
                       </ul>
@@ -245,9 +259,9 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
                         size="lg"
                         variant={plan.annual ? "default" : "outline"}
                       >
-                        {isLoading && loadingPlanId === plan.stripePriceId ? (
-                          <><Loader2 className="mr-2 size-4 animate-spin" /> Processing...</>
-                        ) : 'Subscribe'}
+{isLoading && loadingPlanId === plan.stripePriceId ? (
+                          <><Loader2 className="mr-2 size-4 animate-spin" /> {t('Processing...')}</>
+                        ) : t('Subscribe')}
                       </Button>
                     </div>
                   </div>
@@ -256,9 +270,11 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
             </div>
 
             <DialogFooter className="mt-6 pt-4 border-t flex flex-col sm:flex-row items-center gap-2 sm:gap-0">
-              <p className="text-xs text-muted-foreground flex-shrink-0">
-                  much love, will - founder of snow leopard
-              </p>
+              <T>
+                <p className="text-xs text-muted-foreground flex-shrink-0">
+                    much love, will - founder of snow leopard
+                </p>
+              </T>
               <div className="flex-grow" />
               <Button
                 variant="ghost"
@@ -267,7 +283,7 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
               >
                 <Link href="https://discord.gg/X49bQmnYbd" target="_blank" rel="noopener noreferrer">
                   <Image src="/images/discord-logo.png" alt="Discord" width={16} height={16} />
-                  Join the Discord
+                  <T>Join the Discord</T>
                 </Link>
               </Button>
             </DialogFooter>

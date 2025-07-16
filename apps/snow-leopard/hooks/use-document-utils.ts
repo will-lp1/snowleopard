@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useArtifact } from './use-artifact';
 import { toast } from 'sonner';
+import { useGT } from 'gt-next';
 import { generateUUID } from '@/lib/utils';
 import { useSidebar } from '@/components/ui/sidebar';
 import { ArtifactKind } from '@/components/artifact';
@@ -30,6 +31,7 @@ export function useDocumentUtils() {
   const router = useRouter();
   const { setArtifact, artifact } = useArtifact();
   const { setOpenMobile, openMobile } = useSidebar();
+  const t = useGT();
   const [isCreatingChat, setIsCreatingChat] = useState(false);
   const [isCreatingDocument, setIsCreatingDocument] = useState(false);
   const [isRenamingDocument, setIsRenamingDocument] = useState(false);
@@ -50,7 +52,7 @@ export function useDocumentUtils() {
     try {
       setArtifact({
         documentId: 'init', 
-        title: 'New Document',
+        title: t('New Document'),
         kind: 'text',
         isVisible: true,
         status: 'idle',
@@ -64,7 +66,7 @@ export function useDocumentUtils() {
       router.refresh();
     } catch (error) {
       console.error('Error creating new document:', error);
-      toast.error('Failed to create new document');
+      toast.error(t('Failed to create new document'));
     } finally {
       setIsCreatingChat(false);
     }
@@ -88,7 +90,7 @@ export function useDocumentUtils() {
         },
         body: JSON.stringify({
           id: newDocId,
-          title: 'Document',
+          title: t('Document'),
           content: '',
           kind: 'text',
         }),
@@ -114,7 +116,7 @@ export function useDocumentUtils() {
         setOpenMobile(false);
       }
       
-      toast.success('Document created', { 
+      toast.success(t('Document created'), { 
         id: 'document-created',
         duration: 2000 
       });
@@ -124,7 +126,7 @@ export function useDocumentUtils() {
     } catch (error) {
       console.error('[Document] Error creating document:', error);
       
-      toast.error('Failed to create document', {
+      toast.error(t('Failed to create document'), {
         description: error instanceof Error ? error.message : String(error),
         duration: 5000
       });
@@ -139,7 +141,7 @@ export function useDocumentUtils() {
     if (isRenamingDocument || !artifact.documentId || artifact.documentId === 'init') return;
 
     if (!newTitle.trim()) {
-      toast.error('Document title cannot be empty');
+      toast.error(t('Document title cannot be empty'));
       return;
     }
 
@@ -179,12 +181,12 @@ export function useDocumentUtils() {
         }));
       }
 
-      toast.success('Document renamed', {
+      toast.success(t('Document renamed'), {
         duration: 2000
       });
     } catch (error: any) {
       console.error('Error renaming document:', error);
-      toast.error('Failed to rename document', {
+      toast.error(t('Failed to rename document'), {
         description: error.message
       });
     } finally {
@@ -243,7 +245,7 @@ export function useDocumentUtils() {
       return document;
     } catch (error) {
       console.error('[useDocumentUtils] Error creating document:', error);
-      toast.error('Failed to create document');
+      toast.error(t('Failed to create document'));
       return null;
     } finally {
       setIsCreatingDocument(false);
@@ -289,7 +291,7 @@ export function useDocumentUtils() {
       return document;
     } catch (error) {
       console.error('[useDocumentUtils] Error loading document:', error);
-      toast.error('Failed to load document');
+      toast.error(t('Failed to load document'));
       return null;
     }
   };
@@ -298,7 +300,7 @@ export function useDocumentUtils() {
     try {
       if (!documentId || documentId === 'undefined' || documentId === 'null' || documentId === 'init') {
         console.error('[useDocumentUtils] Invalid document ID for deletion:', documentId);
-        toast.error('Cannot delete: Invalid document ID');
+        toast.error(t('Cannot delete: Invalid document ID'));
         return false;
       }
 
@@ -323,11 +325,11 @@ export function useDocumentUtils() {
         router.refresh();
       }
       
-      toast.success('Document deleted');
+      toast.success(t('Document deleted'));
       return true;
     } catch (error) {
       console.error('[useDocumentUtils] Error deleting document:', error);
-      toast.error('Failed to delete document');
+      toast.error(t('Failed to delete document'));
       return false;
     }
   };

@@ -20,6 +20,7 @@ import { googleFonts, FontOption } from '@/lib/fonts';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { HuePicker } from 'react-color';
+import { T, useGT } from 'gt-next';
 
 interface PublishSettingsMenuProps {
   document: Document;
@@ -60,6 +61,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
   const { data: subscriptionData, isLoading: isSubscriptionLoading } = useSWR<{ hasActiveSubscription: boolean }>('/api/user/subscription-status', fetcher, { revalidateOnFocus: false });
   const hasSubscription = subscriptionData?.hasActiveSubscription ?? false;
   const [isPaywallOpen, setPaywallOpen] = useState(false);
+  const t = useGT();
 
   const [username, setUsername] = useState<string>(user.username || '');
   const [hasUsername, setHasUsername] = useState<boolean>(!!user.username);
@@ -257,17 +259,21 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
               className="pointer-events-auto"
               onClick={() => setPaywallOpen(true)}
             >
-              Upgrade
+{t('Upgrade')}
             </Button>
           </div>
         )}
         <div>
-          <Label className="text-sm font-medium">Publish Settings</Label>
+          <T>
+            <Label className="text-sm font-medium">Publish Settings</Label>
+          </T>
         </div>
         {!isPublished ? (
           <>
             <div className="space-y-2">
-              <Label htmlFor="pub-username" className="text-xs font-medium block">Username</Label>
+              <T>
+                <Label htmlFor="pub-username" className="text-xs font-medium block">Username</Label>
+              </T>
               <div className="flex gap-2 items-center">
                 <Input
                   id="pub-username"
@@ -292,7 +298,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                           ? "border-green-500 text-green-500 focus-visible:ring-green-500"
                           : ""
                   )}
-                  placeholder={usernameLoading ? 'Loading username...' : 'Choose a username'}
+                  placeholder={usernameLoading ? t('Loading username...') : t('Choose a username')}
                 />
                 {usernameLoading && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
                 {usernameCheck.checking && !hasUsername && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
@@ -325,23 +331,27 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
             </div>
             
             <div className="space-y-1">
-              <Label htmlFor="pub-title" className="text-xs font-medium block">
-                Slug
-              </Label>
+              <T>
+                <Label htmlFor="pub-title" className="text-xs font-medium block">
+                  Slug
+                </Label>
+              </T>
               <Input
                 id="pub-title"
                 value={slug}
                 onChange={handleSlugChange}
                 className="h-8"
                 disabled={processing || disabled}
-                placeholder="Page slug"
+                placeholder={t("Page slug")}
               />
             </div>
             
             {/* Style controls start */}
             <div className="space-y-2">
               <div className="space-y-1">
-                <Label className="text-xs font-medium block">Text Color</Label>
+                <T>
+                  <Label className="text-xs font-medium block">Text Color</Label>
+                </T>
                 <ToggleGroup
                   type="single"
                   value={textColor === undefined ? 'default' : 'custom'}
@@ -349,8 +359,8 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                   className="grid grid-cols-2"
                   disabled={processing || disabled}
                 >
-                  <ToggleGroupItem value="default" className="text-xs h-8">Default</ToggleGroupItem>
-                  <ToggleGroupItem value="custom" className="text-xs h-8">Custom</ToggleGroupItem>
+                  <ToggleGroupItem value="default" className="text-xs h-8">{t('Default')}</ToggleGroupItem>
+                  <ToggleGroupItem value="custom" className="text-xs h-8">{t('Custom')}</ToggleGroupItem>
                 </ToggleGroup>
                 {textColor !== undefined && (
                   <>
@@ -369,11 +379,15 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                         <div className="grid grid-cols-2 gap-2 pt-2 text-xs">
                           <div className="flex flex-col items-center">
                             <div className="h-6 w-full rounded" style={{ backgroundColor: light }} />
-                            <span className="mt-1">Light</span>
+                            <T>
+                              <span className="mt-1">Light</span>
+                            </T>
                           </div>
                           <div className="flex flex-col items-center">
                             <div className="h-6 w-full rounded" style={{ backgroundColor: dark }} />
-                            <span className="mt-1">Dark</span>
+                            <T>
+                              <span className="mt-1">Dark</span>
+                            </T>
                           </div>
                         </div>
                       );
@@ -383,14 +397,16 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs font-medium block">Font</Label>
+                <T>
+                  <Label className="text-xs font-medium block">Font</Label>
+                </T>
                 <Select
                   value={font}
                   onValueChange={(val) => setFont(val as FontOption)}
                   disabled={processing || disabled}
                 >
                   <SelectTrigger className={cn('h-8 w-full text-xs', googleFonts[font].className)}>
-                    <SelectValue placeholder="Font" />
+                    <SelectValue placeholder={t("Font")} />
                   </SelectTrigger>
                   <SelectContent className="text-xs">
                     {(Object.keys(googleFonts) as FontOption[]).map((key) => (
@@ -418,7 +434,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                 {processing ? (
                   <Loader2 className="size-4 animate-spin" />
                 ) : (
-                  <><Check className="size-4 mr-1" /> Publish</>
+                  <><Check className="size-4 mr-1" /> {t('Publish')}</>
                 )}
               </Button>
             </div>
@@ -435,7 +451,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                 }}
                 disabled={disabled}
               >
-                <CopyIcon className="size-4" /> Copy Link
+<CopyIcon className="size-4" /> {t('Copy Link')}
               </Button>
             </div>
             <Button
@@ -445,7 +461,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
               onClick={() => window.open(url, '_blank')}
               disabled={disabled}
             >
-              <GlobeIcon className="size-4" /> View
+<GlobeIcon className="size-4" /> {t('View')}
             </Button>
             <Button
               onClick={handleToggle}
@@ -453,7 +469,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
               variant="outline"
               className="w-full"
             >
-              {processing ? <Loader2 className="size-4 animate-spin" /> : 'Unpublish'}
+{processing ? <Loader2 className="size-4 animate-spin" /> : t('Unpublish')}
             </Button>
           </>
         )}

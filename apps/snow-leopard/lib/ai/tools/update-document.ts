@@ -3,6 +3,7 @@ import { Session } from '@/lib/auth';
 import { z } from 'zod';
 import { getDocumentById } from '@/lib/db/queries';
 import { myProvider } from '@/lib/ai/providers';
+import { getGT } from 'gt-next/server';
 
 interface UpdateDocumentProps {
   // Session is currently not used by this tool, but we keep it for future ACL needs.
@@ -19,31 +20,32 @@ export const updateDocument = ({ session: _session, documentId: defaultDocumentI
         .describe('The description of changes that need to be made'),
     }),
     execute: async ({ description }) => {
+      const t = await getGT();
       const documentId = defaultDocumentId;
 
       try {
         // --- Validation ---
         if (!description.trim()) {
-          return { error: 'No update description provided.' };
+          return { error: t('No update description provided.') };
         }
 
         if (!documentId ||
             documentId === 'undefined' ||
             documentId === 'null' ||
             documentId.length < 32) {
-          return { error: `Invalid document ID: "${documentId}".` };
+          return { error: t('Invalid document ID: "{documentId}".', { documentId }) };
         }
 
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
         if (!uuidRegex.test(documentId)) {
-          return { error: `Invalid document ID format: "${documentId}".` };
+          return { error: t('Invalid document ID format: "{documentId}".', { documentId }) };
         }
 
         // --- Fetch Document ---
         const document = await getDocumentById({ id: documentId });
         if (!document) {
           console.error(`[AI Tool] Document not found with ID: ${documentId}`);
-          return { error: 'Document not found' };
+          return { error: t('Document not found') };
         }
         const originalContent = document.content || '';
 
@@ -64,7 +66,7 @@ export const updateDocument = ({ session: _session, documentId: defaultDocumentI
           kind: document.kind,
           originalContent: originalContent, 
           newContent: newContent,           
-          status: 'Update proposal generated.',
+          status: t('Update proposal generated.'),
         };
 
       } catch (error: any) {
@@ -72,7 +74,7 @@ export const updateDocument = ({ session: _session, documentId: defaultDocumentI
         const errorMessage = error instanceof Error ? error.message : String(error);
         // No dataStream to write to, just return error
         return {
-          error: 'Failed to generate document update: ' + errorMessage,
+          error: t('Failed to generate document update: {errorMessage}', { errorMessage }),
         };
       }
     },

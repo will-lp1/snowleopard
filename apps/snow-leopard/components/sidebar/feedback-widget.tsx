@@ -1,6 +1,7 @@
 "use client"
 
 import { useBreakpoint } from "@/hooks/use-breakpoint"
+import { T, useGT } from 'gt-next'
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import { sendFeedbackToDiscord } from "@/lib/actions/feedback"
@@ -30,6 +31,7 @@ const TRANSITION_CONTENT = {
 }
 
 export function FeedbackWidget({ className }: { className?: string }) {
+  const t = useGT();
   const [status, setStatus] = useState<
     "idle" | "submitting" | "success" | "error"
   >("idle")
@@ -54,7 +56,7 @@ export function FeedbackWidget({ className }: { className?: string }) {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!userId) {
-      toast.error("Please login to submit feedback")
+      toast.error(t("Please login to submit feedback"))
       return
     }
 
@@ -82,7 +84,7 @@ export function FeedbackWidget({ className }: { className?: string }) {
       }, 2500)
     } catch (error: any) {
       console.error("Error submitting feedback:", error)
-      toast.error(`Error submitting feedback: ${error.message || 'Unknown error sending to Discord'}`)
+      toast.error(t('Error submitting feedback: {message}', { message: error.message || t('Unknown error sending to Discord') }))
       setStatus("error")
     }
   }
@@ -97,7 +99,7 @@ export function FeedbackWidget({ className }: { className?: string }) {
         <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton className="group data-[state=open]: border border-r text-accent-foreground data-[state=open]:text-sidebar-accent-foreground h-10 hover:bg-accent/50 transition-colors duration-200">
-              <span className="group-hover:text-primary transition-colors duration-200">Feedback</span>
+              <T><span className="group-hover:text-primary transition-colors duration-200">Feedback</span></T>
               <span className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                 <Heart className="size-3 text-primary" />
               </span>
@@ -122,12 +124,14 @@ export function FeedbackWidget({ className }: { className?: string }) {
                     <div className="rounded-full bg-green-500/10 p-3">
                       <SealCheck className="size-8 text-green-500" />
                     </div>
-                    <p className="text-foreground mt-5 mb-2 text-center text-base font-medium">
-                      Thank you for your feedback!
-                    </p>
-                    <p className="text-muted-foreground text-center text-sm max-w-[250px]">
-                      Your input helps make Snow Leopard better for everyone.
-                    </p>
+                    <T>
+                      <p className="text-foreground mt-5 mb-2 text-center text-base font-medium">
+                        Thank you for your feedback!
+                      </p>
+                      <p className="text-muted-foreground text-center text-sm max-w-[250px]">
+                        Your input helps make Snow Leopard better for everyone.
+                      </p>
+                    </T>
                   </motion.div>
                 ) : (
                   <motion.form
@@ -140,8 +144,10 @@ export function FeedbackWidget({ className }: { className?: string }) {
                     transition={TRANSITION_CONTENT}
                   >
                     <div className="p-3 border-b border-border/50">
-                      <h3 className="text-sm font-medium text-foreground">Share your thoughts</h3>
-                      <p className="text-xs text-muted-foreground mt-1">Help us improve Snow Leopard</p>
+                      <T>
+                        <h3 className="text-sm font-medium text-foreground">Share your thoughts</h3>
+                        <p className="text-xs text-muted-foreground mt-1">Help us improve Snow Leopard</p>
+                      </T>
                     </div>
                     
                     <div className="relative flex-1">
@@ -158,12 +164,14 @@ export function FeedbackWidget({ className }: { className?: string }) {
                         }}
                         className="text-muted-foreground pointer-events-none absolute top-3.5 left-4 text-xs leading-[1.4] select-none"
                       >
-                        <p className="text-xs text-muted-foreground/80">Suggestions:</p>
-                        <ul className="ml-2 mt-1 space-y-1">
-                          <li>• Features</li>
-                          <li>• Improvements</li>
-                          <li>• Issues</li>
-                        </ul>
+                        <T>
+                          <p className="text-xs text-muted-foreground/80">Suggestions:</p>
+                          <ul className="ml-2 mt-1 space-y-1">
+                            <li>• Features</li>
+                            <li>• Improvements</li>
+                            <li>• Issues</li>
+                          </ul>
+                        </T>
                       </motion.div>
                       <textarea
                         className="text-foreground h-full w-full resize-none bg-transparent px-4 py-3.5 text-sm outline-hidden focus:ring-0 focus:outline-none"
@@ -180,7 +188,7 @@ export function FeedbackWidget({ className }: { className?: string }) {
                         variant="ghost"
                         size="sm"
                         onClick={closeMenu}
-                        aria-label="Close popover"
+                        aria-label={t("Close popover")}
                         disabled={status === "submitting"}
                         className="h-8 w-8 p-0 rounded-full hover:bg-muted"
                       >
@@ -190,7 +198,7 @@ export function FeedbackWidget({ className }: { className?: string }) {
                         type="submit"
                         variant="outline"
                         size="sm"
-                        aria-label="Submit feedback"
+                        aria-label={t("Submit feedback")}
                         className="rounded-full bg-primary/10 hover:bg-primary/20 border-primary/20 text-primary hover:text-primary"
                         disabled={status === "submitting" || !feedback.trim()}
                       >
@@ -205,7 +213,7 @@ export function FeedbackWidget({ className }: { className?: string }) {
                               className="inline-flex items-center gap-2"
                             >
                               <Spinner className="size-3 animate-spin" />
-                              <span>Sending</span>
+                              <T><span>Sending</span></T>
                             </motion.span>
                           ) : (
                             <motion.span
@@ -215,7 +223,7 @@ export function FeedbackWidget({ className }: { className?: string }) {
                               exit={{ opacity: 0, y: -5 }}
                               transition={TRANSITION_CONTENT}
                             >
-                              Send
+                              <T>Send</T>
                             </motion.span>
                           )}
                         </AnimatePresence>

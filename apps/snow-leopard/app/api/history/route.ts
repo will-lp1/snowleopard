@@ -2,15 +2,17 @@ import { NextResponse } from 'next/server';
 import { auth } from "@/lib/auth"; // Import Better Auth
 import { headers } from 'next/headers'; // Import headers
 import { getDocumentsById, getChatsByUserId } from '@/lib/db/queries'; // Import Drizzle queries
+import { getGT } from 'gt-next/server';
 
 export async function GET() {
+  const t = await getGT();
   // --- Authentication --- 
   const readonlyHeaders = await headers();
   const requestHeaders = new Headers(readonlyHeaders);
   const session = await auth.api.getSession({ headers: requestHeaders });
 
   if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: t('Unauthorized') }, { status: 401 });
   }
   const userId = session.user.id;
 
@@ -73,6 +75,6 @@ export async function GET() {
 
   } catch (error) {
     console.error('Error processing history request:', error);
-    return NextResponse.json({ error: 'Failed to fetch history' }, { status: 500 });
+    return NextResponse.json({ error: t('Failed to fetch history') }, { status: 500 });
   }
 }

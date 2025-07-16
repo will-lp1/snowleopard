@@ -6,6 +6,7 @@ import { Dispatch, SetStateAction, useEffect, useRef, useState } from 'react';
 import { Textarea } from '../ui/textarea';
 import { deleteTrailingMessages } from '@/app/api/chat/actions/chat';
 import { toast } from 'sonner';
+import { T, useGT } from 'gt-next';
 
 export type MessageEditorProps = {
   message: Message;
@@ -25,6 +26,7 @@ export function MessageEditor({
   reload,
 }: MessageEditorProps) {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const t = useGT();
 
   // Handle content properly regardless of type
   const initialContent = typeof message.content === 'string' 
@@ -70,7 +72,7 @@ export function MessageEditor({
             setMode('view');
           }}
         >
-          Cancel
+          <T>Cancel</T>
         </Button>
         <Button
           data-testid="message-editor-send-button"
@@ -103,7 +105,7 @@ export function MessageEditor({
             reload();
           }}
         >
-          {isSubmitting ? 'Sending...' : 'Send'}
+          {isSubmitting ? t('Sending...') : t('Send')}
         </Button>
       </div>
     </div>

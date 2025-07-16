@@ -1,5 +1,6 @@
 'use client';
 import { ChevronUp, Loader2 } from 'lucide-react';
+import { T, useGT, Branch, Var } from 'gt-next';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
@@ -52,6 +53,7 @@ function formatPlanName(planName: string | undefined | null): string {
 }
 
 export function SidebarUserNav({ user }: { user: User | null }) {
+  const t = useGT();
   const { setTheme, theme } = useTheme();
   const router = useRouter();
 
@@ -150,18 +152,18 @@ export function SidebarUserNav({ user }: { user: User | null }) {
     return null;
   }
 
-  let statusText = 'No active plan';
-  let planName = 'Free';
-  let ctaText = 'Subscribe';
+  let statusText = t('No active plan');
+  let planName = t('Free');
+  let ctaText = t('Subscribe');
   let ctaAction = () => setIsPaywallOpen(true);
   let ctaLoading = isSubscriptionLoading;
 
   if (isSubscriptionLoading) {
-    statusText = 'Loading...';
-    planName = 'Checking';
+    statusText = t('Loading...');
+    planName = t('Checking');
   } else if (subscriptionError) {
-    statusText = 'Error loading status';
-    planName = 'Error';
+    statusText = t('Error loading status');
+    planName = t('Error');
   } else if (subscription) {
     planName = formatPlanName(subscription.plan);
     const now = new Date();
@@ -169,23 +171,23 @@ export function SidebarUserNav({ user }: { user: User | null }) {
       const trialEndDate = subscription.trialEnd || subscription.periodEnd;
       const ends = new Date(trialEndDate || '').getTime();
       if (ends > now.getTime()) {
-        statusText = `Trial ends ${formatDate(trialEndDate)}`;
-        ctaText = 'Upgrade';
+        statusText = t('Trial ends {date}', { date: formatDate(trialEndDate) });
+        ctaText = t('Upgrade');
         ctaAction = () => setIsPaywallOpen(true);
         ctaLoading = isSubscriptionLoading;
       } else {
-        statusText = `Trial ended ${formatDate(trialEndDate)}`;
-        ctaText = 'Subscribe';
+        statusText = t('Trial ended {date}', { date: formatDate(trialEndDate) });
+        ctaText = t('Subscribe');
         ctaAction = () => setIsPaywallOpen(true);
         ctaLoading = isSubscriptionLoading;
       }
     } else if (subscription.status === 'active') {
       if (subscription.cancelAtPeriodEnd) {
-        statusText = `Cancels ${formatDate(subscription.periodEnd)}`;
+        statusText = t('Cancels {date}', { date: formatDate(subscription.periodEnd) });
       } else {
-        statusText = `Renews ${formatDate(subscription.periodEnd)}`;
+        statusText = t('Renews {date}', { date: formatDate(subscription.periodEnd) });
       }
-      ctaText = 'Manage';
+      ctaText = t('Manage');
       ctaAction = handleManageBilling;
       ctaLoading = isBillingLoading;
     }
@@ -208,7 +210,7 @@ export function SidebarUserNav({ user }: { user: User | null }) {
               {isStripeEnabled && (
                 <>
                   <DropdownMenuLabel className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                    Subscription
+                    <T>Subscription</T>
                   </DropdownMenuLabel>
                   <div className="px-2 py-1.5 text-sm space-y-1">
                     <p className="font-medium">{planName}</p>
@@ -218,7 +220,7 @@ export function SidebarUserNav({ user }: { user: User | null }) {
                       disabled={ctaLoading}
                       className="mt-2 text-sm font-medium text-blue-600 hover:underline disabled:opacity-50"
                     >
-                      {ctaLoading ? <Loader2 className="h-4 w-4 animate-spin inline-block mr-1 text-muted-foreground" /> : ctaText}
+                      {ctaLoading ? <Loader2 className="h-4 w-4 animate-spin inline-block mr-1 text-muted-foreground" /> : <T><Var>{ctaText}</Var></T>}
                     </button>
                   </div>
                   <DropdownMenuSeparator />
@@ -229,7 +231,15 @@ export function SidebarUserNav({ user }: { user: User | null }) {
                 onSelect={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
                 disabled={isLoading}
               >
-                {`Toggle ${theme === 'light' ? 'dark' : 'light'} mode`}
+                <T>
+                  <Branch 
+                    branch={theme} 
+                    light={<>Toggle dark mode</>} 
+                    dark={<>Toggle light mode</>}
+                  >
+                    Toggle theme mode
+                  </Branch>
+                </T>
               </DropdownMenuItem>
               {!isStripeEnabled && <DropdownMenuSeparator />}
 
@@ -239,9 +249,9 @@ export function SidebarUserNav({ user }: { user: User | null }) {
                 disabled={isLoading}
               >
                 {isSignOutLoading ? (
-                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing out...</>
+                  <T><><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing out...</></T>
                 ) : (
-                   'Sign out'
+                   <T>Sign out</T>
                 )}
               </DropdownMenuItem>
             </DropdownMenuContent>

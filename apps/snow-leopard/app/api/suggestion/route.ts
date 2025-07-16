@@ -4,6 +4,7 @@ import { getDocumentById } from '@/lib/db/queries';
 import { myProvider } from '@/lib/ai/providers';
 import { updateDocumentPrompt } from '@/lib/ai/prompts';
 import { getSessionCookie } from 'better-auth/cookies';
+import { getGT } from 'gt-next/server';
 
 async function handleSuggestionRequest(
   documentId: string,
@@ -21,8 +22,9 @@ async function handleSuggestionRequest(
 
   (async () => {
     try {
+      const t = await getGT();
       const document = await getDocumentById({ id: documentId });
-      if (!document) throw new Error('Document not found');
+      if (!document) throw new Error(t('Document not found'));
       console.log("Starting to process suggestion stream");
       await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'id', content: documentId })}\n\n`));
 
@@ -53,7 +55,8 @@ async function handleSuggestionRequest(
       await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'finish', content: '' })}\n\n`));
     } catch (e: any) {
       console.error('Error in stream processing:', e);
-      await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'error', content: e.message || 'An error occurred' })}\n\n`));
+      const t = await getGT();
+      await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'error', content: e.message || t('An error occurred') })}\n\n`));
     } finally {
       await writer.close();
       console.log("Stream closed");
@@ -71,9 +74,10 @@ async function handleSuggestionRequest(
 
 export async function GET(request: Request) {
   try {
+    const t = await getGT();
     const sessionCookie = getSessionCookie(request);
     if (!sessionCookie) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: t('Unauthorized') }, { status: 401 });
     }
     const userId = sessionCookie;
 
@@ -87,21 +91,23 @@ export async function GET(request: Request) {
     const applyStyle = url.searchParams.get('applyStyle') === 'true';
 
     if (!documentId || !description) {
-      return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
+      return NextResponse.json({ error: t('Missing parameters') }, { status: 400 });
     }
 
     return handleSuggestionRequest(documentId, description, userId, selectedText, suggestionLength, customInstructions, writingStyleSummary, applyStyle);
   } catch (error: any) {
     console.error('Suggestion GET route error:', error);
-    return NextResponse.json({ error: error.message || 'An error occurred' }, { status: 400 });
+    const t = await getGT();
+    return NextResponse.json({ error: error.message || t('An error occurred') }, { status: 400 });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    const t = await getGT();
     const sessionCookie = getSessionCookie(request);
     if (!sessionCookie) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: t('Unauthorized') }, { status: 401 });
     }
     const userId = sessionCookie;
 
@@ -115,13 +121,14 @@ export async function POST(request: NextRequest) {
     const { suggestionLength = 'medium', customInstructions = null, writingStyleSummary = null, applyStyle = true } = aiOptions;
 
     if (!documentId || !description) {
-      return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
+      return NextResponse.json({ error: t('Missing parameters') }, { status: 400 });
     }
 
     return handleSuggestionRequest(documentId, description, userId, selectedText, suggestionLength, customInstructions, writingStyleSummary, applyStyle);
   } catch (error: any) {
     console.error('Suggestion POST route error:', error);
-    return NextResponse.json({ error: error.message || 'An error occurred' }, { status: 400 });
+    const t = await getGT();
+    return NextResponse.json({ error: error.message || t('An error occurred') }, { status: 400 });
   }
 }
 
