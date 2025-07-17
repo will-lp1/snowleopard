@@ -14,7 +14,10 @@ import { Loader2, GlobeIcon, CopyIcon, Edit2, Check } from 'lucide-react';
 import type { Document } from '@snow-leopard/db';
 import type { User } from '@/lib/auth';
 import useSWR from 'swr';
+import debounce from 'lodash.debounce';
+import { toast } from 'sonner';
 import { fetcher } from '@/lib/utils';
+import useSWRMutation from 'swr/mutation';
 import { Paywall } from '@/components/paywall';
 import { googleFonts, FontOption } from '@/lib/fonts';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
@@ -69,7 +72,6 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
   const [slug, setSlug] = useState('');
   const [font, setFont] = useState<FontOption>('montserrat');
   const [textColor, setTextColor] = useState<string | undefined>(undefined);
-  const [processing, setProcessing] = useState(false);
   const sanitizedUsername = username.trim().replace(/^@/, '');
   
   const isPublished = document.visibility === 'public';
@@ -94,9 +96,13 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
   }, [document.slug, document.title, document.style]);
 
   const loadUsername = useCallback(async () => {
+    if (user.username) {
+      setUsernameLoading(false);
+      return;
+    }
     setUsernameLoading(true);
     try {
-      const res = await fetch('/api/user');
+      const res = await fetch('/api/user', { cache: 'no-store' });
       if (!res.ok) return;
       const data = await res.json();
       if (data.username) {
@@ -109,23 +115,48 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
     } finally {
       setUsernameLoading(false);
     }
-  }, []);
+  }, [user.username]);
 
   useEffect(() => {
     loadUsername();
   }, [loadUsername]);
 
-  const checkUsername = useCallback(async () => {
-    if (!username.trim()) return;
+  const checkUsername = useCallback(async (name: string, signal: AbortSignal) => {
+    if (!name.trim()) return;
     setUsernameCheck({ checking: true, available: null });
-    const res = await fetch(`/api/user?username=${encodeURIComponent(username.trim().replace(/^@/, ''))}`);
-    if (res.ok) {
-      const { available } = await res.json();
-      setUsernameCheck({ checking: false, available });
-    } else {
-      setUsernameCheck({ checking: false, available: false });
+    try {
+      const res = await fetch(`/api/user?username=${encodeURIComponent(name.trim().replace(/^@/, ''))}`, { signal });
+      if (res.ok) {
+        const { available } = await res.json();
+        setUsernameCheck({ checking: false, available });
+      } else {
+        setUsernameCheck({ checking: false, available: false });
+      }
+    } catch (err) {
+      if ((err as any).name !== 'AbortError') {
+        setUsernameCheck({ checking: false, available: false });
+      }
     }
-  }, [username]);
+  }, []);
+
+  const debouncedCheck = useCallback(debounce((name: string, controller: AbortController) => {
+    checkUsername(name, controller.signal);
+  }, 300), [checkUsername]);
+
+  useEffect(() => {
+     if (!sanitizedUsername || sanitizedUsername === user.username) {
+         setUsernameCheck({ checking: false, available: null });
+         return;
+     }
+
+    const controller = new AbortController();
+    debouncedCheck(username, controller);
+
+    return () => {
+      controller.abort();
+      debouncedCheck.cancel();
+    };
+  }, [username, user.username, sanitizedUsername, debouncedCheck]);
   
   const claimUsername = useCallback(async () => {
     if (!usernameCheck.available) return;
@@ -143,81 +174,61 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
     setClaiming(false);
   }, [username, usernameCheck.available]);
 
-  useEffect(() => {
-    if (!sanitizedUsername || sanitizedUsername === user.username) {
-        setUsernameCheck({ checking: false, available: null });
-        return;
+  const disabled = !hasSubscription;
+
+  type PublishPayload = {
+    id: string;
+    visibility: 'public' | 'private';
+    author: string;
+    style: any;
+    slug: string;
+  };
+   
+  const { trigger: publishTrigger, isMutating: isPublishing } = useSWRMutation(
+    '/api/document/publish',
+    async (url: string, { arg }: { arg: PublishPayload }) => {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(arg),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to update publication');
+      }
+      return res.json();
     }
-    const handler = setTimeout(() => {
-        checkUsername();
-    }, 500);
+  );
 
-    return () => {
-        clearTimeout(handler);
-    };
-  }, [username, checkUsername, user.username, sanitizedUsername]);
-
-  const handleToggle = useCallback(async () => {
+  const handleToggle = useCallback(() => {
+    toast.dismiss();
     const newVisibility = (document.visibility === 'public' ? 'private' : 'public') as 'public' | 'private';
-    if (newVisibility === 'public' && !sanitizedUsername) {
-      return;
-    }
-    let textColorLight: string | undefined;
-    let textColorDark: string | undefined;
-    if (textColor !== undefined) {
-      const { h, s } = hexToHSL(textColor);
-      textColorLight = `hsl(${h}, ${s}%, 90%)`;
-      textColorDark = `hsl(${h}, ${s}%, 20%)`;
-    }
+    if (newVisibility === 'public' && !sanitizedUsername) return;
+    const styleObj = document.style as any;
+    const { h, s } = textColor !== undefined ? hexToHSL(textColor) : { h: 0, s: 0 };
     const snapshot = {
       id: document.id,
       visibility: newVisibility,
       author: sanitizedUsername,
-      style: {
-        ...(document.style as any),
-        font,
-        textColorLight,
-        textColorDark,
-      },
+      style: { ...styleObj, font, textColorLight: textColor !== undefined ? `hsl(${h}, ${s}%, 90%)` : undefined, textColorDark: textColor !== undefined ? `hsl(${h}, ${s}%, 20%)` : undefined },
       slug,
     };
-    const optimisticDoc = { ...document, ...snapshot };
-    onUpdate(optimisticDoc);
-    setProcessing(true);
-    try {
-      const res = await fetch('/api/document/publish', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(snapshot),
+    publishTrigger(snapshot as any)
+      .then((updated: Document) => onUpdate(updated))
+      .catch((e: Error) => {
+        onUpdate(document);
+        toast.error(e.message);
       });
-
-      if (!res.ok) {
-        let errorMsg = 'Failed to update publication.';
-        try {
-          const data = await res.json();
-          if (data?.error) errorMsg = data.error;
-        } catch (_) { }
-        throw new Error(errorMsg);
-      }
-
-      const updated = await res.json();
-      onUpdate(updated);
-    } catch (e: any) {
-      onUpdate(document);
-    } finally {
-      setProcessing(false);
-    }
-  }, [document.id, isPublished, slug, sanitizedUsername, onUpdate, font, textColor]);
+  }, [document, sanitizedUsername, slug, onUpdate, font, textColor, publishTrigger]);
   
   const handleSlugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    toast.dismiss();
     const formattedSlug = e.target.value
       .toLowerCase()
       .replace(/\s+/g, '-')
       .replace(/[^a-z0-9-]/g, '');
     setSlug(formattedSlug);
   };
-
-  const disabled = !hasSubscription;
 
   const handleColorModeChange = (mode: string) => {
     if (mode === 'default' || !mode) {
@@ -265,7 +276,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
           <Label className="text-sm font-medium">Publish Settings</Label>
         </div>
         {!isPublished ? (
-          <>
+          <> {/* Publish state */}
             <div className="space-y-2">
               <Label htmlFor="pub-username" className="text-xs font-medium block">Username</Label>
               <div className="flex gap-2 items-center">
@@ -281,7 +292,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                       setHasUsername(false);
                     }
                   }}
-                  disabled={usernameLoading || claiming || hasUsername || processing || disabled}
+                  disabled={usernameLoading || claiming || hasUsername || isPublishing || disabled}
                   className={cn(
                     "flex-1 h-8",
                     hasUsername
@@ -333,12 +344,11 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                 value={slug}
                 onChange={handleSlugChange}
                 className="h-8"
-                disabled={processing || disabled}
+                disabled={isPublishing || disabled}
                 placeholder="Page slug"
               />
             </div>
             
-            {/* Style controls start */}
             <div className="space-y-2">
               <div className="space-y-1">
                 <Label className="text-xs font-medium block">Text Color</Label>
@@ -347,7 +357,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                   value={textColor === undefined ? 'default' : 'custom'}
                   onValueChange={handleColorModeChange}
                   className="grid grid-cols-2"
-                  disabled={processing || disabled}
+                  disabled={isPublishing || disabled}
                 >
                   <ToggleGroupItem value="default" className="text-xs h-8">Default</ToggleGroupItem>
                   <ToggleGroupItem value="custom" className="text-xs h-8">Custom</ToggleGroupItem>
@@ -387,7 +397,7 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                 <Select
                   value={font}
                   onValueChange={(val) => setFont(val as FontOption)}
-                  disabled={processing || disabled}
+                  disabled={isPublishing || disabled}
                 >
                   <SelectTrigger className={cn('h-8 w-full text-xs', googleFonts[font].className)}>
                     <SelectValue placeholder="Font" />
@@ -402,10 +412,11 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                 </Select>
               </div>
             </div>
-            {/* Style controls end */}
             <div className="flex justify-end px-3 pt-4 pb-2 border-t bg-background/50 -mx-3 -mb-3 mt-4">
               <Button
                 size="sm"
+                variant="default"
+                className="w-full"
                 onClick={() => {
                   if (disabled) {
                     setPaywallOpen(true);
@@ -413,49 +424,43 @@ export function PublishSettingsMenu({ document, user, onUpdate }: PublishSetting
                   }
                   handleToggle();
                 }}
-                disabled={processing || !hasUsername || disabled || !sanitizedUsername}
+                disabled={isPublishing || !hasUsername || disabled || !sanitizedUsername}
               >
-                {processing ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <><Check className="size-4 mr-1" /> Publish</>
-                )}
+                {isPublishing ? <Loader2 className="size-4 animate-spin mx-auto" /> : 'Publish'}
               </Button>
             </div>
           </>
         ) : (
-          <>
-            <div className="space-y-1">
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full justify-start gap-2"
-                onClick={() => {
-                  navigator.clipboard.writeText(url);
-                }}
-                disabled={disabled}
-              >
-                <CopyIcon className="size-4" /> Copy Link
-              </Button>
-            </div>
+          <div className="space-y-2">
+            {/* Copy and View always visible */}
             <Button
               variant="outline"
               size="sm"
               className="w-full justify-start gap-2"
+              onClick={() => navigator.clipboard.writeText(url)}
+              disabled={disabled}
+            >
+              <CopyIcon className="size-4" /> Copy Link
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
               onClick={() => window.open(url, '_blank')}
               disabled={disabled}
             >
               <GlobeIcon className="size-4" /> View
             </Button>
             <Button
-              onClick={handleToggle}
-              disabled={processing || disabled}
-              variant="outline"
+              size="sm"
+              variant="default"
               className="w-full"
+              onClick={() => handleToggle()}
+              disabled={isPublishing || disabled}
             >
-              {processing ? <Loader2 className="size-4 animate-spin" /> : 'Unpublish'}
+              {isPublishing ? <Loader2 className="size-4 animate-spin mx-auto" /> : 'Unpublish'}
             </Button>
-          </>
+          </div>
         )}
       </DropdownMenuContent>
       <Paywall isOpen={isPaywallOpen} onOpenChange={setPaywallOpen} required={false} />
