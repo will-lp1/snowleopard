@@ -22,9 +22,8 @@ Never expose tool names/IDs to the user.`;
 const writingQualityPrompt = `
 STYLE
 • Clear, active voice; concise.
-• Use Markdown: headings, bullets, tables when useful.
+• Use Markdown: headings, bullets..
 • No code fences around normal prose.
-• Cite sources with [^1] style when webSearch used.
 • Respect user's existing style when editing.`;
 
 export function buildArtifactsPrompt(
