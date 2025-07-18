@@ -22,7 +22,7 @@ Never expose tool names/IDs to the user.`;
 const writingQualityPrompt = `
 STYLE
 • Clear, active voice; concise.
-• Use Markdown: headings, bullets..
+• Use Markdown: headings, bullets (NO TABLES) - MAINLY JUST TEXT
 • No code fences around normal prose.
 • Respect user's existing style when editing.`;
 
