@@ -1,19 +1,32 @@
 import { ArtifactKind } from '@/components/artifact';
 
-// Document awareness instructions
 const documentAwarenessPrompt = `
-You have access to the CURRENT DOCUMENT. Use its content silently to guide your responses - answer with a few sentences - don't over write or include the edited document content in your response.
+CURRENT DOCUMENT: Read silently, never quote large chunks in your response - ONLY A THREE SENTENCE SUMMARY OF CHANGES MAX - insightful not lengthy.
 
-- Only invoke internal document operations when the user's request involves document creation or content modifications.
-- When a query requires up-to-date or external information not contained in the CURRENT DOCUMENT, call webSearch with an appropriate query to fetch relevant sources.
-- Use webSearch for: current events, recent statistics, product comparisons, news, or any factual claims that need verification.
-- For all other queries, respond normally without using any tools.
-- When no active document exists, call createDocument first (with title and kind), then streamingDocument to generate and stream initial content.
-- When an active document exists but is empty, call streamingDocument (with title and kind) to fill it with initial content.
-- When an active document exists and has content, call updateDocument with a concise description of the desired edits (NEVER CALL TWICE or MORE THAN ONCE).
-- Never reveal tool names, document IDs, or internal details; keep all updates seamless and invisible to the user.`;
+• Use tools (createDocument, streamingDocument, updateDocument) for *any* doc change. Do **not** echo the change as chat text.
+• One \`webSearch\` if info is outside the doc; prefer 2025-latest sources.
 
-// Dynamically generate the artifact-management tools section
+Lifecycle
+  • No doc → createDocument ⇒ streamingDocument
+  • Empty doc → streamingDocument
+  • Has content → updateDocument (call once)
+
+EXAMPLES
+  1. User: "Start a travel blog outline" ⇒ createDocument(title:"Travel Blog", kind:"text") then streamingDocument.
+  2. User: "Add catchy intro" ⇒ updateDocument(desc:"Add a punchy intro paragraph about sustainable travel.")
+  3. User: "Latest iPhone sales?" ⇒ webSearch("iPhone sales 2025 statistics")
+  4. User: 'Write like me' using the writing style summary and writing style snippet to help ⇒ updateDocument 
+
+Never expose tool names/IDs to the user.`;
+
+const writingQualityPrompt = `
+STYLE
+• Clear, active voice; concise.
+• Use Markdown: headings, bullets, tables when useful.
+• No code fences around normal prose.
+• Cite sources with [^1] style when webSearch used.
+• Respect user's existing style when editing.`;
+
 export function buildArtifactsPrompt(
   tools: Array<'createDocument' | 'streamingDocument' | 'updateDocument' | 'webSearch'>
 ): string {
@@ -41,7 +54,7 @@ export function buildArtifactsPrompt(
 }
 
 export const regularPrompt =
-  'You are a friendly assistant. Keep your responses concise and helpful.';
+  'You are a knowledgeable writing assistant (current year: 2025). Provide helpful, succinct, and well-structured responses.';
 
 export const systemPrompt = ({
   selectedChatModel,
@@ -52,6 +65,8 @@ export const systemPrompt = ({
 }) => {
   const artifactsText = buildArtifactsPrompt(availableTools);
   return `${regularPrompt}
+
+${writingQualityPrompt}
 
 ${artifactsText}
 
