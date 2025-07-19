@@ -21,13 +21,12 @@ const markdownSerializer = new MarkdownSerializer(
   { ...defaultMarkdownSerializer.nodes },
   {
     ...defaultMarkdownSerializer.marks,
-    diffMark: { open: '', close: '' }, // strip diff mark when exporting to markdown
+    diffMark: { open: '', close: '' }, 
   },
 );
 
 export const buildContentFromDocument = (doc: Node) => markdownSerializer.serialize(doc);
 
-// Find the position of text in a document
 export function findTextPosition(doc: Node, searchText: string, startPos: number = 0): number {
   let pos = startPos;
   let found = false;
@@ -45,7 +44,6 @@ export function findTextPosition(doc: Node, searchText: string, startPos: number
   return found ? pos : -1;
 }
 
-// Get text content between two positions
 export function getTextBetween(doc: Node, from: number, to: number): string {
   let text = '';
   doc.nodesBetween(from, to, node => {
@@ -57,7 +55,6 @@ export function getTextBetween(doc: Node, from: number, to: number): string {
   return text;
 }
 
-// New utility function to create diff decorations with accurate positions
 export const createDiffDecorations = (
   doc: Node,
   oldContent: string,
@@ -66,20 +63,17 @@ export const createDiffDecorations = (
 ) => {
   const decorations: Array<Decoration> = [];
   
-  // Split content into lines for more granular diffing
   const oldLines = oldContent.split('\n');
   const newLines = newContent.split('\n');
   
   let pos = 0;
   let lastMatchPos = 0;
   
-  // Process each line to find changes
   for (let i = 0; i < Math.max(oldLines.length, newLines.length); i++) {
     const oldLine = i < oldLines.length ? oldLines[i] : '';
     const newLine = i < newLines.length ? newLines[i] : '';
     
     if (oldLine !== newLine) {
-      // Find the actual position in the document where this line starts
       const lineStart = findTextPosition(doc, newLine, lastMatchPos);
       
       if (lineStart !== -1) {
@@ -87,7 +81,6 @@ export const createDiffDecorations = (
         lastMatchPos = lineEnd;
         
         if (newLine) {
-          // Added or modified content
           decorations.push(
             Decoration.inline(lineStart, lineEnd, {
               class: 'diff-add',
@@ -110,7 +103,6 @@ export const createDiffDecorations = (
         }
       }
     } else {
-      // Line matches, update position counter
       lastMatchPos = findTextPosition(doc, newLine, lastMatchPos);
       if (lastMatchPos !== -1) {
         lastMatchPos += newLine.length;
@@ -121,7 +113,6 @@ export const createDiffDecorations = (
   return DecorationSet.create(doc, decorations);
 };
 
-// Improved streaming decorations function
 export const createStreamingDecorations = (
   doc: Node,
   streamedContent: string,
@@ -129,7 +120,6 @@ export const createStreamingDecorations = (
 ) => {
   const decorations: Array<Decoration> = [];
   
-  // Find the exact position of the streamed content
   const streamStart = findTextPosition(doc, streamedContent);
   
   if (streamStart !== -1) {

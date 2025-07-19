@@ -3,8 +3,6 @@
 import { EditorState, Transaction } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 import React, { memo, useEffect, useRef, useCallback, useState } from "react";
-
-import { documentSchema, headingRule } from "@/lib/editor/config";
 import { buildContentFromDocument, buildDocumentFromContent } from "@/lib/editor/functions";
 import { setActiveEditorView } from "@/lib/editor/editor-state";
 
