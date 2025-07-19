@@ -14,6 +14,9 @@ export const metadata: Metadata = {
   title: 'Snow Leopard',
   description: 'Tab, Tab, Apply Brilliance',
   metadataBase: new URL('https://www.cursorforwrit.ing'),
+  verification: {
+    google: 'q_spHn9uTXgy715SiSp97ElF_ZbU5SxZbIUnhn6Oe8E',
+  },
   openGraph: {
     title: 'Snow Leopard',
     description: 'The most satisfying, intuitive AI writing tool, and it\'s open source.',

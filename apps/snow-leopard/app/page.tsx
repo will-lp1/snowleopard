@@ -13,7 +13,6 @@ import { motion, useInView } from "framer-motion";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import Script from 'next/script';
 import { Switch } from "@/components/ui/switch";
-import Head from 'next/head';
 
 const crimson = Crimson_Text({
   weight: ["400", "700"],
@@ -91,12 +90,8 @@ export default function Home() {
   const proIndex = 3; 
 
   return (
-    <>
-      <Head>
-        <meta name="google-site-verification" content="q_spHn9uTXgy715SiSp97ElF_ZbU5SxZbIUnhn6Oe8E" />
-      </Head>
-      <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
-        {/* Header */}
+    <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
+      {/* Header */}
       <header className="absolute top-0 w-full z-10 py-4">
         <div className="container mx-auto flex justify-between items-center px-6 md:px-8 lg:px-12">
           <h1 className="text-xl font-normal tracking-tighter text-foreground/90">
@@ -830,7 +825,6 @@ export default function Home() {
           color: hsl(var(--muted-foreground));
         }
       `}</style>
-      </div>
-    </>
+    </div>
   );
 }
