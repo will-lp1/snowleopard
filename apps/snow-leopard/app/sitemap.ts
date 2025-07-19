@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next'
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = process.env.VERCEL_URL || 'https://www.cursorforwrit.ing'
+  const baseUrl = 'https://www.cursorforwrit.ing'
   
   const staticRoutes = [
     {
