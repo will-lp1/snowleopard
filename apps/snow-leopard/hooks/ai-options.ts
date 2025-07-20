@@ -32,7 +32,7 @@ export const useAiOptions = createWithEqualityFn<AiOptionsState>()(
       customInstructions: "",
       writingSample: "",
       writingStyleSummary: "",
-      applyStyle: true,
+      applyStyle: false,
       setSuggestionLength: (length) => set({ suggestionLength: length }),
       setCustomInstructions: (instructions) =>
         set({ customInstructions: instructions }),
@@ -58,7 +58,7 @@ export const useAiOptions = createWithEqualityFn<AiOptionsState>()(
             writingSample: typeof writingSample === "string" ? writingSample : "",
             writingStyleSummary:
               typeof writingStyleSummary === "string" ? writingStyleSummary : "",
-            applyStyle: typeof applyStyle === "boolean" ? applyStyle : true,
+            applyStyle: typeof applyStyle === "boolean" ? applyStyle : false,
           });
         } catch (error) {
           console.error("Failed to sync AI options from storage:", error);

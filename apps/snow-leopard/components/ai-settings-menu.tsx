@@ -40,10 +40,10 @@ export function AiSettingsMenu() {
 
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
-  const isEditingSample = !writingStyleSummary;
 
   const { data: subscriptionData, isLoading: isSubscriptionLoading } = useSWR<{ hasActiveSubscription: boolean }>('/api/user/subscription-status', fetcher, { revalidateOnFocus: false });
   const hasSubscription = subscriptionData?.hasActiveSubscription ?? false;
+  const isEditingSample = hasSubscription && !writingStyleSummary;
   const [isPaywallOpen, setPaywallOpen] = useState(false);
 
   const handleGenerateSummary = async () => {
