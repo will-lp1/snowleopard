@@ -2,11 +2,9 @@
 
 import { defaultMarkdownSerializer, MarkdownSerializer } from 'prosemirror-markdown';
 import { DOMParser, type Node } from 'prosemirror-model';
-import { Decoration, DecorationSet, type EditorView } from 'prosemirror-view';
 import { renderToString } from 'react-dom/server';
 
 import { Markdown } from '@/components/markdown';
-
 import { documentSchema } from './config';
 
 export const buildDocumentFromContent = (content: string) => {
@@ -21,115 +19,8 @@ const markdownSerializer = new MarkdownSerializer(
   { ...defaultMarkdownSerializer.nodes },
   {
     ...defaultMarkdownSerializer.marks,
-    diffMark: { open: '', close: '' }, 
+    diffMark: { open: '', close: '' },
   },
 );
 
 export const buildContentFromDocument = (doc: Node) => markdownSerializer.serialize(doc);
-
-export function findTextPosition(doc: Node, searchText: string, startPos: number = 0): number {
-  let pos = startPos;
-  let found = false;
-  
-  doc.nodesBetween(startPos, doc.content.size, (node, nodePos) => {
-    if (found) return false;
-    if (node.isText && node.text?.includes(searchText)) {
-      pos = nodePos + node.text.indexOf(searchText);
-      found = true;
-      return false;
-    }
-    return true;
-  });
-  
-  return found ? pos : -1;
-}
-
-export function getTextBetween(doc: Node, from: number, to: number): string {
-  let text = '';
-  doc.nodesBetween(from, to, node => {
-    if (node.isText) {
-      text += node.text;
-    }
-    return true;
-  });
-  return text;
-}
-
-export const createDiffDecorations = (
-  doc: Node,
-  oldContent: string,
-  newContent: string,
-  view: EditorView
-) => {
-  const decorations: Array<Decoration> = [];
-  
-  const oldLines = oldContent.split('\n');
-  const newLines = newContent.split('\n');
-  
-  let pos = 0;
-  let lastMatchPos = 0;
-  
-  for (let i = 0; i < Math.max(oldLines.length, newLines.length); i++) {
-    const oldLine = i < oldLines.length ? oldLines[i] : '';
-    const newLine = i < newLines.length ? newLines[i] : '';
-    
-    if (oldLine !== newLine) {
-      const lineStart = findTextPosition(doc, newLine, lastMatchPos);
-      
-      if (lineStart !== -1) {
-        const lineEnd = lineStart + newLine.length;
-        lastMatchPos = lineEnd;
-        
-        if (newLine) {
-          decorations.push(
-            Decoration.inline(lineStart, lineEnd, {
-              class: 'diff-add',
-              style: 'background-color: rgba(74, 222, 128, 0.2); transition: background-color 0.3s ease;'
-            })
-          );
-        }
-        
-        if (oldLine) {
-          // Find position of removed content
-          const removedStart = findTextPosition(doc, oldLine, pos);
-          if (removedStart !== -1) {
-            decorations.push(
-              Decoration.inline(removedStart, removedStart + oldLine.length, {
-                class: 'diff-remove',
-                style: 'background-color: rgba(248, 113, 113, 0.2); text-decoration: line-through; transition: all 0.3s ease;'
-              })
-            );
-          }
-        }
-      }
-    } else {
-      lastMatchPos = findTextPosition(doc, newLine, lastMatchPos);
-      if (lastMatchPos !== -1) {
-        lastMatchPos += newLine.length;
-      }
-    }
-  }
-  
-  return DecorationSet.create(doc, decorations);
-};
-
-export const createStreamingDecorations = (
-  doc: Node,
-  streamedContent: string,
-  view: EditorView
-) => {
-  const decorations: Array<Decoration> = [];
-  
-  const streamStart = findTextPosition(doc, streamedContent);
-  
-  if (streamStart !== -1) {
-    decorations.push(
-      Decoration.inline(streamStart, streamStart + streamedContent.length, {
-        class: 'streaming-content',
-        style: 'background-color: rgba(74, 222, 128, 0.1); transition: background-color 0.3s ease;'
-      })
-    );
-  }
-  
-  return DecorationSet.create(doc, decorations);
-};
