@@ -20,7 +20,108 @@ export const SET_SUGGESTION = 'setSuggestion';
 export const CLEAR_SUGGESTION = 'clearSuggestion';
 export const FINISH_SUGGESTION_LOADING = 'finishSuggestionLoading';
 
-export function inlineSuggestionPlugin(options: { requestSuggestion: (state: EditorState) => void }): Plugin<InlineSuggestionState> {
+export function createInlineSuggestionCallback(documentId: string) {
+  return async (state: EditorState, abortControllerRef: React.MutableRefObject<AbortController | null>, editorRef: React.MutableRefObject<EditorView | null>) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    try {
+      const { selection } = state;
+      const { head } = selection;
+
+      const $head = state.doc.resolve(head);
+      const startOfNode = $head.start();
+      const contextBefore = state.doc.textBetween(startOfNode, head, "\n");
+      const endOfNode = $head.end();
+      const contextAfter = state.doc.textBetween(head, endOfNode, "\n");
+      const fullContent = state.doc.textContent;
+
+      const response = await fetch("/api/inline-suggestion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          documentId,
+          contextBefore,
+          contextAfter,
+          fullContent,
+          nodeType: "paragraph",
+        }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok || !response.body) {
+        throw new Error(`API error: ${response.statusText}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulatedSuggestion = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done || controller.signal.aborted) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split("\n\n");
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(line.slice(5));
+              if (data.type === "suggestion-delta") {
+                accumulatedSuggestion += data.content;
+                if (editorRef.current) {
+                  editorRef.current.dispatch(
+                    editorRef.current.state.tr.setMeta(SET_SUGGESTION, {
+                      text: accumulatedSuggestion,
+                    })
+                  );
+                }
+              } else if (data.type === "error") {
+                throw new Error(data.content);
+              } else if (data.type === "finish") {
+                break;
+              }
+            } catch (err) {
+              console.warn("Error parsing SSE line:", line, err);
+            }
+          }
+        }
+      }
+      
+      if (!controller.signal.aborted && editorRef.current) {
+        editorRef.current.dispatch(
+          editorRef.current.state.tr.setMeta(FINISH_SUGGESTION_LOADING, true)
+        );
+      } else if (controller.signal.aborted) {
+        if (editorRef.current) {
+          editorRef.current.dispatch(
+            editorRef.current.state.tr.setMeta(CLEAR_SUGGESTION, true)
+          );
+        }
+      }
+    } catch (error: any) {
+      if (error.name !== "AbortError") {
+        console.error("Error fetching inline suggestion:", error);
+        if (editorRef.current) {
+          editorRef.current.dispatch(
+            editorRef.current.state.tr.setMeta(CLEAR_SUGGESTION, true)
+          );
+        }
+      }
+    } finally {
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+      }
+    }
+  };
+}
+
+export function inlineSuggestionPlugin(options: { requestSuggestion?: (state: EditorState) => void }): Plugin<InlineSuggestionState> {
   return new Plugin<InlineSuggestionState>({
     key: inlineSuggestionPluginKey,
     state: {
@@ -148,7 +249,7 @@ export function inlineSuggestionPlugin(options: { requestSuggestion: (state: Edi
           }
           event.preventDefault();
           view.dispatch(view.state.tr.setMeta(START_SUGGESTION_LOADING, true));
-          options.requestSuggestion(view.state);
+          options.requestSuggestion?.(view.state);
           return true;
         }
 

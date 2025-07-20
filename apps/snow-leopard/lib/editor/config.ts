@@ -2,12 +2,8 @@ import { textblockTypeInputRule } from 'prosemirror-inputrules';
 import { Schema } from 'prosemirror-model';
 import { schema } from 'prosemirror-schema-basic';
 import { addListNodes } from 'prosemirror-schema-list';
-import type { Transaction } from 'prosemirror-state';
-import type { EditorView } from 'prosemirror-view';
-import type { MutableRefObject } from 'react';
 import OrderedMap from 'orderedmap';
 import { DiffType } from './diff';
-
 import { buildContentFromDocument } from './functions';
 
 const diffMarkSpec = {
@@ -43,28 +39,3 @@ export function headingRule(level: number) {
     () => ({ level }),
   );
 }
-
-export const handleTransaction = ({
-  transaction,
-  editorRef,
-  onSaveContent,
-}: {
-  transaction: Transaction;
-  editorRef: MutableRefObject<EditorView | null>;
-  onSaveContent: (updatedContent: string, debounce: boolean) => void;
-}) => {
-  if (!editorRef || !editorRef.current) return;
-
-  const newState = editorRef.current.state.apply(transaction);
-  editorRef.current.updateState(newState);
-
-  if (transaction.docChanged && !transaction.getMeta('no-save')) {
-    const updatedContent = buildContentFromDocument(newState.doc);
-
-    if (transaction.getMeta('no-debounce')) {
-      onSaveContent(updatedContent, false);
-    } else {
-      onSaveContent(updatedContent, true);
-    }
-  }
-};
