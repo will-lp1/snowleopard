@@ -1,5 +1,6 @@
 import { Plugin, PluginKey, EditorState, Transaction } from 'prosemirror-state';
 import { Decoration, DecorationSet, EditorView } from 'prosemirror-view';
+import { InlineTranslationOptions } from 'gt-next/types';
 
 export interface InlineSuggestionState {
   suggestionText: string | null;
@@ -121,7 +122,7 @@ export function createInlineSuggestionCallback(documentId: string) {
   };
 }
 
-export function inlineSuggestionPlugin(options: { requestSuggestion?: (state: EditorState) => void }): Plugin<InlineSuggestionState> {
+export function inlineSuggestionPlugin(options: { requestSuggestion?: (state: EditorState) => void; t?: (content: string, options?: InlineTranslationOptions) => string }): Plugin<InlineSuggestionState> {
   return new Plugin<InlineSuggestionState>({
     key: inlineSuggestionPluginKey,
     state: {
@@ -213,7 +214,7 @@ export function inlineSuggestionPlugin(options: { requestSuggestion?: (state: Ed
               const kbd = document.createElement('kbd');
               kbd.className = 'inline-tab-icon';
               kbd.style.marginLeft = '0.25em';
-              kbd.textContent = 'Tab';
+              kbd.textContent = options.t ? options.t('Tab') : 'Tab';
               wrapper.appendChild(kbd);
 
               return wrapper;

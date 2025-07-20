@@ -1,16 +1,18 @@
 import { NextResponse } from 'next/server';
 import { streamText } from 'ai';
 import { myProvider } from '@/lib/ai/providers';
+import { getGT } from 'gt-next/server';
 
 export const maxDuration = 30;
 
 export async function POST(request: Request) {
   try {
+    const t = await getGT();
     const { sampleText } = await request.json();
 
     if (typeof sampleText !== 'string' || sampleText.trim().length < 200) {
       return NextResponse.json(
-        { error: 'Please provide at least ~200 characters of sample text.' },
+        { error: t('Please provide at least ~200 characters of sample text.') },
         { status: 400 }
       );
     }
@@ -35,8 +37,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ summary: summary.trim() });
   } catch (error: any) {
     console.error('[user-style] Error:', error);
+    const t = await getGT();
     return NextResponse.json(
-      { error: error.message || 'Failed to analyse style.' },
+      { error: error.message || t('Failed to analyse style.') },
       { status: 500 }
     );
   }

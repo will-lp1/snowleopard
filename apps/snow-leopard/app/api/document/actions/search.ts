@@ -5,6 +5,7 @@ import {
   getCurrentDocumentByTitle, 
   getDocumentById 
 } from '@/lib/db/queries'; // Import Drizzle queries
+import { getGT } from 'gt-next/server';
 
 /**
  * Gets a file by path - attempts to match ID first, then title.
@@ -97,11 +98,14 @@ export async function searchDocuments({
       query: query, 
       limit: limit 
     });
+    
+    // Get translation function
+    const t = await getGT();
         
     // Format results for the mention UI (same logic)
     const results = documents?.map(doc => ({
       id: doc.id,
-      title: doc.title || 'Untitled Document',
+      title: doc.title || t('Untitled Document'),
       type: 'document' // Assuming a type identifier is needed
     })) || [];
     

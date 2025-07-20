@@ -5,6 +5,7 @@ import { artifactKinds } from '@/lib/artifacts/server';
 import { saveDocument } from '@/lib/db/queries';
 import { generateUUID } from '@/lib/utils';
 import type { ArtifactKind } from '@/components/artifact';
+import { getGT } from 'gt-next/server';
 
 interface CreateDocumentProps {
   session: Session;
@@ -44,7 +45,8 @@ export const createDocument = ({ session, dataStream }: CreateDocumentProps) =>
         // Signal that creation is finished
         dataStream.writeData({ type: 'finish', content: '' });
 
-        return { content: 'New document created.' };
+        const t = await getGT();
+        return { content: t('New document created.') };
       } catch (error: any) {
         console.error('[AI Tool] Failed to create document:', error);
         throw new Error(`Failed to create document: ${error.message || error}`);

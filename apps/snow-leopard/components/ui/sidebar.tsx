@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useGT, T } from "gt-next";
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
@@ -61,9 +62,10 @@ const SidebarInnerContext = createContext<"left" | "right" | null>(null);
 function useSidebar() {
   const context = useContext(SidebarContext);
   const side = useContext(SidebarInnerContext);
+  const t = useGT();
 
   if (!context) {
-    throw new Error("useSidebar must be used within a SidebarProvider.");
+    throw new Error(t("useSidebar must be used within a SidebarProvider."));
   }
 
   const currentSide = side || "left";
@@ -77,9 +79,10 @@ function useSidebar() {
 
 function useSidebarWithSide(side: "left" | "right") {
   const context = useContext(SidebarContext);
+  const t = useGT();
 
   if (!context) {
-    throw new Error("useSidebar must be used within a SidebarProvider.");
+    throw new Error(t("useSidebar must be used within a SidebarProvider."));
   }
 
   return {
@@ -260,9 +263,10 @@ function Sidebar({
   collapsible?: "offcanvas" | "icon" | "none";
 }) {
   const context = useContext(SidebarContext);
+  const t = useGT();
 
   if (!context) {
-    throw new Error("Sidebar must be used within a SidebarProvider.");
+    throw new Error(t("Sidebar must be used within a SidebarProvider."));
   }
 
   const { state, openMobile, setOpenMobile } = context[side];
@@ -303,8 +307,8 @@ function Sidebar({
             side={side}
           >
             <SheetHeader className="sr-only">
-              <SheetTitle>Sidebar</SheetTitle>
-              <SheetDescription>Displays the mobile sidebar.</SheetDescription>
+              <SheetTitle><T>Sidebar</T></SheetTitle>
+              <SheetDescription><T>Displays the mobile sidebar.</T></SheetDescription>
             </SheetHeader>
             <div className="flex h-full w-full flex-col">{children}</div>
           </SheetContent>
@@ -397,22 +401,23 @@ function SidebarTrigger({
           "rotate-180": targetSide === "right",
         })}
       />
-      <span className="sr-only">Toggle Sidebar</span>
+      <span className="sr-only"><T>Toggle Sidebar</T></span>
     </Button>
   );
 }
 
 function SidebarRail({ className, ...props }: ComponentProps<"button">) {
   const { toggleSidebar } = useSidebar();
+  const t = useGT();
 
   return (
     <button
       data-sidebar="rail"
       data-slot="sidebar-rail"
-      aria-label="Toggle Sidebar"
+      aria-label={t("Toggle Sidebar")}
       tabIndex={-1}
       onClick={toggleSidebar}
-      title="Toggle Sidebar"
+      title={t("Toggle Sidebar")}
       className={cn(
         "absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear group-data-[side=left]:-right-4 group-data-[side=right]:left-0 after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] hover:after:bg-sidebar-border sm:flex",
         "in-data-[side=left]:cursor-w-resize in-data-[side=right]:cursor-e-resize",

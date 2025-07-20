@@ -5,6 +5,7 @@ import {
   artifactKinds,
   documentHandlersByArtifactKind,
 } from '@/lib/artifacts/server';
+import { getGT } from 'gt-next/server';
 
 interface CreateDocumentProps {
   session: Session;
@@ -39,8 +40,9 @@ export const streamingDocument = ({ session, dataStream }: CreateDocumentProps) 
       
       dataStream.writeData({ type: 'finish', content: '' });
 
+      const t = await getGT();
       return {
-        content: 'Content generation streamed.',
+        content: t('Content generation streamed.'),
       };
     },
   });

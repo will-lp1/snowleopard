@@ -14,6 +14,7 @@ import {
   TooltipProvider,
 } from "@/components/ui/tooltip";
 import { DiffView } from "@/components/document/diffview";
+import { T, useGT } from "gt-next";
 
 export interface HighlightedTextProps {
   text: string;
@@ -64,6 +65,7 @@ export default function SuggestionOverlay({
   const eventSourceRef = useRef<EventSource | null>(null);
   const { customInstructions, writingStyleSummary, applyStyle } = useAiOptionsValue();
   const { setSuggestionIsLoading } = useSuggestionOverlay();
+  const t = useGT();
 
   // Effect to inform provider about loading state changes
   useEffect(() => {
@@ -265,13 +267,13 @@ export default function SuggestionOverlay({
   const handleSubmitPrompt = useCallback(
     async (prompt: string) => {
       if (!documentId) {
-        toast.error("No document is currently open");
+        toast.error(t("No document is currently open"));
         return;
       }
 
       // Don't proceed if no text was selected for suggestion context
       if (!selectedText || selectedText.trim() === "") {
-        toast.warning("Please select text to generate a suggestion for");
+        toast.warning(t("Please select text to generate a suggestion for"));
         return;
       }
 
@@ -318,7 +320,7 @@ export default function SuggestionOverlay({
 
         eventSource.onerror = (event) => {
           console.error("EventSource error:", event);
-          setError("Error connecting to suggestion service. Please try again.");
+          setError(t("Error connecting to suggestion service. Please try again."));
           setIsGenerating(false);
           eventSource.close();
           eventSourceRef.current = null;
@@ -364,7 +366,7 @@ export default function SuggestionOverlay({
             }
           } catch (err) {
             console.error("Error parsing event data:", event.data, err);
-            setError("Error processing suggestion. Please try again.");
+            setError(t("Error processing suggestion. Please try again."));
             setIsGenerating(false);
             eventSource.close();
             eventSourceRef.current = null;
@@ -372,11 +374,11 @@ export default function SuggestionOverlay({
         };
       } catch (err) {
         console.error("Error setting up EventSource:", err);
-        setError("Failed to connect to suggestion service. Please try again.");
+        setError(t("Failed to connect to suggestion service. Please try again."));
         setIsGenerating(false);
       }
     },
-    [documentId, selectedText, customInstructions, writingStyleSummary, applyStyle]
+    [documentId, selectedText, customInstructions, writingStyleSummary, applyStyle, t]
   );
 
   const handleSubmit = useCallback(
@@ -424,7 +426,9 @@ export default function SuggestionOverlay({
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2 drag-handle cursor-move">
                 <GripVertical size={14} className="text-muted-foreground" />
-                <h3 className="text-sm font-medium">Suggestion</h3>
+                <T>
+                  <h3 className="text-sm font-medium">Suggestion</h3>
+                </T>
               </div>
               <TooltipProvider>
                 <Tooltip>
@@ -438,7 +442,9 @@ export default function SuggestionOverlay({
                     </button>
                   </TooltipTrigger>
                   <TooltipContent side="top">
-                    <span className="text-xs">⌘+Backspace</span>
+                    <T>
+                      <span className="text-xs">⌘+Backspace</span>
+                    </T>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -453,7 +459,7 @@ export default function SuggestionOverlay({
                 >
                   <span className="truncate">
                     {isSelectionExpanded
-                      ? "Selected Text"
+                      ? t("Selected Text")
                       : truncateText(selectedText)}
                   </span>
                   <ChevronDown
@@ -478,8 +484,8 @@ export default function SuggestionOverlay({
                 type="text"
                 placeholder={
                   selectedText
-                    ? "Describe what changes you'd like to make..."
-                    : "Select text first..."
+                    ? t("Describe what changes you'd like to make...")
+                    : t("Select text first...")
                 }
                 className="w-full p-2 rounded-md border border-input text-sm bg-transparent outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 value={inputValue}
@@ -521,11 +527,15 @@ export default function SuggestionOverlay({
                             className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:text-destructive"
                           >
                             <X size={13} strokeWidth={2.5} />
-                            <span className="text-xs">Reject</span>
+                            <T>
+                              <span className="text-xs">Reject</span>
+                            </T>
                           </button>
                         </TooltipTrigger>
                         <TooltipContent side="top">
-                          <span className="text-xs">⌘+Backspace</span>
+                          <T>
+                            <span className="text-xs">⌘+Backspace</span>
+                          </T>
                         </TooltipContent>
                       </Tooltip>
                       <Tooltip>
@@ -535,11 +545,15 @@ export default function SuggestionOverlay({
                             className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:text-primary"
                           >
                             <Check size={13} strokeWidth={2.5} />
-                            <span className="text-xs">Accept</span>
+                            <T>
+                              <span className="text-xs">Accept</span>
+                            </T>
                           </button>
                         </TooltipTrigger>
                         <TooltipContent side="top">
-                          <span className="text-xs">⌘+Enter</span>
+                          <T>
+                            <span className="text-xs">⌘+Enter</span>
+                          </T>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
@@ -551,7 +565,9 @@ export default function SuggestionOverlay({
                   <div className="flex justify-center items-center p-2 border-t bg-background/50">
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Loader2 className="h-3 w-3 animate-spin" />
-                      <span>Generating suggestion...</span>
+                      <T>
+                        <span>Generating suggestion...</span>
+                      </T>
                     </div>
                   </div>
                 )}

@@ -20,6 +20,7 @@ import { ArtifactActions } from './artifact-actions';
 import { useArtifact } from '@/hooks/use-artifact';
 import { textArtifact } from '@/artifacts/text/client';
 import equal from 'fast-deep-equal';
+import { useGT, T } from 'gt-next';
 import { UseChatHelpers } from '@ai-sdk/react';
 import { Button } from './ui/button';
 import { CheckIcon } from './icons';
@@ -107,6 +108,7 @@ export function PureArtifact({
   reload: UseChatHelpers['reload'];
   isReadonly: boolean;
 }) {
+  const t = useGT();
   const { artifact, setArtifact, metadata, setMetadata } = useArtifact();
   const { renameDocument, isRenamingDocument, createDocument } = useDocumentUtils();
   
@@ -144,7 +146,7 @@ export function PureArtifact({
   const createNewDocument = useCallback(async () => {
     // Use the centralized document creation function
     return await createDocument({
-      title: 'Untitled Document',
+      title: t('Untitled Document'),
       content: '',
       kind: 'text',
       chatId: chatId || null,
@@ -157,7 +159,7 @@ export function PureArtifact({
     if (!documents || documents.length === 0) {
       if (documentsError) {
         console.error('[Artifact] Error loading documents:', documentsError);
-        toast.error('Failed to load document');
+        toast.error(t('Failed to load document'));
       }
       return;
     }
@@ -195,7 +197,7 @@ export function PureArtifact({
       // If we don't have a document yet but have content, create a new document
       if (content && content.trim() !== '') {
         await createDocument({
-          title: 'Untitled Document',
+          title: t('Untitled Document'),
           content: content,
           kind: 'text',
           chatId: chatId || null,
@@ -240,7 +242,7 @@ export function PureArtifact({
       setSaveState('error');
       setLastSaveError(error instanceof Error ? error.message : 'Unknown error occurred');
       consecutiveErrorsRef.current++;
-      toast.error('Failed to save document. Please try again.');
+      toast.error(t('Failed to save document. Please try again.'));
     }
   }, [artifact?.documentId, artifact?.title, artifact?.kind, mutateDocuments, createDocument, chatId]);
 
@@ -330,13 +332,13 @@ export function PureArtifact({
     if (saveState === 'error') {
       return (
         <span className="text-destructive" title={lastSaveError || undefined}>
-          Save failed - Click to retry
+          <T>Save failed - Click to retry</T>
         </span>
       );
     }
     
     if (artifact.documentId === 'init') {
-      return "Start typing to create";
+      return t("Start typing to create");
     }
     
     return document ? (
@@ -365,7 +367,7 @@ export function PureArtifact({
   // Function to handle saving the document title
   const handleSaveTitle = async () => {
     if (!newTitle.trim()) {
-      toast.error('Please enter a document title');
+      toast.error(t('Please enter a document title'));
       return;
     }
     
