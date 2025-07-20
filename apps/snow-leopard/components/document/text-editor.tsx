@@ -343,6 +343,49 @@ function PureEditor({
           max-width: 720px;
           margin: 0 auto;
         }
+
+        /* --- Synonym plugin styles (hover with Shift) --- */
+        div.ProseMirror { position: relative; }
+
+        .synonym-word { display: inline; }
+        .synonym-word.synonym-loading { position: relative; display: inline-block; }
+
+        .synonym-overlay-menu {
+          background: #282c34;
+          color: #fff;
+          border: none;
+          padding: 4px;
+          border-radius: 4px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+          display: flex;
+          gap: 4px;
+          z-index: 10000;
+        }
+
+        .synonym-overlay-menu .synonym-option {
+          background: none;
+          border: none;
+          padding: 2px 6px;
+          cursor: pointer;
+          font: inherit;
+          color: inherit;
+          border-radius: 3px;
+        }
+
+        .synonym-overlay-menu .synonym-option:hover {
+          background: rgba(255,255,255,0.1);
+        }
+
+        /* Loading overlay on the word while fetching synonyms */
+        .synonym-loading::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background-color: rgba(100,100,100,0.2);
+          border-radius: 2px;
+          pointer-events: none;
+          z-index: 1;
+        }
       `}</style>
     </>
   );
