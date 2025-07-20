@@ -23,10 +23,16 @@ interface SavePluginOptions {
   documentId: string; 
 }
 
+export const INVALID_DOCUMENT_IDS = ["init", "undefined", "null"] as const;
+
+export function isInvalidDocumentId(docId?: string | null): boolean {
+  return !docId || INVALID_DOCUMENT_IDS.includes(docId as typeof INVALID_DOCUMENT_IDS[number]);
+}
+
 export function createSaveFunction(currentDocumentIdRef: React.MutableRefObject<string>) {
   return async (contentToSave: string): Promise<{ updatedAt: string | Date } | null> => {
     const docId = currentDocumentIdRef.current;
-    if (!docId || docId === "init" || docId === "undefined" || docId === "null") {
+    if (isInvalidDocumentId(docId)) {
       console.warn("[Save Function] Attempted to save with invalid or init documentId:", docId);
       throw new Error("Cannot save with invalid or initial document ID.");
     }
@@ -210,7 +216,7 @@ export function createForceSaveHandler(currentDocumentIdRef: React.MutableRefObj
     const forceSaveDocId = event.detail.documentId;
     const currentEditorPropId = currentDocumentIdRef.current;
 
-    if (forceSaveDocId !== currentEditorPropId || currentEditorPropId === "init") {
+    if (forceSaveDocId !== currentEditorPropId || isInvalidDocumentId(currentEditorPropId)) {
       return;
     }
 
