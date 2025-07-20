@@ -5,7 +5,6 @@ import { getDocumentById } from '@/lib/db/queries';
 import { myProvider } from '@/lib/ai/providers';
 
 interface UpdateDocumentProps {
-  // Session is currently not used by this tool, but we keep it for future ACL needs.
   session: Session;
   documentId?: string;
 }
@@ -22,7 +21,6 @@ export const updateDocument = ({ session: _session, documentId: defaultDocumentI
       const documentId = defaultDocumentId;
 
       try {
-        // --- Validation ---
         if (!description.trim()) {
           return { error: 'No update description provided.' };
         }
@@ -47,17 +45,14 @@ export const updateDocument = ({ session: _session, documentId: defaultDocumentI
         }
         const originalContent = document.content || '';
 
-        // Generate full replacement content.  Encourage the model to perform the *smallest* possible change set so that our diff visualisation remains concise.
         const prompt = `You are an expert editor. Here is the ORIGINAL document:\n\n${originalContent}\n\n---\n\nTASK: Apply the following edits.\n- Make only the minimal changes required to satisfy the description.\n- Keep paragraphs, sentences, and words that do **not** need to change exactly as they are.\n- Do **not** paraphrase or re-flow content unless strictly necessary.\n- Preserve existing formatting and line breaks.\n\nReturn ONLY the updated document with no additional commentary.\n\nDESCRIPTION: "${description}"`;
 
         const { text: newContent } = await generateText({
           model: myProvider.languageModel('artifact-model'),
           prompt,
-          // Asking for lower temperature for deterministic updates.
           temperature: 0.2,
         });
 
-        // --- Return Result with Both Contents ---
         return {
           id: documentId,
           title: document.title,
@@ -70,7 +65,6 @@ export const updateDocument = ({ session: _session, documentId: defaultDocumentI
       } catch (error: any) {
         console.error('[AI Tool] updateDocument failed:', error);
         const errorMessage = error instanceof Error ? error.message : String(error);
-        // No dataStream to write to, just return error
         return {
           error: 'Failed to generate document update: ' + errorMessage,
         };

@@ -35,9 +35,6 @@ import { webSearch } from '@/lib/ai/tools/web-search';
 
 export const maxDuration = 60;
 
-/**
- * Creates an enhanced system prompt that includes active and mentioned document content
- */
 async function createEnhancedSystemPrompt({
   selectedChatModel,
   activeDocumentId,
