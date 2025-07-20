@@ -21,6 +21,8 @@ import { SidebarTrigger } from '@/components/ui/sidebar';
 import type { SaveState } from '@/lib/editor/save-plugin';
 import type { User } from '@/lib/auth';
 import { PublishSettingsMenu } from '@/components/publish-settings-menu';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const Editor = dynamic(() => import('@/components/document/text-editor').then(mod => mod.Editor), {
   ssr: false,
@@ -311,40 +313,50 @@ export function AlwaysVisibleArtifact({
   if (showCreateDocumentForId) {
     return (
       <div className="flex flex-col h-dvh bg-background">
-         <div className="flex flex-row justify-between items-center border-b px-3 h-[45px]">
-           <div className="flex flex-row gap-2 items-center min-w-0">
-             <SidebarTrigger />
-             <div className="font-medium truncate h-6 leading-6 px-1">Document Not Found</div>
-           </div>
-         </div>
-         <div className="flex flex-col justify-center items-center h-full gap-4 text-muted-foreground">
-            <FileText className="size-16 opacity-50" />
-            <div className="text-center">
-              <h3 className="text-lg font-medium mb-1">Create New Document?</h3>
-              <p className="text-sm mb-1">Document ID <code className="text-xs bg-muted p-1 rounded">{showCreateDocumentForId}</code> not found.</p>
-              <p className="text-sm mb-4">Would you like to create it?</p>
+        <div className="flex justify-between items-center border-b px-3 h-[45px]">
+          <SidebarTrigger />
+        </div>
+
+        <div className="flex flex-col items-center justify-center h-full gap-8 px-4 text-muted-foreground">
+          {/* Mini preview card */}
+          <Card className="w-44 h-32 sm:w-52 sm:h-36 md:w-56 md:h-40 border border-border shadow-sm overflow-hidden bg-background">
+            <div className="h-5 bg-muted flex items-center px-2 text-[9px] text-muted-foreground/80 font-mono gap-1">
+              <Skeleton className="h-2.5 w-3/5" />
             </div>
-            <div className="flex gap-3">
-              <Button
-                onClick={() => handleCreateDocumentWithId(showCreateDocumentForId)}
-                variant="default"
-                className="gap-2"
-                disabled={isCreatingDocument}
-              >
-                {isCreatingDocument ?
-                  <Loader2 className="h-4 w-4 animate-spin" /> :
-                  <PlusIcon className="h-4 w-4" />}
-                Create Document
-              </Button>
-              <Button
-                variant="outline"
-                className="gap-2"
-                onClick={() => router.push('/documents')}
-              >
-                Cancel
-              </Button>
+            <div className="p-3 space-y-1">
+              <Skeleton className="h-2.5 w-2/3" />
+              <Skeleton className="h-2.5 w-full" />
+              <Skeleton className="h-2.5 w-5/6" />
             </div>
-         </div>
+          </Card>
+
+          {/* Heading + description */}
+          <div className="text-center">
+            <h3 className="text-lg font-medium mb-1 text-foreground ">Document Not Found</h3>
+            <p className="text-sm">Create a new document?</p>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex flex-col gap-4 w-full max-w-md">
+            <Button
+              size="sm"
+              variant="default"
+              className="w-full"
+              onClick={() => handleCreateDocumentWithId(showCreateDocumentForId)}
+              disabled={isCreatingDocument}
+            >
+              {isCreatingDocument ? <Loader2 className="size-4 animate-spin mx-auto" /> : 'Create Document'}
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full"
+              size="sm"
+              onClick={() => router.push('/documents')}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }
