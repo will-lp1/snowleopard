@@ -34,6 +34,11 @@ export const metadata: Metadata = {
       },
     ],
   },
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon.ico',
+    apple: '/favicon.ico',
+  },
 };
 
 export const viewport = {
@@ -76,7 +81,6 @@ export default async function RootLayout({
             __html: THEME_COLOR_SCRIPT,
           }}
         />
-        <link rel="icon" href="/favicon.ico" />
       </head>
       <body className="antialiased">
         <ThemeProvider
