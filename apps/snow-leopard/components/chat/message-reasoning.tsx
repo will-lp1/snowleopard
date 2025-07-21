@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ChevronDownIcon, LoaderIcon } from '../icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Markdown } from '../markdown';
+import { T } from 'gt-next';
 
 interface MessageReasoningProps {
   isLoading: boolean;
@@ -35,14 +36,18 @@ export function MessageReasoning({
     <div className="flex flex-col">
       {isLoading ? (
         <div className="flex flex-row gap-2 items-center">
-          <div className="font-medium">Reasoning</div>
+          <T>
+            <div className="font-medium">Reasoning</div>
+          </T>
           <div className="animate-spin">
             <LoaderIcon />
           </div>
         </div>
       ) : (
         <div className="flex flex-row gap-2 items-center">
-          <div className="font-medium">Reasoned for a few seconds</div>
+          <T>
+            <div className="font-medium">Reasoned for a few seconds</div>
+          </T>
           <button
             data-testid="message-reasoning-toggle"
             type="button"

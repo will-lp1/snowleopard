@@ -7,45 +7,51 @@ import { SuggestionOverlayProvider } from '@/components/suggestion-overlay-provi
 import { DocumentProvider } from '@/hooks/use-document-context';
 import { CSPostHogProvider } from '@/providers/posthog-provider';
 import { PostHogPageView } from '@/providers/posthog-pageview';
-import { Analytics } from "@vercel/analytics/react"
+import { Analytics } from "@vercel/analytics/react";
 import MobileWarning from '@/components/mobile-warning';
+import { getLocale, getGT } from "gt-next/server";
+import { GTProvider } from "gt-next";
 
-export const metadata: Metadata = {
-  title: 'Snow Leopard',
-  description: 'Tab, Tab, Apply Brilliance',
-  metadataBase: new URL('https://www.cursorforwrit.ing'),
-  verification: {
-    google: 'q_spHn9uTXgy715SiSp97ElF_ZbU5SxZbIUnhn6Oe8E',
-  },
-  openGraph: {
-    title: 'Snow Leopard',
-    description: 'The most satisfying, intuitive AI writing tool, and it\'s open source.',
-    url: 'https://www.cursorforwrit.ing',
-    siteName: 'snowleopard',
-    locale: 'en_US',
-    type: 'website',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Snow Leopard',
-    description: 'The most satisfying, intuitive AI writing tool, and it\'s open source.',
-    creator: '@wlovedaypowell',
-    images: [
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getGT();
+  
+  return {
+    title: t('Snow Leopard'),
+    description: t('Tab, Tab, Apply Brilliance'),
+    metadataBase: new URL('https://www.cursorforwrit.ing'),
+    verification: {
+      google: 'q_spHn9uTXgy715SiSp97ElF_ZbU5SxZbIUnhn6Oe8E'
+    },
+    openGraph: {
+      title: t('Snow Leopard'),
+      description: t('The most satisfying, intuitive AI writing tool, and it\'s open source.'),
+      url: 'https://www.cursorforwrit.ing',
+      siteName: 'snowleopard',
+      locale: 'en_US',
+      type: 'website'
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: t('Snow Leopard'),
+      description: t('The most satisfying, intuitive AI writing tool, and it\'s open source.'),
+      creator: '@wlovedaypowell',
+      images: [
       {
         url: '/api/og',
-        alt: 'Snow Leopard - Tab, Tab, Apply Brilliance',
-      },
-    ],
-  },
-  icons: {
-    icon: '/favicon.ico',
-    shortcut: '/favicon.ico',
-    apple: '/favicon.ico',
-  },
-};
+        alt: t('Snow Leopard - Tab, Tab, Apply Brilliance')
+      }]
+
+    },
+    icons: {
+      icon: '/favicon.ico',
+      shortcut: '/favicon.ico',
+      apple: '/favicon.ico'
+    }
+  };
+}
 
 export const viewport = {
-  maximumScale: 1, 
+  maximumScale: 1
 };
 
 const LIGHT_THEME_COLOR = 'hsl(0 0% 100%)';
@@ -69,29 +75,29 @@ const THEME_COLOR_SCRIPT = `\
 })();`;
 
 export default async function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+  children
+
+
+}: Readonly<{children: React.ReactNode;}>) {
   return (
-    <html
-      lang="en"
-      suppressHydrationWarning
-    >
+  <html
+
+    suppressHydrationWarning lang={await getLocale()}>
+
       <head>
         <script
-          dangerouslySetInnerHTML={{
-            __html: THEME_COLOR_SCRIPT,
-          }}
-        />
+        dangerouslySetInnerHTML={{
+          __html: THEME_COLOR_SCRIPT
+        }} />
+
       </head>
-      <body className="antialiased">
+      <body className="antialiased"><GTProvider>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
-          disableTransitionOnChange
-        >
+          disableTransitionOnChange>
+
           <SuggestionOverlayProvider>
             <CSPostHogProvider>
               <PostHogPageView />
@@ -108,7 +114,7 @@ export default async function RootLayout({
             </CSPostHogProvider>
           </SuggestionOverlayProvider>
         </ThemeProvider>
-      </body>
+      </GTProvider></body>
     </html>
   );
 }

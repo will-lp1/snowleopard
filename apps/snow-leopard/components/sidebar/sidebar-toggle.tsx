@@ -6,6 +6,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useGT } from 'gt-next';
 
 import { SidebarLeftIcon } from '../icons';
 import { Button } from '../ui/button';
@@ -14,6 +15,7 @@ export function SidebarToggle({
   className,
 }: ComponentProps<typeof SidebarTrigger>) {
   const { toggleSidebar } = useSidebar();
+  const t = useGT();
 
   return (
     <Tooltip>
@@ -26,7 +28,7 @@ export function SidebarToggle({
           <SidebarLeftIcon size={16} />
         </Button>
       </TooltipTrigger>
-      <TooltipContent align="start">Toggle Sidebar</TooltipContent>
+      <TooltipContent align="start">{t('Toggle Sidebar')}</TooltipContent>
     </Tooltip>
   );
 }

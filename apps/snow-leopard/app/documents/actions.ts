@@ -9,6 +9,7 @@ import {
 } from '@/lib/db/queries';
 import { myProvider } from '@/lib/ai/providers';
 import { ArtifactKind } from '@/components/artifact';
+import { getGT } from 'gt-next/server';
 
 export async function generateDocumentTitleFromContent({
   content,
@@ -42,7 +43,8 @@ export async function updateDocumentContent({
   if (!document) {
     console.error(`[Action] updateDocumentContent: Document with ID ${id} not found.`);
     // Optionally throw an error or handle differently
-    throw new Error(`Document not found: ${id}`); 
+    const t = await getGT();
+    throw new Error(t('Document not found: {id}', { id })); 
   }
   
   // Now document is guaranteed to be non-null

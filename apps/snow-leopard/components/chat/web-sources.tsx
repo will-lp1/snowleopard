@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { LoaderIcon, SparklesIcon } from '@/components/icons';
 import { Button } from '@/components/ui/button';
+import { T, Var, useGT } from 'gt-next';
 
 interface WebSearchCallProps {
   args: { query: string };
@@ -15,7 +16,9 @@ export function WebSearchCall({ args }: WebSearchCallProps) {
         <SparklesIcon size={16} />
       </div>
       <div className="flex-grow text-foreground">
-        Searching web for &quot;{args.query}&quot;...
+        <T>
+          Searching web for &quot;<Var>{args.query}</Var>&quot;...
+        </T>
       </div>
       <div className="animate-spin text-muted-foreground flex-shrink-0">
         <LoaderIcon size={16} />
@@ -32,6 +35,7 @@ interface WebSearchResultProps {
 export function WebSearchResult({ args, result }: WebSearchResultProps) {
   const [open, setOpen] = useState(false);
   const list = result.results || [];
+  const t = useGT();
 
   return (
     <div className="bg-background border rounded-xl w-full max-w-md p-4 text-sm">
@@ -40,7 +44,9 @@ export function WebSearchResult({ args, result }: WebSearchResultProps) {
           <div className="text-muted-foreground flex-shrink-0">
             <SparklesIcon size={16} />
           </div>
-          <span>Search completed for &quot;{args.query}&quot;</span>
+          <T>
+            <span>Search completed for &quot;<Var>{args.query}</Var>&quot;</span>
+          </T>
         </div>
         <Button 
           variant="link" 
@@ -48,12 +54,14 @@ export function WebSearchResult({ args, result }: WebSearchResultProps) {
           onClick={() => setOpen(!open)}
           aria-expanded={open}
         >
-          {open ? 'Hide sources' : `View ${list.length} sources`}
+          {open ? t('Hide sources') : t('View {count} sources', { count: list.length })}
         </Button>
       </div>
       {open && (
         list.length === 0 ? (
-          <p className="text-muted-foreground mt-2">No sources found.</p>
+          <T>
+            <p className="text-muted-foreground mt-2">No sources found.</p>
+          </T>
         ) : (
         <ul className="list-disc pl-5 mt-2 space-y-1 max-h-60 overflow-auto">
           {list.map((item, idx) => (

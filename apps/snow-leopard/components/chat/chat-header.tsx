@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import { useDocumentUtils } from '@/hooks/use-document-utils';
 import { fetcher } from '@/lib/utils';
 import type { Chat } from '@snow-leopard/db';
+import { useGT, T } from 'gt-next';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,6 +46,7 @@ function PureChatHeader({
   const isCompact = windowWidth < 1024;
   const { handleResetChat, isCreatingChat } = useDocumentUtils();
   const [mounted, setMounted] = useState(false);
+  const t = useGT();
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -73,7 +75,7 @@ function PureChatHeader({
         className="h-8 flex items-center justify-center dark:hover:bg-zinc-700 w-8 p-0 border-r border-border"
         onClick={handleResetChat}
         disabled={isCreatingChat}
-        title="New Chat"
+        title={t("New Chat")}
       >
         {isCreatingChat ? (
           <svg className="animate-spin size-4 text-muted-foreground" viewBox="0 0 24 24">
@@ -109,12 +111,12 @@ function PureChatHeader({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-72">
-          <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Recent Conversations</DropdownMenuLabel>
+          <DropdownMenuLabel className="text-xs font-normal text-muted-foreground"><T>Recent Conversations</T></DropdownMenuLabel>
           <DropdownMenuSeparator />
           
           {recentChats.length === 0 ? (
             <DropdownMenuItem disabled className="py-2 px-3 text-center">
-              No recent conversations
+              <T>No recent conversations</T>
             </DropdownMenuItem>
           ) : (
             recentChats.map((chat) => (
@@ -143,7 +145,7 @@ function PureChatHeader({
                     <div className="mt-1.5 pt-1.5 border-t border-border/50 text-xs flex flex-col gap-1 overflow-hidden">
                       {chat.document_context.active && (
                         <div className="flex items-center gap-1.5 text-muted-foreground truncate">
-                          <span className="font-medium text-foreground/80 flex-shrink-0">Active:</span>
+                          <span className="font-medium text-foreground/80 flex-shrink-0"><T>Active:</T></span>
                           <Link 
                             href={`/documents/${chat.document_context.active}`}
                             className="truncate hover:underline text-blue-500 dark:text-blue-400"
@@ -156,7 +158,7 @@ function PureChatHeader({
                       )}
                       {chat.document_context.mentioned && chat.document_context.mentioned.length > 0 && (
                         <div className="flex items-start gap-1.5 text-muted-foreground">
-                          <span className="font-medium text-foreground/80 flex-shrink-0 pt-px">Mentioned:</span>
+                          <span className="font-medium text-foreground/80 flex-shrink-0 pt-px"><T>Mentioned:</T></span>
                           <div className="flex flex-wrap gap-x-2 gap-y-1 overflow-hidden">
                             {chat.document_context.mentioned.map((docId: string, index: number) => (
                               <Link 
@@ -195,7 +197,7 @@ function PureChatHeader({
         >
           <Image 
             src="/images/github-logo.png" 
-            alt="Github" 
+            alt={t("Github")} 
             width={16} 
             height={16}
             className="dark:invert"

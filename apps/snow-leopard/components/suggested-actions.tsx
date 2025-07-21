@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Button } from './ui/button';
 import { ChatRequestOptions, CreateMessage, Message } from 'ai';
 import { memo } from 'react';
+import { T } from 'gt-next';
 
 interface SuggestedActionsProps {
   chatId: string;
@@ -25,7 +26,7 @@ function PureSuggestedActions({ chatId, append }: SuggestedActionsProps) {
         animate={{ opacity: 1 }}
         className="text-sm text-muted-foreground py-4"
       >
-        Type a message to start a conversation
+        <T>Type a message to start a conversation</T>
       </motion.p>
     </div>
   );

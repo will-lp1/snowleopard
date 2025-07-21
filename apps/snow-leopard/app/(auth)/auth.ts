@@ -5,6 +5,7 @@ import type { Session, User } from '@/lib/auth';
 import { db } from '@snow-leopard/db'; 
 import * as schema from '@snow-leopard/db'; 
 import { eq } from 'drizzle-orm';
+import { getGT } from 'gt-next/server';
 
 export async function getSession(): Promise<Session | null> {
   try {
@@ -53,7 +54,8 @@ export async function getUserDetails(): Promise<typeof schema.user.$inferSelect 
 export async function requireAuth(): Promise<User> {
   const user = await getUser();
   if (!user) {
-    throw new Error('Authentication required. User not found in session.');
+    const t = await getGT();
+    throw new Error(t('Authentication required. User not found in session.'));
   }
   return user;
 }
@@ -65,6 +67,7 @@ export async function requireAuth(): Promise<User> {
 export async function requireUnauth(): Promise<void> {
   const user = await getUser();
   if (user) {
-    throw new Error('User is already authenticated.');
+    const t = await getGT();
+    throw new Error(t('User is already authenticated.'));
   }
 }

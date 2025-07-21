@@ -13,6 +13,7 @@ import { motion, useInView } from "framer-motion";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import Script from 'next/script';
 import { Switch } from "@/components/ui/switch";
+import { T, useGT } from "gt-next";
 
 const crimson = Crimson_Text({
   weight: ["400", "700"],
@@ -21,6 +22,7 @@ const crimson = Crimson_Text({
 });
 
 const StyleToggleDemo = ({ inView }: { inView: boolean }) => {
+  const t = useGT();
   const [isEnabled, setIsEnabled] = useState(false);
   useEffect(() => {
     if (inView) {
@@ -32,7 +34,7 @@ const StyleToggleDemo = ({ inView }: { inView: boolean }) => {
   return (
     <div className="rounded-md border p-4 w-full">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium">Apply Writer Style</span>
+        <span className="text-xs font-medium">{t('Apply Writer Style')}</span>
         <Switch checked={isEnabled} onCheckedChange={setIsEnabled} className="scale-110" />
       </div>
     </div>
@@ -40,6 +42,7 @@ const StyleToggleDemo = ({ inView }: { inView: boolean }) => {
 };
 
 export default function Home() {
+  const t = useGT();
   const router = useRouter();
   const featuresRef = useRef<HTMLElement>(null);
   const isFeaturesInView = useInView(featuresRef, { once: true, amount: 0.3 });
@@ -94,16 +97,18 @@ export default function Home() {
       {/* Header */}
       <header className="absolute top-0 w-full z-10 py-4">
         <div className="container mx-auto flex justify-between items-center px-6 md:px-8 lg:px-12">
-          <h1 className="text-xl font-normal tracking-tighter text-foreground/90">
-            snow leopard
-          </h1>
+          <T>
+            <h1 className="text-xl font-normal tracking-tighter text-foreground/90">
+              snow leopard
+            </h1>
+          </T>
           <Button
             variant="outline"
             size="sm"
             className="rounded-full"
             onClick={handleBeginClick}
           >
-            {hasSession ? "Open Snow Leopard" : "Begin"}
+            {hasSession ? t("Open Snow Leopard") : t("Begin")}
           </Button>
         </div>
       </header>
@@ -112,47 +117,55 @@ export default function Home() {
       <section id="hero" className="pt-20 pb-20 bg-background">
         <div className="container mx-auto px-6 md:px-8 lg:px-12 flex flex-col items-center text-center">
           {/* Title Group */}
-          <div className="space-y-0">
-            <div className="relative">
-              <h2
-                className={`text-6xl md:text-[128px] ${crimson.className} tracking-[-0.08em] leading-none text-foreground`}
-              >
-                Tab, Tab, Apply
-              </h2>
-            </div>
+          <T>
+            <div className="space-y-0">
+              <div className="relative">
+                <h2
+                  className={`text-6xl md:text-[128px] ${crimson.className} tracking-[-0.08em] leading-none text-foreground`}
+                >
+                  Tab, Tab, Apply
+                </h2>
+              </div>
 
-            <div className="relative mt-4">
-              <h3
-                className={`text-6xl md:text-[128px] ${crimson.className} tracking-[-0.06em] leading-none text-foreground `}
-              >
-                Brilliance
-                <span className="animate-blink ml-0.5 font-normal">|</span>
-              </h3>
+              <div className="relative mt-4">
+                <h3
+                  className={`text-6xl md:text-[128px] ${crimson.className} tracking-[-0.06em] leading-none text-foreground `}
+                >
+                  Brilliance
+                  <span className="animate-blink ml-0.5 font-normal">|</span>
+                </h3>
+              </div>
             </div>
-          </div>
+          </T>
 
           {/* Tagline */}
-          <p className="text-xl text-muted-foreground mt-4 max-w-md text-balance mx-auto font-light">
-            The most satisfying, intuitive AI writing tool, and it&apos;s open
-            source.
-          </p>
+          <T>
+            <p className="text-xl text-muted-foreground mt-4 max-w-md text-balance mx-auto font-light">
+              The most satisfying, intuitive AI writing tool, and it&apos;s open
+              source.
+            </p>
+          </T>
 
           {/* CTA Buttons */}
           <div className="flex gap-2 mt-6 justify-center">
             <Button asChild variant="outline" size="sm" className="rounded-full">
               <Link href="/login">
-                Begin{" "}
-                <span className="inline-block ml-2 text-xs transition-transform group-hover:translate-x-0.5">
-                  ›
-                </span>
+                <T>
+                  Begin{" "}
+                  <span className="inline-block ml-2 text-xs transition-transform group-hover:translate-x-0.5">
+                    ›
+                  </span>
+                </T>
               </Link>
             </Button>
             <Button asChild variant="secondary" size="sm" className="rounded-full">
               <Link href="https://github.com/will-lp1/snowleopard" target="_blank" rel="noopener noreferrer">
-                GitHub{" "}
-                <span className="inline-block ml-2 text-xs transition-transform group-hover:translate-x-0.5">
-                  ›
-                </span>
+                <T>
+                  GitHub{" "}
+                  <span className="inline-block ml-2 text-xs transition-transform group-hover:translate-x-0.5">
+                    ›
+                  </span>
+                </T>
               </Link>
             </Button>
           </div>
@@ -161,7 +174,7 @@ export default function Home() {
             <div className="hero-frame">
               <Image
                 src="/images/lightmode.png"
-                alt="Snow Leopard Demo Preview"
+                alt={t("Snow Leopard Demo Preview")}
                 width={1200}
                 height={675}
                 className="rounded-lg block dark:hidden"
@@ -169,7 +182,7 @@ export default function Home() {
               />
               <Image
                 src="/images/darkmode.png"
-                alt="Snow Leopard Demo Preview (Dark Mode)"
+                alt={t("Snow Leopard Demo Preview (Dark Mode)")}
                 width={1200}
                 height={675}
                 className="rounded-lg hidden dark:block"
@@ -188,12 +201,16 @@ export default function Home() {
       >
         <div className="container mx-auto px-6 md:px-8 lg:px-12">
           <div className="text-center mb-16">
-            <h2 id="features-heading" className={`text-4xl md:text-5xl font-medium ${crimson.className} tracking-tight text-foreground`}>
-              Explore the Magic
-            </h2>
-            <p className="mt-4 text-lg text-muted-foreground max-w-xl mx-auto">
-              Discover how Snow Leopard transforms your writing experience with these core features.
-            </p>
+            <T>
+              <h2 id="features-heading" className={`text-4xl md:text-5xl font-medium ${crimson.className} tracking-tight text-foreground`}>
+                Explore the Magic
+              </h2>
+            </T>
+            <T>
+              <p className="mt-4 text-lg text-muted-foreground max-w-xl mx-auto">
+                Discover how Snow Leopard transforms your writing experience with these core features.
+              </p>
+            </T>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {/* Card 1: Inline Suggestion Demo */}
@@ -206,16 +223,18 @@ export default function Home() {
             >
               <Card className="h-full flex flex-col min-h-[320px] rounded-xl overflow-visible">
                 <CardHeader className="p-6 text-base font-medium">
-                  Real-time Inline Suggestions
+                  <T>Real-time Inline Suggestions</T>
                 </CardHeader>
                 <CardContent className="p-6 text-sm text-muted-foreground flex-grow">
-                  <p className="demo-prose-mirror-style">
-                    <span className="demo-text-base">You start typing, and the AI offers</span>
-                    <span className="inline-suggestion-wrapper">
-                      <span className="demo-inline-suggestion-animated" data-suggestion=" a helpful completion."></span>
-                      <kbd className="inline-tab-icon">Tab</kbd>
-                    </span>
-                  </p>
+                  <T>
+                    <p className="demo-prose-mirror-style">
+                      <span className="demo-text-base">You start typing, and the AI offers</span>
+                      <span className="inline-suggestion-wrapper">
+                        <span className="demo-inline-suggestion-animated" data-suggestion=" a helpful completion."></span>
+                        <kbd className="inline-tab-icon">Tab</kbd>
+                      </span>
+                    </p>
+                  </T>
                 </CardContent>
               </Card>
             </motion.div>
@@ -230,29 +249,33 @@ export default function Home() {
             >
               <Card className="h-full flex flex-col min-h-[320px] rounded-xl overflow-visible">
                 <CardHeader className="p-6 text-base font-medium">
-                  Powerful Selection Edits
+                  <T>Powerful Selection Edits</T>
                 </CardHeader>
                 <CardContent className="p-6 text-sm text-muted-foreground flex-grow relative overflow-visible">
-                  <p className="demo-prose-mirror-style">
-                    <span className="demo-text-base">This phrasing <span className="demo-selected-text-animated">is a bit weak and verbose.</span> Let&apos;s ask the AI to improve it.</span>
-                  </p>
+                  <T>
+                    <p className="demo-prose-mirror-style">
+                      <span className="demo-text-base">This phrasing <span className="demo-selected-text-animated">is a bit weak and verbose.</span> Let&apos;s ask the AI to improve it.</span>
+                    </p>
+                  </T>
                   <div className="demo-suggestion-overlay-animated border border-border">
                     <div className="demo-overlay-header">
                       <GripVertical size={14} className="text-muted-foreground/70 demo-overlay-drag-handle" />
-                      <h3 className="text-xs font-medium">Suggestion</h3>
+                      <T><h3 className="text-xs font-medium">Suggestion</h3></T>
                     </div>
                     <div className="demo-overlay-input-placeholder">
                     </div>
-                    <div className="demo-overlay-diff-view">
-                      <span className="text-red-500 line-through dark:text-red-400/70">is a bit weak and verbose.</span>
-                      <span className="text-green-600 dark:text-green-400/70 ml-1 demo-diff-new-text-animated">lacks punch and impact.</span>
-                    </div>
+                    <T>
+                      <div className="demo-overlay-diff-view">
+                        <span className="text-red-500 line-through dark:text-red-400/70">is a bit weak and verbose.</span>
+                        <span className="text-green-600 dark:text-green-400/70 ml-1 demo-diff-new-text-animated">lacks punch and impact.</span>
+                      </div>
+                    </T>
                     <div className="demo-overlay-actions">
                       <Button variant="ghost" size="sm" className="h-7 px-2 py-1 text-xs hover:text-destructive rounded-full">
-                         <X size={13} strokeWidth={2.5} className="mr-1" /> Reject
+                         <X size={13} strokeWidth={2.5} className="mr-1" /> <T>Reject</T>
                       </Button>
                       <Button variant="ghost" size="sm" className="h-7 px-2 py-1 text-xs hover:text-primary rounded-full">
-                         <Check size={13} strokeWidth={2.5} className="mr-1" /> Accept
+                         <Check size={13} strokeWidth={2.5} className="mr-1" /> <T>Accept</T>
                       </Button>
                     </div>
                   </div>
@@ -270,21 +293,23 @@ export default function Home() {
             >
               <Card className="h-full flex flex-col min-h-[320px] rounded-xl overflow-visible">
                 <CardHeader className="p-6 text-base font-medium">
-                  Instant Synonym Finder
+                  <T>Instant Synonym Finder</T>
                 </CardHeader>
                 <CardContent className="p-6 text-sm text-muted-foreground flex-grow">
-                  <p className="demo-prose-mirror-style relative">
-                    <span className="demo-text-base">Find better words with ease. The AI presents contextually</span>
-                    <span className="demo-synonym-word-animated" data-word="relevant">
-                      relevant
-                       <span className="demo-synonym-menu-animated">
-                          <span>apt</span>
-                          <span>pertinent</span>
-                          <span>fitting</span>
-                        </span>
-                    </span>
-                    <span className="demo-text-base"> synonyms.</span>
-                  </p>
+                  <T>
+                    <p className="demo-prose-mirror-style relative">
+                      <span className="demo-text-base">Find better words with ease. The AI presents contextually</span>
+                      <span className="demo-synonym-word-animated" data-word="relevant">
+                        relevant
+                         <span className="demo-synonym-menu-animated">
+                            <span>apt</span>
+                            <span>pertinent</span>
+                            <span>fitting</span>
+                          </span>
+                      </span>
+                      <span className="demo-text-base"> synonyms.</span>
+                    </p>
+                  </T>
                 </CardContent>
               </Card>
             </motion.div>
@@ -299,13 +324,13 @@ export default function Home() {
             >
               <Card className="h-full flex flex-col min-h-[320px] rounded-xl overflow-visible">
                 <CardHeader className="p-6 text-base font-medium">
-                  AI Writing That Sounds Like You
+                  <T>AI Writing That Sounds Like You</T>
                 </CardHeader>
                 <CardContent className="p-6 text-sm text-muted-foreground flex-grow flex flex-col justify-between items-center">
                   <div className="w-full flex flex-col items-center flex-grow justify-center">
                     <StyleToggleDemo inView={card4InView} />
                   </div>
-                  <p className="text-center w-full mt-8">Trained on your writing to apply your unique style.</p>
+                  <T><p className="text-center w-full mt-8">Trained on your writing to apply your unique style.</p></T>
                 </CardContent>
               </Card>
             </motion.div>
@@ -320,7 +345,7 @@ export default function Home() {
             >
               <Card className="h-full flex flex-col min-h-[320px] rounded-xl">
                 <CardHeader className="p-6 text-base font-medium">
-                  Access Premium Models
+                  <T>Access Premium Models</T>
                 </CardHeader>
                 <CardContent className="p-6 text-sm text-muted-foreground flex-grow flex flex-col justify-between items-center">
                   <div className="w-full flex items-center justify-center gap-0" style={{ height: '112px' }}>
@@ -338,16 +363,18 @@ export default function Home() {
                           style={{ zIndex: 10 - Math.abs(offset) }}
                         >
                           {i === proIndex && (
-                            <span className="absolute top-1 right-1 bg-accent text-accent-foreground text-[10px] px-1 rounded">Pro</span>
+                            <span className="absolute top-1 right-1 bg-accent text-accent-foreground text-[10px] px-1 rounded">{t('Pro')}</span>
                           )}
                           <span className="text-xs font-medium">{name}</span>
                         </motion.div>
                       );
                     })}
                   </div>
-                  <p className="text-sm text-muted-foreground text-center w-full mt-8">
-                    Unlimited, free access to the best AI models.
-                  </p>
+                  <T>
+                    <p className="text-sm text-muted-foreground text-center w-full mt-8">
+                      Unlimited, free access to the best AI models.
+                    </p>
+                  </T>
                 </CardContent>
               </Card>
             </motion.div>
@@ -362,7 +389,7 @@ export default function Home() {
             >
               <Card className="h-full flex flex-col min-h-[320px] rounded-xl">
                 <CardHeader className="p-6 text-base font-medium">
-                  One-Click Publish & Share
+                  <T>One-Click Publish & Share</T>
                 </CardHeader>
                 <CardContent className="p-6 text-sm text-muted-foreground flex-grow flex flex-col justify-between items-center">
                   <div className="w-full flex flex-col items-center">
@@ -380,13 +407,15 @@ export default function Home() {
                       </div>
                       {/* Chat bubble */}
                       <div className="absolute bottom-2 right-2 w-8 h-4 rounded-full bg-primary flex items-center justify-center text-[6px] text-primary-foreground shadow">
-                        Ask Leo
+                        {t('Ask Leo')}
                       </div>
                     </div>
                   </div>
-                  <p className="text-sm text-muted-foreground text-center w-full mt-8">
-                    Publish in one click & share with AI chat support.
-                  </p>
+                  <T>
+                    <p className="text-sm text-muted-foreground text-center w-full mt-8">
+                      Publish in one click & share with AI chat support.
+                    </p>
+                  </T>
                 </CardContent>
               </Card>
             </motion.div>
@@ -398,84 +427,92 @@ export default function Home() {
       <section id="social-proof" className="py-20 bg-background">
         <div className="container mx-auto px-6 md:px-8 lg:px-12">
           <div className="text-center mb-14">
-            <h2 className={`text-4xl md:text-5xl font-medium ${crimson.className} tracking-tight text-foreground`}>
-              Loved by many
-            </h2>
+            <T>
+              <h2 className={`text-4xl md:text-5xl font-medium ${crimson.className} tracking-tight text-foreground`}>
+                Loved by many
+              </h2>
+            </T>
           </div>
           
           <TooltipProvider>
             <div className="flex flex-col items-center justify-center gap-5 max-w-3xl mx-auto">
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-x-2 gap-y-2 text-base text-muted-foreground">
-                <span>Used by</span>
-                <Link 
-                  href="https://twitter.com/dps" 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="inline-flex items-center gap-1.5 font-medium text-blue-600 hover:text-blue-700 transition-colors"
-                >
+              <T>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-x-2 gap-y-2 text-base text-muted-foreground">
+                  <span>Used by</span>
+                  <Link 
+                    href="https://twitter.com/dps" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="inline-flex items-center gap-1.5 font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                  >
+                    <Image 
+                      src="/images/dps.jpg" 
+                      alt="David Singleton" 
+                      width={28} 
+                      height={28} 
+                      className="size-7 rounded-full object-cover" 
+                    />
+                    <span className="text-sm">@dps</span>
+                  </Link>
+                  <span>the ex-CTO of</span>
                   <Image 
-                    src="/images/dps.jpg" 
-                    alt="David Singleton" 
-                    width={28} 
-                    height={28} 
-                    className="size-7 rounded-full object-cover" 
+                    src="https://upload.wikimedia.org/wikipedia/commons/b/ba/Stripe_Logo%2C_revised_2016.svg" 
+                    alt="Stripe" 
+                    width={64} 
+                    height={26} 
+                    className="h-5 w-auto opacity-85" 
                   />
-                  <span className="text-sm">@dps</span>
-                </Link>
-                <span>the ex-CTO of</span>
-                <Image 
-                  src="https://upload.wikimedia.org/wikipedia/commons/b/ba/Stripe_Logo%2C_revised_2016.svg" 
-                  alt="Stripe" 
-                  width={64} 
-                  height={26} 
-                  className="h-5 w-auto opacity-85" 
-                />
-              </div>
+                </div>
+              </T>
               
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-x-2 gap-y-2 text-base text-muted-foreground">
-                <span>Part of the</span>
-                <Link
-                  href="https://vercel.com/ai-accelerator"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-medium text-foreground hover:underline underline-offset-2"
-                >
-                  Vercel AI Accelerator
-                </Link>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
-                      & used by the Vercel team
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="text-sm font-normal">
-                    Including{' '}
-                    <a 
-                      href="https://twitter.com/leerob" 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="font-medium text-blue-600 hover:text-blue-700"
-                    >
-                      @leerob
-                    </a>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
+              <T>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-x-2 gap-y-2 text-base text-muted-foreground">
+                  <span>Part of the</span>
+                  <Link
+                    href="https://vercel.com/ai-accelerator"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-foreground hover:underline underline-offset-2"
+                  >
+                    Vercel AI Accelerator
+                  </Link>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
+                        & used by the Vercel team
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="text-sm font-normal">
+                      Including{' '}
+                      <a 
+                        href="https://twitter.com/leerob" 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="font-medium text-blue-600 hover:text-blue-700"
+                      >
+                        @leerob
+                      </a>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              </T>
               
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-x-2.5 gap-y-2 text-base text-muted-foreground">
-                <span>We&apos;re open-source & self-hostable</span>
-                <a
-                  className="github-button"
-                  href="https://github.com/will-lp1/snowleopard"
-                  data-icon="octicon-star"
-                  data-size="large"
-                  data-show-count="true"
-                  aria-label="Star will-lp1/snowleopard on GitHub"
-                >
-                  Star
-                </a>
-                <Script async defer src="https://buttons.github.io/buttons.js" />
-              </div>
+              <T>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-x-2.5 gap-y-2 text-base text-muted-foreground">
+                  <span>We&apos;re open-source & self-hostable</span>
+                  <a
+                    className="github-button"
+                    href="https://github.com/will-lp1/snowleopard"
+                    data-icon="octicon-star"
+                    data-size="large"
+                    data-show-count="true"
+                    aria-label={t("Star will-lp1/snowleopard on GitHub")}
+                  >
+                    Star
+                  </a>
+                  <Script async defer src="https://buttons.github.io/buttons.js" />
+                </div>
+              </T>
             </div>
           </TooltipProvider>
           <div className="mt-10 text-center">
@@ -485,19 +522,19 @@ export default function Home() {
               className="rounded-full px-8 py-3"
               onClick={handleBeginClick}
             >
-              {hasSession ? "Open Snow Leopard" : "Get Started"}
+              {hasSession ? t("Open Snow Leopard") : t("Get Started")}
             </Button>
-            <p className="mt-2 text-xs text-muted-foreground">No credit card required</p>
+            <T><p className="mt-2 text-xs text-muted-foreground">No credit card required</p></T>
           </div>
         </div>
       </section>
 
       <footer className="w-full border-t border-border bg-background/80 backdrop-blur-sm py-4 mt-8">
         <div className="container mx-auto px-6 md:px-8 lg:px-12 flex items-center justify-between text-sm text-muted-foreground">
-          <span>© {new Date().getFullYear()} Snow Leopard. All rights reserved.</span>
+          <span>{t('© {year} Snow Leopard. All rights reserved.', { year: new Date().getFullYear() })}</span>
           <Button variant="outline" size="icon" className="size-8 shrink-0" asChild>
             <Link href="https://github.com/will-lp1/snowleopard" target="_blank" rel="noopener noreferrer">
-              <Image src="/images/github-logo.png" alt="Github" width={16} height={16} className="dark:invert" />
+              <Image src="/images/github-logo.png" alt={t("Github")} width={16} height={16} className="dark:invert" />
             </Link>
           </Button>
         </div>

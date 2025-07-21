@@ -1,6 +1,7 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import type { Session } from '@/lib/auth';
+import { getGT } from 'gt-next/server';
 
 interface WebSearchProps {
   session: Session;
@@ -18,7 +19,8 @@ export const webSearch = ({ session }: WebSearchProps) =>
     execute: async ({ query, maxResults = 5, searchDepth = 'basic', includeAnswer = false }) => {
       const apiKey = process.env.TAVILY_API_KEY;
       if (!apiKey) {
-        throw new Error('Web search is not configured. Please contact support.');
+        const t = await getGT();
+        throw new Error(t('Web search is not configured. Please contact support.'));
       }
       const response = await fetch('https://api.tavily.com/search', {
         method: 'POST',

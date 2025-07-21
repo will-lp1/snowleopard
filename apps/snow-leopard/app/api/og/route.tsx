@@ -1,11 +1,14 @@
 import { ImageResponse } from 'next/og';
 import { NextRequest } from 'next/server';
+import { T } from 'gt-next';
+import { getGT } from 'gt-next/server';
 
 export const runtime = 'edge';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const type = searchParams.get('type');
+  const t = await getGT();
 
   if (
     type === 'post' &&
@@ -13,8 +16,8 @@ export async function GET(req: NextRequest) {
     searchParams.has('author') &&
     searchParams.has('date')
   ) {
-    const title = searchParams.get('title')?.slice(0, 100) ?? 'Untitled';
-    const author = searchParams.get('author')?.slice(0, 50) ?? 'Anonymous';
+    const title = searchParams.get('title')?.slice(0, 100) ?? t('Untitled');
+    const author = searchParams.get('author')?.slice(0, 50) ?? t('Anonymous');
     const date = searchParams.get('date') ?? '';
 
     return new ImageResponse(
@@ -41,7 +44,7 @@ export async function GET(req: NextRequest) {
               color: '#1f2937',
             }}
           >
-            snow leopard
+            <T>snow leopard</T>
           </div>
           <div
             style={{
@@ -109,7 +112,7 @@ export async function GET(req: NextRequest) {
             color: '#1f2937',
           }}
         >
-          Snow Leopard
+          <T>Snow Leopard</T>
         </div>
         <div
           style={{
@@ -122,7 +125,7 @@ export async function GET(req: NextRequest) {
             lineHeight: 1.4,
           }}
         >
-          The most satisfying, intuitive AI writing tool, and it&apos;s open source.
+          <T>The most satisfying, intuitive AI writing tool, and it&apos;s open source.</T>
         </div>
       </div>
     ),

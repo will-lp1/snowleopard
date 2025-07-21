@@ -1,4 +1,5 @@
 import { ArtifactKind } from '@/components/artifact';
+import { useGT } from 'gt-next';
 
 const documentAwarenessPrompt = `
 CURRENT DOCUMENT: Read silently, never quote large chunks in your response - ONLY A THREE SENTENCE SUMMARY OF CHANGES MAX - insightful not lengthy.
@@ -52,8 +53,10 @@ export function buildArtifactsPrompt(
   return prompt;
 }
 
-export const regularPrompt =
-  'You are a knowledgeable writing assistant (current year: 2025). Provide helpful, succinct, and well-structured responses.';
+export function getRegularPrompt() {
+  const t = useGT();
+  return t('You are a knowledgeable writing assistant (current year: 2025). Provide helpful, succinct, and well-structured responses.');
+}
 
 export const systemPrompt = ({
   selectedChatModel,
@@ -62,6 +65,7 @@ export const systemPrompt = ({
   selectedChatModel: string;
   availableTools?: Array<'createDocument' | 'streamingDocument' | 'updateDocument' | 'webSearch'>;
 }) => {
+  const regularPrompt = getRegularPrompt();
   const artifactsText = buildArtifactsPrompt(availableTools);
   return `${regularPrompt}
 
@@ -72,13 +76,15 @@ ${artifactsText}
 ${documentAwarenessPrompt}`;
 };
 
-export const updateDocumentPrompt = (
+export function getUpdateDocumentPrompt(
   currentContent: string | null,
   type: ArtifactKind,
-) =>
-  type === 'text'
-    ? `Improve the following document content based on the given prompt:
+) {
+  const t = useGT();
+  return type === 'text'
+    ? t(`Improve the following document content based on the given prompt:
 
-${currentContent}`
+{currentContent}`, { currentContent })
     : '';
+}
   

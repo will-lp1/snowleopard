@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Plus, X, ArrowUpIcon } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
-import {Markdown} from '@/components/markdown'
+import {Markdown} from '@/components/markdown';
+import { T, useGT } from 'gt-next';
 
 interface AIChatWidgetProps {
   context: string;
@@ -16,6 +17,7 @@ interface AIChatWidgetProps {
 }
 
 export default function AIChatWidget({ context, title, author, date }: AIChatWidgetProps) {
+  const t = useGT();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Array<{ id: string; role: 'user' | 'assistant'; content: string }>>([]);
   const messagesRef = useRef(messages);
@@ -63,14 +65,14 @@ export default function AIChatWidget({ context, title, author, date }: AIChatWid
     } catch (err: any) {
       if (err.name === 'AbortError') return;
       console.error(err);
-      setError('Network error');
+      setError(t('Network error'));
       setLoading(false);
       return;
     }
     if (!res.ok) {
       const text = await res.text();
       console.error(text);
-      setError('Failed to load AI response');
+      setError(t('Failed to load AI response'));
       setLoading(false);
       return;
     }
@@ -127,7 +129,7 @@ export default function AIChatWidget({ context, title, author, date }: AIChatWid
               className="rounded-full px-6 py-3 shadow-lg" 
               onClick={e => { e.stopPropagation(); setOpen(true); }}
             >
-              Ask Leo
+              <T>Ask Leo</T>
             </Button>
           </motion.div>
         )}
@@ -158,7 +160,7 @@ export default function AIChatWidget({ context, title, author, date }: AIChatWid
                     size="icon"
                     className="size-8 shrink-0"
                     onClick={handleNewChat}
-                    title="New Chat"
+                    title={t("New Chat")}
                   >
                     <Plus className="size-4" />
                   </Button>
@@ -168,7 +170,7 @@ export default function AIChatWidget({ context, title, author, date }: AIChatWid
                     size="icon"
                     className="size-8 shrink-0"
                     onClick={() => setOpen(false)}
-                    title="Close Chat"
+                    title={t("Close Chat")}
                   >
                     <X className="size-4" />
                   </Button>
@@ -186,7 +188,7 @@ export default function AIChatWidget({ context, title, author, date }: AIChatWid
                           <div className="size-8 flex items-center justify-center rounded-full ring-1 shrink-0 ring-border bg-background overflow-hidden relative">
                             <img
                               src="/images/leopardprintbw.svg"
-                              alt="Snow Leopard"
+                              alt={t("Snow Leopard")}
                               className="object-cover dark:invert"
                             />
                           </div>
@@ -211,7 +213,7 @@ export default function AIChatWidget({ context, title, author, date }: AIChatWid
                     <div className="relative w-full flex flex-col gap-4">
                       <Textarea
                         data-testid="multimodal-input"
-                        placeholder="Send a message..."
+                        placeholder={t("Send a message...")}
                         value={input}
                         onChange={e => setInput(e.target.value)}
                         className="px-3 py-2 min-h-[24px] max-h-[calc(75dvh)] overflow-hidden resize-none rounded-2xl !text-base bg-muted pb-10 dark:border-zinc-700"

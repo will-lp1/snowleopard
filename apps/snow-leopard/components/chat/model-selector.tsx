@@ -12,7 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { chatModels } from '@/lib/ai/models';
+import { getChatModels } from '@/lib/ai/models';
 import { cn } from '@/lib/utils';
 
 import { CheckCircleFillIcon, ChevronDownIcon } from '../icons';
@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Paywall } from '@/components/paywall';
+import { useGT } from 'gt-next';
 
 export function ModelSelector({
   selectedModelId,
@@ -40,6 +41,7 @@ export function ModelSelector({
 } & React.ComponentProps<typeof Button>) {
   const [open, setOpen] = useState(false);
   const [isPaywallOpen, setPaywallOpen] = useState(false);
+  const t = useGT();
 
   const { data: subscriptionData, isLoading: isSubscriptionLoading } = useSWR<{ hasActiveSubscription: boolean }>(
     '/api/user/subscription-status',
@@ -49,7 +51,7 @@ export function ModelSelector({
   const hasActiveSubscription = subscriptionData?.hasActiveSubscription ?? false;
 
   const selectedChatModel = useMemo(
-    () => chatModels.find((chatModel) => chatModel.id === selectedModelId),
+    () => getChatModels().find((chatModel: any) => chatModel.id === selectedModelId),
     [selectedModelId],
   );
 
@@ -61,7 +63,7 @@ export function ModelSelector({
         className={cn('md:px-2 md:h-[34px]', className)}
         disabled
       >
-        Loading...
+        {t('Loading...')}
       </Button>
     );
   }
@@ -86,7 +88,7 @@ export function ModelSelector({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-72">
-          {chatModels.map((chatModel) => {
+          {getChatModels().map((chatModel: any) => {
             const { id, proOnly } = chatModel;
             const isLocked = proOnly === true && !hasActiveSubscription;
 
@@ -123,7 +125,7 @@ export function ModelSelector({
                     onClick={(e) => { e.stopPropagation(); setPaywallOpen(true); }}
                     className="opacity-0 group-hover:opacity-100 transition-opacity"
                   >
-                    Upgrade
+                    {t('Upgrade')}
                   </Button>
                 )}
               </DropdownMenuItem>
