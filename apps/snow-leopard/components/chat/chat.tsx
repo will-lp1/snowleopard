@@ -1,7 +1,8 @@
 'use client';
 
-import type { Attachment, Message, ChatRequestOptions } from 'ai';
+import type { ChatRequestOptions } from 'ai';
 import { useChat } from '@ai-sdk/react';
+import type { Attachment, ChatMessage } from '@/lib/types';
 import { useState, useEffect } from 'react';
 import { ChatHeader } from '@/components/chat/chat-header';
 import { generateUUID } from '@/lib/utils';
@@ -20,7 +21,7 @@ import { useAiOptionsValue } from '@/hooks/ai-options';
 
 export interface ChatProps {
   id?: string;
-  initialMessages: Array<Message>;
+  initialMessages: Array<ChatMessage>;
   selectedChatModel?: string;
   isReadonly?: boolean;
 }
@@ -67,16 +68,15 @@ export function Chat({
   const {
     messages,
     setMessages,
-    handleSubmit,
     input,
     setInput,
-    append,
+    sendMessage,
     status,
     stop,
-    reload,
+    regenerate,
     data,
     error
-  } = useChat({
+  } = useChat<ChatMessage>({
     api: '/api/chat',
     id: chatId,
     initialMessages,
@@ -224,43 +224,6 @@ export function Chat({
     };
   }, [setMessages, setInput, setChatId]);
 
-  const wrappedSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    
-    if (documentContextActive && messages.length === initialMessages.length) {
-      toast.success(`Using document context: ${documentTitle}`, {
-        icon: <FileText className="size-4" />,
-        duration: 3000,
-        id: `doc-context-${documentId}`
-      });
-    }
-    
-    console.log('[Chat] Submitting with Model:', selectedChatModel);
-
-    const contextData: { 
-      activeDocumentId?: string | null;
-      mentionedDocumentIds?: string[]; 
-    } = {};
-    
-    const currentDocId = artifact.documentId;
-    if (currentDocId && currentDocId !== 'init') {
-      contextData.activeDocumentId = currentDocId;
-    } else {
-      contextData.activeDocumentId = null;
-    }
-    
-    if (confirmedMentions.length > 0) {
-      contextData.mentionedDocumentIds = confirmedMentions.map(doc => doc.id);
-    }
-    
-    const options: ChatRequestOptions = {
-      data: contextData,
-    };
-
-    handleSubmit(e, options);
-
-    setConfirmedMentions([]);
-  };
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -282,7 +245,7 @@ export function Chat({
             status={status}
             messages={messages}
             setMessages={setMessages}
-            reload={reload}
+            regenerate={regenerate}
             isReadonly={isReadonly}
             isArtifactVisible={false}
           />
@@ -291,23 +254,20 @@ export function Chat({
 
       {!isReadonly && (
         <div className="p-4 border-t border-zinc-200 dark:border-zinc-700">
-          <form onSubmit={wrappedSubmit}>
             <MultimodalInput
               chatId={chatId}
               input={input}
               setInput={setInput}
-              handleSubmit={handleSubmit}
               status={status}
               stop={stop}
               attachments={attachments}
               setAttachments={setAttachments}
               messages={messages}
               setMessages={setMessages}
-              append={append}
+              sendMessage={sendMessage}
               confirmedMentions={confirmedMentions}
-              onMentionsChange={handleMentionsChange}
+              onMentionsChange={setConfirmedMentions}
             />
-          </form>
         </div>
       )}
 

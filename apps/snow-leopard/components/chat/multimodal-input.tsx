@@ -356,7 +356,7 @@ function PureMultimodalInput({
     if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault();
 
-      if (status === 'ready' && inputValue.trim() !== '') {
+      if (status === 'ready' && inputValue.length > 0) {
         submitForm();
       } else if (status !== 'ready') {
          toast.error('Please wait for the model to finish its response!');
@@ -476,7 +476,7 @@ function PureSendButton({
         event.preventDefault();
         submitForm();
       }}
-      disabled={input.trim().length === 0 || uploadQueue.length > 0} // Check input.trim()
+      disabled={input.length === 0 || uploadQueue.length > 0}
     >
       <ArrowUpIcon size={14} />
     </Button>

@@ -46,13 +46,11 @@ interface DocumentToolResultProps {
     error?: string;
     content?: string;
   };
-  isReadonly: boolean;
 }
 
 function PureDocumentToolResult({
   type,
   result,
-  isReadonly,
 }: DocumentToolResultProps) {
   const { artifact, setArtifact } = useArtifact();
   const [isSaving, setIsSaving] = useState(false);
@@ -239,13 +237,11 @@ export const DocumentToolResult = memo(PureDocumentToolResult);
 interface DocumentToolCallProps {
   type: 'create' | 'stream' | 'update' | 'request-suggestions';
   args: { title?: string };
-  isReadonly: boolean;
 }
 
 function PureDocumentToolCall({
   type,
   args = { title: '' },
-  isReadonly,
 }: DocumentToolCallProps) {
   const { artifact: localArtifact } = useArtifact();
   const artTitle = localArtifact?.title ?? '';

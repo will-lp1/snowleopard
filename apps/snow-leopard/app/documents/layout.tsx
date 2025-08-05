@@ -3,6 +3,7 @@ import { Chat } from '@/components/chat/chat';
 import { ResizablePanel } from '@/components/resizable-panel';
 import { AppSidebar } from '@/components/sidebar/app-sidebar';
 import { SidebarProvider } from '@/components/ui/sidebar';
+import { DataStreamProvider } from '@/components/data-stream-provider';
 import { headers } from 'next/headers';
 import { auth } from '@/lib/auth';
 import { getCurrentDocumentsByUserId } from '@/lib/db/queries';
@@ -40,9 +41,11 @@ export default async function DocumentsLayout({ children }: { children: ReactNod
               maxSize={600}
               className="border-l subtle-border transition-all duration-200"
             >
-              <Chat
-                initialMessages={[]}
-              />
+              <DataStreamProvider>
+                <Chat
+                  initialMessages={[]}
+                />
+              </DataStreamProvider>
             </ResizablePanel>
           </main>
         </div>

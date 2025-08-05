@@ -1,6 +1,8 @@
 'use client';
 
-import type { ChatRequestOptions, Message } from 'ai';
+import type { ChatRequestOptions } from 'ai';
+import type { ChatMessage } from '@/lib/types';
+import type { UseChatHelpers } from '@ai-sdk/react';
 import cx from 'classnames';
 import { AnimatePresence, motion } from 'framer-motion';
 import { memo, useState } from 'react';
@@ -63,19 +65,15 @@ const PurePreviewMessage = ({
   message,
   isLoading,
   setMessages,
-  reload,
-  isReadonly,
+  regenerate,
+  requiresScrollPadding,
 }: {
   chatId: string;
-  message: Message;
+  message: ChatMessage;
   isLoading: boolean;
-  setMessages: (
-    messages: Message[] | ((messages: Message[]) => Message[]),
-  ) => void;
-  reload: (
-    chatRequestOptions?: ChatRequestOptions,
-  ) => Promise<string | null | undefined>;
-  isReadonly: boolean;
+  setMessages: UseChatHelpers<ChatMessage>['setMessages'];
+  regenerate: UseChatHelpers<ChatMessage>['regenerate'];
+  requiresScrollPadding?: boolean;
 }) => {
   console.log('[PreviewMessage] Rendering message:', message);
 
@@ -107,134 +105,182 @@ const PurePreviewMessage = ({
           )}
 
           <div className="flex flex-col gap-4 w-full">
-            {message.reasoning && (
-              <MessageReasoning
-                isLoading={isLoading}
-                reasoning={message.reasoning}
-              />
-            )}
+            {message.parts?.map((part, index) => {
+              const { type } = part;
+              const key = `message-${message.id}-part-${index}`;
 
-            {(message.content || message.reasoning) && (
-              <div
-                data-testid="message-content"
-                className="flex flex-row gap-2 items-start"
-              >
-                <div
-                  className={cn('flex flex-col gap-4', {
-                    'bg-primary text-primary-foreground px-3 py-2 rounded-xl':
-                      message.role === 'user',
-                  })}
-                >
-                  {typeof message.content === 'string' ? (
-                    <Markdown>{formatMessageWithMentions(message.content)}</Markdown>
-                  ) : (
-                    <pre className="text-sm text-red-500">
-                      Error: Invalid message content format
-                    </pre>
-                  )}
-                </div>
-              </div>
-            )}
+              if (type === 'reasoning' && part.text?.trim().length > 0) {
+                return (
+                  <MessageReasoning
+                    key={key}
+                    isLoading={isLoading}
+                    reasoning={part.text}
+                  />
+                );
+              }
 
-            {message.toolInvocations && message.toolInvocations.length > 0 && (
-              <div className="flex flex-col gap-4">
-                {message.toolInvocations.map((toolInvocation) => {
-                  const { toolName, toolCallId, state, args } = toolInvocation;
+              if (type === 'text') {
+                return (
+                  <div key={key} className="flex flex-row gap-2 items-start">
+                    <div
+                      data-testid="message-content"
+                      className={cn('flex flex-col gap-4', {
+                        'bg-primary text-primary-foreground px-3 py-2 rounded-xl':
+                          message.role === 'user',
+                      })}
+                    >
+                      <Markdown>{formatMessageWithMentions(part.text)}</Markdown>
+                    </div>
+                  </div>
+                );
+              }
 
-                  if (state === 'result') {
-                    const { result } = toolInvocation;
-                    if (toolName === 'webSearch') {
-                      const results = (result as any).results || [];
-                      return (
-                        <WebSearchResult key={toolCallId} query={(args as any).query} results={results} />
-                      );
-                    }
+              if (type === 'tool-createDocument') {
+                const { toolCallId, state } = part;
+
+                if (state === 'input-available') {
+                  const { input } = part;
+                  return (
+                    <div key={toolCallId}>
+                      <DocumentToolCall
+                        type="create"
+                        args={input}
+                      />
+                    </div>
+                  );
+                }
+
+                if (state === 'output-available') {
+                  const { output } = part;
+
+                  if ('error' in output) {
                     return (
-                      <div key={toolCallId}>
-                        {toolName === 'createDocument' ? (
-                          <DocumentToolResult
-                            type="create"
-                            result={result}
-                            isReadonly={isReadonly}
-                          />
-                        ) : toolName === 'streamingDocument' ? (
-                          <DocumentToolResult
-                            type="stream"
-                            result={result}
-                            isReadonly={isReadonly}
-                          />
-                        ) : toolName === 'updateDocument' ? (
-                          <DocumentToolResult
-                            type="update"
-                            result={result}
-                            isReadonly={isReadonly}
-                          />
-                        ) : toolName === 'requestSuggestions' ? (
-                          <DocumentToolResult
-                            type="request-suggestions"
-                            result={result}
-                            isReadonly={isReadonly}
-                          />
-                        ) : (
-                          <pre>{JSON.stringify(result, null, 2)}</pre>
-                        )}
-                      </div>
-                    );
-                  }
-                  if (state === 'call' && toolName === 'webSearch') {
-                    return (
-                      <div key={toolCallId} className="bg-background border rounded-xl w-full max-w-md p-3 text-sm animate-pulse">
-                        Searching web for &quot;{(args as any).query}&quot;...
+                      <div
+                        key={toolCallId}
+                        className="text-red-500 p-2 border rounded"
+                      >
+                        Error: {String(output.error)}
                       </div>
                     );
                   }
 
                   return (
-                    <div
-                      key={toolCallId}
-                      className={cx({
-                        skeleton: ['getWeather'].includes(toolName),
-                      })}
-                    >
-                      {toolName === 'createDocument' ? (
-                        <DocumentToolCall
-                          type="create"
-                          args={args}
-                          isReadonly={isReadonly}
-                        />
-                      ) : toolName === 'streamingDocument' ? (
-                        <DocumentToolCall
-                          type="stream"
-                          args={args}
-                          isReadonly={isReadonly}
-                        />
-                      ) : toolName === 'updateDocument' ? (
-                        <DocumentToolCall
-                          type="update"
-                          args={args}
-                          isReadonly={isReadonly}
-                        />
-                      ) : toolName === 'requestSuggestions' ? (
-                        <DocumentToolCall
-                          type="request-suggestions"
-                          args={args}
-                          isReadonly={isReadonly}
-                        />
-                      ) : null}
+                    <div key={toolCallId}>
+                      <DocumentToolResult
+                        type="create"
+                        result={output}
+                      />
                     </div>
                   );
-                })}
-              </div>
-            )}
+                }
+              }
 
-            {!isReadonly && (
-              <MessageActions
-                key={`action-${message.id}`}
-                chatId={chatId}
-                message={message}
-                isLoading={isLoading}
-              />
-            )}
+              if (type === 'tool-streamingDocument') {
+                const { toolCallId, state } = part;
+
+                if (state === 'input-available') {
+                  const { input } = part;
+                  return (
+                    <div key={toolCallId}>
+                      <DocumentToolCall
+                        type="stream"
+                        args={input}
+                      />
+                    </div>
+                  );
+                }
+
+                if (state === 'output-available') {
+                  const { output } = part;
+
+                  if ('error' in output) {
+                    return (
+                      <div
+                        key={toolCallId}
+                        className="text-red-500 p-2 border rounded"
+                      >
+                        Error: {String(output.error)}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={toolCallId}>
+                      <DocumentToolResult
+                        type="stream"
+                        result={output}
+                      />
+                    </div>
+                  );
+                }
+              }
+
+              if (type === 'tool-updateDocument') {
+                const { toolCallId, state } = part;
+
+                if (state === 'input-available') {
+                  const { input } = part;
+                  return (
+                    <div key={toolCallId}>
+                      <DocumentToolCall
+                        type="update"
+                        args={input}
+                      />
+                    </div>
+                  );
+                }
+
+                if (state === 'output-available') {
+                  const { output } = part;
+
+                  if ('error' in output) {
+                    return (
+                      <div
+                        key={toolCallId}
+                        className="text-red-500 p-2 border rounded"
+                      >
+                        Error: {String(output.error)}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={toolCallId}>
+                      <DocumentToolResult
+                        type="update"
+                        result={output}
+                      />
+                    </div>
+                  );
+                }
+              }
+
+              if (type === 'tool-webSearch') {
+                const { toolCallId, state } = part;
+
+                if (state === 'output-available') {
+                  const { output } = part;
+                  const results = (output as any).results || [];
+                  return (
+                    <WebSearchResult
+                      key={toolCallId}
+                      query={(output as any).query || ''}
+                      results={results}
+                    />
+                  );
+                }
+              }
+
+              return null;
+            })}
+
+
+            <MessageActions
+              key={`action-${message.id}`}
+              chatId={chatId}
+              message={message}
+              isLoading={isLoading}
+            />
           </div>
         </div>
       </motion.div>
@@ -246,15 +292,7 @@ export const PreviewMessage = memo(
   PurePreviewMessage,
   (prevProps, nextProps) => {
     if (prevProps.isLoading !== nextProps.isLoading) return false;
-    if (prevProps.message.reasoning !== nextProps.message.reasoning)
-      return false;
-    if (prevProps.message.content !== nextProps.message.content) return false;
-    if (
-      !equal(
-        prevProps.message.toolInvocations,
-        nextProps.message.toolInvocations,
-      )
-    )
+    if (!equal(prevProps.message.parts, nextProps.message.parts))
       return false;
     return true;
   },
@@ -299,7 +337,6 @@ export const ThinkingMessage = () => {
   );
 };
 
-// Insert collapsible search result component
 function WebSearchResult({ query, results }: { query: string; results: any[] }) {
   const [open, setOpen] = useState(false);
   return (
