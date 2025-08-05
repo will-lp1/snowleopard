@@ -1,25 +1,26 @@
 import 'server-only';
 import { db } from '@snow-leopard/db'; 
-import * as schema from '@snow-leopard/db'; 
-import { eq, desc, asc, inArray, gt, and, sql, lt } from 'drizzle-orm'; // Import Drizzle operators and
+import * as schema from '@snow-leopard/db';
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gt,
+  gte,
+  inArray,
+  lt,
+  sql,
+  type SQL,
+} from 'drizzle-orm';
 import type { ArtifactKind } from '@/components/artifact';
 
 type Chat = typeof schema.Chat.$inferSelect; 
 type Message = typeof schema.Message.$inferSelect; 
-type Document = typeof schema.Document.$inferSelect; 
+type Document = typeof schema.Document.$inferSelect;
 
-
-interface MessageContent {
-  type: 'text' | 'tool_call' | 'tool_result';
-  content: any;
-  order: number;
-}
-
-interface SaveMessageContentParams {
-  messageId: string;
-  contents: MessageContent[];
-}
-
+// Chat and Message functions (from ai-chatbot)
 export async function saveChat({
   id,
   userId,
@@ -32,14 +33,14 @@ export async function saveChat({
   document_context?: {
     active?: string;
     mentioned?: string[];
-  } | null; // Drizzle expects null for JSONB
+  } | null;
 }) {
   try {
-    await db.insert(schema.Chat).values({
+    return await db.insert(schema.Chat).values({
       id,
+      createdAt: new Date().toISOString(),
       userId,
       title,
-      createdAt: new Date().toISOString(), // Keep using ISO string if schema expects it
       document_context,
     });
   } catch (error) {
@@ -50,20 +51,81 @@ export async function saveChat({
 
 export async function deleteChatById({ id }: { id: string }) {
   try {
-    await db.delete(schema.Chat).where(eq(schema.Chat.id, id));
+    await db.delete(schema.Message).where(eq(schema.Message.chatId, id));
+    
+    const [chatsDeleted] = await db
+      .delete(schema.Chat)
+      .where(eq(schema.Chat.id, id))
+      .returning();
+    return chatsDeleted;
   } catch (error) {
     console.error('Error deleting chat:', error);
     throw error;
   }
 }
 
-export async function getChatsByUserId({ id }: { id: string }): Promise<Chat[]> {
+export async function getChatsByUserId({
+  id,
+  limit,
+  startingAfter,
+  endingBefore,
+}: {
+  id: string;
+  limit: number;
+  startingAfter: string | null;
+  endingBefore: string | null;
+}) {
   try {
-    const data = await db.select()
-      .from(schema.Chat)
-      .where(eq(schema.Chat.userId, id))
-      .orderBy(desc(schema.Chat.createdAt));
-    return data;
+    const extendedLimit = limit + 1;
+
+    const query = (whereCondition?: SQL<any>) =>
+      db
+        .select()
+        .from(schema.Chat)
+        .where(
+          whereCondition
+            ? and(whereCondition, eq(schema.Chat.userId, id))
+            : eq(schema.Chat.userId, id),
+        )
+        .orderBy(desc(schema.Chat.createdAt))
+        .limit(extendedLimit);
+
+    let filteredChats: Chat[] = [];
+
+    if (startingAfter) {
+      const [selectedChat] = await db
+        .select()
+        .from(schema.Chat)
+        .where(eq(schema.Chat.id, startingAfter))
+        .limit(1);
+
+      if (!selectedChat) {
+        throw new Error(`Chat with id ${startingAfter} not found`);
+      }
+
+      filteredChats = await query(gt(schema.Chat.createdAt, selectedChat.createdAt));
+    } else if (endingBefore) {
+      const [selectedChat] = await db
+        .select()
+        .from(schema.Chat)
+        .where(eq(schema.Chat.id, endingBefore))
+        .limit(1);
+
+      if (!selectedChat) {
+        throw new Error(`Chat with id ${endingBefore} not found`);
+      }
+
+      filteredChats = await query(lt(schema.Chat.createdAt, selectedChat.createdAt));
+    } else {
+      filteredChats = await query();
+    }
+
+    const hasMore = filteredChats.length > limit;
+
+    return {
+      chats: hasMore ? filteredChats.slice(0, limit) : filteredChats,
+      hasMore,
+    };
   } catch (error) {
     console.error('Error fetching chats by user ID:', error);
     throw error; 
@@ -72,43 +134,21 @@ export async function getChatsByUserId({ id }: { id: string }): Promise<Chat[]> 
 
 export async function getChatById({ id }: { id: string }): Promise<Chat | null> {
   try {
-    const data = await db.select()
-      .from(schema.Chat)
-      .where(eq(schema.Chat.id, id))
-      .limit(1);
-
-    return data[0] || null;
+    const [selectedChat] = await db.select().from(schema.Chat).where(eq(schema.Chat.id, id));
+    return selectedChat || null;
   } catch (error) {
     console.error('Error fetching chat:', error);
     return null;
   }
 }
 
-export async function saveMessages({ messages }: { messages: Array<typeof schema.Message.$inferInsert> }) {
-   try {
-    const formattedMessages = messages.map(msg => {
-        let finalContent: string | null = null;
-        if (typeof msg.content === 'string') {
-          finalContent = JSON.stringify([{ type: 'text', content: msg.content, order: 0 }]);
-        } else if (typeof msg.content === 'object' && msg.content !== null) {
-           finalContent = JSON.stringify(msg.content);
-          finalContent = JSON.stringify(msg.content);
-        } else {
-          console.warn(`[DB Query - saveMessages] Unexpected message content type for msg ID (if exists) ${msg.id}:`, typeof msg.content);
-          finalContent = JSON.stringify([]);
-        }
-
-        return {
-            ...msg,
-            content: finalContent 
-        };
-    });
-
-    if (formattedMessages.length > 0) {
-      await db.insert(schema.Message).values(formattedMessages);
-    } else {
-      console.log('[DB Query - saveMessages] No messages to save, skipping db insert');
-    }
+export async function saveMessages({
+  messages,
+}: {
+  messages: Array<typeof schema.Message.$inferInsert>;
+}) {
+  try {
+    return await db.insert(schema.Message).values(messages);
   } catch (error) {
     console.error('Error saving messages:', error);
     throw error;
@@ -117,47 +157,87 @@ export async function saveMessages({ messages }: { messages: Array<typeof schema
 
 export async function getMessagesByChatId({ id }: { id: string }): Promise<Message[]> {
   try {
-    const data = await db.select()
+    return await db
+      .select()
       .from(schema.Message)
       .where(eq(schema.Message.chatId, id))
       .orderBy(asc(schema.Message.createdAt));
-
-    return data.map((message) => {
-      let parsedContent: string | object = ''; 
-      try {
-        if (message.content) {
-          const contentArray = typeof message.content === 'string'
-            ? JSON.parse(message.content)
-            : message.content;
-
-          if (Array.isArray(contentArray) && contentArray.length > 0) {
-            const firstElement = contentArray[0];
-            if (firstElement.type === 'text' && typeof firstElement.content === 'string') {
-              parsedContent = firstElement.content; 
-            } else {
-              parsedContent = contentArray; 
-            }
-          } else if (typeof contentArray === 'object' && contentArray !== null) {
-            parsedContent = contentArray;
-          }
-        }
-      } catch (e) {
-        console.error(`[DB Query - getMessagesByChatId] Failed to parse message content for msg ${message.id}:`, e, 'Raw content:', message.content);
-        parsedContent = '[Error parsing content]';
-      }
-      return {
-        ...message,
-        content: parsedContent as any, 
-      };
-    });
-
   } catch (error) {
     console.error('Error fetching messages:', error);
     return [];
   }
 }
 
+export async function getMessageById({ id }: { id: string }) {
+  try {
+    return await db.select().from(schema.Message).where(eq(schema.Message.id, id));
+  } catch (error) {
+    console.error('Error fetching message by ID:', error);
+    throw error; 
+  }
+}
 
+export async function deleteMessagesByChatIdAfterTimestamp({
+  chatId,
+  timestamp,
+}: {
+  chatId: string;
+  timestamp: Date;
+}) {
+  try {
+    const messagesToDelete = await db
+      .select({ id: schema.Message.id })
+      .from(schema.Message)
+      .where(
+        and(eq(schema.Message.chatId, chatId), gte(schema.Message.createdAt, timestamp.toISOString())),
+      );
+
+    const messageIds = messagesToDelete.map((message) => message.id);
+
+    if (messageIds.length > 0) {
+      return await db
+        .delete(schema.Message)
+        .where(
+          and(eq(schema.Message.chatId, chatId), inArray(schema.Message.id, messageIds)),
+        );
+    }
+  } catch (error) {
+    console.error('Error deleting messages:', error);
+    throw error;
+  }
+}
+
+export async function getMessageCountByUserId({
+  id,
+  differenceInHours,
+}: { id: string; differenceInHours: number }) {
+  try {
+    const hoursAgo = new Date(
+      Date.now() - differenceInHours * 60 * 60 * 1000,
+    );
+
+    const [stats] = await db
+      .select({ count: count(schema.Message.id) })
+      .from(schema.Message)
+      .innerJoin(schema.Chat, eq(schema.Message.chatId, schema.Chat.id))
+      .where(
+        and(
+          eq(schema.Chat.userId, id),
+          gte(schema.Message.createdAt, hoursAgo.toISOString()),
+          eq(schema.Message.role, 'user'),
+        ),
+      )
+      .execute();
+
+    return stats?.count ?? 0;
+  } catch (error) {
+    console.error('Error getting message count by user ID:', error);
+    throw error;
+  }
+}
+
+
+// Your existing Document functions (preserved)
 export async function getMessagesByIds(ids: string[]): Promise<Message[]> {
   if (!ids.length) return [];
 
@@ -171,7 +251,6 @@ export async function getMessagesByIds(ids: string[]): Promise<Message[]> {
     throw error;
   }
 }
-
 
 export async function saveDocument({
   id,
@@ -291,40 +370,6 @@ export async function deleteDocumentsByIdAfterTimestamp({
     throw error;
   }
 }
-
-export async function getMessageById({ id }: { id: string }): Promise<Message | null> { // Return null if not found
-  try {
-    const data = await db.select()
-      .from(schema.Message)
-      .where(eq(schema.Message.id, id))
-      .limit(1);
-
-    return data[0] || null;
-  } catch (error) {
-    console.error('Error fetching message by ID:', error);
-    throw error; 
-  }
-}
-
-export async function deleteMessagesByChatIdAfterTimestamp({
-  chatId,
-  timestamp,
-}: {
-  chatId: string;
-  timestamp: string;
-}) {
-  try {
-    await db.delete(schema.Message)
-      .where(and(
-        eq(schema.Message.chatId, chatId),
-        gt(schema.Message.createdAt, timestamp)
-      ));
-  } catch (error) {
-    console.error('Error deleting messages:', error);
-    throw error;
-  }
-}
-
 
 export async function updateChatContextQuery({
   chatId,

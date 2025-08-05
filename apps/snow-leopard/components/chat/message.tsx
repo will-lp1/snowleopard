@@ -4,7 +4,7 @@ import type { ChatRequestOptions, Message } from 'ai';
 import cx from 'classnames';
 import { AnimatePresence, motion } from 'framer-motion';
 import { memo, useState } from 'react';
-import { DocumentToolCall, DocumentToolResult } from '@/components/document/document';
+import { DocumentToolCall, DocumentToolResult } from '@/components/chat/document';
 import { PencilEditIcon, SparklesIcon, FileIcon } from '../icons';
 import { Markdown } from '../markdown';
 import { MessageActions } from './message-actions';

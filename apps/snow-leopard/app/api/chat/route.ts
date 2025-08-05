@@ -1,37 +1,35 @@
 import {
-  type Message,
-  createDataStreamResponse,
-  streamText,
+  convertToModelMessages,
+  createUIMessageStream,
+  JsonToSseTransformStream,
   smoothStream,
+  stepCountIs,
+  streamText,
 } from 'ai';
 import { systemPrompt } from '@/lib/ai/prompts';
 import {
   deleteChatById,
   getChatById,
+  getMessageCountByUserId,
+  getMessagesByChatId,
   saveChat,
   saveMessages,
   getDocumentById,
-  getMessagesByChatId,
   updateChatContextQuery,
 } from '@/lib/db/queries';
-import {
-  generateUUID,
-  getMostRecentUserMessage,
-  sanitizeResponseMessages,
-  parseMessageContent,
-  convertToUIMessages,
-} from '@/lib/utils';
+import { convertToUIMessages, generateUUID } from '@/lib/utils';
 import { generateTitleFromUserMessage } from '@/app/api/chat/actions/chat';
 import { updateDocument } from '@/lib/ai/tools/update-document';
 import { streamingDocument } from '@/lib/ai/tools/document-streaming';
 import { isProductionEnvironment } from '@/lib/constants';
-import { NextResponse } from 'next/server';
 import { myProvider } from '@/lib/ai/providers';
 import { auth } from "@/lib/auth";
 import { headers } from 'next/headers';
 import type { Document } from '@snow-leopard/db';
 import { createDocument as aiCreateDocument } from '@/lib/ai/tools/create-document';
 import { webSearch } from '@/lib/ai/tools/web-search';
+import { ChatSDKError } from '@/lib/errors';
+import type { ChatMessage } from '@/lib/types';
 
 export const maxDuration = 60;
 
@@ -52,9 +50,7 @@ async function createEnhancedSystemPrompt({
   applyStyle?: boolean;
   availableTools?: Array<'createDocument'|'streamingDocument'|'updateDocument'|'webSearch'>;
 }) {
-
   let basePrompt = systemPrompt({ selectedChatModel, availableTools });
-  let contextAdded = false;
 
   if (customInstructions) {
     basePrompt = customInstructions + "\n\n" + basePrompt;
@@ -76,9 +72,9 @@ Content:
 ${document.content || '(Empty document)'}
 `;
         basePrompt += `\n\n${documentContext}`;
-        contextAdded = true;
       }
     } catch (error) {
+      // Ignore document loading errors
     }
   }
 
@@ -97,9 +93,9 @@ Content:
 ${document.content || '(Empty document)'}
 `;
           basePrompt += `\n${mentionedContext}`;
-          contextAdded = true;
         }
       } catch (error) {
+        // Ignore document loading errors
       }
     }
     basePrompt += `\n--- END MENTIONED DOCUMENTS ---`;
@@ -116,7 +112,7 @@ export async function GET(request: Request) {
     const session = await auth.api.getSession({ headers: requestHeaders });
 
     if (!session?.user) {
-      return new Response('Authentication error', { status: 401 });
+      return new ChatSDKError('unauthorized:chat').toResponse();
     }
     
     const userId = session.user.id;
@@ -125,67 +121,74 @@ export async function GET(request: Request) {
     const chatId = searchParams.get('id');
 
     if (!chatId) {
-      return new Response('Chat ID is required', { status: 400 });
+      return new ChatSDKError('bad_request:api').toResponse();
     }
 
     const chat = await getChatById({ id: chatId });
     if (!chat) {
-      return new Response('Chat not found', { status: 404 });
+      return new ChatSDKError('not_found:chat').toResponse();
     }
 
     if (chat.userId !== userId) {
-      return new Response('Unauthorized', { status: 401 });
+      return new ChatSDKError('forbidden:chat').toResponse();
     }
 
     const dbMessages = await getMessagesByChatId({ id: chatId });
     const uiMessages = convertToUIMessages(dbMessages);
     
-    return new Response(JSON.stringify({
+    return Response.json({
       ...chat,
       messages: uiMessages
-    }), {
-      headers: { 'Content-Type': 'application/json' },
     });
   } catch (error) {
     console.error('Error fetching chat:', error);
-    return new Response('Error fetching chat', { status: 500 });
+    return new ChatSDKError('bad_request:chat').toResponse();
   }
 }
 
 export async function POST(request: Request) {
+  let requestBody: {
+    id: string;
+    message: ChatMessage;
+    selectedChatModel: string;
+    data?: { 
+      activeDocumentId?: string | null;
+      mentionedDocumentIds?: string[] | null;
+      [key: string]: any; 
+    };
+    aiOptions?: {
+      customInstructions?: string | null;
+      suggestionLength?: 'short' | 'medium' | 'long';
+      writingStyleSummary?: string | null;
+      applyStyle?: boolean;
+    } | null;
+  };
+
+  try {
+    const json = await request.json();
+    requestBody = json;
+  } catch (_) {
+    return new ChatSDKError('bad_request:api').toResponse();
+  }
+
   try {
     const readonlyHeaders = await headers();
     const requestHeaders = new Headers(readonlyHeaders);
     const session = await auth.api.getSession({ headers: requestHeaders });
 
     if (!session?.user) {
-      return new Response('Authentication error', { status: 401 });
+      return new ChatSDKError('unauthorized:chat').toResponse();
     }
     
     const userId = session.user.id;
 
     const {
       id: chatId,
-      messages,
+      message,
       selectedChatModel,
       data: requestData,
       aiOptions,
-    }: {
-      id: string;
-      messages: Array<Message>;
-      selectedChatModel: string;
-      data?: { 
-        activeDocumentId?: string | null;
-        mentionedDocumentIds?: string[] | null;
-        [key: string]: any; 
-      };
-      aiOptions?: {
-        customInstructions?: string | null;
-        suggestionLength?: 'short' | 'medium' | 'long';
-        writingStyleSummary?: string | null;
-        applyStyle?: boolean;
-      } | null;
-    } = await request.json();
+    } = requestBody;
 
     const activeDocumentId = requestData?.activeDocumentId ?? undefined;
     const mentionedDocumentIds = requestData?.mentionedDocumentIds ?? undefined;
@@ -194,21 +197,21 @@ export async function POST(request: Request) {
     const writingStyleSummary = aiOptions?.writingStyleSummary ?? null;
     const applyStyle = aiOptions?.applyStyle ?? true;
 
-    const userMessage = getMostRecentUserMessage(messages);
+    // Rate limiting
+    const messageCount = await getMessageCountByUserId({
+      id: userId,
+      differenceInHours: 24,
+    });
 
-    if (!userMessage) {
-      return new Response('No user message found', { status: 400 });
-    }
-
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(chatId)) {
-      return new Response('Invalid chat ID format', { status: 400 });
+    // Simple rate limiting (can be enhanced with proper entitlements)
+    if (messageCount > 1000) {
+      return new ChatSDKError('rate_limit:chat').toResponse();
     }
 
     const chat = await getChatById({ id: chatId });
 
     if (!chat) {
-      const title = await generateTitleFromUserMessage({ message: userMessage });
+      const title = await generateTitleFromUserMessage({ message });
       await saveChat({
         id: chatId,
         userId: userId,
@@ -220,7 +223,7 @@ export async function POST(request: Request) {
       });
     } else {
       if (chat.userId !== userId) {
-        return new Response('Unauthorized', { status: 401 });
+        return new ChatSDKError('forbidden:chat').toResponse();
       }
       
       await updateChatContextQuery({ 
@@ -233,25 +236,22 @@ export async function POST(request: Request) {
       });
     }
 
-    const userMessageBackendId = generateUUID();
+    const messagesFromDb = await getMessagesByChatId({ id: chatId });
+    const uiMessages = [...convertToUIMessages(messagesFromDb), message];
 
     await saveMessages({
       messages: [{
-        id: userMessageBackendId,
         chatId: chatId,
-        role: userMessage.role,
-        content: parseMessageContent(userMessage.content),
+        id: message.id,
+        role: 'user',
+        content: message.parts,
         createdAt: new Date().toISOString(),
       }],
     });
 
-    const toolSession = session;
-    if (!toolSession) {
-      return new Response('Internal Server Error', { status: 500 });
-    }
-
     let validatedActiveDocumentId: string | undefined;
     let activeDoc: Document | null = null;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (activeDocumentId && uuidRegex.test(activeDocumentId)) {
         try {
         activeDoc = await getDocumentById({ id: activeDocumentId });
@@ -263,29 +263,29 @@ export async function POST(request: Request) {
       }
     }
 
-    return createDataStreamResponse({
-      execute: async (dataStream) => {
+    const stream = createUIMessageStream({
+      execute: async ({ writer: dataStream }) => {
         const availableTools: any = {};
         const activeToolsList: Array<'createDocument' | 'streamingDocument' | 'updateDocument' | 'webSearch'> = [];
 
         if (!validatedActiveDocumentId) {
-          availableTools.createDocument = aiCreateDocument({ session: toolSession, dataStream });
-          availableTools.streamingDocument = streamingDocument({ session: toolSession, dataStream });
+          availableTools.createDocument = aiCreateDocument({ session, dataStream });
+          availableTools.streamingDocument = streamingDocument({ session, dataStream });
           activeToolsList.push('createDocument', 'streamingDocument');
         } else if ((activeDoc?.content?.length ?? 0) === 0) {
-          availableTools.streamingDocument = streamingDocument({ session: toolSession, dataStream });
+          availableTools.streamingDocument = streamingDocument({ session, dataStream });
           activeToolsList.push('streamingDocument');
         } else {
-          availableTools.updateDocument = updateDocument({ session: toolSession, documentId: validatedActiveDocumentId });
+          availableTools.updateDocument = updateDocument({ session, documentId: validatedActiveDocumentId });
           activeToolsList.push('updateDocument');
         }
 
         if (process.env.TAVILY_API_KEY) {
-          availableTools.webSearch = webSearch({ session: toolSession });
+          availableTools.webSearch = webSearch({ session });
           activeToolsList.push('webSearch');
         }
 
-        const dynamicSystemPrompt = await createEnhancedSystemPrompt({
+        const dynamicSystemPrompt = createEnhancedSystemPrompt({
           selectedChatModel,
           activeDocumentId,
           mentionedDocumentIds,
@@ -297,47 +297,12 @@ export async function POST(request: Request) {
 
         const result = streamText({
           model: myProvider.languageModel(selectedChatModel),
-          system: dynamicSystemPrompt,
-          messages,
-          maxSteps: 2,
-          toolCallStreaming: true,
+          system: await dynamicSystemPrompt,
+          messages: convertToModelMessages(uiMessages),
+          stopWhen: stepCountIs(5),
           experimental_activeTools: activeToolsList,
-          experimental_generateMessageId: generateUUID,
-          experimental_transform: smoothStream({
-            chunking: 'word',
-          }),
+          experimental_transform: smoothStream({ chunking: 'word' }),
           tools: availableTools,
-          onFinish: async ({ response, reasoning }) => {
-            if (userId) {
-              try {
-                const sanitizedResponseMessages = sanitizeResponseMessages({
-                  messages: response.messages,
-                  reasoning,
-                });
-
-                await saveMessages({
-                  messages: sanitizedResponseMessages.map((message) => ({
-                    id: message.id,
-                    chatId: chatId,
-                    role: message.role,
-                    content: parseMessageContent(message.content),
-                    createdAt: new Date().toISOString(),
-                  })),
-                });
-                
-                await updateChatContextQuery({ 
-                  chatId, 
-                  userId,
-                  context: {
-                    active: activeDocumentId,
-                    mentioned: mentionedDocumentIds
-                  }
-                });
-              } catch (error) {
-                console.error('Failed to save chat/messages onFinish:', error);
-              }
-            }
-          },
           experimental_telemetry: {
             isEnabled: isProductionEnvironment,
             functionId: 'stream-text',
@@ -346,60 +311,80 @@ export async function POST(request: Request) {
 
         result.consumeStream();
 
-        result.mergeIntoDataStream(dataStream, {
-          sendReasoning: true,
+        dataStream.merge(
+          result.toUIMessageStream({
+            sendReasoning: true,
+          }),
+        );
+      },
+      generateId: generateUUID,
+      onFinish: async ({ messages }) => {
+        await saveMessages({
+          messages: messages.map((message) => ({
+            id: message.id,
+            role: message.role,
+            content: message.parts,
+            createdAt: new Date().toISOString(),
+            chatId: chatId,
+          })),
+        });
+        
+        await updateChatContextQuery({ 
+          chatId, 
+          userId,
+          context: {
+            active: activeDocumentId,
+            mentioned: mentionedDocumentIds
+          }
         });
       },
-      onError: (error) => {
-        console.error('Stream error:', error);
-        return 'Sorry, something went wrong. Please try again.';
+      onError: () => {
+        return 'Oops, an error occurred!';
       },
     });
+
+    return new Response(stream.pipeThrough(new JsonToSseTransformStream()));
   } catch (error) {
+    if (error instanceof ChatSDKError) {
+      return error.toResponse();
+    }
     console.error('Chat route error:', error);
-    return NextResponse.json({ error }, { status: 400 });
+    return new ChatSDKError('bad_request:chat').toResponse();
   }
 }
 
 export async function DELETE(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get('id');
+
+  if (!id) {
+    return new ChatSDKError('bad_request:api').toResponse();
+  }
+
   try {
     const readonlyHeaders = await headers();
     const requestHeaders = new Headers(readonlyHeaders);
     const session = await auth.api.getSession({ headers: requestHeaders });
 
     if (!session?.user) {
-      return new Response('Authentication error', { status: 401 });
-    }
-    
-    const userId = session.user.id;
-
-    const { searchParams } = new URL(request.url);
-    const rawChatId = searchParams.get('id');
-
-    if (!rawChatId) {
-      return new Response('Chat ID is required', { status: 400 });
+      return new ChatSDKError('unauthorized:chat').toResponse();
     }
 
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(rawChatId)) {
-      return new Response('Invalid chat ID format', { status: 400 });
-    }
-
-    const chat = await getChatById({ id: rawChatId });
+    const chat = await getChatById({ id });
 
     if (!chat) {
-      return new Response('Chat not found', { status: 404 });
+      return new ChatSDKError('not_found:chat').toResponse();
     }
 
-    if (chat.userId !== userId) {
-      return new Response('Unauthorized', { status: 401 });
+    if (chat.userId !== session.user.id) {
+      return new ChatSDKError('forbidden:chat').toResponse();
     }
 
-    await deleteChatById({ id: rawChatId });
+    const deletedChat = await deleteChatById({ id });
 
-    return new Response(null, { status: 204 });
+    return Response.json(deletedChat, { status: 200 });
   } catch (error) {
     console.error('Error deleting chat:', error);
-    return new Response('Error deleting chat', { status: 500 });
+    return new ChatSDKError('bad_request:chat').toResponse();
   }
 }

@@ -1,4 +1,4 @@
-import type { Attachment, Message } from 'ai';
+import type { Attachment, ChatMessage } from '@/lib/types';
 import { formatDistance } from 'date-fns';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -14,7 +14,6 @@ import useSWR, { useSWRConfig } from 'swr';
 import { useWindowSize } from 'usehooks-ts';
 import type { Document } from '@snow-leopard/db';
 import { fetcher } from '@/lib/utils';
-import { MultimodalInput } from './chat/multimodal-input';
 import { Toolbar } from './toolbar';
 import { ArtifactActions } from './artifact-actions';
 import { useArtifact } from '@/hooks/use-artifact';
@@ -78,34 +77,33 @@ export interface ArtifactActionContext<M = any> {
   setMetadata: Dispatch<SetStateAction<M>>;
 }
 
-export function PureArtifact({
+function PureArtifact({
   chatId,
   input,
   setInput,
-  handleSubmit,
   status,
   stop,
   attachments,
   setAttachments,
-  append,
+  sendMessage,
   messages,
   setMessages,
-  reload,
-  isReadonly,
+  regenerate,
 }: {
   chatId: string;
   input: string;
-  setInput: UseChatHelpers['setInput'];
-  status: UseChatHelpers['status'];
-  stop: UseChatHelpers['stop'];
-  attachments: Array<Attachment>;
-  setAttachments: Dispatch<SetStateAction<Array<Attachment>>>;
-  messages: Array<Message>;
-  setMessages: Dispatch<SetStateAction<Array<Message>>>;
-  append: UseChatHelpers['append'];
-  handleSubmit: UseChatHelpers['handleSubmit'];
-  reload: UseChatHelpers['reload'];
+  setInput: Dispatch<SetStateAction<string>>;
+  status: UseChatHelpers<ChatMessage>['status'];
+  stop: UseChatHelpers<ChatMessage>['stop'];
+  attachments: Attachment[];
+  setAttachments: Dispatch<SetStateAction<Attachment[]>>;
+  messages: ChatMessage[];
+  setMessages: UseChatHelpers<ChatMessage>['setMessages'];
+  votes: Array<any> | undefined;
+  sendMessage: UseChatHelpers<ChatMessage>['sendMessage'];
+  regenerate: UseChatHelpers<ChatMessage>['regenerate'];
   isReadonly: boolean;
+  selectedVisibilityType: any;
 }) {
   const { artifact, setArtifact, metadata, setMetadata } = useArtifact();
   const { renameDocument, isRenamingDocument, createDocument } = useDocumentUtils();
@@ -612,7 +610,7 @@ export function PureArtifact({
                   <Toolbar
                     isToolbarVisible={isToolbarVisible}
                     setIsToolbarVisible={setIsToolbarVisible}
-                    append={append}
+                    append={sendMessage}
                     status={status}
                     stop={stop}
                     setMessages={setMessages}

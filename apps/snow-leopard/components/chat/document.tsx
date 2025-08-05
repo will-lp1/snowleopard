@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 // Lazy-load diff viewer to keep initial bundle small.
-const DiffView = dynamic(() => import('./diffview').then(m => m.DiffView), {
+const DiffView = dynamic(() => import('../document/diffview').then(m => m.DiffView), {
   ssr: false,
   loading: () => <div className="p-3 text-xs text-muted-foreground">Loading diff…</div>,
 });
