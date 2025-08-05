@@ -168,11 +168,13 @@ function PureMultimodalInput({
   }, []);
 
   useEffect(() => {
-    setInput(inputValue);
+    if (setInput && typeof setInput === 'function') {
+      setInput(inputValue);
+    }
     setLocalStorageInput(inputValue);
     const mentions = parseMentionsFromMarkup(markupValue);
     onMentionsChange(mentions);
-  }, [inputValue, markupValue, setInput, setLocalStorageInput, onMentionsChange]);
+  }, [inputValue, markupValue, setLocalStorageInput, onMentionsChange]);
 
   const parseMentionsFromMarkup = (markup: string): MentionedDocument[] => {
     const mentionRegex = /@\[([^)]+)\]\\((\\S+)\\)/g;
@@ -356,7 +358,7 @@ function PureMultimodalInput({
     if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault();
 
-      if (status === 'ready' && inputValue.length > 0) {
+      if (status === 'ready' && inputValue && inputValue.length > 0) {
         submitForm();
       } else if (status !== 'ready') {
          toast.error('Please wait for the model to finish its response!');
@@ -476,7 +478,7 @@ function PureSendButton({
         event.preventDefault();
         submitForm();
       }}
-      disabled={input.length === 0 || uploadQueue.length > 0}
+      disabled={!input || input.length === 0 || uploadQueue.length > 0}
     >
       <ArrowUpIcon size={14} />
     </Button>

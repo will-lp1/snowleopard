@@ -1,7 +1,8 @@
 'use client';
 
-import type { ChatRequestOptions } from 'ai';
+import { DefaultChatTransport } from 'ai';
 import { useChat } from '@ai-sdk/react';
+import { fetchWithErrorHandlers } from '@/lib/utils';
 import type { Attachment, ChatMessage } from '@/lib/types';
 import { useState, useEffect } from 'react';
 import { ChatHeader } from '@/components/chat/chat-header';
@@ -9,13 +10,11 @@ import { generateUUID } from '@/lib/utils';
 import { MultimodalInput } from './multimodal-input';
 import { Messages } from './messages';
 import { toast } from 'sonner';
-import { FileText } from 'lucide-react';
 import { useDocumentContext } from '@/hooks/use-document-context';
 import { MentionedDocument } from './multimodal-input';
 import { useArtifact } from '@/hooks/use-artifact';
 import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
 import { DataStreamHandler } from '@/components/data-stream-handler';
-import { motion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 import { useAiOptionsValue } from '@/hooks/ai-options';
 
@@ -65,33 +64,45 @@ export function Chat({
     }
   }, [documentId, documentContent, documentTitle]);
 
+  const [input, setInput] = useState<string>('');
+  const [data, setData] = useState<any[]>([]);
+
   const {
     messages,
     setMessages,
-    input,
-    setInput,
     sendMessage,
     status,
     stop,
     regenerate,
-    data,
     error
   } = useChat<ChatMessage>({
-    api: '/api/chat',
     id: chatId,
-    initialMessages,
-    body: {
-      id: chatId,
-      selectedChatModel: selectedChatModel,
-      aiOptions: {
-        writingStyleSummary,
-        applyStyle,
+    messages: initialMessages,
+    generateId: generateUUID,
+    transport: new DefaultChatTransport({
+      api: '/api/chat',
+      fetch: fetchWithErrorHandlers,
+      prepareSendMessagesRequest({ messages, id, body }) {
+        return {
+          body: {
+            id,
+            message: messages.at(-1),
+            selectedChatModel: selectedChatModel,
+            data: {
+              activeDocumentId: documentContextActive ? documentId : null,
+              mentionedDocumentIds: confirmedMentions.map(m => m.id),
+            },
+            aiOptions: {
+              writingStyleSummary,
+              applyStyle,
+            },
+            ...body,
+          },
+        };
       },
-    },
-    onResponse: (res) => {
-      if (res.status === 401) {
-        console.error('Chat Unauthorized');
-      }
+    }),
+    onData: (dataPart) => {
+      setData((ds) => (ds ? [...ds, dataPart] : []));
     },
     onError: (err) => {
       console.error('Chat Error:', err);
@@ -212,7 +223,9 @@ export function Chat({
       console.log('[Chat Component] Received reset-chat-state event');
       const newChatId = generateUUID();
       setMessages([]);
-      setInput('');
+      if (setInput && typeof setInput === 'function') {
+        setInput('');
+      }
       setChatId(newChatId);
       console.log('[Chat Component] Chat state reset. New ID:', newChatId);
     };
@@ -230,8 +243,8 @@ export function Chat({
       <ChatHeader
         chatId={chatId}
         selectedModelId={selectedChatModel}
-        isReadonly={isReadonly}
         onModelChange={handleModelChange}
+        isReadonly={false}
       />
 
       <div className="flex-1 overflow-y-auto relative">
@@ -246,8 +259,8 @@ export function Chat({
             messages={messages}
             setMessages={setMessages}
             regenerate={regenerate}
-            isReadonly={isReadonly}
             isArtifactVisible={false}
+            requiresScrollPadding={false}
           />
          )}
       </div>
@@ -271,7 +284,7 @@ export function Chat({
         </div>
       )}
 
-      <DataStreamHandler id={chatId} />
+      <DataStreamHandler />
     </div>
   );
 }

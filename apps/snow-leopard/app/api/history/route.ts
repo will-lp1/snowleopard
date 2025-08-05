@@ -17,7 +17,12 @@ export async function GET() {
   try {
     // 1. Fetch recent chats using Drizzle query
     // Note: getChatsByUserId fetches all chats, add limit/pagination if needed later
-    const chats = await getChatsByUserId({ id: userId }); 
+    const { chats } = await getChatsByUserId({ 
+      id: userId, 
+      limit: 50, 
+      startingAfter: null, 
+      endingBefore: null 
+    }); 
     // If you need to limit, the query itself would need modification or slicing here:
     // const recentChats = chats.slice(0, 10); // Example slicing
 

@@ -125,18 +125,18 @@ async function streamInlineSuggestion({
     model: myProvider.languageModel('artifact-model'),
     prompt,
     temperature: 0.4,
-    maxTokens,
+    maxOutputTokens: maxTokens
   });
 
   let suggestionContent = '';
   for await (const delta of fullStream) {
     const { type } = delta;
 
-    if (type === 'text-delta') {
-      const { textDelta } = delta;
+    if (type === 'text') {
+      const { text } = delta;
 
-      suggestionContent += textDelta;
-      await write('suggestion-delta', textDelta);
+      suggestionContent += text;
+      await write('suggestion-delta', text);
     }
   }
 }

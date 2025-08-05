@@ -236,20 +236,33 @@ export const DocumentToolResult = memo(PureDocumentToolResult);
 
 interface DocumentToolCallProps {
   type: 'create' | 'stream' | 'update' | 'request-suggestions';
-  args: { title?: string };
+  args:
+    | { title: string; kind: ArtifactKind } // for create/stream
+    | { id: string; description: string } // for update
+    | { documentId: string }; // for request-suggestions
+  isReadonly: boolean;
 }
 
 function PureDocumentToolCall({
   type,
-  args = { title: '' },
+  args,
+  isReadonly,
 }: DocumentToolCallProps) {
   const { artifact: localArtifact } = useArtifact();
   const artTitle = localArtifact?.title ?? '';
 
-  const titleArg = args.title ?? '';
-  const displayTitle = type === 'create' && artTitle.trim()
-    ? artTitle
-    : titleArg.trim();
+  const displayTitle = 
+    type === 'create' && artTitle.trim() 
+      ? artTitle 
+      : type === 'create' && 'title' in args && args.title
+        ? args.title
+        : type === 'stream' && 'title' in args && args.title
+          ? args.title
+          : type === 'update' && 'description' in args
+            ? args.description
+            : type === 'request-suggestions'
+              ? 'for document'
+              : 'document';
 
   const CallIcon = 
     type === 'create' ? FileIcon :

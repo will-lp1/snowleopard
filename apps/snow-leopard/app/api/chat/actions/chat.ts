@@ -1,6 +1,7 @@
 'use server';
 
-import { generateText, Message } from 'ai';
+import { generateText, type UIMessage } from 'ai';
+import { getTextFromMessage } from '@/lib/utils';
 import { cookies } from 'next/headers';
 
 import {
@@ -21,23 +22,37 @@ export async function saveChatModelAsCookie(model: string) {
 export async function generateTitleFromUserMessage({
   message,
 }: {
-  message: Message;
+  message: UIMessage;
 }) {
-  const { text: title } = await generateText({
-    model: myProvider.languageModel('title-model'),
-    system: `\n
-    - you will generate a short title based on the first message a user begins a conversation with
-    - ensure it is not more than 80 characters long
-    - the title should be a summary of the user's message
-    - do not use quotes or colons`,
-    prompt: JSON.stringify(message),
-  });
+  if (!message) {
+    return 'New Chat';
+  }
 
-  return title;
+  try {
+    const messageText = message.parts
+      ?.filter((part: any) => part.type === 'text')
+      ?.map((part: any) => part.text)
+      ?.join('') || '';
+    
+    const { text: title } = await generateText({
+      model: myProvider.languageModel('title-model'),
+      system: `\n
+      - you will generate a short title based on the first message a user begins a conversation with
+      - ensure it is not more than 80 characters long
+      - the title should be a summary of the user's message
+      - do not use quotes or colons`,
+      prompt: messageText,
+    });
+
+    return title;
+  } catch (error) {
+    console.error('[generateTitleFromUserMessage] Error:', error);
+    return 'New Chat';
+  }
 }
 
 export async function deleteTrailingMessages({ id }: { id: string }) {
-  const message = await getMessageById({ id });
+  const [message] = await getMessageById({ id });
 
   if (message) {
     await deleteMessagesByChatIdAfterTimestamp({

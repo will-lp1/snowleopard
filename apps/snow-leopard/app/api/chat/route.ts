@@ -33,6 +33,16 @@ import type { ChatMessage } from '@/lib/types';
 
 export const maxDuration = 60;
 
+// Schema validation
+const postRequestBodySchema = {
+  parse: (data: any) => {
+    if (!data.id || !data.message) {
+      throw new Error('Invalid request body');
+    }
+    return data;
+  }
+};
+
 async function createEnhancedSystemPrompt({
   selectedChatModel,
   activeDocumentId,
@@ -57,7 +67,7 @@ async function createEnhancedSystemPrompt({
   }
 
   if (applyStyle && writingStyleSummary) {
-    const styleBlock = `PERSONAL STYLE GUIDE\n• Emulate the author\'s tone, rhythm, sentence structure, vocabulary choice, and punctuation habits.\n• Do NOT copy phrases or introduce topics from the reference text.\n• Only transform wording to match style; keep semantic content from the current conversation.\nStyle description: ${writingStyleSummary}`;
+    const styleBlock = `PERSONAL STYLE GUIDE\n• Emulate the author's tone, rhythm, sentence structure, vocabulary choice, and punctuation habits.\n• Do NOT copy phrases or introduce topics from the reference text.\n• Only transform wording to match style; keep semantic content from the current conversation.\nStyle description: ${writingStyleSummary}`;
     basePrompt = styleBlock + "\n\n" + basePrompt;
   }
 
@@ -104,74 +114,25 @@ ${document.content || '(Empty document)'}
   return basePrompt;
 }
 
-// Get a chat by ID with its messages
-export async function GET(request: Request) {
-  try {
-    const readonlyHeaders = await headers();
-    const requestHeaders = new Headers(readonlyHeaders);
-    const session = await auth.api.getSession({ headers: requestHeaders });
-
-    if (!session?.user) {
-      return new ChatSDKError('unauthorized:chat').toResponse();
-    }
-    
-    const userId = session.user.id;
-
-    const { searchParams } = new URL(request.url);
-    const chatId = searchParams.get('id');
-
-    if (!chatId) {
-      return new ChatSDKError('bad_request:api').toResponse();
-    }
-
-    const chat = await getChatById({ id: chatId });
-    if (!chat) {
-      return new ChatSDKError('not_found:chat').toResponse();
-    }
-
-    if (chat.userId !== userId) {
-      return new ChatSDKError('forbidden:chat').toResponse();
-    }
-
-    const dbMessages = await getMessagesByChatId({ id: chatId });
-    const uiMessages = convertToUIMessages(dbMessages);
-    
-    return Response.json({
-      ...chat,
-      messages: uiMessages
-    });
-  } catch (error) {
-    console.error('Error fetching chat:', error);
-    return new ChatSDKError('bad_request:chat').toResponse();
-  }
-}
-
 export async function POST(request: Request) {
-  let requestBody: {
-    id: string;
-    message: ChatMessage;
-    selectedChatModel: string;
-    data?: { 
-      activeDocumentId?: string | null;
-      mentionedDocumentIds?: string[] | null;
-      [key: string]: any; 
-    };
-    aiOptions?: {
-      customInstructions?: string | null;
-      suggestionLength?: 'short' | 'medium' | 'long';
-      writingStyleSummary?: string | null;
-      applyStyle?: boolean;
-    } | null;
-  };
+  let requestBody: any;
 
   try {
     const json = await request.json();
-    requestBody = json;
+    requestBody = postRequestBodySchema.parse(json);
   } catch (_) {
     return new ChatSDKError('bad_request:api').toResponse();
   }
 
   try {
+    const {
+      id,
+      message,
+      selectedChatModel,
+      data,
+      aiOptions,
+    } = requestBody;
+
     const readonlyHeaders = await headers();
     const requestHeaders = new Headers(readonlyHeaders);
     const session = await auth.api.getSession({ headers: requestHeaders });
@@ -179,41 +140,32 @@ export async function POST(request: Request) {
     if (!session?.user) {
       return new ChatSDKError('unauthorized:chat').toResponse();
     }
-    
+
     const userId = session.user.id;
-
-    const {
-      id: chatId,
-      message,
-      selectedChatModel,
-      data: requestData,
-      aiOptions,
-    } = requestBody;
-
-    const activeDocumentId = requestData?.activeDocumentId ?? undefined;
-    const mentionedDocumentIds = requestData?.mentionedDocumentIds ?? undefined;
+    const activeDocumentId = data?.activeDocumentId ?? undefined;
+    const mentionedDocumentIds = data?.mentionedDocumentIds ?? undefined;
     const customInstructions = aiOptions?.customInstructions ?? null;
-    const suggestionLength = aiOptions?.suggestionLength ?? 'medium';
     const writingStyleSummary = aiOptions?.writingStyleSummary ?? null;
     const applyStyle = aiOptions?.applyStyle ?? true;
 
-    // Rate limiting
     const messageCount = await getMessageCountByUserId({
       id: userId,
       differenceInHours: 24,
     });
 
-    // Simple rate limiting (can be enhanced with proper entitlements)
     if (messageCount > 1000) {
       return new ChatSDKError('rate_limit:chat').toResponse();
     }
 
-    const chat = await getChatById({ id: chatId });
+    const chat = await getChatById({ id });
 
     if (!chat) {
-      const title = await generateTitleFromUserMessage({ message });
+      const title = await generateTitleFromUserMessage({
+        message,
+      });
+
       await saveChat({
-        id: chatId,
+        id,
         userId: userId,
         title,
         document_context: {
@@ -227,7 +179,7 @@ export async function POST(request: Request) {
       }
       
       await updateChatContextQuery({ 
-        chatId, 
+        chatId: id, 
         userId,
         context: {
           active: activeDocumentId,
@@ -236,17 +188,19 @@ export async function POST(request: Request) {
       });
     }
 
-    const messagesFromDb = await getMessagesByChatId({ id: chatId });
+    const messagesFromDb = await getMessagesByChatId({ id });
     const uiMessages = [...convertToUIMessages(messagesFromDb), message];
 
     await saveMessages({
-      messages: [{
-        chatId: chatId,
-        id: message.id,
-        role: 'user',
-        content: message.parts,
-        createdAt: new Date().toISOString(),
-      }],
+      messages: [
+        {
+          chatId: id,
+          id: message.id,
+          role: 'user',
+          content: message.parts, // Store parts in content field for compatibility
+          createdAt: new Date().toISOString(),
+        },
+      ],
     });
 
     let validatedActiveDocumentId: string | undefined;
@@ -285,7 +239,7 @@ export async function POST(request: Request) {
           activeToolsList.push('webSearch');
         }
 
-        const dynamicSystemPrompt = createEnhancedSystemPrompt({
+        const dynamicSystemPrompt = await createEnhancedSystemPrompt({
           selectedChatModel,
           activeDocumentId,
           mentionedDocumentIds,
@@ -297,7 +251,7 @@ export async function POST(request: Request) {
 
         const result = streamText({
           model: myProvider.languageModel(selectedChatModel),
-          system: await dynamicSystemPrompt,
+          system: dynamicSystemPrompt,
           messages: convertToModelMessages(uiMessages),
           stopWhen: stepCountIs(5),
           experimental_activeTools: activeToolsList,
@@ -323,14 +277,14 @@ export async function POST(request: Request) {
           messages: messages.map((message) => ({
             id: message.id,
             role: message.role,
-            content: message.parts,
+            content: message.parts, // Store parts in content field for compatibility
             createdAt: new Date().toISOString(),
-            chatId: chatId,
+            chatId: id,
           })),
         });
         
         await updateChatContextQuery({ 
-          chatId, 
+          chatId: id, 
           userId,
           context: {
             active: activeDocumentId,
