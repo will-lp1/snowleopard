@@ -12,6 +12,7 @@ import equal from 'fast-deep-equal';
 import { cn } from '@/lib/utils';
 import { MessageReasoning } from './message-reasoning';
 import Image from 'next/image';
+import { useDataStream } from '@/components/data-stream-provider';
 
 function formatMessageWithMentions(content: string) {
   if (!content) return content;
@@ -69,8 +70,9 @@ const PurePreviewMessage = ({
   isLoading: boolean;
   setMessages: UseChatHelpers<ChatMessage>['setMessages'];
   regenerate: UseChatHelpers<ChatMessage>['regenerate'];
-  requiresScrollPadding?: boolean;
+  requiresScrollPadding: boolean;
 }) => {
+  useDataStream();
   console.log('[PreviewMessage] Rendering message:', message);
 
   return (
@@ -303,7 +305,7 @@ export const ThinkingMessage = () => {
   return (
     <motion.div
       data-testid="message-assistant-loading"
-      className="w-full mx-auto max-w-3xl px-4 group/message "
+      className="w-full mx-auto max-w-3xl px-4 group/message min-h-96"
       initial={{ y: 5, opacity: 0 }}
       animate={{ y: 0, opacity: 1, transition: { delay: 1 } }}
       data-role={role}
@@ -316,19 +318,12 @@ export const ThinkingMessage = () => {
           },
         )}
       >
-        <div className="size-8 flex items-center justify-center rounded-full ring-1 shrink-0 ring-border overflow-hidden relative">
-          <Image
-            src="/images/leopardprintbw.svg"
-            alt="Snow Leopard"
-            fill
-            className="object-cover dark:invert"
-            style={{ transform: 'scale(2.5)' }}
-          />
+        <div className="size-8 flex items-center rounded-full justify-center ring-1 shrink-0 ring-border">
         </div>
 
         <div className="flex flex-col gap-2 w-full">
           <div className="flex flex-col gap-4 text-muted-foreground">
-            Thinking...
+            Hmm...
           </div>
         </div>
       </div>

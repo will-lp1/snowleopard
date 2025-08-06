@@ -24,6 +24,7 @@ function PureMessages({
   messages,
   setMessages,
   regenerate,
+  requiresScrollPadding,
 }: MessagesProps) {
   const {
     containerRef: messagesContainerRef,
@@ -50,16 +51,14 @@ function PureMessages({
           key={message.id}
           chatId={chatId}
           message={message}
-          isLoading={status === 'streaming' && messages.length - 1 === index}
+          isLoading={status === 'streaming' && index === messages.length - 1}
           setMessages={setMessages}
           regenerate={regenerate}
-          requiresScrollPadding={
-            hasSentMessage && index === messages.length - 1
-          }
+          requiresScrollPadding={requiresScrollPadding}
         />
       ))}
 
-      {status === 'submitted' &&
+      {(status === 'submitted' || status === 'streaming') &&
         messages.length > 0 &&
         messages[messages.length - 1].role === 'user' && <ThinkingMessage />}
 

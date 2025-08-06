@@ -29,7 +29,6 @@ import type { Document } from '@snow-leopard/db';
 import { createDocument as aiCreateDocument } from '@/lib/ai/tools/create-document';
 import { webSearch } from '@/lib/ai/tools/web-search';
 import { ChatSDKError } from '@/lib/errors';
-import type { ChatMessage } from '@/lib/types';
 
 export const maxDuration = 60;
 
@@ -263,9 +262,6 @@ export async function POST(request: Request) {
             functionId: 'stream-text',
           },
         });
-
-        result.consumeStream();
-
         dataStream.merge(
           result.toUIMessageStream({
             sendReasoning: true,

@@ -14,9 +14,8 @@ import { useDocumentContext } from '@/hooks/use-document-context';
 import { MentionedDocument } from './multimodal-input';
 import { useArtifact } from '@/hooks/use-artifact';
 import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
-import { DataStreamHandler } from '@/components/data-stream-handler';
-import { Loader2 } from 'lucide-react';
 import { useAiOptionsValue } from '@/hooks/ai-options';
+import { useDataStream } from '@/components/data-stream-provider';
 
 export interface ChatProps {
   id?: string;
@@ -57,7 +56,7 @@ export function Chat({
   }, [documentId, documentContent, documentTitle]);
 
   const [input, setInput] = useState<string>('');
-  const [data, setData] = useState<any[]>([]);
+  const { setDataStream } = useDataStream();
 
   const {
     messages,
@@ -81,9 +80,9 @@ export function Chat({
             message: messages.at(-1),
             selectedChatModel: selectedChatModel,
             data: {
-              activeDocumentId: documentId !== 'init' ? documentId : 
-                (typeof window !== 'undefined' && window.location.pathname.startsWith('/documents/')) 
-                  ? window.location.pathname.split('/')[2] 
+              activeDocumentId: documentId !== 'init' ? documentId :
+                (typeof window !== 'undefined' && window.location.pathname.startsWith('/documents/'))
+                  ? window.location.pathname.split('/')[2]
                   : documentId,
               mentionedDocumentIds: confirmedMentions.map(m => m.id),
             },
@@ -97,7 +96,7 @@ export function Chat({
       },
     }),
     onData: (dataPart) => {
-      setData((ds) => (ds ? [...ds, dataPart] : []));
+      setDataStream((ds) => (ds ? [...ds, dataPart] : [dataPart]));
     },
     onError: (err) => {
       console.error('Chat Error:', err);
@@ -209,34 +208,26 @@ export function Chat({
 
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      <ChatHeader
-        chatId={chatId}
-        selectedModelId={selectedChatModel}
-        onModelChange={handleModelChange}
-        isReadonly={false}
-      />
+      <div className="flex flex-col min-w-0 h-dvh bg-background">
+        <ChatHeader
+          chatId={chatId}
+          selectedModelId={selectedChatModel}
+          onModelChange={handleModelChange}
+          isReadonly={isReadonly}
+        />
 
-      <div className="flex-1 overflow-y-auto relative">
-        {isLoadingChat ? (
-           <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm z-10">
-             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-           </div>
-         ) : (
-          <Messages
-            chatId={chatId}
-            status={status}
-            messages={messages}
-            setMessages={setMessages}
-            regenerate={regenerate}
-            isArtifactVisible={false}
-            requiresScrollPadding={false}
-          />
-         )}
-      </div>
+        <Messages
+          chatId={chatId}
+          status={status}
+          messages={messages}
+          setMessages={setMessages}
+          regenerate={regenerate}
+          requiresScrollPadding={false}
+          isArtifactVisible={false}
+        />
 
-      {!isReadonly && (
-        <div className="p-4 border-t border-zinc-200 dark:border-zinc-700">
+        <form className="flex mx-auto px-4 bg-background pb-4 md:pb-6 gap-2 w-full md:max-w-3xl">
+          {!isReadonly && (
             <MultimodalInput
               chatId={chatId}
               input={input}
@@ -249,12 +240,12 @@ export function Chat({
               setMessages={setMessages}
               sendMessage={sendMessage}
               confirmedMentions={confirmedMentions}
-              onMentionsChange={setConfirmedMentions}
+              onMentionsChange={handleMentionsChange}
             />
-        </div>
-      )}
-
-      <DataStreamHandler />
-    </div>
+          )}
+        </form>
+              </div>
   );
 }
+
+
