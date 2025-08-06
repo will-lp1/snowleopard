@@ -7,7 +7,7 @@ import {
   updateCurrentDocumentVersion,
   createNewDocumentVersion,
   getChatExists,
-  getLatestDocumentById // To return the final state
+  getLatestDocumentById 
 } from '@/lib/db/queries';
 import { Document } from '@snow-leopard/db';
 
@@ -41,7 +41,6 @@ export async function updateDocument(request: NextRequest, body: any): Promise<N
     
     const content = inputContent;
     
-    console.log(`[Document API - UPDATE] User ${userId} updating document: ${documentId}`);
     console.log('[Document API - UPDATE] Received:', { 
       id: documentId, 
       contentLength: content?.length || 0,

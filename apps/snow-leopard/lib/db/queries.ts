@@ -255,14 +255,12 @@ export async function getMessagesByIds(ids: string[]): Promise<Message[]> {
 export async function saveDocument({
   id,
   title,
-  kind,
   content,
   userId,
   chatId,
 }: {
   id: string;
   title: string;
-  kind: ArtifactKind;
   content: string;
   userId: string;
   chatId?: string | null;
@@ -272,7 +270,6 @@ export async function saveDocument({
     const newVersionData = {
       id,
       title,
-      kind: kind as typeof schema.artifactKindEnum.enumValues[number],
       content,
       userId,
       chatId: chatId || null,

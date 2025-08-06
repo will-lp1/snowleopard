@@ -12,7 +12,7 @@ interface UpdateDocumentProps {
 export const updateDocument = ({ session: _session, documentId: defaultDocumentId }: UpdateDocumentProps) =>
   tool({
     description: 'Update a document based on a description. Returns the original and proposed new content for review.',
-    parameters: z.object({
+    inputSchema: z.object({
       description: z
         .string()
         .describe('The description of changes that need to be made'),

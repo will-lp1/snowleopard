@@ -132,7 +132,7 @@ async function streamInlineSuggestion({
   for await (const delta of fullStream) {
     const { type } = delta;
 
-    if (type === 'text') {
+    if (type === 'text-delta') {
       const { text } = delta;
 
       suggestionContent += text;

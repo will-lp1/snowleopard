@@ -1,7 +1,7 @@
 import {
   convertToModelMessages,
   createUIMessageStream,
-  JsonToSseTransformStream,
+  createUIMessageStreamResponse,
   smoothStream,
   stepCountIs,
   streamText,
@@ -148,6 +148,7 @@ export async function POST(request: Request) {
     const writingStyleSummary = aiOptions?.writingStyleSummary ?? null;
     const applyStyle = aiOptions?.applyStyle ?? true;
 
+
     const messageCount = await getMessageCountByUserId({
       id: userId,
       differenceInHours: 24,
@@ -223,7 +224,7 @@ export async function POST(request: Request) {
         const activeToolsList: Array<'createDocument' | 'streamingDocument' | 'updateDocument' | 'webSearch'> = [];
 
         if (!validatedActiveDocumentId) {
-          availableTools.createDocument = aiCreateDocument({ session, dataStream });
+          availableTools.createDocument = aiCreateDocument({ session });
           availableTools.streamingDocument = streamingDocument({ session, dataStream });
           activeToolsList.push('createDocument', 'streamingDocument');
         } else if ((activeDoc?.content?.length ?? 0) === 0) {
@@ -241,7 +242,7 @@ export async function POST(request: Request) {
 
         const dynamicSystemPrompt = await createEnhancedSystemPrompt({
           selectedChatModel,
-          activeDocumentId,
+          activeDocumentId: validatedActiveDocumentId,
           mentionedDocumentIds,
           customInstructions,
           writingStyleSummary,
@@ -297,7 +298,7 @@ export async function POST(request: Request) {
       },
     });
 
-    return new Response(stream.pipeThrough(new JsonToSseTransformStream()));
+    return createUIMessageStreamResponse({ stream });
   } catch (error) {
     if (error instanceof ChatSDKError) {
       return error.toResponse();

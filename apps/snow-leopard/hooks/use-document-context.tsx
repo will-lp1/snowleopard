@@ -34,6 +34,7 @@ export function DocumentProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const docIdFromParams = params?.id as string | undefined;
 
+
     const isValidId = (id: string | undefined): id is string => 
       !!id && id !== 'undefined' && id !== 'null' && id !== 'init';
 

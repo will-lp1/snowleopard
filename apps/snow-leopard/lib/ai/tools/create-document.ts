@@ -1,4 +1,4 @@
-import { DataStreamWriter, tool } from 'ai';
+import { tool, createUIMessageStream } from 'ai';
 import { z } from 'zod';
 import { Session } from '@/lib/auth';
 import { artifactKinds } from '@/lib/artifacts/server';
@@ -8,46 +8,42 @@ import type { ArtifactKind } from '@/components/artifact';
 
 interface CreateDocumentProps {
   session: Session;
-  dataStream: DataStreamWriter;
 }
 
-export const createDocument = ({ session, dataStream }: CreateDocumentProps) =>
+export const createDocument = ({ session }: CreateDocumentProps) =>
   tool({
     description:
       'Creates a new document record in the database, streams back its ID so the editor can initialize it.',
-    parameters: z.object({
+    inputSchema: z.object({
       title: z.string().describe('The title for the new document.'),
-      kind: z
-        .enum(artifactKinds)
-        .describe('The kind of document to create (e.g., text).')
-        .optional(),
     }),
-    execute: async ({ title, kind = 'text' }) => {
+    execute: async ({ title = 'text' }) => {
       // Generate a new document ID
       const newDocumentId = generateUUID();
       const userId = session.user.id;
 
-      try {
-        // Save the new document with empty content
-        await saveDocument({
-          id: newDocumentId,
-          title,
-          content: '',
-          kind: kind as ArtifactKind,
-          userId,
-        });
+      return createUIMessageStream({
+        async execute({ writer }) {
+          try {
+            await saveDocument({
+              id: newDocumentId,
+              title,
+              content: '',
+              userId,
+            });
 
-        // Stream the new ID to the client
-        dataStream.writeData({ type: 'id', content: newDocumentId });
-        // Delay to allow page navigation and editor initialization
-        await new Promise((resolve) => setTimeout(resolve, 4500));
-        // Signal that creation is finished
-        dataStream.writeData({ type: 'finish', content: '' });
+            writer.write({ type: 'data-id', data: newDocumentId });
+            writer.write({ type: 'data-title', data: title });
+            writer.write({ type: 'data-clear', data: null });
 
-        return { content: 'New document created.' };
-      } catch (error: any) {
-        console.error('[AI Tool] Failed to create document:', error);
-        throw new Error(`Failed to create document: ${error.message || error}`);
-      }
+            await new Promise((resolve) => setTimeout(resolve, 450));
+
+            writer.write({ type: 'data-finish', data: null });
+          } catch (error: any) {
+            writer.write({ type: 'data-error', data: error.message || String(error) });
+            throw new Error(`Failed to create document: ${error.message || error}`);
+          }
+        },
+      });
     },
   });

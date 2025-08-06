@@ -33,6 +33,7 @@ export function Chat({
 }: ChatProps) {
   const { documentId, documentTitle, documentContent } = useDocumentContext();
   const [documentContextActive, setDocumentContextActive] = useState(false);
+
   const { artifact } = useArtifact();
   const { writingStyleSummary, applyStyle } = useAiOptionsValue();
   const [chatId, setChatId] = useState(() => initialId || generateUUID());
@@ -43,10 +44,8 @@ export function Chat({
   const [isLoadingChat, setIsLoadingChat] = useState(false);
   const [requestedChatLoadId, setRequestedChatLoadId] = useState<string | null>(null);
 
-  // Callback function to update the model state
   const handleModelChange = (newModelId: string) => {
     setSelectedChatModel(newModelId);
-    console.log('[Chat] Model changed to:', newModelId);
   };
 
   const [confirmedMentions, setConfirmedMentions] = useState<MentionedDocument[]>([]);
@@ -55,13 +54,6 @@ export function Chat({
     const hasDocumentContext = documentId !== 'init';
     setDocumentContextActive(Boolean(hasDocumentContext));
     
-    if (hasDocumentContext) {
-      console.log('[Chat] Using document context in chat:', {
-        documentId,
-        title: documentTitle,
-        contentLength: documentContent.length
-      });
-    }
   }, [documentId, documentContent, documentTitle]);
 
   const [input, setInput] = useState<string>('');
@@ -89,7 +81,10 @@ export function Chat({
             message: messages.at(-1),
             selectedChatModel: selectedChatModel,
             data: {
-              activeDocumentId: documentContextActive ? documentId : null,
+              activeDocumentId: documentId !== 'init' ? documentId : 
+                (typeof window !== 'undefined' && window.location.pathname.startsWith('/documents/')) 
+                  ? window.location.pathname.split('/')[2] 
+                  : documentId,
               mentionedDocumentIds: confirmedMentions.map(m => m.id),
             },
             aiOptions: {
@@ -136,50 +131,34 @@ export function Chat({
 
   useEffect(() => {
     const loadHistory = async (idToLoad: string) => {
-
-      console.log(`[Chat useEffect] Starting load for explicitly requested chatId: ${idToLoad}`);
       setIsLoadingChat(true);
-      console.time(`[Chat useEffect] Load ${idToLoad}`);
-
       try {
         setRequestedChatLoadId(null);
-
-        console.time(`[Chat useEffect] Fetch ${idToLoad}`);
         const chatResponse = await fetch(`/api/chat?id=${idToLoad}`);
-        console.timeEnd(`[Chat useEffect] Fetch ${idToLoad}`);
-
+        
         if (!chatResponse.ok) {
-          const errorText = await chatResponse.text();
-          console.error(`[Chat useEffect] Fetch failed for ${idToLoad}. Status: ${chatResponse.status}. Body: ${errorText}`);
-          throw new Error(`Failed to fetch chat: ${chatResponse.statusText}`);
+          throw new Error('Failed to fetch chat');
         }
 
         const chatData = await chatResponse.json();
-        if (!chatData || !chatData.messages) {
-          console.error(`[Chat useEffect] Invalid chat data received for ${idToLoad}. Data:`, chatData);
-          throw new Error('Invalid chat data received');
+        if (!chatData?.messages) {
+          throw new Error('Invalid chat data');
         }
 
         setInput('');
         setMessages(chatData.messages);
-
-        console.log(`[Chat useEffect] Successfully loaded chat ${idToLoad}`);
-
       } catch (error) {
-        console.error(`[Chat useEffect] CATCH BLOCK - Error loading chat ${idToLoad}:`, error);
-        toast.error(`Failed to load chat history for ${idToLoad}`);
+        toast.error('Failed to load chat history');
         setMessages(initialMessages);
         setInput('');
       } finally {
         setIsLoadingChat(false);
-        console.timeEnd(`[Chat useEffect] Load ${idToLoad}`);
       }
     };
 
     if (requestedChatLoadId) {
       loadHistory(requestedChatLoadId);
     }
-
   }, [requestedChatLoadId, setMessages, setInput, initialMessages]);
 
   useEffect(() => {
@@ -187,11 +166,9 @@ export function Chat({
       const detail = event.detail;
       if (!detail || !detail.chatId) return;
 
-      console.log(`[Chat EventListener] Received load-chat event for ${detail.chatId}. Current state chatId: ${chatId}. Setting new chatId.`);
-
       if (detail.chatId !== chatId) {
-          setChatId(detail.chatId);
-          setRequestedChatLoadId(detail.chatId);
+        setChatId(detail.chatId);
+        setRequestedChatLoadId(detail.chatId);
       }
     };
 
@@ -206,9 +183,6 @@ export function Chat({
     const handleChatIdChanged = (event: CustomEvent<{ oldChatId: string, newChatId: string }>) => {
       const { oldChatId, newChatId } = event.detail;
       
-      if (oldChatId === chatId) {
-        console.log(`[Chat] Changing chat ID from ${oldChatId} to ${newChatId}`);
-      }
     };
     
     window.addEventListener('chat-id-changed', handleChatIdChanged as unknown as EventListener);
@@ -220,14 +194,10 @@ export function Chat({
 
   useEffect(() => {
     const handleReset = () => {
-      console.log('[Chat Component] Received reset-chat-state event');
       const newChatId = generateUUID();
       setMessages([]);
-      if (setInput && typeof setInput === 'function') {
-        setInput('');
-      }
+      setInput('');
       setChatId(newChatId);
-      console.log('[Chat Component] Chat state reset. New ID:', newChatId);
     };
 
     window.addEventListener('reset-chat-state', handleReset);

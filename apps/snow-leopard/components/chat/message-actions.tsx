@@ -1,4 +1,4 @@
-import type { Message } from 'ai';
+import type { UIMessage } from 'ai';
 import { useCopyToClipboard } from 'usehooks-ts';
 import { memo } from 'react';
 import { CopyIcon } from '../icons';
@@ -17,14 +17,14 @@ export function PureMessageActions({
   isLoading,
 }: {
   chatId: string;
-  message: Message;
+  message: UIMessage;
   isLoading: boolean;
 }) {
   const [_, copyToClipboard] = useCopyToClipboard();
 
   if (isLoading) return null;
   if (message.role === 'user') return null;
-  if (message.toolInvocations && message.toolInvocations.length > 0)
+  if (message.parts && message.parts.length > 0)
     return null;
 
   return (
@@ -36,9 +36,9 @@ export function PureMessageActions({
               className="py-1 px-2 h-fit text-muted-foreground"
               variant="outline"
               onClick={async () => {
-                const content = typeof message.content === 'string' 
-                  ? message.content 
-                  : JSON.stringify(message.content);
+                const content = typeof message.parts === 'string' 
+                  ? message.parts 
+                  : JSON.stringify(message.parts);
                 await copyToClipboard(content);
                 toast.success('Copied to clipboard!');
               }}
