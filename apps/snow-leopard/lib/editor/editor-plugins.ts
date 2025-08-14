@@ -11,6 +11,7 @@ import { synonymsPlugin } from './synonym-plugin';
 import { diffPlugin } from './diff-plugin';
 import { formatPlugin } from './format-plugin';
 import { savePlugin } from './save-plugin';
+import { emojiPlugin } from './emoji-plugin';
 
 export interface EditorPluginOptions {
   documentId: string;
@@ -34,6 +35,7 @@ export function createEditorPlugins(opts: EditorPluginOptions): Plugin[] {
     synonymsPlugin(),
     diffPlugin(opts.documentId),
     formatPlugin(opts.setActiveFormats),
+    emojiPlugin(),
     savePlugin({
       saveFunction: opts.performSave,
       initialLastSaved: opts.initialLastSaved,
