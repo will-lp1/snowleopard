@@ -63,7 +63,7 @@ export function emojiPlugin(): Plugin {
     while (start >= 0) {
       const ch = doc.textBetween(start, start + 1);
       if (ch === ':') break;
-      if (ch === ' ' || ch === '\n' || ch === '\t') return false;
+      if (/\s|\n|\t/.test(ch)) return false; 
       start--;
     }
 
@@ -75,13 +75,8 @@ export function emojiPlugin(): Plugin {
         return false;
       }
       
-      const textToInsert = ' ' + emojiCode;
-
-      const tr = pluginState.editorView.state.tr.replaceWith(
-        start,
-        end,
-        pluginState.editorView.state.schema.text(textToInsert)
-      );
+      const textToInsert = emojiCode; 
+      const tr = pluginState.editorView.state.tr.replaceWith(start, end, pluginState.editorView.state.schema.text(textToInsert));
       
       const newPos = start + textToInsert.length;
       
