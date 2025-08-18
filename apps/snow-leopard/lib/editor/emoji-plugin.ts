@@ -2,6 +2,9 @@ import { Plugin, EditorState, Transaction, TextSelection } from 'prosemirror-sta
 import { Decoration, DecorationSet, EditorView } from 'prosemirror-view';
 import { Schema, Node as ProseMirrorNode, ResolvedPos } from 'prosemirror-model';
 import * as emoji from 'node-emoji';
+import React from 'react';
+import { createRoot, Root } from 'react-dom/client';
+import EmojiOverlay from '@/components/emoji-overlay';
 
 interface EmojiSuggestion {
   emoji: string;
@@ -20,7 +23,9 @@ interface EmojiSearchResult {
 }
 
 interface EmojiPluginState {
-  suggestionElement: HTMLElement | null;
+  suggestionElement: HTMLElement | null; // container for React root
+  overlayRoot: Root | null;             // React root instance
+  coords: Coordinates | null;           // last known coords
   currentQuery: string;
   selectedIndex: number;
   suggestions: EmojiSuggestion[];
@@ -30,6 +35,8 @@ interface EmojiPluginState {
 export function emojiPlugin(): Plugin {
   const pluginState: EmojiPluginState = {
     suggestionElement: null,
+    overlayRoot: null,
+    coords: null,
     currentQuery: '',
     selectedIndex: 0,
     suggestions: [],
@@ -93,125 +100,63 @@ export function emojiPlugin(): Plugin {
     return false;
   }
 
-  function createSuggestionElement(): HTMLElement {
-    const element = document.createElement('div');
-    element.className = 'emoji-suggestion-panel';
-    element.style.cssText = `
-      position: absolute;
-      background: #000000;
-      border: 1px solid #374151;
-      border-radius: 8px;
-      padding: 8px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-      z-index: 10000;
-      display: none;
-      max-width: 600px;
-      overflow-x: auto;
-      white-space: nowrap;
-    `;
-    
-    element.tabIndex = -1;
-    
-    element.addEventListener('keydown', (event: KeyboardEvent) => {
-      // console.log('Emoji plugin: Key pressed on suggestion panel:', event.key);
-      
-      switch (event.key) {
-        case 'ArrowRight':
-        case 'ArrowDown':
-        case 'Tab':
-          event.preventDefault();
-          if (pluginState.suggestions.length > 0) {
-            pluginState.selectedIndex = Math.min(pluginState.selectedIndex + 1, pluginState.suggestions.length - 1);
-            renderSuggestions();
-          }
-          break;
-          
-        case 'ArrowLeft':
-        case 'ArrowUp':
-          event.preventDefault();
-          if (pluginState.suggestions.length > 0) {
-            pluginState.selectedIndex = Math.max(pluginState.selectedIndex - 1, 0);
-            renderSuggestions();
-          }
-          break;
-          
-        case 'Home':
-          event.preventDefault();
-          if (pluginState.suggestions.length > 0) {
-            pluginState.selectedIndex = 0;
-            renderSuggestions();
-          }
-          break;
-          
-        case 'End':
-          event.preventDefault();
-          if (pluginState.suggestions.length > 0) {
-            pluginState.selectedIndex = pluginState.suggestions.length - 1;
-            renderSuggestions();
-          }
-          break;
-          
-        case 'Enter':
-        case ' ':
-          event.preventDefault();
-          if (pluginState.suggestions.length > 0 && pluginState.selectedIndex < pluginState.suggestions.length) {
-            const selectedSuggestion = pluginState.suggestions[pluginState.selectedIndex];
-            if (selectedSuggestion) {
-              // console.log('Emoji plugin: Keyboard selection, inserting:', selectedSuggestion.code);
-              insertEmojiAtCursor(selectedSuggestion.code);
-              hideSuggestions();
-            }
-          }
-          break;
-          
-        case 'Escape':
-          event.preventDefault();
+  // Removed legacy createSuggestionElement; React-based overlay now handles navigation & display
+
+  function renderOverlay(): void {
+    if (!pluginState.overlayRoot || !pluginState.coords) return;
+
+    pluginState.overlayRoot.render(
+      React.createElement(EmojiOverlay, {
+        isOpen: true,
+        query: pluginState.currentQuery.replace(/^:/, ''),
+        position: { x: pluginState.coords.left, y: pluginState.coords.top + 20 },
+        suggestions: pluginState.suggestions,
+        selectedIndex: pluginState.selectedIndex,
+        onSelectedIndexChange: (index: number) => {
+          pluginState.selectedIndex = index;
+          renderOverlay();
+        },
+        onClose: () => hideSuggestions(),
+        onSelectEmoji: (code: string) => {
+          insertEmojiAtCursor(code);
           hideSuggestions();
-          break;
-      }
-    });
-    
-    return element;
+        },
+      })
+    );
   }
 
   function showSuggestions(query: string, coords: Coordinates): void {
-    // console.log('Emoji plugin: Showing suggestions for query:', query, 'at coords:', coords);
-    
-    if (!pluginState.suggestionElement) {
-      pluginState.suggestionElement = createSuggestionElement();
-      document.body.appendChild(pluginState.suggestionElement);
-    }
-
+    const queryChanged = pluginState.currentQuery !== query;
     pluginState.currentQuery = query;
     pluginState.suggestions = getEmojiSuggestions(query);
-    pluginState.selectedIndex = 0;
-
-    // console.log('Emoji plugin: Found suggestions:', pluginState.suggestions);
+    if (queryChanged) {
+      pluginState.selectedIndex = 0;
+    }
+    pluginState.coords = coords;
 
     if (pluginState.suggestions.length === 0) {
       hideSuggestions();
       return;
     }
 
-    renderSuggestions();
-    if (pluginState.suggestionElement) {
-      pluginState.suggestionElement.style.display = 'block';
-      pluginState.suggestionElement.style.left = `${coords.left}px`;
-      pluginState.suggestionElement.style.top = `${coords.top + 20}px`;
-      
-      // Auto-focus after 1 second to enable keyboard navigation
-      setTimeout(() => {
-        if (pluginState.suggestionElement && pluginState.suggestionElement.style.display !== 'none') {
-          pluginState.suggestionElement.focus();
-        }
-      }, 1000);
+    // initialise container & react root if needed
+    if (!pluginState.suggestionElement) {
+      pluginState.suggestionElement = document.createElement('div');
+      document.body.appendChild(pluginState.suggestionElement);
+      pluginState.overlayRoot = createRoot(pluginState.suggestionElement);
     }
+
+    renderOverlay();
   }
 
   function hideSuggestions(): void {
-    // console.log('Emoji plugin: Hiding suggestions');
+    if (pluginState.overlayRoot) {
+      pluginState.overlayRoot.unmount();
+      pluginState.overlayRoot = null;
+    }
     if (pluginState.suggestionElement) {
-      pluginState.suggestionElement.style.display = 'none';
+      pluginState.suggestionElement.remove();
+      pluginState.suggestionElement = null;
     }
   }
 
@@ -240,57 +185,37 @@ export function emojiPlugin(): Plugin {
     if (!pluginState.suggestionElement) return;
 
     pluginState.suggestionElement.innerHTML = `
-      <div class="emoji-suggestion-header" style="
-        color: rgb(255 255 255);
-        font-size: 12px;
-        margin-bottom: 8px;
-        font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      ">EMOJI MATCHING ${pluginState.currentQuery.toUpperCase()}</div>
-      <div class="emoji-suggestion-shortcuts" style="
-        color: rgb(156 163 175);
-        font-size: 10px;
-        margin-bottom: 8px;
-        text-align: center;
-        font-family: monospace;
-        ">↑↓←→ Navigate • Enter/Space Select • Esc Close • Tab Next</div>
-      <div class="emoji-suggestion-list" style="
-        display: flex;
-        gap: 8px;
-        flex-wrap: nowrap;
-        overflow-x: auto;
-      ">
-        ${pluginState.suggestions.map((suggestion: EmojiSuggestion, index: number) => `
-          <div class="emoji-suggestion-item ${index === pluginState.selectedIndex ? 'selected' : ''}" 
-               data-index="${index}"
-               data-emoji="${suggestion.emoji}"
-               data-code="${suggestion.code}"
-               style="
-                 display: flex;
-                 align-items: center;
-                 gap: 8px;
-                 padding: 8px 12px;
-                 border-radius: 6px;
-                 cursor: pointer;
-                 transition: all 0.2s;
-                 min-width: fit-content;
-                 ${index === pluginState.selectedIndex ? 'background: #374151;' : ''}
-               "
-               onmouseover="this.style.background='#374151'"
-               onmouseout="this.style.background='${index === pluginState.selectedIndex ? '#374151' : 'transparent'}'"
-               onclick="window.insertEmojiSuggestion('${suggestion.code}')"
-               onmousedown="event.preventDefault(); window.insertEmojiSuggestion('${suggestion.code}')"
-          >
-            <span style="font-size: 20px;">${suggestion.emoji}</span>
-            <span style="
-              color: rgb(255 255 255);
-              font-size: 12px;
-              font-family: monospace;
-              white-space: nowrap;
-            ">${suggestion.code}</span>
+      <div class="px-3 py-2 space-y-2">
+        <!-- Header with close button -->
+        <div class="flex justify-between items-center">
+          <div class="flex items-center gap-2">
+            <h3 class="text-sm font-medium">Emoji matching "${pluginState.currentQuery}"</h3>
           </div>
-        `).join('')}
+        </div>
+
+        <!-- Keyboard shortcuts hint -->
+        <div class="text-xs text-muted-foreground text-center font-mono">
+          ↑↓←→ Navigate • Enter/Space Select • Esc Close
+        </div>
+
+        <!-- Emoji suggestions list -->
+        <div class="border rounded-lg overflow-hidden bg-muted/30">
+          <div class="p-2 max-h-[200px] overflow-y-auto">
+            <div class="flex gap-2 overflow-x-auto">
+              ${pluginState.suggestions.map((suggestion: EmojiSuggestion, index: number) => `
+                <button class="emoji-suggestion-item flex flex-col items-center gap-1 p-2 rounded-md transition-colors min-w-fit whitespace-nowrap hover:bg-muted border border-transparent ${index === pluginState.selectedIndex ? 'bg-muted border-border' : ''}" 
+                       data-index="${index}"
+                       data-emoji="${suggestion.emoji}"
+                       data-code="${suggestion.code}"
+                       onclick="window.insertEmojiSuggestion('${suggestion.code}')"
+                       onmousedown="event.preventDefault(); window.insertEmojiSuggestion('${suggestion.code}')">
+                  <span class="text-xl">${suggestion.emoji}</span>
+                  <span class="text-xs font-mono text-muted-foreground">${suggestion.code}</span>
+                </button>
+              `).join('')}
+            </div>
+          </div>
+        </div>
       </div>
     `;
     
@@ -302,20 +227,13 @@ export function emojiPlugin(): Plugin {
   function scrollToSelectedEmoji(): void {
     if (!pluginState.suggestionElement) return;
     
-    const suggestionList = pluginState.suggestionElement.querySelector('.emoji-suggestion-list') as HTMLElement;
     const selectedItem = pluginState.suggestionElement.querySelector(`[data-index="${pluginState.selectedIndex}"]`) as HTMLElement;
     
-    if (suggestionList && selectedItem) {
-      const listRect = suggestionList.getBoundingClientRect();
-      const itemRect = selectedItem.getBoundingClientRect();
-      
-      const itemCenter = itemRect.left + itemRect.width / 2;
-      const listCenter = listRect.left + listRect.width / 2;
-      const scrollOffset = itemCenter - listCenter;
-      
-      suggestionList.scrollBy({
-        left: scrollOffset,
-        behavior: 'smooth'
+    if (selectedItem) {
+      selectedItem.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center'
       });
     }
   }
@@ -466,8 +384,6 @@ export function emojiPlugin(): Plugin {
 
     keymap: {
       ':': (state: EditorState, dispatch: ((tr: Transaction) => void) | null, view: EditorView): boolean => {
-        // console.log('Emoji plugin: Colon key pressed');
-        
         const { from } = view.state.selection;
         if (from >= 0 && from <= view.state.doc.content.size) {
           const coords = view.coordsAtPos(from);
@@ -487,104 +403,92 @@ export function emojiPlugin(): Plugin {
         }
         return false;
       },
-      'Escape': (state: EditorState, dispatch: ((tr: Transaction) => void) | null, view: EditorView): boolean => {
+      'Escape': (): boolean => {
         hideSuggestions();
         return false;
       },
-      'ArrowRight': (state: EditorState, dispatch: ((tr: Transaction) => void) | null, view: EditorView): boolean => {
+      'ArrowRight': (): boolean => {
         if (pluginState.suggestions.length > 0) {
-          if (pluginState.suggestionElement) {
-            pluginState.suggestionElement.focus();
-          }
           pluginState.selectedIndex = Math.min(pluginState.selectedIndex + 1, pluginState.suggestions.length - 1);
-          renderSuggestions();
+          renderOverlay();
           return true;
         }
         return false;
       },
-      'ArrowLeft': (state: EditorState, dispatch: ((tr: Transaction) => void) | null, view: EditorView): boolean => {
-        if (pluginState.suggestions.length > 0) { 
-          if (pluginState.suggestionElement) {
-            pluginState.suggestionElement.focus();
-          }
-          pluginState.selectedIndex = Math.max(pluginState.selectedIndex - 1, 0);
-          renderSuggestions();
-          return true;
-        }
-        return false;
-      },
-      'Tab': (state: EditorState, dispatch: ((tr: Transaction) => void) | null, view: EditorView): boolean => {
+      'ArrowLeft': (): boolean => {
         if (pluginState.suggestions.length > 0) {
-          if (pluginState.suggestionElement) {
-            pluginState.suggestionElement.focus();
-          }
+          pluginState.selectedIndex = Math.max(pluginState.selectedIndex - 1, 0);
+          renderOverlay();
+          return true;
+        }
+        return false;
+      },
+      'ArrowDown': (): boolean => {
+        if (pluginState.suggestions.length > 0) {
           pluginState.selectedIndex = Math.min(pluginState.selectedIndex + 1, pluginState.suggestions.length - 1);
-          renderSuggestions();
+          renderOverlay();
           return true;
         }
         return false;
       },
-      'Shift-Tab': (state: EditorState, dispatch: ((tr: Transaction) => void) | null, view: EditorView): boolean => {
-        if (pluginState.suggestions.length > 0) {   
-          if (pluginState.suggestionElement) {
-            pluginState.suggestionElement.focus();
-          }
-          pluginState.selectedIndex = Math.max(pluginState.selectedIndex - 1, 0);
-          renderSuggestions();
-          return true;
-        }
-        return false;
-      },
-      'Enter': (state: EditorState, dispatch: ((tr: Transaction) => void) | null, view: EditorView): boolean => {
-        if (pluginState.suggestions.length > 0 && pluginState.selectedIndex < pluginState.suggestions.length) {
-          const selectedSuggestion = pluginState.suggestions[pluginState.selectedIndex];
-          if (selectedSuggestion) {
-            // console.log('Emoji plugin: Enter pressed, inserting:', selectedSuggestion.code);
-            const success = insertEmojiAtCursor(selectedSuggestion.code);
-            if (success) {
-              hideSuggestions();
-              return true;
-            }
-          }
-        }
-        return false;
-      },
-      'Space': (state: EditorState, dispatch: ((tr: Transaction) => void) | null, view: EditorView): boolean => {
-        if (pluginState.suggestions.length > 0 && pluginState.selectedIndex < pluginState.suggestions.length) {
-          const selectedSuggestion = pluginState.suggestions[pluginState.selectedIndex];
-          if (selectedSuggestion) {
-            // console.log('Emoji plugin: Space pressed, inserting:', selectedSuggestion.code);
-            const success = insertEmojiAtCursor(selectedSuggestion.code);
-            if (success) {
-              hideSuggestions();
-              return true;
-            }
-          }
-        }
-        return false;
-      },
-      'Home': (state: EditorState, dispatch: ((tr: Transaction) => void) | null, view: EditorView): boolean => {
+      'ArrowUp': (): boolean => {
         if (pluginState.suggestions.length > 0) {
-          if (pluginState.suggestionElement) {
-            pluginState.suggestionElement.focus();
-          }
+          pluginState.selectedIndex = Math.max(pluginState.selectedIndex - 1, 0);
+          renderOverlay();
+          return true;
+        }
+        return false;
+      },
+      'Tab': (): boolean => {
+        if (pluginState.suggestions.length > 0) {
+          pluginState.selectedIndex = Math.min(pluginState.selectedIndex + 1, pluginState.suggestions.length - 1);
+          renderOverlay();
+          return true;
+        }
+        return false;
+      },
+      'Shift-Tab': (): boolean => {
+        if (pluginState.suggestions.length > 0) {
+          pluginState.selectedIndex = Math.max(pluginState.selectedIndex - 1, 0);
+          renderOverlay();
+          return true;
+        }
+        return false;
+      },
+      'Home': (): boolean => {
+        if (pluginState.suggestions.length > 0) {
           pluginState.selectedIndex = 0;
-          renderSuggestions();
+          renderOverlay();
           return true;
         }
         return false;
       },
-      'End': (state: EditorState, dispatch: ((tr: Transaction) => void) | null, view: EditorView): boolean => {
+      'End': (): boolean => {
         if (pluginState.suggestions.length > 0) {
-          if (pluginState.suggestionElement) {
-            pluginState.suggestionElement.focus();
-          }
           pluginState.selectedIndex = pluginState.suggestions.length - 1;
-          renderSuggestions();
+          renderOverlay();
           return true;
         }
         return false;
-      }
+      },
+      'Enter': (): boolean => {
+        if (pluginState.suggestions.length > 0 && pluginState.selectedIndex < pluginState.suggestions.length) {
+          const selected = pluginState.suggestions[pluginState.selectedIndex];
+          insertEmojiAtCursor(selected.code);
+          hideSuggestions();
+          return true;
+        }
+        return false;
+      },
+      'Space': (): boolean => {
+        if (pluginState.suggestions.length > 0 && pluginState.selectedIndex < pluginState.suggestions.length) {
+          const selected = pluginState.suggestions[pluginState.selectedIndex];
+          insertEmojiAtCursor(selected.code);
+          hideSuggestions();
+          return true;
+        }
+        return false;
+      },
     }
   });
 } 
