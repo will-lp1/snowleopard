@@ -59,16 +59,15 @@ export function emojiPlugin(): Plugin {
       return false;
     }
     
-    let lineStart = from;
-    while (lineStart > 0 && doc.textBetween(lineStart - 1, lineStart) !== '\n') {
-      lineStart--;
+    let start = from - 1;
+    while (start >= 0) {
+      const ch = doc.textBetween(start, start + 1);
+      if (ch === ':') break;
+      if (ch === ' ' || ch === '\n' || ch === '\t') return false;
+      start--;
     }
-    
-    const lineText = doc.textBetween(lineStart, from);
-    const colonIndex = lineText.lastIndexOf(':');
-    
-    if (colonIndex !== -1) {
-      const start = lineStart + colonIndex;
+
+    if (start >= 0 && doc.textBetween(start, start + 1) === ':') {
       const end = from;
       
       if (start < 0 || start > doc.content.size || end < 0 || end > doc.content.size) {
@@ -76,11 +75,15 @@ export function emojiPlugin(): Plugin {
         return false;
       }
       
-      // console.log('Emoji plugin: Inserting emoji', emojiCode, 'from', start, 'to', end);
+      const textToInsert = ' ' + emojiCode;
+
+      const tr = pluginState.editorView.state.tr.replaceWith(
+        start,
+        end,
+        pluginState.editorView.state.schema.text(textToInsert)
+      );
       
-      const tr = pluginState.editorView.state.tr.replaceWith(start, end, pluginState.editorView.state.schema.text(emojiCode));
-      
-      const newPos = start + emojiCode.length;
+      const newPos = start + textToInsert.length;
       
       if (newPos >= 0 && newPos <= tr.doc.content.size) {
         tr.setSelection(TextSelection.near(tr.doc.resolve(newPos)));
