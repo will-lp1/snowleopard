@@ -5,7 +5,6 @@ import { EditorView } from "prosemirror-view";
 import React, { memo, useEffect, useRef, useCallback, useState } from "react";
 import { buildContentFromDocument, buildDocumentFromContent } from "@/lib/editor/functions";
 import { setActiveEditorView } from "@/lib/editor/editor-state";
-
 import { EditorToolbar } from "@/components/document/editor-toolbar";
 import {
   savePluginKey,
@@ -385,6 +384,76 @@ function PureEditor({
           border-radius: 2px;
           pointer-events: none;
           z-index: 1;
+        }
+
+        /* Emoji plugin styles */
+        .emoji-widget {
+          display: inline;
+          font-size: 1.2em;
+          vertical-align: middle;
+          line-height: 1;
+          margin: 0 1px;
+        }
+
+        .emoji-hidden {
+          display: none;
+        }
+
+        /* Ensure emojis render properly */
+        .ProseMirror {
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+        }
+
+        /* Emoji suggestion panel styles */
+        .emoji-suggestion-panel {
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+          background-color: rgb(0 0 0);
+          color: rgb(255 255 255);
+          border-color: rgb(55 65 81);
+        }
+
+        .emoji-suggestion-panel:focus {
+          outline: 2px solid rgb(59 130 246);
+          outline-offset: 2px;
+        }
+
+        .emoji-suggestion-panel .emoji-suggestion-header {
+          color: rgb(255 255 255);
+        }
+
+        .emoji-suggestion-panel .emoji-suggestion-item {
+          color: rgb(255 255 255);
+        }
+
+        .emoji-suggestion-panel .emoji-suggestion-item:hover {
+          background-color: rgb(55 65 81);
+        }
+
+        .emoji-suggestion-panel .emoji-suggestion-item.selected {
+          background-color: rgb(55 65 81);
+        }
+
+        .emoji-suggestion-panel .emoji-suggestion-shortcuts {
+          color: rgb(156 163 175);
+          opacity: 0.8;
+        }
+
+        .emoji-suggestion-panel::-webkit-scrollbar {
+          height: 6px;
+        }
+
+        .emoji-suggestion-panel::-webkit-scrollbar-track {
+          background: #374151;
+          border-radius: 3px;
+        }
+
+        .emoji-suggestion-panel::-webkit-scrollbar-thumb {
+          background: #6b7280;
+          border-radius: 3px;
+        }
+
+        .emoji-suggestion-panel::-webkit-scrollbar-thumb:hover {
+          background: #9ca3af;
         }
       `}</style>
     </>

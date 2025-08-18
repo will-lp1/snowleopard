@@ -63,9 +63,9 @@ export function synonymsPlugin(): Plugin<SynonymPluginState> {
     hideOverlay(); 
 
     overlayContainer = document.createElement('div');
-    overlayContainer.className = 'synonym-overlay-menu';
+    overlayContainer.className = 'fixed z-50 bg-background text-foreground rounded-md shadow-lg border border-border flex gap-1 p-1';
     overlayContainer.style.position = 'absolute';
-    overlayContainer.style.zIndex = '1000';
+    overlayContainer.style.zIndex = '10000';
     const rect = target.getBoundingClientRect();
     overlayContainer.style.left = `${rect.left + window.scrollX}px`;
     overlayContainer.style.top = `${rect.bottom + window.scrollY}px`;
@@ -73,7 +73,7 @@ export function synonymsPlugin(): Plugin<SynonymPluginState> {
     synonyms.forEach(syn => {
       const btn = document.createElement('button');
       btn.textContent = syn;
-      btn.className = 'synonym-option';
+      btn.className = 'synonym-option px-2 py-1 text-sm rounded hover:bg-muted transition-colors';
       btn.addEventListener('click', (e) => {
         e.preventDefault();
         view.dispatch(
