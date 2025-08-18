@@ -6,6 +6,7 @@ import { useSWRConfig } from 'swr';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/toast';
+import { T, useGT } from 'gt-next';
 import Image from 'next/image';
 
 interface OnboardProps {
@@ -18,6 +19,7 @@ export function Onboard({ isOpen, onOpenChange, required = false }: OnboardProps
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { mutate } = useSWRConfig();
+  const t = useGT();
 
   const handleStartTrial = async () => {
     setIsLoading(true);
@@ -25,20 +27,20 @@ export function Onboard({ isOpen, onOpenChange, required = false }: OnboardProps
       const res = await fetch('/api/user/start-trial', { method: 'POST' });
       const data = await res.json();
       if (!res.ok) {
-        toast({ type: 'error', description: data.error || 'Could not start trial.' });
+        toast({ type: 'error', description: data.error || t('Could not start trial.') });
       } else if (data.alreadyInTrial) {
-        toast({ type: 'info', description: 'You already have an active trial.' });
+        toast({ type: 'info', description: t('You already have an active trial.') });
       } else if (data.alreadyActive) {
-        toast({ type: 'info', description: 'You already have an active subscription.' });
+        toast({ type: 'info', description: t('You already have an active subscription.') });
       } else {
-        toast({ type: 'success', description: 'Free trial started! Enjoy.' });
+        toast({ type: 'success', description: t('Free trial started! Enjoy.') });
         onOpenChange?.(false);
         await mutate('/api/user/subscription-status');
         router.refresh();
       }
     } catch (err) {
       console.error('Start trial error:', err);
-      toast({ type: 'error', description: 'Unexpected error starting trial.' });
+      toast({ type: 'error', description: t('Unexpected error starting trial.') });
     } finally {
       setIsLoading(false);
     }
@@ -64,15 +66,21 @@ export function Onboard({ isOpen, onOpenChange, required = false }: OnboardProps
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent md:bg-gradient-to-r md:from-black/40 md:via-transparent"></div>
             <div className="absolute top-8 left-8 z-10">
-              <h1 className="text-lg font-normal text-white/80">snow leopard</h1>
+              <T>
+                <h1 className="text-lg font-normal text-white/80">snow leopard</h1>
+              </T>
             </div>
           </div>
           <div className="p-8 md:p-10 flex flex-col relative">
             <DialogHeader className="mb-4 text-left">
-              <DialogTitle className="text-2xl sm:text-3xl font-semibold">Start Your Free Trial</DialogTitle>
-              <DialogDescription className="mt-1 text-sm text-muted-foreground">
-                Try Snow Leopard free for 3 days. No credit card required.
-              </DialogDescription>
+              <T>
+                <DialogTitle className="text-2xl sm:text-3xl font-semibold">Start Your Free Trial</DialogTitle>
+              </T>
+              <T>
+                <DialogDescription className="mt-1 text-sm text-muted-foreground">
+                  Try Snow Leopard free for 3 days. No credit card required.
+                </DialogDescription>
+              </T>
             </DialogHeader>
             {/* Features list removed for simplicity */}
             <DialogFooter className="mt-8 pt-4 border-t flex items-center">
@@ -81,7 +89,7 @@ export function Onboard({ isOpen, onOpenChange, required = false }: OnboardProps
                 disabled={isLoading}
                 className="w-full px-5 py-2 rounded-full bg-card text-card-foreground border border-border shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:bg-muted transition-colors"
               >
-                {isLoading ? 'Starting...' : 'Start Trial'}
+                {isLoading ? t('Starting...') : t('Start Trial')}
               </Button>
             </DialogFooter>
           </div>

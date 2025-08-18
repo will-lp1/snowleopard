@@ -17,6 +17,7 @@ import { DataStreamHandler } from '@/components/data-stream-handler';
 import { motion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 import { useAiOptionsValue } from '@/hooks/ai-options';
+import { useGT } from 'gt-next';
 
 export interface ChatProps {
   id?: string;
@@ -36,6 +37,7 @@ export function Chat({
   const { artifact } = useArtifact();
   const { writingStyleSummary, applyStyle } = useAiOptionsValue();
   const [chatId, setChatId] = useState(() => initialId || generateUUID());
+  const t = useGT();
   
   const [selectedChatModel, setSelectedChatModel] = useState(
     () => initialSelectedChatModel || DEFAULT_CHAT_MODEL
@@ -156,7 +158,7 @@ export function Chat({
 
       } catch (error) {
         console.error(`[Chat useEffect] CATCH BLOCK - Error loading chat ${idToLoad}:`, error);
-        toast.error(`Failed to load chat history for ${idToLoad}`);
+        toast.error(t('Failed to load chat history for {id}', { id: idToLoad }));
         setMessages(initialMessages);
         setInput('');
       } finally {
@@ -228,7 +230,7 @@ export function Chat({
     e.preventDefault();
     
     if (documentContextActive && messages.length === initialMessages.length) {
-      toast.success(`Using document context: ${documentTitle}`, {
+      toast.success(t('Using document context: {title}', { title: documentTitle }), {
         icon: <FileText className="size-4" />,
         duration: 3000,
         id: `doc-context-${documentId}`

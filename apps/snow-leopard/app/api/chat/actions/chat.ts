@@ -7,7 +7,6 @@ import {
   deleteChatById,
   saveChat,
   saveMessages,
-  getMessagesByChatId,
   getMessageById,
   deleteMessagesByChatIdAfterTimestamp,
 } from '@/lib/db/queries';

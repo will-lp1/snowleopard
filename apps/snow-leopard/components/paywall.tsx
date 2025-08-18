@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { toast } from '@/components/toast';
 import { CheckCircle, X, Loader2, Check, MoreHorizontal } from 'lucide-react';
 import { cn } from "@/lib/utils";
+import { T, useGT } from 'gt-next';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,30 +24,30 @@ interface PaywallProps {
   required?: boolean;
 }
 
-export const displayPlans = [
+export const getDisplayPlans = (t: (content: string) => string) => [
   {
-    displayName: 'Monthly',
+    displayName: t('Monthly'),
     planName: 'snowleopard',
     price: '$15',
-    billing: '/ month',
+    billing: t('/ month'),
     features: [
-      'Access to unlimited Claude Opus 4',
-      'Publish your documents publicly',
-      'AI trained on the way you write',
+      t('Access to unlimited Claude Opus 4'),
+      t('Publish your documents publicly'),
+      t('AI trained on the way you write'),
     ],
     stripePriceId: process.env.STRIPE_PRO_MONTHLY_PRICE_ID || 'monthly_placeholder',
     annual: false,
   },
   { 
-    displayName: 'Annual',
+    displayName: t('Annual'),
     planName: 'snowleopard',
     price: '$10.50',
-    billing: '/ month*',
-    subLabel: 'Billed annually at $126',
+    billing: t('/ month*'),
+    subLabel: t('Billed annually at $126'),
     features: [
-      'Access to unlimited Claude Opus 4',
-      'Publish your documents publicly',
-      'AI trained on the way you write',
+      t('Access to unlimited Claude Opus 4'),
+      t('Publish your documents publicly'),
+      t('AI trained on the way you write'),
     ],
     discount: 30,
     stripePriceId: process.env.STRIPE_PRO_YEARLY_PRICE_ID || 'yearly_placeholder',
@@ -58,6 +59,7 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
   const [isLoading, setIsLoading] = useState(false);
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
   const router = useRouter();
+  const t = useGT();
 
   const [isSigningOut, setIsSigningOut] = useState(false);
 
@@ -69,25 +71,26 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
           setIsSigningOut(false);
           router.push('/login');
           router.refresh();
-          toast({ type: 'success', description: 'Signed out successfully.' });
+          toast({ type: 'success', description: t('Signed out successfully.') });
         },
         onError: (ctx) => {
           setIsSigningOut(false);
           console.error('Error signing out:', ctx.error);
           toast({
             type: 'error',
-            description: ctx.error.message || 'Failed to sign out.'
+            description: ctx.error.message || t('Failed to sign out.')
           });
         }
       });
     } catch (error) {
       setIsSigningOut(false);
       console.error('Sign out function error:', error);
-      toast({ type: 'error', description: 'An unexpected error occurred during sign out.' });
+      toast({ type: 'error', description: t('An unexpected error occurred during sign out.') });
     }
   };
 
   const handleUpgrade = async (planName: string, annual: boolean = false) => {
+    const displayPlans = getDisplayPlans(t);
     const displayPlan = displayPlans.find(p => 
       p.planName.toLowerCase() === planName.toLowerCase() && 
       p.annual === annual
@@ -111,14 +114,14 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
         console.error('Stripe Checkout Error (via Better Auth):', error);
         toast({ 
           type: 'error', 
-          description: error.message || 'Failed to initiate checkout. Please try again.' 
+          description: error.message || t('Failed to initiate checkout. Please try again.') 
         });
       }
     } catch (err) {
       console.error('Unexpected error during upgrade:', err);
       toast({ 
         type: 'error', 
-        description: 'An unexpected error occurred. Please try again.'
+        description: t('An unexpected error occurred. Please try again.')
       });
     } finally {
       setIsLoading(false);
@@ -163,9 +166,11 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent md:bg-gradient-to-r md:from-black/40 md:via-transparent"></div>
             <div className="absolute top-8 left-8 z-10">
-               <h1 className="text-lg font-normal text-white/80">
-                  snow leopard
-               </h1>
+               <T>
+                 <h1 className="text-lg font-normal text-white/80">
+                    snow leopard
+                 </h1>
+               </T>
              </div>
           </div>
 
@@ -176,7 +181,9 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-foreground">
                       <MoreHorizontal className="size-4" />
-                      <span className="sr-only">Options</span>
+                      <T>
+                        <span className="sr-only">Options</span>
+                      </T>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
@@ -186,7 +193,7 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
                       className="text-destructive focus:bg-destructive/10 focus:text-destructive cursor-pointer"
                     >
                       {isSigningOut ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-                      Sign Out
+                      {t('Sign Out')}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -195,17 +202,21 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
 
             <div className="flex-grow">
               <DialogHeader className="mb-6 text-left">
-                <DialogTitle className="text-xl md:text-2xl font-semibold">Upgrade to Pro</DialogTitle>
-                <DialogDescription className="text-sm mb-6">
-                  Subscribe to unlock Claude Opus, AI trained on the way you write, and {' '}
-                  <Link href="#" className="text-blue-500 underline">
-                    publish your documents
-                  </Link>.
-                </DialogDescription>
+                <T>
+                  <DialogTitle className="text-xl md:text-2xl font-semibold">Upgrade to Pro</DialogTitle>
+                </T>
+                <T>
+                  <DialogDescription className="text-sm mb-6">
+                    Subscribe to unlock Claude Opus, AI trained on the way you write, and {' '}
+                    <Link href="#" className="text-blue-500 underline">
+                      publish your documents
+                    </Link>.
+                  </DialogDescription>
+                </T>
               </DialogHeader>
               
               <div className="space-y-4">
-                {displayPlans.map((plan) => (
+                {getDisplayPlans(t).map((plan) => (
                   <div 
                     key={plan.displayName} 
                     className={cn(
@@ -216,7 +227,7 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
                     <div className="flex-grow">
                       <div className="flex items-center justify-between mb-2">
                         <h4 className="font-semibold text-lg">{plan.displayName}</h4>
-                        {plan.annual && <div className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">Save {plan.discount}%</div>}
+                        {plan.annual && <div className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">{t('Save {discount}%', { discount: plan.discount })}</div>}
                       </div>
                       <p className="text-3xl font-bold text-foreground">
                         {plan.price}
@@ -246,8 +257,8 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
                         variant={plan.annual ? "default" : "outline"}
                       >
                         {isLoading && loadingPlanId === plan.stripePriceId ? (
-                          <><Loader2 className="mr-2 size-4 animate-spin" /> Processing...</>
-                        ) : 'Subscribe'}
+                          <><Loader2 className="mr-2 size-4 animate-spin" /> {t('Processing...')}</>
+                        ) : t('Subscribe')}
                       </Button>
                     </div>
                   </div>
@@ -256,9 +267,11 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
             </div>
 
             <DialogFooter className="mt-6 pt-4 border-t flex flex-col sm:flex-row items-center gap-2 sm:gap-0">
-              <p className="text-xs text-muted-foreground flex-shrink-0">
-                  much love, will - founder of snow leopard
-              </p>
+              <T>
+                <p className="text-xs text-muted-foreground flex-shrink-0">
+                    much love, will - founder of snow leopard
+                </p>
+              </T>
               <div className="flex-grow" />
               <Button
                 variant="ghost"
@@ -267,7 +280,7 @@ export function Paywall({ isOpen, onOpenChange, required = false }: PaywallProps
               >
                 <Link href="https://discord.gg/X49bQmnYbd" target="_blank" rel="noopener noreferrer">
                   <Image src="/images/discord-logo.png" alt="Discord" width={16} height={16} />
-                  Join the Discord
+                  {t('Join the Discord')}
                 </Link>
               </Button>
             </DialogFooter>

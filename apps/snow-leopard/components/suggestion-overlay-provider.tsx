@@ -5,6 +5,7 @@ import SuggestionOverlay from './suggestion-overlay';
 import { useArtifact } from '@/hooks/use-artifact';
 import { toast } from 'sonner';
 import { getActiveEditorView } from '@/lib/editor/editor-state';
+import { useGT } from 'gt-next';
 import {
   ACTIVATE_SUGGESTION_CONTEXT,
   DEACTIVATE_SUGGESTION_CONTEXT,
@@ -30,6 +31,7 @@ export function SuggestionOverlayProvider({ children }: { children: ReactNode })
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [selectionRange, setSelectionRange] = useState<{ from: number; to: number } | null>(null);
   const { artifact } = useArtifact();
+  const t = useGT();
 
   const setSuggestionIsLoading = useCallback((isLoading: boolean) => {
     const view = getActiveEditorView();
@@ -104,7 +106,7 @@ export function SuggestionOverlayProvider({ children }: { children: ReactNode })
 
   const handleAcceptSuggestion = useCallback((suggestion: string) => {
     if (!artifact.documentId || artifact.documentId === 'init') {
-      toast.error("Cannot apply suggestion: No document loaded.");
+      toast.error(t("Cannot apply suggestion: No document loaded."));
       return;
     }
 
@@ -123,12 +125,12 @@ export function SuggestionOverlayProvider({ children }: { children: ReactNode })
       closeSuggestionOverlay(); // This will also handle deactivating plugin state
     } else {
       if (!selectionRange) {
-        toast.warning("Cannot apply suggestion: Text range not captured.");
+        toast.warning(t("Cannot apply suggestion: Text range not captured."));
       } else {
-        toast.warning("Cannot apply suggestion: No text was selected.");
+        toast.warning(t("Cannot apply suggestion: No text was selected."));
       }
     }
-  }, [artifact.documentId, selectedText, selectionRange, closeSuggestionOverlay]);
+  }, [artifact.documentId, selectedText, selectionRange, closeSuggestionOverlay, t]);
 
   // Setup global keyboard shortcut for cmd+k
   useEffect(() => {
@@ -188,18 +190,18 @@ export function SuggestionOverlayProvider({ children }: { children: ReactNode })
               to,
             });
           } else {
-            toast.info("Select text in the editor before pressing Cmd+K.");
+            toast.info(t("Select text in the editor before pressing Cmd+K."));
           }
         } else {
           console.warn('[Provider] Cmd+K pressed, but no active editor view found.');
-          toast.error("Cannot open suggestion overlay: Editor not active.");
+          toast.error(t("Cannot open suggestion overlay: Editor not active."));
         }
       }
     };
 
     window.addEventListener('keydown', handleCommandK);
     return () => window.removeEventListener('keydown', handleCommandK);
-  }, [openSuggestionOverlay]);
+  }, [openSuggestionOverlay, t]);
 
   return (
     <SuggestionOverlayContext.Provider

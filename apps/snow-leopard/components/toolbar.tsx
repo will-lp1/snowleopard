@@ -37,9 +37,10 @@ import {
   StopIcon,
   SummarizeIcon,
 } from './icons';
-import { artifactDefinitions, ArtifactKind } from './artifact';
+import { getArtifactDefinitions, ArtifactKind } from './artifact';
 import { ArtifactToolbarItem } from './create-artifact';
 import { UseChatHelpers } from '@ai-sdk/react';
+import { useGT } from 'gt-next';
 
 type ToolProps = {
   description: string;
@@ -158,13 +159,14 @@ const ReadingLevelSelector = ({
     chatRequestOptions?: ChatRequestOptions,
   ) => Promise<string | null | undefined>;
 }) => {
+  const t = useGT();
   const LEVELS = [
-    'Elementary',
-    'Middle School',
-    'Keep current level',
-    'High School',
-    'College',
-    'Graduate',
+    t('Elementary'),
+    t('Middle School'),
+    t('Keep current level'),
+    t('High School'),
+    t('College'),
+    t('Graduate'),
   ];
 
   const y = useMotionValue(-40 * 2);
@@ -232,7 +234,7 @@ const ReadingLevelSelector = ({
                 if (currentLevel !== 2 && hasUserSelectedLevel) {
                   append({
                     role: 'user',
-                    content: `Please adjust the reading level to ${LEVELS[currentLevel]} level.`,
+                    content: t('Please adjust the reading level to {level} level.', { level: LEVELS[currentLevel] }),
                   });
 
                   setSelectedTool(null);
@@ -332,6 +334,7 @@ const PureToolbar = ({
   setMessages: Dispatch<SetStateAction<Message[]>>;
   artifactKind: ArtifactKind;
 }) => {
+  const t = useGT();
   const toolbarRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
@@ -369,6 +372,7 @@ const PureToolbar = ({
   // Default to 'text' artifactKind if none is provided
   const safeArtifactKind = artifactKind || 'text';
   
+  const artifactDefinitions = getArtifactDefinitions(t);
   const artifactDefinition = artifactDefinitions.find(
     (definition) => definition.kind === safeArtifactKind,
   );

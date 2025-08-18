@@ -10,6 +10,7 @@ import {
   TooltipTrigger,
 } from '../ui/tooltip';
 import { toast } from 'sonner';
+import { useGT } from 'gt-next';
 
 export function PureMessageActions({
   chatId,
@@ -21,6 +22,7 @@ export function PureMessageActions({
   isLoading: boolean;
 }) {
   const [_, copyToClipboard] = useCopyToClipboard();
+  const t = useGT();
 
   if (isLoading) return null;
   if (message.role === 'user') return null;
@@ -40,13 +42,13 @@ export function PureMessageActions({
                   ? message.content 
                   : JSON.stringify(message.content);
                 await copyToClipboard(content);
-                toast.success('Copied to clipboard!');
+                toast.success(t('Copied to clipboard!'));
               }}
             >
               <CopyIcon />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Copy</TooltipContent>
+          <TooltipContent>{t('Copy')}</TooltipContent>
         </Tooltip>
       </div>
     </TooltipProvider>

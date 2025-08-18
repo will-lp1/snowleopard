@@ -1,0 +1,744 @@
+{
+  "cb33d493ff490d8a": "Snow Leopard Demo-Vorschau",
+  "4960404791fbe1a7": "Snow Leopard Demo-Vorschau (Dunkler Modus)",
+  "edb4ece52df96685": "Akzeptieren",
+  "3e90d9101e45657d": "David Singleton",
+  "8a5f221608c50f20": "Gib will-lp1/snowleopard auf GitHub einen Stern",
+  "1cabf602c6b6e60e": "GitHub",
+  "4b5cb8a38b34053b": {
+    "i": 1,
+    "c": "Schreibstil anwenden"
+  },
+  "b48f7574b864416b": {
+    "i": 1,
+    "c": "Tab, Tab, Anwenden"
+  },
+  "15ee27aba56721c8": {
+    "i": 1,
+    "c": [
+      "Brillanz",
+      {
+        "i": 2,
+        "c": "|"
+      }
+    ]
+  },
+  "b2877be12990b6c5": {
+    "i": 1,
+    "c": "Das zufriedenstellendste, intuitivste KI-Schreibwerkzeug, und es ist Open Source."
+  },
+  "583a7933e91b1a4b": {
+    "i": 1,
+    "c": "Entdecke die Magie"
+  },
+  "5c7028fd0e5be5bf": {
+    "i": 1,
+    "c": "Entdecken Sie, wie Snow Leopard Ihr Schreiberlebnis mit diesen Kernfunktionen transformiert."
+  },
+  "498f6645dfa10ccf": {
+    "i": 1,
+    "c": "Echtzeit-Inline-Vorschläge"
+  },
+  "42babc711552ca99": {
+    "i": 1,
+    "c": [
+      {
+        "i": 2,
+        "c": "Du fängst an zu tippen, und die KI bietet"
+      },
+      {
+        "i": 3,
+        "c": [
+          {
+            "i": 4
+          },
+          {
+            "i": 5,
+            "c": "Tab"
+          }
+        ],
+        "t": "span"
+      }
+    ]
+  },
+  "9ad3a254e1e37055": {
+    "i": 1,
+    "c": "Leistungsstarke Auswahlbearbeitung"
+  },
+  "9e75808e4424302d": {
+    "i": 1,
+    "c": {
+      "i": 2,
+      "c": [
+        "Diese Formulierung ",
+        {
+          "i": 3,
+          "c": "ist etwas schwach und weitschweifig."
+        },
+        " Lassen Sie uns die KI bitten, sie zu verbessern."
+      ]
+    }
+  },
+  "2824d74622566ce5": {
+    "i": 1,
+    "c": "Vorschlag"
+  },
+  "a1d86de78613ac1a": {
+    "i": 1,
+    "c": "Sofortiger Synonym-Finder"
+  },
+  "d9e99d8d5401433b": {
+    "i": 1,
+    "c": [
+      {
+        "i": 2,
+        "c": "Finden Sie mühelos bessere Wörter. Die KI präsentiert kontextuell"
+      },
+      {
+        "i": 3,
+        "c": [
+          "relevante",
+          {
+            "i": 4,
+            "c": [
+              {
+                "i": 5,
+                "c": "treffende"
+              },
+              {
+                "i": 6,
+                "c": "passende",
+                "t": "span"
+              },
+              {
+                "i": 7,
+                "c": "geeignete",
+                "t": "span"
+              }
+            ]
+          }
+        ],
+        "t": "span"
+      },
+      {
+        "i": 8,
+        "c": " Synonyme.",
+        "t": "span"
+      }
+    ]
+  },
+  "3d3392cd1ff3a9be": {
+    "i": 1,
+    "c": "Von vielen geliebt"
+  },
+  "f2f9b3a5af9d25b0": {
+    "i": 1,
+    "c": "Keine Kreditkarte erforderlich"
+  },
+  "5d651a666af9ebe6": {
+    "i": 1,
+    "c": "Anmelden"
+  },
+  "d518cd8373f38c15": {
+    "i": 1,
+    "c": "Melden Sie sich mit Ihrer E-Mail-Adresse und Ihrem Passwort an"
+  },
+  "edcd60ca2384cd55": "Anmelden",
+  "2f2305d3b1118227": {
+    "i": 1,
+    "c": [
+      "Noch kein Konto? ",
+      {
+        "i": 2,
+        "c": "Registrieren"
+      }
+    ]
+  },
+  "5b98472ccca3860a": {
+    "i": 1,
+    "c": "Registrieren"
+  },
+  "6d87f6789e8e8a82": {
+    "i": 1,
+    "c": "Erstellen Sie Ihr Konto mit E-Mail und Passwort"
+  },
+  "a293f7479b2b46fa": "Registrieren",
+  "be2d1c8b34f97a7f": {
+    "i": 1,
+    "c": [
+      "Haben Sie bereits ein Konto? ",
+      {
+        "i": 2,
+        "c": "Anmelden"
+      },
+      " stattdessen."
+    ]
+  },
+  "3a7a70c07c28d467": "Bei Snow Leopard anmelden",
+  "be958202d3947dee": "Snow Leopard",
+  "4f94d167a5957b73": "Bitte geben Sie mindestens ~200 Zeichen Beispieltext ein.",
+  "a12e8b64c44a66de": "Stilanalyse fehlgeschlagen.",
+  "740c728118e75062": "Nicht autorisiert",
+  "87dfd5538bc825fb": "Zahlung erforderlich: Veröffentlichung ist nur für Pro-Nutzer verfügbar",
+  "78844efa1e9c6043": "Ungültige Parameter",
+  "b38b0b4ea2849cca": "Veröffentlichungseinstellungen konnten nicht aktualisiert werden",
+  "c061766d87ace650": "Ungültiger JSON-Body",
+  "2bb14204a62a4781": "Fehler beim Veröffentlichen des Dokuments",
+  "f54290d40c89945d": "Ungültiger Benutzername",
+  "a7e53bec035db29d": "Benutzername konnte nicht festgelegt werden",
+  "32fe2ebd935fa02d": "Netzwerkfehler",
+  "515cc915d40b3914": "KI-Antwort konnte nicht geladen werden",
+  "f589e1eef1cf5b37": "Neuer Chat",
+  "339d3f3a786806eb": "Chat schließen",
+  "9c3d8e1311e9d150": "Nachricht senden...",
+  "ecd9f4619724c928": "Leite die KI an... z.B. 'Sei prägnant', 'Verhalte dich wie ein hilfreicher Experte', 'Übersetze ins Französische'",
+  "693689c79fc3d574": "Upgrade",
+  "a36464e99f03ec0e": "Fügen Sie etwa 200 Zeichen Ihres Schreibstils ein, damit die KI Ihren Stil lernen kann. Diese Probe bleibt auf Ihrem Gerät.",
+  "bcee5d09f01e9fc7": "Dokument konnte nicht umbenannt werden.",
+  "dfe9dee01b6e238b": "Unbenanntes Dokument",
+  "7031d9740409833b": "Dokument konnte nicht erstellt werden",
+  "d4ba7099e9464b0a": "Dokumenttitel bearbeiten",
+  "6299291dd29639e8": "\"{title}\" umbenennen",
+  "3ab928741d208f41": "Wird geladen...",
+  "931385969e5c3f19": {
+    "i": 1,
+    "c": "Dokument nicht gefunden"
+  },
+  "a2050560a358cb80": "In Zwischenablage kopieren",
+  "4607e419ece20741": "In die Zwischenablage kopiert!",
+  "3414b088dde8621b": "Speichern...",
+  "0247d01133780693": "Aktion konnte nicht ausgeführt werden",
+  "32b1f0d2ec364ab4": {
+    "i": 1,
+    "c": "Speichern..."
+  },
+  "f813d118aaea730a": "Dokument konnte nicht geladen werden",
+  "3cb42c3a2b4b019e": {
+    "i": 1,
+    "c": "Snow Leopard funktioniert am besten auf dem Desktop"
+  },
+  "116a085ce7ce4fac": {
+    "i": 1,
+    "c": "Für die beste Erfahrung verwenden Sie bitte ein Desktop-Gerät."
+  },
+  "07ddc4325e6893b7": "Testversion konnte nicht gestartet werden.",
+  "b129ed77f2fa829f": "Sie haben bereits eine aktive Testversion.",
+  "33ff59a2388103a0": "Sie haben bereits ein aktives Abonnement.",
+  "d1628ad61c827da9": "Kostenlose Testversion gestartet! Viel Spaß.",
+  "de6a7627464229df": "Unerwarteter Fehler beim Starten der Testversion.",
+  "221dd4241db01d9c": "Wird gestartet...",
+  "bb91813d210f7e24": "Testversion starten",
+  "d713be9de28357a7": {
+    "i": 1,
+    "c": "snow leopard"
+  },
+  "7aeb90b3b09a9c97": {
+    "i": 1,
+    "c": "Starten Sie Ihre kostenlose Testversion"
+  },
+  "9d2934ef57fc1fc3": {
+    "i": 1,
+    "c": "Testen Sie Snow Leopard 3 Tage kostenlos. Keine Kreditkarte erforderlich."
+  },
+  "9641da5609e84ff2": "Erfolgreich abgemeldet.",
+  "6cea3d2f1345f6ff": "Abmeldung fehlgeschlagen.",
+  "cb3d9a19f6f362c2": "Beim Abmelden ist ein unerwarteter Fehler aufgetreten.",
+  "655bb02f4c94a6f0": "Checkout konnte nicht gestartet werden. Bitte versuchen Sie es erneut.",
+  "81f986dcc87a991c": "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut.",
+  "4e5b2bad57ff747d": "Abmelden",
+  "f82fff6526a5fc92": "Verarbeitung läuft...",
+  "ec091877b8b8c844": "Abonnieren",
+  "32f44319451ad91a": {
+    "i": 1,
+    "c": "Optionen"
+  },
+  "cb5998210755c892": {
+    "i": 1,
+    "c": "Auf Pro upgraden"
+  },
+  "a00d72402724b185": {
+    "i": 1,
+    "c": [
+      "Abonnieren Sie, um Claude Opus freizuschalten, eine KI, die auf Ihren Schreibstil trainiert ist, und um Ihre ",
+      {
+        "i": 2,
+        "c": "Dokumente zu veröffentlichen"
+      },
+      "."
+    ]
+  },
+  "1e572425f4d6c821": {
+    "i": 1,
+    "c": "viel Liebe, will - gründer von snow leopard"
+  },
+  "44c5fc2303b01bba": "Benutzername wird geladen...",
+  "35ac5dbbc7c92b2a": "Benutzername wählen",
+  "8f123057d607425d": "Seiten-Slug",
+  "e40e6d4ec89b5365": "Standard",
+  "b5702d0b64866b08": "Benutzerdefiniert",
+  "6cce4d42cfa61090": "Schriftart",
+  "b6cc9af7a6d5e31b": "Veröffentlichen",
+  "202e13f15a3dcd30": "Link kopieren",
+  "902890ab306f0338": "Ansicht",
+  "2b2dfb11ee450d54": "Veröffentlichung aufheben",
+  "06e461bfd3e000e2": {
+    "i": 1,
+    "c": "Veröffentlichungseinstellungen"
+  },
+  "9d05d8ff030526cb": {
+    "i": 1,
+    "c": "Benutzername"
+  },
+  "43ba2539756c344b": {
+    "i": 1,
+    "c": "Slug"
+  },
+  "67c1b0bd23407be3": {
+    "i": 1,
+    "c": "Textfarbe"
+  },
+  "52c7a3b03113b84c": {
+    "i": 1,
+    "c": "Hell"
+  },
+  "a58218ce3d943796": {
+    "i": 1,
+    "c": "Dunkel"
+  },
+  "37f3be621c6dab31": {
+    "i": 1,
+    "c": "Schriftart"
+  },
+  "7fdc3e3843cdbae5": "Schreiben Sie eine Nachricht, um ein Gespräch zu beginnen",
+  "7e48f74fbef152ba": "Vorschlag kann nicht angewendet werden: Kein Dokument geladen.",
+  "40c084160c4d0bc7": "Vorschlag kann nicht angewendet werden: Textbereich nicht erfasst.",
+  "3f22570d5973810d": "Vorschlag kann nicht angewendet werden: Kein Text wurde ausgewählt.",
+  "7c3317a34e8de355": "Wählen Sie Text im Editor aus, bevor Sie Cmd+K drücken.",
+  "0906b6ccb2daf766": "Vorschlagsüberlagerung kann nicht geöffnet werden: Editor nicht aktiv.",
+  "12607b12bdd4d36d": "Derzeit ist kein Dokument geöffnet",
+  "e2f115e0e4debbdc": "Bitte wählen Sie Text aus, um einen Vorschlag zu generieren",
+  "1f91a4136b9914d2": "Fehler beim Verbinden mit dem Vorschlagsdienst. Bitte versuchen Sie es erneut.",
+  "ef512517569e9622": "Fehler beim Verarbeiten des Vorschlags. Bitte versuchen Sie es erneut.",
+  "896ccc33cfa0c97c": "Verbindung zum Vorschlagsdienst fehlgeschlagen. Bitte versuchen Sie es erneut.",
+  "8e83273278e24728": "Ausgewählter Text",
+  "f75e785137e9c30a": "Beschreiben Sie, welche Änderungen Sie vornehmen möchten...",
+  "73fa62db8d57b05d": "Wählen Sie zuerst Text aus...",
+  "1fc603140b4b4942": {
+    "i": 1,
+    "c": "Ablehnen"
+  },
+  "0b0798919ac7cf51": {
+    "i": 1,
+    "c": "Akzeptieren"
+  },
+  "9ef9b147f480c3f8": {
+    "i": 1,
+    "c": "Vorschlag wird generiert..."
+  },
+  "03f41af7b5d1cc87": "Zu {mode}-Modus wechseln",
+  "a714f1308dff9b8b": "hell",
+  "81ddc2f127fb63bf": "dunkel",
+  "9a95999a53ea0f79": "Grundlegend",
+  "ead21c395feb3489": "Mittelstufe",
+  "4cf950f9a0115645": "Aktuelle Stufe beibehalten",
+  "0417de53576f34f2": "Gymnasium",
+  "644e8fd7dfcca63f": "Hochschule",
+  "d6cddbee22be7d9c": "Absolvent",
+  "cbe5eeaa2e8e16dd": "Bitte passen Sie das Leseniveau auf {level}-Niveau an.",
+  "162e521d81dd8a12": "Wird gesendet...",
+  "bb081b4501ebd5a7": "Senden",
+  "4647dcc3d75bdc58": "Suche abgeschlossen für „{query}\"",
+  "19171db6be1b4aa5": "Quellen ausblenden",
+  "ed78d317123c69e5": "{count} Quellen anzeigen",
+  "eb552698529269e5": {
+    "i": 1,
+    "c": "Fehler: Ungültiges Nachrichteninhaltsformat"
+  },
+  "9a28135e1aa682f9": "Datei-Upload fehlgeschlagen, bitte versuchen Sie es erneut!",
+  "d04afc2789421979": "Bitte warten Sie, bis das Modell seine Antwort beendet hat!",
+  "9028df10f4f78e09": "Nachricht senden... (@ eingeben, um Dokumente zu erwähnen)",
+  "b6a0494146fd63fb": "Vorgeschlagene Dokumente zur Erwähnung",
+  "3f6dc0cd147297a2": {
+    "i": 1,
+    "c": "Willkommen bei Snow Leopard"
+  },
+  "67d90d33f8b2d47c": {
+    "i": 1,
+    "c": "Ein modernes Schreibwerkzeug, das Ihren kreativen Prozess verbessert. Schreiben, bearbeiten und kollaborieren Sie mit KI-Unterstützung - alles in einer integrierten Umgebung."
+  },
+  "1ae881f29a29aef6": {
+    "i": 1,
+    "c": [
+      "Drücken Sie ",
+      {
+        "i": 2,
+        "c": "TAB"
+      },
+      ", um einen Vorschlag zu generieren."
+    ]
+  },
+  "9f8e300f6b33450f": {
+    "i": 1,
+    "c": [
+      "Text markieren und ",
+      {
+        "i": 2,
+        "c": "⌘/Strg + K"
+      },
+      " drücken, um zu bearbeiten."
+    ]
+  },
+  "b0b86f50544427be": {
+    "i": 1,
+    "c": "Senden Sie eine Nachricht in das Chat-Eingabefeld unten."
+  },
+  "3b3f6c7761c33908": {
+    "i": 1,
+    "c": [
+      "Halte ",
+      {
+        "i": 2,
+        "c": "Shift"
+      },
+      " gedrückt und fahre mit der Maus über Text, um Synonyme zu erhalten."
+    ]
+  },
+  "1d6f8e944b4f0d28": {
+    "i": 1,
+    "c": "Konfigurieren Sie das KI-Verhalten im Einstellungsmenü (oben rechts)."
+  },
+  "d0fce2503472a6f1": "Discord beitreten",
+  "d97588381c030bda": {
+    "i": 1,
+    "c": "Keine Quellen gefunden."
+  },
+  "5f6c5b106a4430e4": "Aktualisierung konnte nicht gespeichert werden: {message}",
+  "5bd5770a5a02e2d6": "Aktualisierungsvorschlag abgelehnt.",
+  "fa9f7b6cfa7879bc": "{action} \"{title}\"",
+  "53a93382a5d05a6e": "Dokument wird erstellt",
+  "0466248e715af319": "Dokument erstellt",
+  "47858753f0bf09e6": "Streaming-Inhalte für",
+  "5f190484bf31a1fd": "Inhalt gestreamt für",
+  "fa5af1c41d195719": "Aktualisierungsvorschlag für",
+  "d6f995f4a3c2c314": "Update vorgeschlagen für",
+  "daf341b66e986ae1": "Vorschläge werden hinzugefügt für",
+  "4342777aad58ae80": "Vorschläge hinzugefügt zu",
+  "6ad5d5a635a11015": "Speichern…",
+  "aca9af847ec4252a": "Dokument erfolgreich initialisiert.",
+  "e760cb3d762e2af0": "Inhaltsgenerierung abgeschlossen.",
+  "6cf3b042659b9b3a": "Vorgang erfolgreich.",
+  "1c423a665cf3966f": {
+    "i": 1,
+    "c": "Diff wird geladen…"
+  },
+  "011070f44afa0e09": {
+    "i": 1,
+    "c": "Aktualisierung auf Dokument angewendet."
+  },
+  "2a8dcb4338c0ecd2": {
+    "i": 1,
+    "c": "Aktualisierungsvorschlag abgelehnt."
+  },
+  "162dd0a9601a79f9": "Überschrift 1",
+  "410db0e872d2852a": "Überschrift 2",
+  "0a006462e20f0944": "Absatz",
+  "4b723964386799de": "Aufzählungsliste",
+  "e7ec857d99d803ef": "Nummerierte Liste",
+  "e17bae3a53e3c4b3": "Fett",
+  "87c4a6e8013172f4": "Kursiv",
+  "5717fb8ba7e64068": "Heute",
+  "bd55aed411f34f90": "Gestern",
+  "a7c817b23e91f1c2": "Bitte melden Sie sich an, um Feedback zu senden",
+  "49333908439d6d1f": "Unbekannter Fehler beim Senden an Discord",
+  "c320e6056c465117": "Popover schließen",
+  "aca1668281d69d89": "Feedback senden",
+  "89c633a8417c16d9": "{count} Dokumente gelöscht",
+  "4d90384622bcc0e2": "Einige Dokumente konnten nicht gelöscht werden",
+  "0533478c72a1fa8b": "Dokumente durchsuchen...",
+  "c557090df5722838": "Seitenleiste ein-/ausblenden",
+  "6434a69fe7034b46": "Kein aktiver Plan",
+  "17d8ba525326ba71": "Kostenlos",
+  "79e4d73c1bc8cf45": "Überprüfung läuft",
+  "0d546c913535e21d": "Fehler beim Laden des Status",
+  "afc8fb892e52f932": "Fehler",
+  "a92588726d2e1282": "Testversion endet {date}",
+  "31843be87a01cca2": "Testversion endete {date}",
+  "728590e3aa600be7": "Storniert {date}",
+  "929348775241f684": "Verlängert sich am {date}",
+  "3d7cdab1909733c0": "Verwalten",
+  "daf080584b6c4e5f": {
+    "i": 1,
+    "c": "Schließen"
+  },
+  "07c89f72464461af": "••••••••",
+  "57cc5e6733457fc9": "{count} {word}",
+  "5aaf3b7d36d91ace": "Dokument",
+  "bda5af471ef547e0": "Mehr",
+  "6b8b83a62c517d0b": "{action} {title}",
+  "72bee7663105277f": "Claude Opus 4",
+  "6b0db4c89876ee35": {
+    "i": 1,
+    "c": "• Probleme"
+  },
+  "60054d664d9448da": "Dokumente",
+  "da49b8271b9dffa0": "Löschen",
+  "610ae494b3c2c90d": "Älter",
+  "90e19ab2fba5da15": "Wiederherstellen",
+  "24bbce5249fcf04e": {
+    "i": 1,
+    "c": "Ihr Feedback hilft dabei, Snow Leopard für alle zu verbessern."
+  },
+  "b1081d87d2a8abad": "Abonnement",
+  "e0fa959d80ac0d81": "Auswählen",
+  "e0caa2b154cc4a23": {
+    "i": 1,
+    "c": "Helfen Sie uns, Snow Leopard zu verbessern"
+  },
+  "e4defb2c3cd42206": "Wird gesendet",
+  "00979d50287399d0": "Verlauf verlassen",
+  "8fa0bbb2f668d47f": "Wörter",
+  "139e6d0aaae6508e": "Alle abwählen",
+  "a0895a3b4cc11834": "Diese Version zur aktuellen Version machen",
+  "aa0115850cb76005": "Fehler beim Senden des Feedbacks: {error}",
+  "ea5c6ad6574ea111": "Letzte 30 Tage",
+  "cb6f08dce05f8e50": {
+    "i": 1,
+    "c": "Vorschläge:"
+  },
+  "2fe0da9dd046d7e4": "Löschen ({count})",
+  "81cd4e150d2a29be": "Feedback",
+  "417a1b511f596f3e": "Leistungsstärkstes Modell",
+  "c0073be9171e4a78": "Wort",
+  "3f671ac3752f8b86": "Ungültige Version ausgewählt",
+  "9f769a469200729b": "Letzte 7 Tage",
+  "0b1bd3dfeaa34f86": {
+    "i": 1,
+    "c": "Vielen Dank für Ihr Feedback!"
+  },
+  "48cbf5800d4627c7": "{mode}-Modus umschalten",
+  "8d59e38f5a56b1d0": {
+    "i": 1,
+    "c": "Dokument löschen?"
+  },
+  "d9b0fbd680d5f175": "Seitenleiste",
+  "95b09284dbefc2ac": "Version konnte nicht wiederhergestellt werden",
+  "2e30dde1e827b8b3": "Zeigt die mobile Seitenleiste an.",
+  "967dc0a97dd0abe3": {
+    "i": 1,
+    "c": "Noch keine Dokumente"
+  },
+  "8d9814fdf52fa980": "Alles auswählen",
+  "2b0096a6879d58a4": {
+    "i": 1,
+    "c": "Diese Aktion kann nicht rückgängig gemacht werden. Ihr Dokument wird dauerhaft gelöscht und von unseren Servern entfernt."
+  },
+  "713b9764a4f4e015": {
+    "i": 1,
+    "c": "• Funktionen"
+  },
+  "ad0c166bc494a5b9": {
+    "i": 1,
+    "c": "Diese Aktion kann nicht rückgängig gemacht werden. Die ausgewählten Dokumente werden dauerhaft gelöscht und von unseren Servern entfernt."
+  },
+  "3eaade0723899bab": "{count} Dokumente löschen?",
+  "770a2cf008f37e81": "Keine Dokumente gefunden, die „{term}\" entsprechen",
+  "a656dc69a38a3639": "Abmelden",
+  "83a41fc81cc79d1d": "{count} Dokumente löschen",
+  "04c8b612583d9d00": {
+    "i": 1,
+    "c": "Teilen Sie Ihre Gedanken"
+  },
+  "a46f371adbd624b5": "(aktives Dokument)",
+  "f344446f3e550d2c": "Ohne Titel",
+  "09179a5fa7b35a45": {
+    "i": 1,
+    "c": "⌘+Enter"
+  },
+  "5e92aea16a239c0f": "Pro",
+  "02a7e6c166c8210e": "Dokument erstellen",
+  "a1f8c2a2f8687542": "Abmeldung läuft...",
+  "6b48d2a4b5ca9667": "Ablehnen",
+  "27d8ff947727e523": "Fehler beim {type} des Dokuments{title}",
+  "e64e5eb05c4210c0": "Trainieren",
+  "44b3718735881aa5": "/ Monat",
+  "93c5a9c6c2920ac7": "Teil der",
+  "370aa80e162adbf6": "Aktiv",
+  "52c8ace4263951fe": "Vorschlagslänge",
+  "47dfadb16ee199f6": "Letzte Unterhaltungen",
+  "08ca061ea2853082": "Bitte geben Sie einen Dokumenttitel ein",
+  "f30a7e805b73344e": "Änderungen anzeigen",
+  "0165dc66f8e74b86": "Neu trainieren",
+  "8c5b9b391b5d6541": "Loslegen",
+  "6169c607134e14aa": "Speichern",
+  "9f51912179873402": "Jährlich",
+  "b9683cb344723077": "© {year} Snow Leopard. Alle Rechte vorbehalten.",
+  "cc2a5055e1c12ddf": "Favorit",
+  "6fdd4a1199608a38": "Google",
+  "74462fcf7dc58b55": "Version erfolgreich wiederhergestellt",
+  "8e0de750cb6a2dfa": "KI-Einstellungen",
+  "8d4348fcf4ad950c": "Kleines und schnelles Modell",
+  "86d287aa1993a091": "Schließen",
+  "2369913049ef654c": "Llama 4",
+  "aed189209376320b": "Discord beitreten",
+  "d0efdb9e816e85dc": "Snow Leopard öffnen",
+  "f42aa363e6aff8f8": {
+    "i": 1,
+    "c": "• Verbesserungen"
+  },
+  "a2cee594a9427fdf": "snow leopard",
+  "3b50f848e56731dd": "Unbekannter Fehler",
+  "d4fbcc8dbd5266cf": {
+    "i": 1,
+    "c": "Trainiert auf Ihren Texten, um Ihren einzigartigen Stil anzuwenden."
+  },
+  "c7d1e9c9bd97d52d": "Monatlich",
+  "1a2bef9d6466eb97": {
+    "i": 1,
+    "c": "Passwort"
+  },
+  "9eb96a9093d08161": "Dokument",
+  "9f0294cdb9074b4e": "Kimi K2",
+  "494fd441b6de2f70": "Anonym",
+  "e073006bd2bea02e": "Schreibstil anwenden",
+  "ee60cdb941cfd2d5": {
+    "i": 1,
+    "c": "Mit einem Klick veröffentlichen und teilen"
+  },
+  "6b3da0642dbb70cf": "Beginnen Sie zu tippen, um zu erstellen",
+  "c8dd0365f364ebb4": "Beginnen",
+  "4d9a7f5bf6e64c38": "Kopieren",
+  "fb4516dffeebe159": "Fertig",
+  "d63e03ffbcc98632": {
+    "i": 1,
+    "c": "ist etwas schwach und weitschweifig."
+  },
+  "90ef3ff61063cce0": {
+    "i": 1,
+    "c": [
+      "Von ",
+      {
+        "i": 2,
+        "c": {
+          "i": 3,
+          "k": "_gt_value_3",
+          "v": "v"
+        }
+      }
+    ]
+  },
+  "f9a435a9006e8b29": "Analysiere...",
+  "30d33a9b8aebd617": "Benutzerdefinierte Anweisungen",
+  "a6adb56184b6b6f5": "/ Monat*",
+  "4ab8c822595bcba5": "Verwendet von",
+  "e6ef01e5787f6ccc": "Nächste Version anzeigen",
+  "d22356a84503accb": "Tab, Tab, Brillanz anwenden",
+  "81c1392c55f47bd9": "Das zufriedenstellendste, intuitivste KI-Schreibwerkzeug, und es ist Open Source.",
+  "24c2efa0d8f55b59": {
+    "i": 1,
+    "c": "Auf Premium-Modelle zugreifen"
+  },
+  "e6131e896e2fad7f": "Zuletzt gespeichert {timeAgo}",
+  "00ad8aeed0a6c461": "Abbrechen",
+  "d8adbcaefe09d432": "Erwähnt",
+  "fe3092eea51ad000": {
+    "i": 1,
+    "c": "Begründung"
+  },
+  "24eb4f67185e9a5a": {
+    "i": 1,
+    "c": "Mit einem Klick veröffentlichen und mit KI-Chat-Support teilen."
+  },
+  "d15bb4faf9db5a97": "{discount}% sparen",
+  "678e022381819009": {
+    "i": 1,
+    "c": "Für einige Sekunden überlegt"
+  },
+  "e5ee1c1b1b5d5ccf": "Deepseek R1",
+  "ee383b4ff5f7a9ed": {
+    "i": 1,
+    "c": "Neues Dokument erstellen?"
+  },
+  "c49f19c980271695": "Zugang zu unbegrenztem Claude Opus 4",
+  "9cc8541c6e3455f0": "Stilzusammenfassung konnte nicht erstellt werden",
+  "a5596a99b4ebc85f": "KI trainiert auf Ihren Schreibstil",
+  "2095ead7494b0d78": "mittel",
+  "4542f958efa3aa17": "kurz",
+  "3428eb8b0c78a4e1": "Schreibstil trainieren",
+  "4a58275d4c7693bf": "KI-Einstellungen",
+  "bc04784e2c887893": {
+    "i": 1,
+    "c": "Oder fortfahren mit"
+  },
+  "d79c676441101f76": "Chat-Verlauf für {id} konnte nicht geladen werden",
+  "64ae70ca5a591702": "Leo fragen",
+  "ed8323ca915169bc": {
+    "i": 1,
+    "c": "Denke nach..."
+  },
+  "e28e5eb8f878f074": "du@beispiel.com",
+  "70b9f2ce297f0812": "der ehemalige CTO von",
+  "1c35a09dae19238f": "Einschließlich",
+  "3be49ff051d3c46f": {
+    "i": 1,
+    "c": [
+      "Durchsuche das Web nach „",
+      {
+        "i": 2,
+        "k": "_gt_value_2",
+        "v": "v"
+      },
+      "\"..."
+    ]
+  },
+  "1f54f0cb9287337a": "Jährlich abgerechnet für 126 $",
+  "237158f4f2565cb2": "Vorherige Version anzeigen",
+  "a54e9e823deafc85": "lang",
+  "c2ac684dff1d68ad": "Dokumentkontext wird verwendet: {title}",
+  "1259d10507ecbbcb": "Veröffentlichen Sie Ihre Dokumente öffentlich",
+  "5efed3eebf7e70d3": {
+    "i": 1,
+    "c": "⌘+Rücktaste"
+  },
+  "2ec6878da98aa323": "Wir sind Open-Source & selbst hostbar",
+  "78cfa9063e980b86": "Erweiterte Reasoning-KI",
+  "3de28fafd596610e": {
+    "i": 1,
+    "c": "fehlt es an Durchschlagskraft und Wirkung."
+  },
+  "dc363b3d8da488c9": "Speichern fehlgeschlagen - Klicken zum Wiederholen",
+  "95b9ccbd08070ee2": "Keine aktuellen Unterhaltungen",
+  "b9e7cd1a48cee386": {
+    "i": 1,
+    "c": "Unbegrenzter, kostenloser Zugang zu den besten KI-Modellen."
+  },
+  "28a45948473da7f8": "GitHub",
+  "18fef69394f0828b": "Snow Leopard - Tab, Tab, Brillanz anwenden",
+  "0ef9464dc819731b": {
+    "i": 1,
+    "c": "E-Mail"
+  },
+  "5d0c71caa8f328b0": "Löschen",
+  "df8f23b28eb004fa": "Dokument konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+  "61adb8c672f7fb35": "Nützlich für Textinhalte, wie das Verfassen von Aufsätzen und E-Mails.",
+  "24cec29302ee2220": {
+    "i": 1,
+    "c": "KI-Schreiben, das wie Sie klingt"
+  },
+  "17ed2dc223b2b557": {
+    "i": 1,
+    "c": {
+      "i": 2,
+      "d": {
+        "t": "b",
+        "b": {
+          "true": "Referenz im Text wird gesucht...",
+          "false": "Referenz gefunden"
+        }
+      }
+    }
+  },
+  "4fee148898fed284": "Verbessern Sie den folgenden Dokumentinhalt basierend auf der gegebenen Eingabeaufforderung:",
+  "d7c950d43126a400": "Ihre Anweisungen bestimmen den Ton und das Verhalten der KI.",
+  "b1c3c0c681d91330": "Großes und leistungsstarkes Modell",
+  "d2476f68ecd6cfc7": "& verwendet vom Vercel-Team"
+}

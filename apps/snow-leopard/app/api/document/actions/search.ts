@@ -5,6 +5,7 @@ import {
   getCurrentDocumentByTitle, 
   getDocumentById 
 } from '@/lib/db/queries'; // Import Drizzle queries
+import { tx } from 'gt-next/server';
 
 /**
  * Gets a file by path - attempts to match ID first, then title.
@@ -21,7 +22,7 @@ export async function getFileByPath(path: string) {
     const session = await auth.api.getSession({ headers: requestHeaders });
     
     if (!session?.user?.id) {
-      throw new Error('Unauthorized');
+      throw new Error(await tx('Unauthorized'));
     }
     const userId = session.user.id;
     
@@ -84,7 +85,7 @@ export async function searchDocuments({
     
     if (!session?.user?.id) {
       console.warn('[Document Search] Unauthorized search request');
-      throw new Error('Unauthorized');
+      throw new Error(await tx('Unauthorized'));
     }
     const userId = session.user.id;
     
@@ -99,11 +100,11 @@ export async function searchDocuments({
     });
         
     // Format results for the mention UI (same logic)
-    const results = documents?.map(doc => ({
+    const results = await Promise.all(documents?.map(async doc => ({
       id: doc.id,
-      title: doc.title || 'Untitled Document',
+      title: doc.title || await tx('Untitled Document'),
       type: 'document' // Assuming a type identifier is needed
-    })) || [];
+    })) || []);
     
     return {
       results,
@@ -114,7 +115,7 @@ export async function searchDocuments({
     console.error('[Document Search] Error executing search:', error);
     return {
       results: [],
-      error: 'Failed to search documents'
+      error: await tx('Failed to search documents')
       // Optionally include the original query in the error response
       // query 
     };

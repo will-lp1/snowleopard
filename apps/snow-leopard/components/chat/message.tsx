@@ -14,6 +14,7 @@ import { Button } from '../ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { MessageReasoning } from './message-reasoning';
 import Image from 'next/image';
+import { T, useGT, Var } from 'gt-next';
 
 function formatMessageWithMentions(content: string) {
   if (!content) return content;
@@ -128,9 +129,11 @@ const PurePreviewMessage = ({
                   {typeof message.content === 'string' ? (
                     <Markdown>{formatMessageWithMentions(message.content)}</Markdown>
                   ) : (
-                    <pre className="text-sm text-red-500">
-                      Error: Invalid message content format
-                    </pre>
+                    <T>
+                      <pre className="text-sm text-red-500">
+                        Error: Invalid message content format
+                      </pre>
+                    </T>
                   )}
                 </div>
               </div>
@@ -183,9 +186,11 @@ const PurePreviewMessage = ({
                   }
                   if (state === 'call' && toolName === 'webSearch') {
                     return (
-                      <div key={toolCallId} className="bg-background border rounded-xl w-full max-w-md p-3 text-sm animate-pulse">
-                        Searching web for &quot;{(args as any).query}&quot;...
-                      </div>
+                      <T>
+                        <div key={toolCallId} className="bg-background border rounded-xl w-full max-w-md p-3 text-sm animate-pulse">
+                          Searching web for &quot;<Var>{(args as any).query}</Var>&quot;...
+                        </div>
+                      </T>
                     );
                   }
 
@@ -290,9 +295,11 @@ export const ThinkingMessage = () => {
         </div>
 
         <div className="flex flex-col gap-2 w-full">
-          <div className="flex flex-col gap-4 text-muted-foreground">
-            Thinking...
-          </div>
+          <T>
+            <div className="flex flex-col gap-4 text-muted-foreground">
+              Thinking...
+            </div>
+          </T>
         </div>
       </div>
     </motion.div>
@@ -302,12 +309,13 @@ export const ThinkingMessage = () => {
 // Insert collapsible search result component
 function WebSearchResult({ query, results }: { query: string; results: any[] }) {
   const [open, setOpen] = useState(false);
+  const t = useGT();
   return (
     <div className="bg-background border rounded-xl w-full max-w-md p-4 text-sm">
       <div className="flex items-center justify-between">
-        <span>Search completed for &quot;{query}&quot;</span>
+        <span>{t('Search completed for "{query}"', { query })}</span>
         <button onClick={() => setOpen(!open)} className="text-blue-600 hover:underline">
-          {open ? 'Hide sources' : `View ${results.length} sources`}
+          {open ? t('Hide sources') : t('View {count} sources', { count: results.length })}
         </button>
       </div>
       {open && (

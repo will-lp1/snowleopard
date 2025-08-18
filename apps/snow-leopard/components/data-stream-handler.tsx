@@ -3,8 +3,9 @@
 import { useChat } from '@ai-sdk/react';
 import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { artifactDefinitions, ArtifactKind } from './artifact';
+import { getArtifactDefinitions, ArtifactKind } from './artifact';
 import { initialArtifactData, useArtifact } from '@/hooks/use-artifact';
+import { useGT } from 'gt-next';
 
 export type DataStreamDelta = {
   type:
@@ -29,6 +30,7 @@ interface StreamMetadata {
 }
 
 export function DataStreamHandler({ id }: { id: string }) {
+  const t = useGT();
   const router = useRouter();
   const { data: dataStream } = useChat({ id });
   const { artifact, setArtifact, setMetadata } = useArtifact();
@@ -41,6 +43,7 @@ export function DataStreamHandler({ id }: { id: string }) {
     lastProcessedIndex.current = dataStream.length - 1;
 
     (newDeltas as DataStreamDelta[]).forEach((delta: DataStreamDelta) => {
+      const artifactDefinitions = getArtifactDefinitions(t);
       const artifactDefinition = artifactDefinitions.find(
         (artifactDefinition) => artifactDefinition.kind === artifact.kind,
       );

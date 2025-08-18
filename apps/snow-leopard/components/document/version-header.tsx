@@ -5,6 +5,7 @@ import { useSWRConfig } from 'swr';
 import { RotateCcw, Clock, Loader2 } from 'lucide-react';
 import { format, formatDistance, isToday, isYesterday, differenceInDays } from 'date-fns';
 import { toast } from 'sonner';
+import { useGT } from 'gt-next/client';
 
 import type { Document } from '@snow-leopard/db';
 import { getDocumentTimestampByIndex } from '@/lib/utils';
@@ -25,12 +26,13 @@ export const VersionHeader = ({
   currentVersionIndex,
 }: VersionHeaderProps) => {
   const { artifact, setArtifact } = useArtifact();
+  const t = useGT();
   const { mutate } = useSWRConfig();
   const [isMutating, setIsMutating] = useState(false);
   
   const handleRestoreVersion = useCallback(async () => {
     if (!documents || currentVersionIndex < 0 || currentVersionIndex >= documents.length) {
-      toast.error('Invalid version selected');
+      toast.error(t('Invalid version selected'));
       return;
     }
 
@@ -75,10 +77,10 @@ export const VersionHeader = ({
       });
       window.dispatchEvent(event);
       
-      toast.success('Version restored successfully');
+      toast.success(t('Version restored successfully'));
     } catch (error) {
       console.error('[Version] Error restoring version:', error);
-      toast.error('Failed to restore version');
+      toast.error(t('Failed to restore version'));
     } finally {
       setIsMutating(false);
     }
@@ -87,8 +89,8 @@ export const VersionHeader = ({
   if (!documents || documents.length === 0) return null;
 
   const formatVersionLabel = (date: Date) => {
-    if (isToday(date)) return "Today";
-    if (isYesterday(date)) return "Yesterday";
+    if (isToday(date)) return t("Today");
+    if (isYesterday(date)) return t("Yesterday");
     
     const days = differenceInDays(new Date(), date);
     if (days < 7) return format(date, 'EEE');
@@ -150,11 +152,11 @@ export const VersionHeader = ({
                     ) : (
                       <RotateCcw className="h-3 w-3" />
                     )}
-                    <span>Restore</span>
+                    <span>{t('Restore')}</span>
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" className="text-xs">
-                  Make this version the current version
+                  {t('Make this version the current version')}
                 </TooltipContent>
               </Tooltip>
               
@@ -164,7 +166,7 @@ export const VersionHeader = ({
                 className="text-xs h-7 px-2.5"
                 onClick={() => handleVersionChange('latest')}
               >
-                Exit History
+                {t('Exit History')}
               </Button>
             </div>
         </div>

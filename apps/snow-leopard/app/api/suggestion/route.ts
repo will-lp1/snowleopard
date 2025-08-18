@@ -2,8 +2,9 @@ import { NextResponse, NextRequest } from 'next/server';
 import { streamText, smoothStream } from 'ai';
 import { getDocumentById } from '@/lib/db/queries';
 import { myProvider } from '@/lib/ai/providers';
-import { updateDocumentPrompt } from '@/lib/ai/prompts';
+import { getUpdateDocumentPrompt } from '@/lib/ai/prompts';
 import { getSessionCookie } from 'better-auth/cookies';
+import { tx, Tx, getGT } from 'gt-next/server';
 
 async function handleSuggestionRequest(
   documentId: string,
@@ -22,7 +23,7 @@ async function handleSuggestionRequest(
   (async () => {
     try {
       const document = await getDocumentById({ id: documentId });
-      if (!document) throw new Error('Document not found');
+      if (!document) throw new Error(await tx('Document not found'));
       console.log("Starting to process suggestion stream");
       await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'id', content: documentId })}\n\n`));
 
@@ -53,7 +54,7 @@ async function handleSuggestionRequest(
       await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'finish', content: '' })}\n\n`));
     } catch (e: any) {
       console.error('Error in stream processing:', e);
-      await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'error', content: e.message || 'An error occurred' })}\n\n`));
+      await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'error', content: e.message || await tx('An error occurred') })}\n\n`));
     } finally {
       await writer.close();
       console.log("Stream closed");
@@ -71,9 +72,9 @@ async function handleSuggestionRequest(
 
 export async function GET(request: Request) {
   try {
-    const sessionCookie = getSessionCookie(request);
+      const sessionCookie = getSessionCookie(request);
     if (!sessionCookie) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: tx('Unauthorized') }, { status: 401 });
     }
     const userId = sessionCookie;
 
@@ -87,21 +88,21 @@ export async function GET(request: Request) {
     const applyStyle = url.searchParams.get('applyStyle') === 'true';
 
     if (!documentId || !description) {
-      return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
+      return NextResponse.json({ error: tx('Missing parameters') }, { status: 400 });
     }
 
     return handleSuggestionRequest(documentId, description, userId, selectedText, suggestionLength, customInstructions, writingStyleSummary, applyStyle);
   } catch (error: any) {
     console.error('Suggestion GET route error:', error);
-    return NextResponse.json({ error: error.message || 'An error occurred' }, { status: 400 });
+    return NextResponse.json({ error: error.message || tx('An error occurred') }, { status: 400 });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const sessionCookie = getSessionCookie(request);
+      const sessionCookie = getSessionCookie(request);
     if (!sessionCookie) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: tx('Unauthorized') }, { status: 401 });
     }
     const userId = sessionCookie;
 
@@ -115,13 +116,13 @@ export async function POST(request: NextRequest) {
     const { suggestionLength = 'medium', customInstructions = null, writingStyleSummary = null, applyStyle = true } = aiOptions;
 
     if (!documentId || !description) {
-      return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
+      return NextResponse.json({ error: tx('Missing parameters') }, { status: 400 });
     }
 
     return handleSuggestionRequest(documentId, description, userId, selectedText, suggestionLength, customInstructions, writingStyleSummary, applyStyle);
   } catch (error: any) {
     console.error('Suggestion POST route error:', error);
-    return NextResponse.json({ error: error.message || 'An error occurred' }, { status: 400 });
+    return NextResponse.json({ error: error.message || tx('An error occurred') }, { status: 400 });
   }
 }
 
@@ -144,6 +145,7 @@ async function streamSuggestion({
   applyStyle: boolean;
   write: (type: string, content: string) => Promise<void>;
 }) {
+  const t = await getGT();
   let draftContent = '';
   const contentToModify = selectedText || document.content;
   let promptContext = selectedText 
@@ -179,7 +181,7 @@ Only output the resulting text, with no preamble or explanation.`;
 
   const { fullStream } = streamText({
     model: myProvider.languageModel('artifact-model'),
-    system: updateDocumentPrompt(contentToModify, 'text'),
+    system: getUpdateDocumentPrompt(contentToModify, 'text', t),
     experimental_transform: smoothStream({ chunking: 'word' }),
     prompt: promptContext,
     experimental_providerMetadata: {

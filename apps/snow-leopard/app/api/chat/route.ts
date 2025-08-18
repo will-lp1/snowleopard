@@ -4,7 +4,8 @@ import {
   streamText,
   smoothStream,
 } from 'ai';
-import { systemPrompt } from '@/lib/ai/prompts';
+import { getSystemPrompt } from '@/lib/ai/prompts';
+import { getGT } from 'gt-next/server';
 import {
   deleteChatById,
   getChatById,
@@ -52,8 +53,9 @@ async function createEnhancedSystemPrompt({
   applyStyle?: boolean;
   availableTools?: Array<'createDocument'|'streamingDocument'|'updateDocument'|'webSearch'>;
 }) {
+  const t = await getGT();
 
-  let basePrompt = systemPrompt({ selectedChatModel, availableTools });
+  let basePrompt = getSystemPrompt({ selectedChatModel, availableTools, t });
   let contextAdded = false;
 
   if (customInstructions) {

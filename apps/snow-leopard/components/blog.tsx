@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Markdown } from '@/components/markdown';
 import { googleFonts } from '@/lib/fonts';
 import { useTheme } from 'next-themes';
+import { T, Var } from 'gt-next';
 
 interface BlogProps {
   title: string;
@@ -60,7 +61,11 @@ export const Blog: React.FC<BlogProps> = ({
         <h1 className="text-4xl md:text-5xl font-extrabold tracking-tighter mb-8">{title}</h1>
         {(author || date) && (
           <div className="text-sm mb-6 flex items-center space-x-2 text-muted-foreground">
-            {author && <span>By <strong>{author}</strong></span>}
+            {author && (
+              <T>
+                <span>By <strong><Var>{author}</Var></strong></span>
+              </T>
+            )}
             {date && <span>{date}</span>}
           </div>
         )}

@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { db } from '@snow-leopard/db';
 import * as schema from '@snow-leopard/db';
 import { eq, and } from 'drizzle-orm';
+import { T } from 'gt-next';
 import { Blog } from '@/components/blog';
 import AIChatWidget from '@/components/ai-chat-widget';
 import ThemeToggle from '@/components/theme-toggle';
@@ -36,7 +37,7 @@ export default async function Page({ params }: any) {
       <ThemeToggle />
       <Link href="/register">
         <Button variant="outline" className="fixed top-4 right-4 z-50">
-          Sign up to Snow Leopard
+          <T>Sign up to Snow Leopard</T>
         </Button>
       </Link>
       <Blog

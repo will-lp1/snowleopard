@@ -3,6 +3,7 @@
 import { Button } from '@/components/ui/button';
 import { Check } from 'lucide-react';
 import { LoaderIcon } from './icons';
+import { T } from 'gt-next';
 
 interface SubmitButtonProps {
   isSuccessful: boolean;
@@ -19,7 +20,7 @@ export function SubmitButton({ isSuccessful, children }: SubmitButtonProps) {
       {isSuccessful ? (
         <>
           <Check className="mr-2 size-4" />
-          Done
+          <T>Done</T>
         </>
       ) : (
         children

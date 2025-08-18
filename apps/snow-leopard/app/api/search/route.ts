@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { searchDocuments } from '../document/actions/search';
+import { tx } from 'gt-next/server';
 
 export async function GET(request: NextRequest) {
   try {
@@ -31,13 +32,13 @@ export async function GET(request: NextRequest) {
     // Handle different error types
     if (error instanceof Error && error.message === 'Unauthorized') {
       return NextResponse.json(
-        { error: 'Unauthorized', results: [] }, 
+        { error: tx('Unauthorized'), results: [] }, 
         { status: 401 }
       );
     }
     
     return NextResponse.json(
-      { error: 'Search failed', results: [] }, 
+      { error: tx('Search failed'), results: [] }, 
       { status: 500 }
     );
   }

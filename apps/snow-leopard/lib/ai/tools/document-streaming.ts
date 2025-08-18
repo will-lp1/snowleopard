@@ -5,6 +5,7 @@ import {
   artifactKinds,
   documentHandlersByArtifactKind,
 } from '@/lib/artifacts/server';
+import { getGT } from 'gt-next/server';
 
 interface CreateDocumentProps {
   session: Session;
@@ -20,13 +21,14 @@ export const streamingDocument = ({ session, dataStream }: CreateDocumentProps) 
       kind: z.enum(artifactKinds).describe('The kind of content to generate (e.g., text).')
     }),
     execute: async ({ title, kind }) => {
+      const t = await getGT();
       const documentHandler = documentHandlersByArtifactKind.find(
         (documentHandlerByArtifactKind) =>
           documentHandlerByArtifactKind.kind === kind,
       );
 
       if (!documentHandler) {
-        throw new Error(`No document handler found for requested kind: ${kind}`);
+        throw new Error(t('No document handler found for requested kind: {kind}', { kind }));
       }
 
       await documentHandler.onCreateDocument({
@@ -40,7 +42,7 @@ export const streamingDocument = ({ session, dataStream }: CreateDocumentProps) 
       dataStream.writeData({ type: 'finish', content: '' });
 
       return {
-        content: 'Content generation streamed.',
+        content: t('Content generation streamed.'),
       };
     },
   });

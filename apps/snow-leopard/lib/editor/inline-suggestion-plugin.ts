@@ -121,7 +121,7 @@ export function createInlineSuggestionCallback(documentId: string) {
   };
 }
 
-export function inlineSuggestionPlugin(options: { requestSuggestion?: (state: EditorState) => void }): Plugin<InlineSuggestionState> {
+export function inlineSuggestionPlugin(options: { requestSuggestion?: (state: EditorState) => void; tabText?: string }): Plugin<InlineSuggestionState> {
   return new Plugin<InlineSuggestionState>({
     key: inlineSuggestionPluginKey,
     state: {
@@ -213,7 +213,7 @@ export function inlineSuggestionPlugin(options: { requestSuggestion?: (state: Ed
               const kbd = document.createElement('kbd');
               kbd.className = 'inline-tab-icon';
               kbd.style.marginLeft = '0.25em';
-              kbd.textContent = 'Tab';
+              kbd.textContent = options.tabText || 'Tab';
               wrapper.appendChild(kbd);
 
               return wrapper;

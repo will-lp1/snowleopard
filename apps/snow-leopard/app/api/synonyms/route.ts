@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { generateText } from 'ai'; // Using generateText for a non-streaming response
 import { myProvider } from '@/lib/ai/providers'; // Assuming myProvider is configured
+import { tx } from 'gt-next/server';
 
 export async function POST(request: Request) {
   try {
     const { word, context } = await request.json();
 
     if (!word) {
-      return NextResponse.json({ error: 'Missing word parameter' }, { status: 400 });
+      return NextResponse.json({ error: tx('Missing word parameter') }, { status: 400 });
     }
 
     const prompt = context
@@ -22,16 +23,16 @@ export async function POST(request: Request) {
     });
 
     const synonyms = text.split(',')
-      .map(s => s.trim())
-      .filter(s => s !== '' && s.toLowerCase() !== word.toLowerCase())
+      .map((s: string) => s.trim())
+      .filter((s: string) => s !== '' && s.toLowerCase() !== word.toLowerCase())
       .slice(0, 2);
 
     return NextResponse.json({ synonyms });
 
   } catch (error: any) {
     if (error instanceof SyntaxError) {
-         return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+         return NextResponse.json({ error: tx('Invalid request body') }, { status: 400 });
     }
-    return NextResponse.json({ error: 'Failed to fetch synonyms' }, { status: 500 });
+    return NextResponse.json({ error: tx('Failed to fetch synonyms') }, { status: 500 });
   }
 } 
