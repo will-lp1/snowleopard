@@ -12,6 +12,8 @@ import { Resend } from 'resend';
 const googleEnabled = process.env.GOOGLE_ENABLED === 'true';
 const githubEnabled = process.env.GITHUB_ENABLED === 'true';
 
+const stripeEnabled = process.env.STRIPE_ENABLED === 'true' || process.env.NEXT_PUBLIC_STRIPE_ENABLED === 'true';
+
 if (!process.env.BETTER_AUTH_SECRET) {
   throw new Error('Missing BETTER_AUTH_SECRET environment variable');
 }
@@ -19,11 +21,12 @@ if (!process.env.BETTER_AUTH_URL) {
     throw new Error('Missing BETTER_AUTH_URL environment variable');
 }
 
-// Unconditional Stripe key checks
-if (!process.env.STRIPE_SECRET_KEY) throw new Error('Missing STRIPE_SECRET_KEY');
-if (!process.env.STRIPE_WEBHOOK_SECRET) throw new Error('Missing STRIPE_WEBHOOK_SECRET');
-if (!process.env.STRIPE_PRO_MONTHLY_PRICE_ID) throw new Error('Missing STRIPE_PRO_MONTHLY_PRICE_ID');
-if (!process.env.STRIPE_PRO_YEARLY_PRICE_ID) throw new Error('Missing STRIPE_PRO_YEARLY_PRICE_ID');
+if (stripeEnabled) {
+  if (!process.env.STRIPE_SECRET_KEY) throw new Error('Missing STRIPE_SECRET_KEY');
+  if (!process.env.STRIPE_WEBHOOK_SECRET) throw new Error('Missing STRIPE_WEBHOOK_SECRET');
+  if (!process.env.STRIPE_PRO_MONTHLY_PRICE_ID) throw new Error('Missing STRIPE_PRO_MONTHLY_PRICE_ID');
+  if (!process.env.STRIPE_PRO_YEARLY_PRICE_ID) throw new Error('Missing STRIPE_PRO_YEARLY_PRICE_ID');
+}
 
 const emailVerificationEnabled = process.env.EMAIL_VERIFY_ENABLED === 'true';
 console.log(`Email Verification Enabled: ${emailVerificationEnabled}`);
@@ -33,7 +36,7 @@ if (emailVerificationEnabled) {
   if (!process.env.EMAIL_FROM) throw new Error('Missing EMAIL_FROM because EMAIL_VERIFY_ENABLED is true');
 }
 
-if (process.env.STRIPE_ENABLED === 'true') {
+if (stripeEnabled) {
   if (!process.env.STRIPE_SECRET_KEY) {
     throw new Error("STRIPE_SECRET_KEY environment variable is missing but STRIPE_ENABLED is true.");
   }
@@ -66,7 +69,10 @@ console.log('BETTER_AUTH_SECRET:', process.env.BETTER_AUTH_SECRET ? 'Set' : 'MIS
 console.log('BETTER_AUTH_URL:', process.env.BETTER_AUTH_URL ? 'Set' : 'MISSING!');
 console.log('-----------------------------------------\n'); // Added newline for clarity
 
-const stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2025-02-24.acacia" });
+let stripeClient: Stripe | undefined;
+if (stripeEnabled) {
+  stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2025-02-24.acacia" });
+}
 
 const resend = emailVerificationEnabled && process.env.RESEND_API_KEY 
   ? new Resend(process.env.RESEND_API_KEY)
@@ -89,7 +95,7 @@ const authPlugins: any[] = [];
 
 authPlugins.push(
   stripe({
-    stripeClient,
+    stripeClient: stripeClient!,
     stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET!,
     createCustomerOnSignUp: true,
     subscription: {
