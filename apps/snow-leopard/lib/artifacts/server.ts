@@ -1,9 +1,7 @@
-import { textDocumentHandler } from '@/artifacts/text/server';
-import { ArtifactKind } from '@/components/artifact';
+import { textDocumentHandler } from '@/app/document/server';
 import { DataStreamWriter } from 'ai';
 import { Session } from '@/lib/auth';
 
-// Simplified to exclude ID
 export interface CreateDocumentCallbackProps {
   title: string;
   dataStream: DataStreamWriter;
@@ -14,7 +12,6 @@ export interface UpdateDocumentCallbackProps {
   document: {
     id: string;
     title: string;
-    kind: ArtifactKind;
     content: string | null;
     createdAt: string;
     userId: string;

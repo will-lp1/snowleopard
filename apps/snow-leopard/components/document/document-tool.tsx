@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic';
 import type { ArtifactKind } from '@/components/artifact';
 import { FileIcon, LoaderIcon, MessageIcon, PencilEditIcon, CheckIcon, CheckCircleFillIcon, CrossIcon } from '@/components/icons';
 import { toast } from 'sonner';
-import { useArtifact } from '@/hooks/use-artifact';
+import { useArtifact } from '@/hooks/use-document';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 

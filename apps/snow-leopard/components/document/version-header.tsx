@@ -10,7 +10,7 @@ import type { Document } from '@snow-leopard/db';
 import { getDocumentTimestampByIndex } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
-import { useArtifact } from '@/hooks/use-artifact';
+import { useArtifact } from '@/hooks/use-document';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface VersionHeaderProps {

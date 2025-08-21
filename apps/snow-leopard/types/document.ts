@@ -1,6 +1,6 @@
-import { ArtifactMetadata } from './metadata';
+import { DocumentMetadata } from './metadata';
 
-export interface ArtifactContent<T extends ArtifactMetadata = ArtifactMetadata> {
+export interface DocumentContent<T extends DocumentMetadata = DocumentMetadata> {
   title: string;
   content: string;
   mode: 'edit' | 'diff';
@@ -17,4 +17,11 @@ export interface ArtifactContent<T extends ArtifactMetadata = ArtifactMetadata> 
   documentId: string;
   saveState: 'idle' | 'saving' | 'error';
   lastSaveError: string | null;
+}
+
+export interface UIDocument {
+  documentId: string;
+  content: string;
+  title: string;
+  status: 'idle' | 'loading' | 'streaming';
 } 

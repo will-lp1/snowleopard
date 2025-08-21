@@ -2,7 +2,7 @@
 
 import { Artifact } from '@/components/create-artifact';
 import { DiffView } from '@/components/document/diffview';
-import { Editor } from '@/components/document/text-editor';
+import { Editor } from '@/components/document/editor';
 import {
   ClockRewind,
   RedoIcon,
@@ -21,7 +21,6 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
   kind: 'text',
   description: 'Useful for text content, like drafting essays and emails.',
   onStreamPart: () => {
-    // No-op: handled by creationStreamingPlugin
   },
   content: ({ mode, content, isCurrentVersion, currentVersionIndex, isLoading, getDocumentContentById, documentId }) => {
     if (isLoading) {

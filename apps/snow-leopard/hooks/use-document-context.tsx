@@ -1,23 +1,20 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { ArtifactKind } from '@/components/artifact';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 
 interface DocumentContextType {
   documentId: string;
   documentTitle: string;
   documentContent: string;
-  documentKind: ArtifactKind;
   isLoading: boolean;
-  updateDocument: (id: string, title: string, content: string, kind: ArtifactKind) => void;
+  updateDocument: (id: string, title: string, content: string) => void;
 }
 
 const DocumentContext = createContext<DocumentContextType>({
   documentId: 'init',
   documentTitle: 'New Document',
   documentContent: '',
-  documentKind: 'text',
   isLoading: false,
   updateDocument: () => {},
 });
@@ -26,10 +23,8 @@ export function DocumentProvider({ children }: { children: ReactNode }) {
   const [documentId, setDocumentId] = useState<string>('init');
   const [documentTitle, setDocumentTitle] = useState<string>('New Document');
   const [documentContent, setDocumentContent] = useState<string>('');
-  const [documentKind, setDocumentKind] = useState<ArtifactKind>('text');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const params = useParams();
-  const router = useRouter();
 
   useEffect(() => {
     const docIdFromParams = params?.id as string | undefined;
@@ -42,7 +37,6 @@ export function DocumentProvider({ children }: { children: ReactNode }) {
         setDocumentId(docIdFromParams);
         setDocumentTitle('Loading...');
         setDocumentContent('');
-        setDocumentKind('text');
         setIsLoading(true);
         
         fetch(`/api/document?id=${docIdFromParams}`)
@@ -53,7 +47,6 @@ export function DocumentProvider({ children }: { children: ReactNode }) {
                  setDocumentId('init');
                  setDocumentTitle('Not Found');
                  setDocumentContent('');
-                 setDocumentKind('text');
               } else {
                 throw new Error(`Failed to fetch document: ${response.statusText}`);
               }
@@ -66,13 +59,11 @@ export function DocumentProvider({ children }: { children: ReactNode }) {
               const doc = documents[documents.length - 1]; 
               setDocumentTitle(doc.title || 'Untitled Document');
               setDocumentContent(doc.content || '');
-              setDocumentKind((doc.kind as ArtifactKind) || 'text');
             } else if (documentId !== 'init' && documents !== null) {
                console.warn(`No document versions found for ID: ${docIdFromParams}, resetting.`);
                setDocumentId('init');
                setDocumentTitle('New Document');
                setDocumentContent('');
-               setDocumentKind('text');
             }
           })
           .catch(error => {
@@ -80,7 +71,6 @@ export function DocumentProvider({ children }: { children: ReactNode }) {
             setDocumentId('init');
             setDocumentTitle('Error Loading');
             setDocumentContent('');
-            setDocumentKind('text');
           })
           .finally(() => {
             setIsLoading(false);
@@ -91,17 +81,15 @@ export function DocumentProvider({ children }: { children: ReactNode }) {
           setDocumentId('init');
           setDocumentTitle('New Document');
           setDocumentContent('');
-          setDocumentKind('text');
           setIsLoading(false);
        }
     }
   }, [params?.id, documentId]);
 
-  const updateDocument = (id: string, title: string, content: string, kind: ArtifactKind) => {
+  const updateDocument = (id: string, title: string, content: string) => {
     setDocumentId(id);
     setDocumentTitle(title);
     setDocumentContent(content);
-    setDocumentKind(kind);
   };
 
   useEffect(() => {
@@ -117,11 +105,10 @@ export function DocumentProvider({ children }: { children: ReactNode }) {
      const handleDocumentContextUpdated = (event: Event) => {
        const customEvent = event as CustomEvent;
        if (!customEvent.detail) return;
-       const { documentId, documentTitle, documentContent, documentKind } = customEvent.detail;
+       const { documentId, documentTitle, documentContent } = customEvent.detail;
        setDocumentId(documentId);
        setDocumentTitle(documentTitle);
        setDocumentContent(documentContent);
-       setDocumentKind(documentKind);
      };
      
      window.addEventListener('document-renamed', handleDocumentRenamed);
@@ -139,7 +126,6 @@ export function DocumentProvider({ children }: { children: ReactNode }) {
         documentId,
         documentTitle,
         documentContent,
-        documentKind,
         isLoading,
         updateDocument,
       }}

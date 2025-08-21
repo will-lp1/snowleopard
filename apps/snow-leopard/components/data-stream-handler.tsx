@@ -4,7 +4,7 @@ import { useChat } from '@ai-sdk/react';
 import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { artifactDefinitions, ArtifactKind } from './artifact';
-import { initialArtifactData, useArtifact } from '@/hooks/use-artifact';
+import { initialArtifactData, useArtifact } from '@/hooks/use-document';
 
 export type DataStreamDelta = {
   type:

@@ -2,16 +2,14 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useArtifact } from './use-artifact';
+import { useDocument } from './use-document';
 import { toast } from 'sonner';
 import { generateUUID } from '@/lib/utils';
 import { useSidebar } from '@/components/ui/sidebar';
-import { ArtifactKind } from '@/components/artifact';
 
 interface CreateDocumentParams {
   title: string;
   content: string;
-  kind: ArtifactKind;
   chatId: string | null;
   navigateAfterCreate?: boolean;
   providedId?: string;

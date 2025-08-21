@@ -3,28 +3,26 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo, Suspense, useTransition } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
-import { Loader2, FileText, PlusIcon } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 import type { Document } from '@snow-leopard/db';
 import { generateUUID } from '@/lib/utils';
-import { useArtifact } from '@/hooks/use-artifact';
-import { ArtifactActions } from '@/components/artifact-actions';
+import { DocumentActions } from '@/components/document/actions';
 import { VersionHeader } from '@/components/document/version-header';
 import { useDocumentUtils } from '@/hooks/use-document-utils';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Input } from './ui/input';
+import { Input } from '../ui/input';
 import { useDocumentContext } from '@/hooks/use-document-context';
-import { ArtifactKind } from '@/components/artifact';
-import { AiSettingsMenu } from './ai-settings-menu';
+import { AiSettingsMenu } from '../ai-settings-menu';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import type { SaveState } from '@/lib/editor/save-plugin';
 import type { User } from '@/lib/auth';
 import { PublishSettingsMenu } from '@/components/publish-settings-menu';
-import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
-const Editor = dynamic(() => import('@/components/document/text-editor').then(mod => mod.Editor), {
+const Editor = dynamic(() => import('@/components/document/editor').then(mod => mod.Editor), {
   ssr: false,
   loading: () => <EditorSkeleton />,
 });
@@ -70,7 +68,7 @@ export function AlwaysVisibleArtifact({
   user
 }: AlwaysVisibleArtifactProps) {
   const router = useRouter();
-  const { artifact, setArtifact, metadata, setMetadata } = useArtifact();
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'error'>('idle');
   const { documentId: contextDocumentId } = useDocumentContext();
   const {
     isCreatingDocument,
@@ -121,7 +119,7 @@ export function AlwaysVisibleArtifact({
                 kind: (docToUse.kind as ArtifactKind) || 'text',
                 status: 'idle'
             };
-            setArtifact(artifactData as any);
+            // setArtifact(artifactData as any); // Removed artifact usage
             setNewTitle(artifactData.title);
         } else if (initialDocumentId === 'init' || showCreateDocumentForId) {
             const initData: SettableArtifact = {
@@ -132,12 +130,12 @@ export function AlwaysVisibleArtifact({
                 kind: 'text' as ArtifactKind,
                 status: 'idle'
             };
-            setArtifact(initData as any);
+            // setArtifact(initData as any); // Removed artifact usage
             setNewTitle(initData.title);
         }
     });
 
-  }, [initialDocumentId, initialDocuments, setArtifact, startTransition, artifact.documentId]);
+  }, [initialDocumentId, initialDocuments, setNewTitle, startTransition]);
 
   useEffect(() => {
     const handleDocumentRenamed = (event: CustomEvent) => {
@@ -150,20 +148,16 @@ export function AlwaysVisibleArtifact({
           )
       );
 
-      if (renamedDocId === artifact.documentId) {
-        setArtifact(current => ({
-          ...current,
-          title: updatedTitle
-        }));
+      if (renamedDocId === editorDocumentId) {
         if (editingTitle && newTitle !== updatedTitle) {
-            setNewTitle(updatedTitle);
+          setNewTitle(updatedTitle);
         }
       }
     };
 
     window.addEventListener('document-renamed', handleDocumentRenamed as EventListener);
     return () => window.removeEventListener('document-renamed', handleDocumentRenamed as EventListener);
-  }, [artifact.documentId, editingTitle, newTitle, setArtifact]);
+  }, [newTitle, editingTitle, setDocuments, editorDocumentId]);
 
   const handleDocumentUpdate = (updatedFields: Partial<Document>) => {
       setDocuments(prevDocs =>
@@ -174,15 +168,7 @@ export function AlwaysVisibleArtifact({
               return doc;
           })
       );
-      if (artifact.documentId === updatedFields.id) {
-          const { kind, ...otherUpdatedFields } = updatedFields;
-          setArtifact(current => ({
-              ...current,
-              ...otherUpdatedFields,
-              content: updatedFields.content !== undefined ? (updatedFields.content ?? '') : current.content,
-              ...(kind && { kind: kind as any }),
-          }));
-      }
+
   };
 
   const handleEditTitle = useCallback(() => {
@@ -216,7 +202,7 @@ export function AlwaysVisibleArtifact({
        setEditingTitle(false);
        if (!trimmedNewTitle) setNewTitle(latestDocument.title);
     }
-  }, [newTitle, latestDocument, documents, renameDocument, setArtifact]);
+  }, [newTitle, latestDocument, documents, renameDocument, setDocuments]);
 
   const handleCancelEditTitle = useCallback(() => {
     if (!latestDocument) return;
@@ -392,7 +378,7 @@ export function AlwaysVisibleArtifact({
                     onDoubleClick={latestDocument ? handleEditTitle : undefined}
                     title={latestDocument ? `Rename "${latestDocument.title}"` : (initialDocumentId === 'init' ? 'Untitled Document' : 'Loading...')}
                   >
-                    {latestDocument?.title ?? artifact.title ?? 'Document'}
+                    {latestDocument?.title ?? 'Document'}
                   </div>
                 )}
               </div>
@@ -401,15 +387,7 @@ export function AlwaysVisibleArtifact({
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
           {documents && documents.length > 0 && (
-            <ArtifactActions
-              artifact={artifact}
-              currentVersionIndex={currentVersionIndex}
-              handleVersionChange={handleVersionChange}
-              isCurrentVersion={isCurrentVersion}
-              mode={mode}
-              metadata={metadata}
-              setMetadata={setMetadata}
-            />
+            <DocumentActions content={editorContent} isSaving={saveState === 'saving'} />
           )}
           {latestDocument && (
             <PublishSettingsMenu
@@ -447,6 +425,7 @@ export function AlwaysVisibleArtifact({
                         documentId={editorDocumentId}
                         initialLastSaved={latestDocument ? new Date(latestDocument.updatedAt) : null}
                         onStatusChange={(newSaveState: SaveState) => {
+                           setSaveState(newSaveState.state);
                         }}
                         onCreateDocumentRequest={handleCreateDocumentFromEditor}
                       />

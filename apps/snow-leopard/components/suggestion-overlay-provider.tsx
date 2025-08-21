@@ -2,11 +2,11 @@
 
 import { createContext, useContext, ReactNode, useState, useCallback, useEffect } from 'react';
 import SuggestionOverlay from './suggestion-overlay';
-import { useArtifact } from '@/hooks/use-artifact';
+import { useDocument } from '@/hooks/use-document';
 import { toast } from 'sonner';
 import { getActiveEditorView } from '@/lib/editor/editor-state';
 import {
-  ACTIVATE_SUGGESTION_CONTEXT,
+  ACTIVATE_SUGGESTION_CONTEXT,  
   DEACTIVATE_SUGGESTION_CONTEXT,
   SET_SUGGESTION_LOADING_STATE
 } from '@/lib/editor/suggestion-plugin';
@@ -29,7 +29,7 @@ export function SuggestionOverlayProvider({ children }: { children: ReactNode })
   const [selectedText, setSelectedText] = useState('');
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [selectionRange, setSelectionRange] = useState<{ from: number; to: number } | null>(null);
-  const { artifact } = useArtifact();
+  const { documentId } = useDocument();
 
   const setSuggestionIsLoading = useCallback((isLoading: boolean) => {
     const view = getActiveEditorView();

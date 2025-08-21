@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import { FileText } from 'lucide-react';
 import { useDocumentContext } from '@/hooks/use-document-context';
 import { MentionedDocument } from './multimodal-input';
-import { useArtifact } from '@/hooks/use-artifact';
+import { useArtifact } from '@/hooks/use-document';
 import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
 import { DataStreamHandler } from '@/components/data-stream-handler';
 import { motion } from 'framer-motion';
