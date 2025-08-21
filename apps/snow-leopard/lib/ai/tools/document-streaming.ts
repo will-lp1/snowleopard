@@ -1,7 +1,7 @@
 import { DataStreamWriter, tool } from 'ai';
 import { z } from 'zod';
 import { Session } from '@/lib/auth';
-import { createTextDocument } from '@/app/document/server';
+import { createTextDocument } from '@/lib/ai/document-helpers';
 
 interface CreateDocumentProps {
   session: Session;

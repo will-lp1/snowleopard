@@ -6,7 +6,6 @@ import { documentSchema, headingRule } from './config';
 import { creationStreamingPlugin } from './creation-streaming-plugin';
 import { placeholderPlugin } from './placeholder-plugin';
 import { inlineSuggestionPlugin } from './inline-suggestion-plugin';
-import { clipboardPlugin } from './clipboard-plugin';
 import { selectionContextPlugin } from './suggestion-plugin';
 import { synonymsPlugin } from './synonym-plugin';
 import { diffPlugin } from './diff-plugin';
@@ -25,7 +24,6 @@ export interface EditorPluginOptions {
 
 export function createEditorPlugins(opts: EditorPluginOptions): Plugin[] {
   return [
-    clipboardPlugin,
     creationStreamingPlugin(opts.documentId),
     placeholderPlugin(opts.placeholder ?? (opts.documentId === 'init' ? 'Start typing' : 'Start typing...')),
     ...exampleSetup({ schema: documentSchema, menuBar: false }),

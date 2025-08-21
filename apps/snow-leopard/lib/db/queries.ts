@@ -175,14 +175,14 @@ export async function getMessagesByIds(ids: string[]): Promise<Message[]> {
 export async function saveDocument({
   id,
   title,
-  kind,
+  kind = null,
   content,
   userId,
   chatId,
 }: {
   id: string;
   title: string;
-  kind: null | string;
+  kind?: string | null;
   content: string;
   userId: string;
   chatId?: string | null;
@@ -698,14 +698,14 @@ export async function getChatExists({ chatId }: { chatId: string }): Promise<boo
 export async function createNewDocumentVersion({
   id,
   title,
-  kind,
+  kind = null,
   content,
   userId,
   chatId,
 }: {
   id: string;
   title: string;
-  kind: null | string;
+  kind?: string | null;
   content: string;
   userId: string;
   chatId?: string | null;
@@ -728,7 +728,7 @@ export async function createNewDocumentVersion({
       const newVersionData = {
         id,
         title,
-        kind: kind as typeof schema.artifactKindEnum.enumValues[number],
+        ...(kind ? { kind: kind as any } : {}),
         content,
         userId,
         chatId: chatId || null,

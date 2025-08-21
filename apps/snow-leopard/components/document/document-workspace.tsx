@@ -473,7 +473,15 @@ export function AlwaysVisibleArtifact({
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
           {documents && documents.length > 0 && (
-            <DocumentActions content={editorContent} isSaving={saveState === 'saving'} />
+            <DocumentActions
+              content={editorContent}
+              latestContent={latestDocument?.content || ''}
+              documentId={editorDocumentId}
+              isSaving={saveState === 'saving'}
+              handleVersionChange={handleVersionChange}
+              currentVersionIndex={currentVersionIndex}
+              isCurrentVersion={isCurrentVersion}
+            />
           )}
           {latestDocument && (
             <PublishSettingsMenu

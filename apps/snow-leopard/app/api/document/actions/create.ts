@@ -8,8 +8,6 @@ import {
   getDocumentById 
 } from '@/lib/db/queries';
 import { generateUUID } from '@/lib/utils';
-import type { ArtifactKind } from '@/components/artifact';
-
 /**
  * Handles document creation (POST)
  * Creates a new version of a document. If an ID is provided and exists for the user,
@@ -68,7 +66,7 @@ export async function createDocument(request: NextRequest, body: any) {
       id: documentId,
       title: title,
       content: content,
-      kind: kind as ArtifactKind,
+      kind: kind,
       userId: userId,
     });
 
