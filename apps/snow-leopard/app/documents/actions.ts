@@ -8,8 +8,6 @@ import {
   saveDocument,
 } from '@/lib/db/queries';
 import { myProvider } from '@/lib/ai/providers';
-import { ArtifactKind } from '@/components/artifact';
-
 export async function generateDocumentTitleFromContent({
   content,
 }: {
@@ -49,7 +47,7 @@ export async function updateDocumentContent({
   await saveDocument({
     id: document.id, // Use document.id for consistency
     title: document.title,
-    kind: document.kind as ArtifactKind,
+    kind: null,
     content,
     userId: document.userId,
     // saveDocument creates a new version, is_current defaults to true

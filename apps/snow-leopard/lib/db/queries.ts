@@ -2,7 +2,6 @@ import 'server-only';
 import { db } from '@snow-leopard/db'; 
 import * as schema from '@snow-leopard/db'; 
 import { eq, desc, asc, inArray, gt, and, sql, lt } from 'drizzle-orm'; // Import Drizzle operators and
-import type { ArtifactKind } from '@/components/artifact';
 
 type Chat = typeof schema.Chat.$inferSelect; 
 type Message = typeof schema.Message.$inferSelect; 
@@ -176,14 +175,14 @@ export async function getMessagesByIds(ids: string[]): Promise<Message[]> {
 export async function saveDocument({
   id,
   title,
-  kind,
+  kind = null,
   content,
   userId,
   chatId,
 }: {
   id: string;
   title: string;
-  kind: ArtifactKind;
+  kind?: string | null;
   content: string;
   userId: string;
   chatId?: string | null;
@@ -193,7 +192,6 @@ export async function saveDocument({
     const newVersionData = {
       id,
       title,
-      kind: kind as typeof schema.artifactKindEnum.enumValues[number],
       content,
       userId,
       chatId: chatId || null,
@@ -700,14 +698,14 @@ export async function getChatExists({ chatId }: { chatId: string }): Promise<boo
 export async function createNewDocumentVersion({
   id,
   title,
-  kind,
+  kind = null,
   content,
   userId,
   chatId,
 }: {
   id: string;
   title: string;
-  kind: ArtifactKind;
+  kind?: string | null;
   content: string;
   userId: string;
   chatId?: string | null;
@@ -730,7 +728,7 @@ export async function createNewDocumentVersion({
       const newVersionData = {
         id,
         title,
-        kind: kind as typeof schema.artifactKindEnum.enumValues[number],
+        ...(kind ? { kind: kind as any } : {}),
         content,
         userId,
         chatId: chatId || null,

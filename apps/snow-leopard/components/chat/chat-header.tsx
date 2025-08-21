@@ -13,7 +13,7 @@ import { PlusIcon, ClockRewind, MessageIcon } from '../icons';
 import { useSidebar } from '../ui/sidebar';
 import { memo } from 'react';
 import { cn } from '@/lib/utils';
-import { useDocumentUtils } from '@/hooks/use-document-utils';
+import { useDocument } from '@/hooks/use-document';
 import { fetcher } from '@/lib/utils';
 import type { Chat } from '@snow-leopard/db';
 import {
@@ -43,7 +43,7 @@ function PureChatHeader({
   const { width: windowWidth } = useWindowSize();
   const isMobile = windowWidth < 768;
   const isCompact = windowWidth < 1024;
-  const { handleResetChat, isCreatingChat } = useDocumentUtils();
+  const { handleResetChat, isCreatingChat } = useDocument();
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);

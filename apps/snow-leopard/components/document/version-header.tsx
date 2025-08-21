@@ -10,7 +10,7 @@ import type { Document } from '@snow-leopard/db';
 import { getDocumentTimestampByIndex } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
-import { useArtifact } from '@/hooks/use-artifact';
+import { useDocument } from '@/hooks/use-document';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface VersionHeaderProps {
@@ -24,7 +24,7 @@ export const VersionHeader = ({
   documents,
   currentVersionIndex,
 }: VersionHeaderProps) => {
-  const { artifact, setArtifact } = useArtifact();
+  const { document, setDocument } = useDocument();
   const { mutate } = useSWRConfig();
   const [isMutating, setIsMutating] = useState(false);
   
@@ -45,7 +45,7 @@ export const VersionHeader = ({
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          id: artifact.documentId,
+          id: document.documentId,
           content: versionToRestore.content,
           title: versionToRestore.title,
           restoreFromTimestamp: timestamp
@@ -56,9 +56,9 @@ export const VersionHeader = ({
         throw new Error(`Failed to restore version: ${response.status}`);
       }
       
-      await mutate(`/api/document?id=${artifact.documentId}`);
+      await mutate(`/api/document?id=${document.documentId}`);
       
-      setArtifact(current => ({
+      setDocument(current => ({
         ...current,
         content: versionToRestore.content || '',
         title: versionToRestore.title || current.title
@@ -68,7 +68,7 @@ export const VersionHeader = ({
       
       const event = new CustomEvent('version-restored', {
         detail: {
-          documentId: artifact.documentId,
+          documentId: document.documentId,
           content: versionToRestore.content,
           title: versionToRestore.title
         }
@@ -82,7 +82,7 @@ export const VersionHeader = ({
     } finally {
       setIsMutating(false);
     }
-  }, [documents, currentVersionIndex, artifact.documentId, setArtifact, handleVersionChange, mutate]);
+  }, [documents, currentVersionIndex, document.documentId, setDocument, handleVersionChange, mutate]);
   
   if (!documents || documents.length === 0) return null;
 

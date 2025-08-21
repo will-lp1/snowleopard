@@ -17,6 +17,7 @@ import {
 import { createEditorPlugins } from "@/lib/editor/editor-plugins";
 import { createInlineSuggestionCallback } from "@/lib/editor/inline-suggestion-plugin";
 import { type FormatState } from "@/lib/editor/format-plugin";
+import SynonymOverlay from "@/components/synonym-overlay";
 
 
 type EditorProps = {
@@ -54,6 +55,22 @@ function PureEditor({
     bold: false,
     italic: false,
   });
+
+  const [synonymState, setSynonymState] = useState<{isOpen:boolean; synonyms:string[]; position:{x:number;y:number}; from:number; to:number; view: EditorView | null}>({isOpen:false,synonyms:[],position:{x:0,y:0},from:0,to:0,view:null});
+
+  useEffect(() => {
+    const handleOpen = (e: Event) => {
+      const detail = (e as CustomEvent).detail as {synonyms:string[]; position:{x:number;y:number}; from:number; to:number; view:EditorView};
+      setSynonymState({isOpen:true, synonyms:detail.synonyms, position:detail.position, from:detail.from, to:detail.to, view:detail.view});
+    };
+    const handleClose = () => setSynonymState(s => ({...s, isOpen:false}));
+    window.addEventListener('synonym-overlay:open', handleOpen);
+    window.addEventListener('synonym-overlay:close', handleClose);
+    return () => {
+      window.removeEventListener('synonym-overlay:open', handleOpen);
+      window.removeEventListener('synonym-overlay:close', handleClose);
+    };
+  }, []);
 
   useEffect(() => {
     currentDocumentIdRef.current = documentId;
@@ -254,6 +271,16 @@ function PureEditor({
         className="editor-area bg-background text-foreground dark:bg-black dark:text-white prose prose-slate dark:prose-invert pt-4" 
         ref={containerRef} 
       />
+      {/* Synonym overlay */}
+      <SynonymOverlay
+        isOpen={synonymState.isOpen}
+        synonyms={synonymState.synonyms}
+        position={synonymState.position}
+        onClose={() => setSynonymState(s => ({...s, isOpen:false}))}
+        view={synonymState.view}
+        from={synonymState.from}
+        to={synonymState.to}
+      />
       <style jsx global>{`
         .suggestion-decoration-inline::after {
           content: attr(data-suggestion);
@@ -342,6 +369,14 @@ function PureEditor({
         .editor-area, .toolbar {
           max-width: 720px;
           margin: 0 auto;
+        }
+
+        /* Persistent highlight while overlay is open */
+        .synonym-loading {
+          background-color: rgba(0, 0, 0, 0.07);
+        }
+        .dark .synonym-loading {
+          background-color: rgba(255, 255, 255, 0.18);
         }
       `}</style>
     </>

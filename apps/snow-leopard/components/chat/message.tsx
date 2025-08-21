@@ -4,14 +4,11 @@ import type { ChatRequestOptions, Message } from 'ai';
 import cx from 'classnames';
 import { AnimatePresence, motion } from 'framer-motion';
 import { memo, useState } from 'react';
-import { DocumentToolCall, DocumentToolResult } from '@/components/document/document';
-import { PencilEditIcon, SparklesIcon, FileIcon } from '../icons';
+import { DocumentToolCall, DocumentToolResult } from '@/components/document/document-tool';
 import { Markdown } from '../markdown';
 import { MessageActions } from './message-actions';
 import equal from 'fast-deep-equal';
 import { cn } from '@/lib/utils';
-import { Button } from '../ui/button';
-import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { MessageReasoning } from './message-reasoning';
 import Image from 'next/image';
 

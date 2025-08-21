@@ -1,7 +1,5 @@
 'use client';
 
-import { ArtifactKind } from '@/components/artifact';
-
 export const DocumentSkeleton = () => {
   return (
     <div className="flex flex-col gap-4 w-full">

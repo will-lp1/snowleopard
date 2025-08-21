@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getSession, getUser } from '@/app/(auth)/auth';
-import { AlwaysVisibleArtifact } from '@/components/always-visible-artifact';
+import { AlwaysVisibleArtifact } from '@/components/document/document-workspace';
 
 export default async function Page() {
   const session = await getSession();

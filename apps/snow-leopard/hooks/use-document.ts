@@ -1,17 +1,29 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useArtifact } from './use-artifact';
-import { toast } from 'sonner';
-import { generateUUID } from '@/lib/utils';
-import { useSidebar } from '@/components/ui/sidebar';
-import { ArtifactKind } from '@/components/artifact';
+import useSWR from "swr";
+import { useCallback, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { generateUUID } from "@/lib/utils";
+import { useSidebar } from "@/components/ui/sidebar";
+
+export interface CurrentDocument {
+  documentId: string;
+  title: string;
+  content: string;
+  status: "idle" | "loading" | "streaming";
+}
+
+export const initialDocument: CurrentDocument = {
+  documentId: "init",
+  title: "",
+  content: "",
+  status: "idle",
+};
 
 interface CreateDocumentParams {
   title: string;
   content: string;
-  kind: ArtifactKind;
   chatId: string | null;
   navigateAfterCreate?: boolean;
   providedId?: string;
@@ -26,36 +38,44 @@ interface DeleteDocumentParams {
   redirectUrl?: string;
 }
 
-export function useDocumentUtils() {
+export function useDocument() {
+  const { data, mutate } = useSWR<CurrentDocument>("current-document", null, {
+    fallbackData: initialDocument,
+  });
+
+  const document = data ?? initialDocument;
   const router = useRouter();
-  const { setArtifact, artifact } = useArtifact();
   const { setOpenMobile, openMobile } = useSidebar();
   const [isCreatingChat, setIsCreatingChat] = useState(false);
   const [isCreatingDocument, setIsCreatingDocument] = useState(false);
   const [isRenamingDocument, setIsRenamingDocument] = useState(false);
 
-  const handleResetChat = () => {
-    console.log('[useDocumentUtils] Resetting chat state');
+  const setDocument = useCallback(
+    (update: CurrentDocument | ((prev: CurrentDocument) => CurrentDocument)) => {
+      mutate(prev => (typeof update === "function" ? (update as any)(prev ?? initialDocument) : update), false);
+    },
+    [mutate]
+  );
+
+  const handleResetChat = useCallback(() => {
+    console.log('[useDocument] Resetting chat state');
     window.dispatchEvent(new CustomEvent('reset-chat-state'));
     
     if (openMobile) {
       setOpenMobile(false);
     }
-  };
+  }, [openMobile, setOpenMobile]);
 
-  const handleNewChat = () => {
+  const handleNewChat = useCallback(() => {
     if (isCreatingChat) return;
     setIsCreatingChat(true);
     
     try {
-      setArtifact({
+      setDocument({
         documentId: 'init', 
         title: 'New Document',
-        kind: 'text',
-        isVisible: true,
         status: 'idle',
         content: '',
-        boundingBox: { top: 0, left: 0, width: 0, height: 0 } 
       });
       
       setOpenMobile(false);
@@ -68,9 +88,9 @@ export function useDocumentUtils() {
     } finally {
       setIsCreatingChat(false);
     }
-  };
+  }, [isCreatingChat, setDocument, setOpenMobile, router]);
 
-  const createNewDocument = async () => {
+  const createNewDocument = useCallback(async () => {
     if (isCreatingDocument) return;
     
     setIsCreatingDocument(true);
@@ -133,17 +153,16 @@ export function useDocumentUtils() {
         setIsCreatingDocument(false);
       }, 1000);
     }
-  };
+  }, [isCreatingDocument, openMobile, setOpenMobile, router]);
 
-  const renameDocument = async (newTitle: string) => {
-    if (isRenamingDocument || !artifact.documentId || artifact.documentId === 'init') return;
+  const renameDocument = useCallback(async (newTitle: string) => {
+    if (isRenamingDocument || !document.documentId || document.documentId === 'init') return;
 
     if (!newTitle.trim()) {
       toast.error('Document title cannot be empty');
       return;
     }
 
-    const originalTitle = artifact.title; 
     setIsRenamingDocument(true);
 
     try {
@@ -153,7 +172,7 @@ export function useDocumentUtils() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          id: artifact.documentId,
+          id: document.documentId,
           title: newTitle,
         }),
       });
@@ -165,7 +184,7 @@ export function useDocumentUtils() {
 
       const updatedDocumentData = await response.json(); 
 
-      setArtifact(current => ({
+      setDocument(current => ({
         ...current,
         title: updatedDocumentData?.title || newTitle
       }));
@@ -173,7 +192,7 @@ export function useDocumentUtils() {
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('document-renamed', {
           detail: {
-            documentId: artifact.documentId,
+            documentId: document.documentId,
             newTitle: updatedDocumentData?.title || newTitle
           }
         }));
@@ -190,9 +209,9 @@ export function useDocumentUtils() {
     } finally {
       setIsRenamingDocument(false);
     }
-  };
+  }, [isRenamingDocument, document.documentId, setDocument]);
 
-  const createDocument = async (params: CreateDocumentParams) => {
+  const createDocument = useCallback(async (params: CreateDocumentParams) => {
     setIsCreatingDocument(true);
     
     try {
@@ -207,7 +226,7 @@ export function useDocumentUtils() {
           id: documentId,
           title: params.title,
           content: params.content,
-          kind: params.kind,
+          kind: 'text',
         }),
       });
       
@@ -216,22 +235,20 @@ export function useDocumentUtils() {
         throw new Error(errorData.error || 'Failed to create document');
       }
       
-      const document = await response.json();
+      const doc = await response.json();
       
-      setArtifact(curr => ({
+      setDocument(curr => ({
         ...curr,
         documentId: documentId,
         title: params.title,
         content: params.content,
-        kind: params.kind,
         status: 'idle',
-        isVisible: true,
       }));
       
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('document-created', {
           detail: {
-            document: document
+            document: doc
           }
         }));
       }
@@ -240,20 +257,20 @@ export function useDocumentUtils() {
         router.push(`/documents/${documentId}`);
       }
       
-      return document;
+      return doc;
     } catch (error) {
-      console.error('[useDocumentUtils] Error creating document:', error);
+      console.error('[useDocument] Error creating document:', error);
       toast.error('Failed to create document');
       return null;
     } finally {
       setIsCreatingDocument(false);
     }
-  };
+  }, [setDocument, router]);
   
-  const loadDocument = async (documentId: string, params?: LoadDocumentParams) => {
+  const loadDocument = useCallback(async (documentId: string, params?: LoadDocumentParams) => {
     try {
       if (!documentId || documentId === 'init') {
-        console.error('[useDocumentUtils] Invalid document ID:', documentId);
+        console.error('[useDocument] Invalid document ID:', documentId);
         return null;
       }
       
@@ -266,38 +283,36 @@ export function useDocumentUtils() {
       const documents = await response.json();
       
       if (!documents || documents.length === 0) {
-        console.error('[useDocumentUtils] Document not found:', documentId);
+        console.error('[useDocument] Document not found:', documentId);
         return null;
       }
       
-      const document = documents[0];
+      const doc = documents[0];
       
-      setArtifact(curr => ({
+      setDocument(curr => ({
         ...curr,
-        documentId: document.id,
-        title: document.title,
-        content: document.content || '',
-        kind: document.kind as ArtifactKind,
+        documentId: doc.id,
+        title: doc.title,
+        content: doc.content || '',
         status: 'idle',
-        isVisible: true,
       }));
       
       if (params?.navigateAfterLoad) {
         router.push(`/documents/${documentId}`);
       }
       
-      return document;
+      return doc;
     } catch (error) {
-      console.error('[useDocumentUtils] Error loading document:', error);
+      console.error('[useDocument] Error loading document:', error);
       toast.error('Failed to load document');
       return null;
     }
-  };
+  }, [setDocument, router]);
   
-  const deleteDocument = async (documentId: string, params?: DeleteDocumentParams) => {
+  const deleteDocument = useCallback(async (documentId: string, params?: DeleteDocumentParams) => {
     try {
       if (!documentId || documentId === 'undefined' || documentId === 'null' || documentId === 'init') {
-        console.error('[useDocumentUtils] Invalid document ID for deletion:', documentId);
+        console.error('[useDocument] Invalid document ID for deletion:', documentId);
         toast.error('Cannot delete: Invalid document ID');
         return false;
       }
@@ -326,13 +341,15 @@ export function useDocumentUtils() {
       toast.success('Document deleted');
       return true;
     } catch (error) {
-      console.error('[useDocumentUtils] Error deleting document:', error);
+      console.error('[useDocument] Error deleting document:', error);
       toast.error('Failed to delete document');
       return false;
     }
-  };
+  }, [router]);
 
-  return {
+  return useMemo(() => ({
+    document, 
+    setDocument,
     handleNewChat,
     createNewDocument,
     renameDocument,
@@ -343,5 +360,5 @@ export function useDocumentUtils() {
     loadDocument,
     deleteDocument,
     handleResetChat,
-  };
-} 
+  }), [document, setDocument, handleNewChat, createNewDocument, renameDocument, isCreatingChat, isCreatingDocument, isRenamingDocument, createDocument, loadDocument, deleteDocument, handleResetChat]);
+}

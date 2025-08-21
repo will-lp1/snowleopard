@@ -1,5 +1,3 @@
-import { ArtifactKind } from '@/components/artifact';
-
 const documentAwarenessPrompt = `
 CURRENT DOCUMENT: Read silently, never quote large chunks in your response - ONLY A THREE SENTENCE SUMMARY OF CHANGES MAX - insightful not lengthy.
 
@@ -74,7 +72,7 @@ ${documentAwarenessPrompt}`;
 
 export const updateDocumentPrompt = (
   currentContent: string | null,
-  type: ArtifactKind,
+  type: null | string,
 ) =>
   type === 'text'
     ? `Improve the following document content based on the given prompt:

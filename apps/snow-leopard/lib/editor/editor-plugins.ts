@@ -11,6 +11,7 @@ import { synonymsPlugin } from './synonym-plugin';
 import { diffPlugin } from './diff-plugin';
 import { formatPlugin } from './format-plugin';
 import { savePlugin } from './save-plugin';
+import { emojiPlugin } from './emoji-plugin';
 
 export interface EditorPluginOptions {
   documentId: string;
@@ -40,5 +41,6 @@ export function createEditorPlugins(opts: EditorPluginOptions): Plugin[] {
       debounceMs: 200,
       documentId: opts.documentId,
     }),
+    emojiPlugin(),
   ];
 } 
