@@ -37,6 +37,7 @@ import {
   StopIcon,
   SummarizeIcon,
 } from './icons';
+import { useGT } from 'gt-next';
 import { artifactDefinitions, ArtifactKind } from './artifact';
 import { ArtifactToolbarItem } from './create-artifact';
 import { UseChatHelpers } from '@ai-sdk/react';
@@ -158,13 +159,14 @@ const ReadingLevelSelector = ({
     chatRequestOptions?: ChatRequestOptions,
   ) => Promise<string | null | undefined>;
 }) => {
+  const t = useGT();
   const LEVELS = [
-    'Elementary',
-    'Middle School',
-    'Keep current level',
-    'High School',
-    'College',
-    'Graduate',
+    t('Elementary'),
+    t('Middle School'),
+    t('Keep current level'),
+    t('High School'),
+    t('College'),
+    t('Graduate'),
   ];
 
   const y = useMotionValue(-40 * 2);
@@ -232,7 +234,7 @@ const ReadingLevelSelector = ({
                 if (currentLevel !== 2 && hasUserSelectedLevel) {
                   append({
                     role: 'user',
-                    content: `Please adjust the reading level to ${LEVELS[currentLevel]} level.`,
+                    content: t('Please adjust the reading level to {level} level.', { level: LEVELS[currentLevel] }),
                   });
 
                   setSelectedTool(null);

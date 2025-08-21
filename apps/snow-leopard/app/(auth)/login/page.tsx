@@ -7,6 +7,7 @@ import { authClient } from '@/lib/auth-client';
 import { toast } from '@/components/toast';
 import { AuthForm } from '@/components/auth-form';
 import { SubmitButton } from '@/components/submit-button';
+import { T, useGT } from 'gt-next';
 
 // Client-side check for enabled providers
 const googleEnabled = process.env.NEXT_PUBLIC_GOOGLE_ENABLED === 'true';
@@ -18,6 +19,7 @@ export default function LoginPage() {
   const [isSocialLoading, setIsSocialLoading] = useState<string | null>(null);
   const [isSuccessful, setIsSuccessful] = useState(false);
   const [email, setEmail] = useState('');
+  const t = useGT();
 
   const handleEmailLogin = async (formData: FormData) => {
     const currentEmail = formData.get('email') as string;
@@ -39,7 +41,7 @@ export default function LoginPage() {
         setIsSuccessful(true);
         toast({
           type: 'success',
-          description: 'Signed in successfully! Redirecting...'
+          description: t('Signed in successfully! Redirecting...')
         });
         router.refresh();
       },
@@ -49,7 +51,7 @@ export default function LoginPage() {
         console.error("Email Login Error:", ctx.error);
         toast({
           type: 'error',
-          description: ctx.error.message || 'Failed to sign in.',
+          description: ctx.error.message || t('Failed to sign in.'),
         });
       },
     });
@@ -72,7 +74,7 @@ export default function LoginPage() {
         console.error(`Social Login Error (${provider}):`, ctx.error);
         toast({
           type: 'error',
-          description: ctx.error.message || `Failed to sign in with ${provider}.`,
+          description: ctx.error.message || t('Failed to sign in with {provider}.', { provider }),
         });
       },
     });
@@ -82,10 +84,14 @@ export default function LoginPage() {
     <div className="flex h-dvh w-screen items-start pt-12 md:pt-0 md:items-center justify-center bg-background">
       <div className="w-full max-w-md overflow-hidden rounded-2xl flex flex-col gap-12">
         <div className="flex flex-col items-center justify-center gap-2 px-8 text-center">
-          <h3 className="text-xl font-semibold dark:text-zinc-50">Sign In</h3>
-          <p className="text-sm text-gray-500 dark:text-zinc-400">
-            Sign in with your email and password
-          </p>
+          <T>
+            <h3 className="text-xl font-semibold dark:text-zinc-50">Sign In</h3>
+          </T>
+          <T>
+            <p className="text-sm text-gray-500 dark:text-zinc-400">
+              Sign in with your email and password
+            </p>
+          </T>
         </div>
         
         <div className="px-8">
@@ -102,20 +108,22 @@ export default function LoginPage() {
             <SubmitButton 
               isSuccessful={isSuccessful}
             >
-              Sign In
+              <T>Sign In</T>
             </SubmitButton>
           </AuthForm>
         </div>
 
-        <p className="text-center text-sm text-gray-600 dark:text-zinc-400">
-          {"Don't have an account? "}
-          <Link
-            href="/register"
-            className="font-semibold text-gray-800 hover:underline dark:text-zinc-200"
-          >
-            Sign up
-          </Link>
-        </p>
+        <T>
+          <p className="text-center text-sm text-gray-600 dark:text-zinc-400">
+            {"Don't have an account? "}
+            <Link
+              href="/register"
+              className="font-semibold text-gray-800 hover:underline dark:text-zinc-200"
+            >
+              Sign up
+            </Link>
+          </p>
+        </T>
       </div>
     </div>
   );

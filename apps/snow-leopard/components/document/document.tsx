@@ -7,28 +7,30 @@ import { toast } from 'sonner';
 import { useArtifact } from '@/hooks/use-artifact';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { T, useGT } from 'gt-next';
 
 // Lazy-load diff viewer to keep initial bundle small.
 const DiffView = dynamic(() => import('./diffview').then(m => m.DiffView), {
   ssr: false,
-  loading: () => <div className="p-3 text-xs text-muted-foreground">Loading diff…</div>,
+  loading: () => <T><div className="p-3 text-xs text-muted-foreground">Loading diff…</div></T>,
 });
 
 const getActionText = (
   type: 'create' | 'stream' | 'update' | 'request-suggestions',
   tense: 'present' | 'past',
+  t: (key: string) => string,
 ) => {
   switch (type) {
     case 'create':
-      return tense === 'present' ? 'Creating document' : 'Document created';
+      return tense === 'present' ? t('Creating document') : t('Document created');
     case 'stream':
-      return tense === 'present' ? 'Streaming content for' : 'Content streamed for';
+      return tense === 'present' ? t('Streaming content for') : t('Content streamed for');
     case 'update':
-      return tense === 'present' ? 'Proposing update for' : 'Update proposed for';
+      return tense === 'present' ? t('Proposing update for') : t('Update proposed for');
     case 'request-suggestions':
       return tense === 'present'
-        ? 'Adding suggestions for'
-        : 'Suggestions added to';
+        ? t('Adding suggestions for')
+        : t('Suggestions added to');
     default:
       return null;
   }
@@ -55,6 +57,7 @@ function PureDocumentToolResult({
   isReadonly,
 }: DocumentToolResultProps) {
   const { artifact, setArtifact } = useArtifact();
+  const t = useGT();
   const [isSaving, setIsSaving] = useState(false);
   const [isApplied, setIsApplied] = useState(() => {
     if (type === 'update' && result.id && artifact.documentId === result.id) {
@@ -109,7 +112,7 @@ function PureDocumentToolResult({
       })
       .catch(err => {
         console.error('[DocumentToolResult] Save update error:', err);
-        toast.error(`Failed to save update: ${err.message}`);
+        toast.error(t('Failed to save update: {message}', { message: err.message }));
       })
       .finally(() => {
         setIsSaving(false);
@@ -127,7 +130,7 @@ function PureDocumentToolResult({
       },
     });
     window.dispatchEvent(event);
-    toast.info('Update proposal rejected.');
+    toast.info(t('Update proposal rejected.'));
   }, [result.id, result.originalContent, type]);
 
   if (result.error) {
@@ -138,7 +141,10 @@ function PureDocumentToolResult({
           </div>
           <div className="flex-grow">
             <div className="text-destructive font-medium">
-              {`Failed to ${type} document${result.title ? ` "${result.title}"` : ''}`}
+              {t('Failed to {action} document{title}', { 
+                action: type, 
+                title: result.title ? ` "${result.title}"` : '' 
+              })}
             </div>
             <div className="text-xs text-destructive/80 mt-0.5">
               <span className="font-mono">{result.error}</span>
@@ -156,7 +162,10 @@ function PureDocumentToolResult({
             <PencilEditIcon size={16}/>
           </div>
           <div className="text-left flex-grow text-foreground">
-            {`${getActionText(type, 'past')} "${result.title ?? 'document'}"`}
+            {t('{action} "{title}"', { 
+              action: getActionText(type, 'past', t), 
+              title: result.title ?? t('document') 
+            })}
             {result.status && <span className="text-xs text-muted-foreground ml-1">({result.status})</span>}
           </div>
         </div>
@@ -178,7 +187,7 @@ function PureDocumentToolResult({
             className="text-xs flex items-center gap-1.5"
           >
             <CrossIcon size={14} />
-            Reject
+            {t('Reject')}
           </Button>
           <Button
             size="sm"
@@ -187,21 +196,25 @@ function PureDocumentToolResult({
             className="text-xs flex items-center gap-1.5"
           >
             <CheckIcon size={14} />
-            {isSaving ? 'Saving…' : 'Accept'}
+            {isSaving ? t('Saving…') : t('Accept')}
           </Button>
         </div>
           </>
         ) : (
           isApplied ? (
-            <div className="flex items-center gap-2 p-3 w-full bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300">
-              <CheckCircleFillIcon size={16} />
-              <span className="text-sm">Update applied to document.</span>
-            </div>
+            <T>
+              <div className="flex items-center gap-2 p-3 w-full bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                <CheckCircleFillIcon size={16} />
+                <span className="text-sm">Update applied to document.</span>
+              </div>
+            </T>
           ) : (
-            <div className="flex items-center gap-2 p-3 w-full bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300">
-              <CrossIcon size={16} />
-              <span className="text-sm">Update proposal rejected.</span>
-            </div>
+            <T>
+              <div className="flex items-center gap-2 p-3 w-full bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300">
+                <CrossIcon size={16} />
+                <span className="text-sm">Update proposal rejected.</span>
+              </div>
+            </T>
           )
         )}
       </div>
@@ -210,10 +223,10 @@ function PureDocumentToolResult({
 
   const successMessage = 
     type === 'create' 
-      ? (result.content || 'Document initialized successfully.') 
+      ? (result.content || t('Document initialized successfully.')) 
       : type === 'stream' 
-        ? (result.content || 'Content generation completed.') 
-        : 'Operation successful.';
+        ? (result.content || t('Content generation completed.')) 
+        : t('Operation successful.');
 
   const SuccessIcon = CheckCircleFillIcon;
 
@@ -224,7 +237,10 @@ function PureDocumentToolResult({
        </div>
        <div className="flex-grow">
          <div className="text-foreground">
-           {`${getActionText(type, 'past')} ${result.title ? `"${result.title}"` : '(active document)'}`}
+           {t('{action} {title}', { 
+             action: getActionText(type, 'past', t), 
+             title: result.title ? `"${result.title}"` : `(${t('active document')})` 
+           })}
          </div>
          <div className="text-xs text-muted-foreground mt-0.5">
            {successMessage}
@@ -248,6 +264,7 @@ function PureDocumentToolCall({
   isReadonly,
 }: DocumentToolCallProps) {
   const { artifact: localArtifact } = useArtifact();
+  const t = useGT();
   const artTitle = localArtifact?.title ?? '';
 
   const titleArg = args.title ?? '';
@@ -271,8 +288,10 @@ function PureDocumentToolCall({
           <CallIcon size={16}/>
         </div>
         <div className="text-left flex-grow text-foreground">
-          {`${getActionText(type, 'present')}`}{' '}
-          {displayTitle ? `"${displayTitle}"` : '(active document)'}
+          {t('{action} {title}', { 
+            action: getActionText(type, 'present', t), 
+            title: displayTitle ? `"${displayTitle}"` : `(${t('active document')})` 
+          })}
         </div>
         <div className="animate-spin text-muted-foreground flex-shrink-0">
             <LoaderIcon size={16} />

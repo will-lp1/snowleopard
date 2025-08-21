@@ -7,7 +7,8 @@ import { db, user as schemaUser } from '@snow-leopard/db';
 import * as schema from '@snow-leopard/db'; 
 import Stripe from "stripe"; 
 import { stripe } from "@better-auth/stripe"; 
-import { Resend } from 'resend'; 
+import { Resend } from 'resend';
+import { getGT } from 'gt-next/server'; 
 
 const googleEnabled = process.env.GOOGLE_ENABLED === 'true';
 const githubEnabled = process.env.GITHUB_ENABLED === 'true';
@@ -146,11 +147,12 @@ export const auth = betterAuth({
         console.log(`Attempting to send verification email to ${user.email} via Resend...`);
         console.log(`Verification URL: ${url}`);
         try {
+          const t = await getGT();
           const { data, error } = await resend.emails.send({
             from: process.env.EMAIL_FROM!, 
             to: [user.email],
-            subject: 'Verify your email for Snow Leopard',
-            html: `<p>Welcome! Please click the link below to verify your email address:</p><p><a href="${url}">Verify Email</a></p><p>If the link doesn't work, copy and paste this URL into your browser: ${url}</p>`,
+            subject: t('Verify your email for Snow Leopard'),
+            html: t('<p>Welcome! Please click the link below to verify your email address:</p><p><a href="{url}">Verify Email</a></p><p>If the link doesn\'t work, copy and paste this URL into your browser: {url}</p>', { url }),
           });
 
           if (error) {

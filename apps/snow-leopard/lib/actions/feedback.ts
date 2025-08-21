@@ -1,5 +1,7 @@
 'use server';
 
+import { getGT } from 'gt-next/server';
+
 interface SendFeedbackParams {
   feedbackContent: string;
   userEmail?: string; 
@@ -11,6 +13,7 @@ export async function sendFeedbackToDiscord({
   userEmail, 
   userId 
 }: SendFeedbackParams): Promise<{ success: boolean; error?: string }> {
+  const t = await getGT();
 
   const discordWebhookUrl = process.env.DISCORD_WEBHOOK_URL;
 
@@ -21,7 +24,7 @@ export async function sendFeedbackToDiscord({
   }
 
   if (!feedbackContent) {
-    return { success: false, error: 'Feedback content cannot be empty.' };
+    return { success: false, error: t('Feedback content cannot be empty.') };
   }
 
   const content = `
@@ -64,7 +67,7 @@ ${feedbackContent}
   } catch (error: any) {
     console.error('[Feedback Action] Error sending feedback to Discord:', error);
     
-    let errorMessage = 'An unexpected error occurred while sending feedback to Discord.';
+    let errorMessage = t('An unexpected error occurred while sending feedback to Discord.');
     if (error instanceof Error) {
       errorMessage = error.message;
     }

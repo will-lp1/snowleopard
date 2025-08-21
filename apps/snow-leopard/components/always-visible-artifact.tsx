@@ -23,6 +23,7 @@ import type { User } from '@/lib/auth';
 import { PublishSettingsMenu } from '@/components/publish-settings-menu';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { T, useGT } from 'gt-next';
 
 const Editor = dynamic(() => import('@/components/document/text-editor').then(mod => mod.Editor), {
   ssr: false,
@@ -69,6 +70,7 @@ export function AlwaysVisibleArtifact({
   showCreateDocumentForId,
   user
 }: AlwaysVisibleArtifactProps) {
+  const t = useGT();
   const router = useRouter();
   const { artifact, setArtifact, metadata, setMetadata } = useArtifact();
   const { documentId: contextDocumentId } = useDocumentContext();
@@ -206,7 +208,7 @@ export function AlwaysVisibleArtifact({
       try {
         await renameDocument(trimmedNewTitle);
       } catch (error) {
-        toast.error("Failed to rename document.");
+        toast.error(t("Failed to rename document."));
         setDocuments(originalDocuments);
         console.error("Rename failed:", error);
       } finally {
@@ -261,7 +263,7 @@ export function AlwaysVisibleArtifact({
     if (isCreatingDocument) return;
     try {
       await createDocument({
-        title: 'Untitled Document',
+        title: t('Untitled Document'),
         content: '',
         kind: 'text',
         chatId: null,
@@ -270,7 +272,7 @@ export function AlwaysVisibleArtifact({
       });
     } catch (error) {
       console.error('Error creating document with specific ID:', error);
-      toast.error('Failed to create document');
+      toast.error(t('Failed to create document'));
     }
   }, [isCreatingDocument, createDocument]);
 
@@ -279,7 +281,7 @@ export function AlwaysVisibleArtifact({
       const newDocId = generateUUID();
       try {
           await createDocument({
-              title: 'Untitled Document',
+              title: t('Untitled Document'),
               content: initialContent,
               kind: 'text',
               chatId: null,
@@ -288,7 +290,7 @@ export function AlwaysVisibleArtifact({
           });
       } catch (error) {
           console.error('Error creating document from editor:', error);
-          toast.error('Failed to create document');
+          toast.error(t('Failed to create document'));
       }
   }, [isCreatingDocument, initialDocumentId, createDocument]);
 
@@ -332,8 +334,8 @@ export function AlwaysVisibleArtifact({
 
           {/* Heading + description */}
           <div className="text-center">
-            <h3 className="text-lg font-medium mb-1 text-foreground ">Document Not Found</h3>
-            <p className="text-sm">Create a new document?</p>
+            <T><h3 className="text-lg font-medium mb-1 text-foreground ">Document Not Found</h3></T>
+            <T><p className="text-sm">Create a new document?</p></T>
           </div>
 
           {/* Action buttons */}
@@ -345,7 +347,7 @@ export function AlwaysVisibleArtifact({
               onClick={() => handleCreateDocumentWithId(showCreateDocumentForId)}
               disabled={isCreatingDocument}
             >
-              {isCreatingDocument ? <Loader2 className="size-4 animate-spin mx-auto" /> : 'Create Document'}
+              {isCreatingDocument ? <Loader2 className="size-4 animate-spin mx-auto" /> : t('Create Document')}
             </Button>
             <Button
               variant="outline"
@@ -353,7 +355,7 @@ export function AlwaysVisibleArtifact({
               size="sm"
               onClick={() => router.push('/documents')}
             >
-              Cancel
+              <T>Cancel</T>
             </Button>
           </div>
         </div>
@@ -383,16 +385,16 @@ export function AlwaysVisibleArtifact({
                     }}
                     onBlur={handleSaveTitle}
                     disabled={isRenamingDocument || !latestDocument}
-                    aria-label="Edit document title"
+                    aria-label={t("Edit document title")}
                   />
                 ) : (
                   <div
                     className={`font-medium truncate h-6 leading-6 px-1 ${latestDocument ? 'cursor-pointer hover:underline' : 'text-muted-foreground'}`}
                     onClick={latestDocument ? handleEditTitle : undefined}
                     onDoubleClick={latestDocument ? handleEditTitle : undefined}
-                    title={latestDocument ? `Rename "${latestDocument.title}"` : (initialDocumentId === 'init' ? 'Untitled Document' : 'Loading...')}
+                    title={latestDocument ? t('Rename "{title}"', { title: latestDocument.title }) : (initialDocumentId === 'init' ? t('Untitled Document') : t('Loading...'))}
                   >
-                    {latestDocument?.title ?? artifact.title ?? 'Document'}
+                    {latestDocument?.title ?? artifact.title ?? t('Document')}
                   </div>
                 )}
               </div>

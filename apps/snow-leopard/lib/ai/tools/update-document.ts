@@ -3,6 +3,7 @@ import { Session } from '@/lib/auth';
 import { z } from 'zod';
 import { getDocumentById } from '@/lib/db/queries';
 import { myProvider } from '@/lib/ai/providers';
+import { getGT } from 'gt-next/server';
 
 interface UpdateDocumentProps {
   session: Session;
@@ -21,27 +22,28 @@ export const updateDocument = ({ session: _session, documentId: defaultDocumentI
       const documentId = defaultDocumentId;
 
       try {
+        const t = await getGT();
         if (!description.trim()) {
-          return { error: 'No update description provided.' };
+          return { error: t('No update description provided.') };
         }
 
         if (!documentId ||
             documentId === 'undefined' ||
             documentId === 'null' ||
             documentId.length < 32) {
-          return { error: `Invalid document ID: "${documentId}".` };
+          return { error: t('Invalid document ID: "{documentId}".', { documentId }) };
         }
 
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
         if (!uuidRegex.test(documentId)) {
-          return { error: `Invalid document ID format: "${documentId}".` };
+          return { error: t('Invalid document ID format: "{documentId}".', { documentId }) };
         }
 
         // --- Fetch Document ---
         const document = await getDocumentById({ id: documentId });
         if (!document) {
           console.error(`[AI Tool] Document not found with ID: ${documentId}`);
-          return { error: 'Document not found' };
+          return { error: t('Document not found') };
         }
         const originalContent = document.content || '';
 
@@ -59,14 +61,15 @@ export const updateDocument = ({ session: _session, documentId: defaultDocumentI
           kind: document.kind,
           originalContent: originalContent, 
           newContent: newContent,           
-          status: 'Update proposal generated.',
+          status: t('Update proposal generated.'),
         };
 
       } catch (error: any) {
         console.error('[AI Tool] updateDocument failed:', error);
         const errorMessage = error instanceof Error ? error.message : String(error);
+        const t = await getGT();
         return {
-          error: 'Failed to generate document update: ' + errorMessage,
+          error: t('Failed to generate document update: {errorMessage}', { errorMessage }),
         };
       }
     },

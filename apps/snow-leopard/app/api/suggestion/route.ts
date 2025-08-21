@@ -2,7 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import { streamText, smoothStream } from 'ai';
 import { getDocumentById } from '@/lib/db/queries';
 import { myProvider } from '@/lib/ai/providers';
-import { updateDocumentPrompt } from '@/lib/ai/prompts';
+import { getUpdateDocumentPrompt } from '@/lib/ai/prompts';
 import { getSessionCookie } from 'better-auth/cookies';
 
 async function handleSuggestionRequest(
@@ -179,7 +179,7 @@ Only output the resulting text, with no preamble or explanation.`;
 
   const { fullStream } = streamText({
     model: myProvider.languageModel('artifact-model'),
-    system: updateDocumentPrompt(contentToModify, 'text'),
+    system: getUpdateDocumentPrompt(contentToModify, 'text'),
     experimental_transform: smoothStream({ chunking: 'word' }),
     prompt: promptContext,
     experimental_providerMetadata: {

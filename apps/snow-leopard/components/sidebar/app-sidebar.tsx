@@ -15,6 +15,7 @@ import Link from 'next/link';
 import { FeedbackWidget } from '@/components/sidebar/feedback-widget';
 import type { User } from '@/lib/auth';
 import { Crimson_Text } from 'next/font/google'
+import { LocaleSelector, T } from 'gt-next';
 
 const crimson = Crimson_Text({
   weight: ['400', '700'],
@@ -36,8 +37,10 @@ export function AppSidebar({ user, initialDocuments }: { user: User | undefined;
               className="flex items-center gap-2"
             >
               <span className={`text-2xl ${crimson.className} hover:bg-accent rounded-md px-2 py-1 transition-colors`}>
-                <span className="hidden md:inline">Snow Leopard</span>
-                <span className="inline md:hidden">SL</span>
+                <T>
+                  <span className="hidden md:inline">Snow Leopard</span>
+                  <span className="inline md:hidden">SL</span>
+                </T>
               </span>
             </Link>
           </div>
@@ -52,6 +55,7 @@ export function AppSidebar({ user, initialDocuments }: { user: User | undefined;
       
       <SidebarFooter>
         <div className="px-2 pb-2 flex flex-col space-y-2">
+          <LocaleSelector />
           {user && (
             <>
               <FeedbackWidget/>
