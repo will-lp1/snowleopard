@@ -2,7 +2,6 @@ import 'server-only';
 import { db } from '@snow-leopard/db'; 
 import * as schema from '@snow-leopard/db'; 
 import { eq, desc, asc, inArray, gt, and, sql, lt } from 'drizzle-orm'; // Import Drizzle operators and
-import type { ArtifactKind } from '@/components/artifact';
 
 type Chat = typeof schema.Chat.$inferSelect; 
 type Message = typeof schema.Message.$inferSelect; 
@@ -183,7 +182,7 @@ export async function saveDocument({
 }: {
   id: string;
   title: string;
-  kind: ArtifactKind;
+  kind: null | string;
   content: string;
   userId: string;
   chatId?: string | null;
@@ -193,7 +192,6 @@ export async function saveDocument({
     const newVersionData = {
       id,
       title,
-      kind: kind as typeof schema.artifactKindEnum.enumValues[number],
       content,
       userId,
       chatId: chatId || null,
@@ -707,7 +705,7 @@ export async function createNewDocumentVersion({
 }: {
   id: string;
   title: string;
-  kind: ArtifactKind;
+  kind: null | string;
   content: string;
   userId: string;
   chatId?: string | null;

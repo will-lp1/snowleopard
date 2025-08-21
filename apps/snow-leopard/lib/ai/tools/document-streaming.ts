@@ -1,38 +1,25 @@
 import { DataStreamWriter, tool } from 'ai';
 import { z } from 'zod';
 import { Session } from '@/lib/auth';
-import {
-  artifactKinds,
-  documentHandlersByArtifactKind,
-} from '@/lib/artifacts/server';
+import { createTextDocument } from '@/app/document/server';
 
 interface CreateDocumentProps {
   session: Session;
   dataStream: DataStreamWriter;
 }
 
-export const streamingDocument = ({ session, dataStream }: CreateDocumentProps) =>
+export const streamingDocument = ({ dataStream }: CreateDocumentProps) =>
   tool({
     description:
       'Generates content based on a title or prompt and streams it into the active document view. Use this to start writing or add content.',
     parameters: z.object({
       title: z.string().describe('The title or topic to generate content about.'),
-      kind: z.enum(artifactKinds).describe('The kind of content to generate (e.g., text).')
     }),
-    execute: async ({ title, kind }) => {
-      const documentHandler = documentHandlersByArtifactKind.find(
-        (documentHandlerByArtifactKind) =>
-          documentHandlerByArtifactKind.kind === kind,
-      );
+    execute: async ({ title }) => {
 
-      if (!documentHandler) {
-        throw new Error(`No document handler found for requested kind: ${kind}`);
-      }
-
-      await documentHandler.onCreateDocument({
+      await createTextDocument({
         title,
         dataStream,
-        session,
       });
 
       dataStream.writeData({ type: 'force-save', content: '' });

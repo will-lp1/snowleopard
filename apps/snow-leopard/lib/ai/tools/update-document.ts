@@ -56,7 +56,6 @@ export const updateDocument = ({ session: _session, documentId: defaultDocumentI
         return {
           id: documentId,
           title: document.title,
-          kind: document.kind,
           originalContent: originalContent, 
           newContent: newContent,           
           status: 'Update proposal generated.',

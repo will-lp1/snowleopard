@@ -1,10 +1,9 @@
 import { memo, useState, useCallback, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 
-import type { ArtifactKind } from '@/components/artifact';
 import { FileIcon, LoaderIcon, MessageIcon, PencilEditIcon, CheckIcon, CheckCircleFillIcon, CrossIcon } from '@/components/icons';
 import { toast } from 'sonner';
-import { useArtifact } from '@/hooks/use-document';
+import { useDocument } from '@/hooks/use-document';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -39,7 +38,6 @@ interface DocumentToolResultProps {
   result: {
     id?: string;
     title?: string;
-    kind?: ArtifactKind;
     originalContent?: string;
     newContent?: string;
     status?: string;
@@ -54,11 +52,11 @@ function PureDocumentToolResult({
   result,
   isReadonly,
 }: DocumentToolResultProps) {
-  const { artifact, setArtifact } = useArtifact();
+  const { document, setDocument } = useDocument();
   const [isSaving, setIsSaving] = useState(false);
   const [isApplied, setIsApplied] = useState(() => {
-    if (type === 'update' && result.id && artifact.documentId === result.id) {
-      return artifact.content === result.newContent;
+    if (type === 'update' && result.id && document.documentId === result.id) {
+      return document.content === result.newContent;
     }
     return false;
   });
@@ -87,9 +85,9 @@ function PureDocumentToolResult({
     if (type !== 'update' || !result.newContent || !result.id || isSaving) return;
     setIsSaving(true);
     // Optimistically apply locally
-    setArtifact(current => ({
-      ...current,
-      content: result.newContent!,
+    setDocument(prev => ({ 
+      ...prev, 
+      content: result.newContent! 
     }));
     window.dispatchEvent(new CustomEvent('apply-document-update', {
       detail: { documentId: result.id, newContent: result.newContent },
@@ -114,7 +112,7 @@ function PureDocumentToolResult({
       .finally(() => {
         setIsSaving(false);
       });
-  }, [result.id, result.newContent, type, isSaving, setArtifact]);
+  }, [result.id, result.newContent, type, isSaving, setDocument]);
 
   const handleRejectUpdate = useCallback(() => {
     if (type !== 'update' || !result.id || !result.originalContent) return;
@@ -247,12 +245,12 @@ function PureDocumentToolCall({
   args = { title: '' },
   isReadonly,
 }: DocumentToolCallProps) {
-  const { artifact: localArtifact } = useArtifact();
-  const artTitle = localArtifact?.title ?? '';
+  const { document: localDocument } = useDocument();
+  const docTitle = localDocument?.title ?? '';
 
   const titleArg = args.title ?? '';
-  const displayTitle = type === 'create' && artTitle.trim()
-    ? artTitle
+  const displayTitle = type === 'create' && docTitle.trim()
+    ? docTitle
     : titleArg.trim();
 
   const CallIcon = 

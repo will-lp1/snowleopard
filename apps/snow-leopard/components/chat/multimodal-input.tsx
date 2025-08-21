@@ -30,7 +30,7 @@ import { Textarea } from '../ui/textarea';
 import { SuggestedActions } from '../suggested-actions';
 import equal from 'fast-deep-equal';
 import { UseChatHelpers, UseChatOptions } from '@ai-sdk/react';
-import { useDocumentContext } from '@/hooks/use-document-context';
+import { useDocument } from '@/hooks/use-document';
 import { cn, generateUUID } from '@/lib/utils';
 
 interface DocumentSuggestion extends SuggestionDataItem {
@@ -153,7 +153,7 @@ function PureMultimodalInput({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const mentionInputRef = useRef<any>(null);
   const { width } = useWindowSize();
-  const { documentId: activeDocumentId, documentTitle: activeDocumentTitle } = useDocumentContext();
+  const { document: currentDoc } = useDocument();
   
   const [fileSuggestions, setFileSuggestions] = useState<DocumentSuggestion[]>([]);
   const [isSuggestionLoading, setIsSuggestionLoading] = useState(false);
@@ -205,8 +205,8 @@ function PureMultimodalInput({
       mentionedDocumentIds?: string[];
     } = {};
     
-    if (activeDocumentId && activeDocumentId !== 'init') {
-      contextData.activeDocumentId = activeDocumentId;
+    if (currentDoc.documentId && currentDoc.documentId !== 'init') {
+      contextData.activeDocumentId = currentDoc.documentId;
     }
     if (confirmedMentions.length > 0) {
       contextData.mentionedDocumentIds = confirmedMentions.map(doc => doc.id);
@@ -229,12 +229,12 @@ function PureMultimodalInput({
     }
   }, [
     attachments,
-    activeDocumentId,
-    confirmedMentions, // Use prop
+    currentDoc.documentId,
+    confirmedMentions,
     handleSubmit,
     setAttachments,
+    onMentionsChange,
     width,
-    onMentionsChange, // Add dependency
   ]);
 
   // Fetch suggestions for react-mentions
@@ -267,7 +267,6 @@ function PureMultimodalInput({
       });
   };
 
-  // Upload logic (unchanged)
   const uploadFile = async (file: File) => {
     const formData = new FormData();
     formData.append('file', file);

@@ -16,9 +16,10 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // Redirect authenticated users away from auth pages, but allow them to view the landing page
   if (
     sessionCookie &&
-    (pathname === '/' || pathname === '/login' || pathname === '/register')
+    (pathname === '/login' || pathname === '/register')
   ) {
     const homeUrl = request.nextUrl.clone();
     homeUrl.pathname = '/documents';

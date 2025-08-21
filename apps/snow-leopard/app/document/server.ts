@@ -1,38 +1,38 @@
-import { smoothStream, streamText } from 'ai';
+import { smoothStream, streamText, type DataStreamWriter } from 'ai';
 import { myProvider } from '@/lib/ai/providers';
-import { createDocumentHandler } from '@/lib/artifacts/server';
 
-export const textDocumentHandler = createDocumentHandler<'text'>({
-  kind: 'text',
-  onCreateDocument: async ({ title, dataStream }) => {
+export async function createTextDocument({
+  title,
+  dataStream,
+}: {
+  title: string;
+  dataStream: DataStreamWriter;
+}) {
+  const { fullStream } = streamText({
+    model: myProvider.languageModel('chat-model-large'),
+    prompt: title,
+    system:
+      'Write about the given topic in valid Markdown. Use headings (#, ##), lists, bold, italics, and code blocks where appropriate.',
+    experimental_transform: smoothStream({ chunking: 'line' }),
+  });
 
-    const { fullStream } = streamText({
-      model: myProvider.languageModel('chat-model-large'),
-      system: `'Write about the given topic. Markdown is supported. Use headings wherever appropriate. Valid Markdown only, using headings (#, ##),
-lists, bold, italics, and code blocks as needed',  
-      `.trim(),
-      experimental_transform: smoothStream({ chunking: 'line' }),
-      prompt: title,
-    });
-
-    for await (const delta of fullStream) {
-      const { type } = delta;
-
-      if (type === 'text-delta') {
-        const { textDelta } = delta;
-
-        // Stream the content - no need to accumulate it
-        dataStream.writeData({
-          type: 'text-delta',
-          content: textDelta,
-        });
-      }
+  for await (const delta of fullStream) {
+    if (delta.type === 'text-delta') {
+      dataStream.writeData({ type: 'text-delta', content: delta.textDelta });
     }
+  }
+}
 
-    // No return value needed
-  },
-  onUpdateDocument: async ({ document, description, dataStream }) => {
-    let draftContent = '';
+export async function updateTextDocument({
+  document,
+  description,
+  dataStream,
+}: {
+  document: { content: string };
+  description: string;
+  dataStream: DataStreamWriter;
+}): Promise<string> {
+  let draftContent = '';
 
     const { fullStream } = streamText({
       model: myProvider.languageModel('artifact-model'),
@@ -67,6 +67,5 @@ Do not include any commentary. Use changing sections in place.
       }
     }
 
-    return draftContent;
-  },
-});
+  return draftContent;
+}

@@ -3,6 +3,7 @@ import { Chat } from '@/components/chat/chat';
 import { ResizablePanel } from '@/components/resizable-panel';
 import { AppSidebar } from '@/components/sidebar/app-sidebar';
 import { SidebarProvider } from '@/components/ui/sidebar';
+import { SuggestionOverlayProvider } from '@/components/suggestion-overlay-provider';
 import { headers } from 'next/headers';
 import { auth } from '@/lib/auth';
 import { getCurrentDocumentsByUserId } from '@/lib/db/queries';
@@ -27,7 +28,8 @@ export default async function DocumentsLayout({ children }: { children: ReactNod
 
   return (
       <SidebarProvider defaultOpenLeft={!isLeftSidebarCollapsed} defaultOpenRight={true}>
-        <div className="flex flex-row h-dvh w-full bg-background">
+          <SuggestionOverlayProvider>
+          <div className="flex flex-row h-dvh w-full bg-background">
           <AppSidebar user={user} initialDocuments={documents} />
           <main className="flex-1 flex flex-row min-w-0">
             <div className="flex-1 min-w-0 overflow-hidden border-r subtle-border">
@@ -46,6 +48,7 @@ export default async function DocumentsLayout({ children }: { children: ReactNod
             </ResizablePanel>
           </main>
         </div>
+        </SuggestionOverlayProvider>
       </SidebarProvider>
   );
 } 
