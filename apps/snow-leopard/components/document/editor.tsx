@@ -5,7 +5,6 @@ import { EditorView } from "prosemirror-view";
 import React, { memo, useEffect, useRef, useCallback, useState } from "react";
 import { buildContentFromDocument, buildDocumentFromContent } from "@/lib/editor/functions";
 import { setActiveEditorView } from "@/lib/editor/editor-state";
-
 import { EditorToolbar } from "@/components/document/editor-toolbar";
 import {
   savePluginKey,

@@ -35,6 +35,7 @@ export function createEditorPlugins(opts: EditorPluginOptions): Plugin[] {
     synonymsPlugin(),
     diffPlugin(opts.documentId),
     formatPlugin(opts.setActiveFormats),
+    emojiPlugin(),
     savePlugin({
       saveFunction: opts.performSave,
       initialLastSaved: opts.initialLastSaved,
