@@ -100,10 +100,13 @@ export default function Home() {
           <Button
             variant="outline"
             size="sm"
-            className="rounded-full"
+            className="rounded-full group flex items-center"
             onClick={handleBeginClick}
           >
-            {hasSession ? "Open Snow Leopard" : "Begin"}
+            {hasSession ? "Open" : "Begin"}
+            <span className="inline-block ml-2 text-xs transition-transform group-hover:translate-x-0.5">
+              ›
+            </span>
           </Button>
         </div>
       </header>
@@ -139,13 +142,16 @@ export default function Home() {
 
           {/* CTA Buttons */}
           <div className="flex gap-2 mt-6 justify-center">
-            <Button asChild variant="outline" size="sm" className="rounded-full">
-              <Link href="/login">
-                Begin{" "}
-                <span className="inline-block ml-2 text-xs transition-transform group-hover:translate-x-0.5">
-                  ›
-                </span>
-              </Link>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-full"
+              onClick={handleBeginClick}
+            >
+              {hasSession ? "Open" : "Begin"}{" "}
+              <span className="inline-block ml-2 text-xs transition-transform group-hover:translate-x-0.5">
+                ›
+              </span>
             </Button>
             <Button asChild variant="secondary" size="sm" className="rounded-full">
               <Link href="https://github.com/will-lp1/snowleopard" target="_blank" rel="noopener noreferrer">

@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { getUser } from '@/app/(auth)/auth';
 import { getDocumentsById } from '@/lib/db/queries';
-import { AlwaysVisibleArtifact } from '@/components/always-visible-artifact';
+import { AlwaysVisibleArtifact } from '@/components/document/document-workspace';
 import type { Document } from '@snow-leopard/db';
 
 export const dynamic = 'auto';

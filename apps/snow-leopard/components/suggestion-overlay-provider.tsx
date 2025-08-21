@@ -2,11 +2,11 @@
 
 import { createContext, useContext, ReactNode, useState, useCallback, useEffect } from 'react';
 import SuggestionOverlay from './suggestion-overlay';
-import { useArtifact } from '@/hooks/use-artifact';
+import { useDocument } from '@/hooks/use-document';
 import { toast } from 'sonner';
 import { getActiveEditorView } from '@/lib/editor/editor-state';
 import {
-  ACTIVATE_SUGGESTION_CONTEXT,
+  ACTIVATE_SUGGESTION_CONTEXT,  
   DEACTIVATE_SUGGESTION_CONTEXT,
   SET_SUGGESTION_LOADING_STATE
 } from '@/lib/editor/suggestion-plugin';
@@ -29,7 +29,8 @@ export function SuggestionOverlayProvider({ children }: { children: ReactNode })
   const [selectedText, setSelectedText] = useState('');
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [selectionRange, setSelectionRange] = useState<{ from: number; to: number } | null>(null);
-  const { artifact } = useArtifact();
+  const { document } = useDocument();
+  const documentId = document.documentId;
 
   const setSuggestionIsLoading = useCallback((isLoading: boolean) => {
     const view = getActiveEditorView();
@@ -103,7 +104,7 @@ export function SuggestionOverlayProvider({ children }: { children: ReactNode })
   }, []); // No dependencies, relies on getActiveEditorView at call time
 
   const handleAcceptSuggestion = useCallback((suggestion: string) => {
-    if (!artifact.documentId || artifact.documentId === 'init') {
+    if (!documentId || documentId === 'init') {
       toast.error("Cannot apply suggestion: No document loaded.");
       return;
     }
@@ -115,7 +116,7 @@ export function SuggestionOverlayProvider({ children }: { children: ReactNode })
           from: selectionRange.from,
           to: selectionRange.to,
           suggestion: suggestion,
-          documentId: artifact.documentId,
+          documentId: documentId,
           originalText: selectedText,
         }
       });
@@ -128,7 +129,7 @@ export function SuggestionOverlayProvider({ children }: { children: ReactNode })
         toast.warning("Cannot apply suggestion: No text was selected.");
       }
     }
-  }, [artifact.documentId, selectedText, selectionRange, closeSuggestionOverlay]);
+  }, [documentId, selectedText, selectionRange, closeSuggestionOverlay]);
 
   // Setup global keyboard shortcut for cmd+k
   useEffect(() => {
@@ -210,9 +211,9 @@ export function SuggestionOverlayProvider({ children }: { children: ReactNode })
       }}
     >
       {children}
-      {artifact.documentId && artifact.documentId !== 'init' && (
+      {documentId && documentId !== 'init' && (
         <SuggestionOverlay
-          documentId={artifact.documentId}
+          documentId={documentId}
           isOpen={isOpen}
           onClose={closeSuggestionOverlay}
           selectedText={selectedText}

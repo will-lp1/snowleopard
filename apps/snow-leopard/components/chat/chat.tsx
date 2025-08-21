@@ -9,9 +9,8 @@ import { MultimodalInput } from './multimodal-input';
 import { Messages } from './messages';
 import { toast } from 'sonner';
 import { FileText } from 'lucide-react';
-import { useDocumentContext } from '@/hooks/use-document-context';
 import { MentionedDocument } from './multimodal-input';
-import { useArtifact } from '@/hooks/use-artifact';
+import { useDocument } from '@/hooks/use-document';
 import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
 import { DataStreamHandler } from '@/components/data-stream-handler';
 import { motion } from 'framer-motion';
@@ -31,9 +30,8 @@ export function Chat({
   selectedChatModel: initialSelectedChatModel,
   isReadonly = false,
 }: ChatProps) {
-  const { documentId, documentTitle, documentContent } = useDocumentContext();
+  const { document } = useDocument();
   const [documentContextActive, setDocumentContextActive] = useState(false);
-  const { artifact } = useArtifact();
   const { writingStyleSummary, applyStyle } = useAiOptionsValue();
   const [chatId, setChatId] = useState(() => initialId || generateUUID());
   
@@ -52,17 +50,17 @@ export function Chat({
   const [confirmedMentions, setConfirmedMentions] = useState<MentionedDocument[]>([]);
 
   useEffect(() => {
-    const hasDocumentContext = documentId !== 'init';
+    const hasDocumentContext = document.documentId !== 'init';
     setDocumentContextActive(Boolean(hasDocumentContext));
     
     if (hasDocumentContext) {
       console.log('[Chat] Using document context in chat:', {
-        documentId,
-        title: documentTitle,
-        contentLength: documentContent.length
+        documentId: document.documentId,
+        title: document.title,
+        contentLength: document.content.length
       });
     }
-  }, [documentId, documentContent, documentTitle]);
+  }, [document.documentId, document.content, document.title]);
 
   const {
     messages,
@@ -228,10 +226,10 @@ export function Chat({
     e.preventDefault();
     
     if (documentContextActive && messages.length === initialMessages.length) {
-      toast.success(`Using document context: ${documentTitle}`, {
+      toast.success(`Using document context: ${document.title}`, {
         icon: <FileText className="size-4" />,
         duration: 3000,
-        id: `doc-context-${documentId}`
+        id: `doc-context-${document.documentId}`
       });
     }
     
@@ -242,11 +240,11 @@ export function Chat({
       mentionedDocumentIds?: string[]; 
     } = {};
     
-    const currentDocId = artifact.documentId;
+    const currentDocId = document.documentId;
     if (currentDocId && currentDocId !== 'init') {
       contextData.activeDocumentId = currentDocId;
     } else {
-      contextData.activeDocumentId = null;
+      contextData.activeDocumentId = null ;
     }
     
     if (confirmedMentions.length > 0) {

@@ -3,8 +3,6 @@ import type { Metadata } from 'next';
 import { Toaster } from 'sonner';
 
 import { ThemeProvider } from '@/components/theme-provider';
-import { SuggestionOverlayProvider } from '@/components/suggestion-overlay-provider';
-import { DocumentProvider } from '@/hooks/use-document-context';
 import { CSPostHogProvider } from '@/providers/posthog-provider';
 import { PostHogPageView } from '@/providers/posthog-pageview';
 import { Analytics } from "@vercel/analytics/react"
@@ -92,21 +90,13 @@ export default async function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <SuggestionOverlayProvider>
-            <CSPostHogProvider>
-              <PostHogPageView />
-              <DocumentProvider>
+              <CSPostHogProvider>
+                <PostHogPageView />
                 <Toaster position="top-center" />
-                
-                {/* Render children ALWAYS */}
-                {children} 
-
+                {children}
                 <MobileWarning />
-
                 <Analytics />
-              </DocumentProvider>
-            </CSPostHogProvider>
-          </SuggestionOverlayProvider>
+              </CSPostHogProvider>
         </ThemeProvider>
       </body>
     </html>

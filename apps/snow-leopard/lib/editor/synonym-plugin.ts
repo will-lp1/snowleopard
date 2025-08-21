@@ -39,6 +39,7 @@ export function synonymsPlugin(): Plugin<SynonymPluginState> {
   let overlayContainer: HTMLDivElement | null = null;
   let currentFetchController: AbortController | null = null;
   let closeOverlayListener: ((event: MouseEvent) => void) | null = null;
+  let overlayVisible = false;
 
   function dispatchLoadingState(view: EditorView, loadingPos: { from: number; to: number } | null) {
       view.dispatch(view.state.tr.setMeta(synonymsPluginKey, { loadingPos }));
@@ -53,6 +54,9 @@ export function synonymsPlugin(): Plugin<SynonymPluginState> {
       overlayContainer.remove();
       overlayContainer = null;
     }
+    // Notify React component to close overlay
+    window.dispatchEvent(new CustomEvent('synonym-overlay:close'));
+    overlayVisible = false;
     // If view is provided, ensure loading state is also cleared when hiding
     if (view && synonymsPluginKey.getState(view.state)?.loadingPos) {
         dispatchLoadingState(view, null);
@@ -60,43 +64,18 @@ export function synonymsPlugin(): Plugin<SynonymPluginState> {
   }
 
   function showOverlay(target: HTMLElement, synonyms: string[], from: number, to: number, view: EditorView) {
-    hideOverlay(); 
-
-    overlayContainer = document.createElement('div');
-    overlayContainer.className = 'fixed z-50 bg-background text-foreground rounded-md shadow-lg border border-border flex gap-1 p-1';
-    overlayContainer.style.position = 'absolute';
-    overlayContainer.style.zIndex = '10000';
     const rect = target.getBoundingClientRect();
-    overlayContainer.style.left = `${rect.left + window.scrollX}px`;
-    overlayContainer.style.top = `${rect.bottom + window.scrollY}px`;
-
-    synonyms.forEach(syn => {
-      const btn = document.createElement('button');
-      btn.textContent = syn;
-      btn.className = 'synonym-option px-2 py-1 text-sm rounded hover:bg-muted transition-colors';
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        view.dispatch(
-          view.state.tr
-            .replaceWith(from, to, view.state.schema.text(syn))
-            .setMeta(synonymsPluginKey, { loadingPos: null }) 
-        );
-        hideOverlay(); 
-        view.focus();
-      });
-      overlayContainer!.appendChild(btn);
+    const event = new CustomEvent('synonym-overlay:open', {
+      detail: {
+        synonyms,
+        position: { x: rect.left + rect.width / 2, y: rect.bottom - 4 },
+        from,
+        to,
+        view,
+      },
     });
-
-    closeOverlayListener = (event: MouseEvent) => {
-        if (overlayContainer && !overlayContainer.contains(event.target as Node)) {
-            hideOverlay(view); 
-            currentFetchController?.abort();
-            currentFetchController = null;
-        }
-    };
-    setTimeout(() => document.addEventListener('mousedown', closeOverlayListener!), 0);
-
-    document.body.appendChild(overlayContainer);
+    window.dispatchEvent(event);
+    overlayVisible = true;
   }
 
   return new Plugin<SynonymPluginState>({
@@ -258,14 +237,14 @@ export function synonymsPlugin(): Plugin<SynonymPluginState> {
           return true; 
         },
         mouseout(view, event) {
-            const e = event as MouseEvent;
-            if (!e.shiftKey) {
-                 hideOverlay(view); 
-                 currentFetchController?.abort();
-                 currentFetchController = null;
-            }
-            return false;
-          },
+          const e = event as MouseEvent;
+          if (!e.shiftKey && !overlayVisible) {
+            hideOverlay(view);
+            currentFetchController?.abort();
+            currentFetchController = null;
+          }
+          return false;
+        },
           keydown(view, event) {
             if (event.key === "Escape") {
                 let handled = false;

@@ -9,7 +9,6 @@ import { toast } from 'sonner';
 import useSWR from 'swr';
 import { cn, fetcher } from '@/lib/utils';
 import {
-  CheckCircleFillIcon,
   FileIcon,
   MoreHorizontalIcon,
   PlusIcon,
@@ -41,16 +40,10 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import type { Document } from '@snow-leopard/db';
-import { useArtifact } from '@/hooks/use-artifact';
-import { ArtifactKind } from '@/components/artifact';
-import { useDocumentUtils } from '@/hooks/use-document-utils';
-import { useDocumentContext } from '@/hooks/use-document-context';
+import { useDocument } from '@/hooks/use-document';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { MessageSquare as MessageSquareIcon } from 'lucide-react';
-import { ArrowRightCircle } from 'lucide-react';
-import { Loader2 } from 'lucide-react';
 import useSWRInfinite from 'swr/infinite';
 import { motion } from 'framer-motion';
 
@@ -177,12 +170,12 @@ export const DocumentItem = memo(PureDocumentItem, (prevProps, nextProps) => {
 export function SidebarDocuments({ user, initialDocuments }: { user?: User; initialDocuments?: any[] }) {
   const { setOpenMobile } = useSidebar();
   const router = useRouter();
-  const { setArtifact } = useArtifact();
+  const { setDocument } = useDocument();
   const { 
     createNewDocument, 
     deleteDocument,
     isCreatingDocument
-  } = useDocumentUtils();
+  } = useDocument();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [isExpanded, setIsExpanded] = useState(true);
@@ -405,17 +398,14 @@ export function SidebarDocuments({ user, initialDocuments }: { user?: User; init
       
       const selectedDocData = documents?.find(doc => doc.id === documentId);
       
-      setArtifact((curr: any) => {
-        const newTitle = selectedDocData?.title || 'Loading...';
-        const newKind = (selectedDocData?.kind as ArtifactKind) || 'text';
-        
+      setDocument((curr: any) => {
+        const newTitle = selectedDocData?.title || 'Loading...';        
         console.log(`[SidebarDocuments] Optimistically setting artifact: ID=${documentId}, Title=${newTitle}`);
         return {
           ...curr, 
           documentId: documentId,
           title: newTitle,
           content: '',
-          kind: newKind,
           status: 'idle',
         };
       });
@@ -428,9 +418,9 @@ export function SidebarDocuments({ user, initialDocuments }: { user?: User; init
     } catch (error) {
       console.error('[SidebarDocuments] Error selecting document:', error);
       toast.error('Failed to load document');
-      setArtifact((curr: any) => ({ ...curr, status: 'idle' }));
+      setDocument((curr: any) => ({ ...curr, status: 'idle' }));
     }
-  }, [documents, setArtifact, router, setOpenMobile, activeDocumentId]);
+  }, [documents, setDocument, router, setOpenMobile, activeDocumentId]);
 
   const filterDocuments = (docs: Document[]) => {
     if (!searchTerm.trim()) return docs;

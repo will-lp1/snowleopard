@@ -117,7 +117,7 @@ export function SidebarUserNav({ user }: { user: User | null }) {
           setIsSignOutLoading(true); 
       },
       onSuccess: () => {
-          router.push('/login');
+          router.push('/');
           router.refresh(); 
       },
       onError: (ctx) => {

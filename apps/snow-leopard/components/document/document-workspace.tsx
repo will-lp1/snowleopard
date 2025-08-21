@@ -3,28 +3,25 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo, Suspense, useTransition } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
-import { Loader2, FileText, PlusIcon } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 import type { Document } from '@snow-leopard/db';
 import { generateUUID } from '@/lib/utils';
-import { useArtifact } from '@/hooks/use-artifact';
-import { ArtifactActions } from '@/components/artifact-actions';
+import { DocumentActions } from '@/components/document/actions';
 import { VersionHeader } from '@/components/document/version-header';
-import { useDocumentUtils } from '@/hooks/use-document-utils';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Input } from './ui/input';
-import { useDocumentContext } from '@/hooks/use-document-context';
-import { ArtifactKind } from '@/components/artifact';
-import { AiSettingsMenu } from './ai-settings-menu';
+import { Input } from '../ui/input';
+import { useDocument } from '@/hooks/use-document';
+import { AiSettingsMenu } from '../ai-settings-menu';
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import type { SaveState } from '@/lib/editor/save-plugin';
+import type { SaveState, SaveStatus } from '@/lib/editor/save-plugin';
 import type { User } from '@/lib/auth';
 import { PublishSettingsMenu } from '@/components/publish-settings-menu';
-import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
-const Editor = dynamic(() => import('@/components/document/text-editor').then(mod => mod.Editor), {
+const Editor = dynamic(() => import('@/components/document/editor').then(mod => mod.Editor), {
   ssr: false,
   loading: () => <EditorSkeleton />,
 });
@@ -47,20 +44,6 @@ type AlwaysVisibleArtifactProps = {
   user: User;
 };
 
-type SettableArtifact = {
-  documentId: string;
-  title: string;
-  content: string;
-  kind: ArtifactKind;
-  status: 'idle' | 'loading' | 'streaming';
-  isVisible?: boolean;
-  boundingBox?: any;
-};
-
-const defaultArtifactProps = {
-    isVisible: false,
-    boundingBox: undefined,
-};
 
 export function AlwaysVisibleArtifact({
   chatId,
@@ -70,14 +53,10 @@ export function AlwaysVisibleArtifact({
   user
 }: AlwaysVisibleArtifactProps) {
   const router = useRouter();
-  const { artifact, setArtifact, metadata, setMetadata } = useArtifact();
-  const { documentId: contextDocumentId } = useDocumentContext();
-  const {
-    isCreatingDocument,
-    renameDocument,
-    isRenamingDocument,
-    createDocument
-  } = useDocumentUtils();
+  const [saveState, setSaveState] = useState<SaveStatus>('idle');
+  const { document, setDocument } = useDocument();
+  const [isCreatingDocument, setIsCreatingDocument] = useState(false);
+  const [isRenamingDocument, setIsRenamingDocument] = useState(false);
 
   const [isPending, startTransition] = useTransition();
   const [editingTitle, setEditingTitle] = useState(false);
@@ -87,6 +66,119 @@ export function AlwaysVisibleArtifact({
 
   const [documents, setDocuments] = useState<Document[]>(initialDocuments);
   const [currentVersionIndex, setCurrentVersionIndex] = useState<number>(initialDocuments.length > 0 ? initialDocuments.length - 1 : -1);
+
+  // Inline document management functions
+  const renameDocument = async (newTitle: string) => {
+    if (isRenamingDocument || !document.documentId || document.documentId === 'init') return;
+
+    if (!newTitle.trim()) {
+      toast.error('Document title cannot be empty');
+      return;
+    }
+
+    setIsRenamingDocument(true);
+
+    try {
+      const response = await fetch(`/api/document`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          id: document.documentId,
+          title: newTitle,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error during rename' }));
+        throw new Error(`Failed to rename document: ${errorData.error || response.statusText}`);
+      }
+
+      const updatedDocumentData = await response.json(); 
+
+      setDocument(current => ({
+        ...current,
+        title: updatedDocumentData?.title || newTitle
+      }));
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('document-renamed', {
+          detail: {
+            documentId: document.documentId,
+            newTitle: updatedDocumentData?.title || newTitle
+          }
+        }));
+      }
+
+      toast.success('Document renamed', {
+        duration: 2000
+      });
+    } catch (error: any) {
+      console.error('Error renaming document:', error);
+      toast.error('Failed to rename document', {
+        description: error.message
+      });
+    } finally {
+      setIsRenamingDocument(false);
+    }
+  };
+
+  const createDocument = async (params: { title: string; content: string; chatId: string | null; navigateAfterCreate?: boolean; providedId?: string }) => {
+    setIsCreatingDocument(true);
+    
+    try {
+      const documentId = params.providedId || generateUUID();
+      
+      const response = await fetch('/api/document', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: documentId,
+          title: params.title,
+          content: params.content,
+          kind: 'text',
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create document');
+      }
+      
+      const newDocument = await response.json();
+      
+      setDocument(curr => ({
+        ...curr,
+        documentId: documentId,
+        title: params.title,
+        content: params.content,
+        status: 'idle',
+      }));
+      
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('document-created', {
+          detail: {
+            document: newDocument
+          }
+        }));
+      }
+      
+      if (params.navigateAfterCreate) {
+        router.push(`/documents/${documentId}`);
+      }
+      
+      return newDocument;
+    } catch (error) {
+      console.error('[useDocumentUtils] Error creating document:', error);
+      toast.error('Failed to create document');
+      return null;
+    } finally {
+      setIsCreatingDocument(false);
+    }
+  };
 
   const currentDocument = useMemo(() => {
     if (currentVersionIndex >= 0 && currentVersionIndex < documents.length) {
@@ -113,31 +205,25 @@ export function AlwaysVisibleArtifact({
         const docToUse = docs[initialIndex];
 
         if (docToUse) {
-            const artifactData: SettableArtifact = {
-                ...defaultArtifactProps,
+            setDocument({
                 documentId: docToUse.id,
                 title: docToUse.title,
                 content: docToUse.content ?? '',
-                kind: (docToUse.kind as ArtifactKind) || 'text',
                 status: 'idle'
-            };
-            setArtifact(artifactData as any);
-            setNewTitle(artifactData.title);
+            });
+            setNewTitle(docToUse.title);
         } else if (initialDocumentId === 'init' || showCreateDocumentForId) {
-            const initData: SettableArtifact = {
-                ...defaultArtifactProps,
+            setDocument({
                 documentId: 'init',
                 title: 'Document',
                 content: '',
-                kind: 'text' as ArtifactKind,
                 status: 'idle'
-            };
-            setArtifact(initData as any);
-            setNewTitle(initData.title);
+            });
+            setNewTitle('Document');
         }
     });
 
-  }, [initialDocumentId, initialDocuments, setArtifact, startTransition, artifact.documentId]);
+  }, [initialDocumentId, initialDocuments, setNewTitle, startTransition, setDocument]);
 
   useEffect(() => {
     const handleDocumentRenamed = (event: CustomEvent) => {
@@ -150,20 +236,16 @@ export function AlwaysVisibleArtifact({
           )
       );
 
-      if (renamedDocId === artifact.documentId) {
-        setArtifact(current => ({
-          ...current,
-          title: updatedTitle
-        }));
+      if (renamedDocId === document.documentId) {
         if (editingTitle && newTitle !== updatedTitle) {
-            setNewTitle(updatedTitle);
+          setNewTitle(updatedTitle);
         }
       }
     };
 
     window.addEventListener('document-renamed', handleDocumentRenamed as EventListener);
     return () => window.removeEventListener('document-renamed', handleDocumentRenamed as EventListener);
-  }, [artifact.documentId, editingTitle, newTitle, setArtifact]);
+  }, [newTitle, editingTitle, setDocuments, document.documentId]);
 
   const handleDocumentUpdate = (updatedFields: Partial<Document>) => {
       setDocuments(prevDocs =>
@@ -174,15 +256,7 @@ export function AlwaysVisibleArtifact({
               return doc;
           })
       );
-      if (artifact.documentId === updatedFields.id) {
-          const { kind, ...otherUpdatedFields } = updatedFields;
-          setArtifact(current => ({
-              ...current,
-              ...otherUpdatedFields,
-              content: updatedFields.content !== undefined ? (updatedFields.content ?? '') : current.content,
-              ...(kind && { kind: kind as any }),
-          }));
-      }
+
   };
 
   const handleEditTitle = useCallback(() => {
@@ -216,7 +290,7 @@ export function AlwaysVisibleArtifact({
        setEditingTitle(false);
        if (!trimmedNewTitle) setNewTitle(latestDocument.title);
     }
-  }, [newTitle, latestDocument, documents, renameDocument, setArtifact]);
+  }, [newTitle, latestDocument, documents, renameDocument, setDocuments]);
 
   const handleCancelEditTitle = useCallback(() => {
     if (!latestDocument) return;
@@ -263,7 +337,6 @@ export function AlwaysVisibleArtifact({
       await createDocument({
         title: 'Untitled Document',
         content: '',
-        kind: 'text',
         chatId: null,
         navigateAfterCreate: true,
         providedId: id
@@ -281,7 +354,6 @@ export function AlwaysVisibleArtifact({
           await createDocument({
               title: 'Untitled Document',
               content: initialContent,
-              kind: 'text',
               chatId: null,
               navigateAfterCreate: true,
               providedId: newDocId
@@ -392,7 +464,7 @@ export function AlwaysVisibleArtifact({
                     onDoubleClick={latestDocument ? handleEditTitle : undefined}
                     title={latestDocument ? `Rename "${latestDocument.title}"` : (initialDocumentId === 'init' ? 'Untitled Document' : 'Loading...')}
                   >
-                    {latestDocument?.title ?? artifact.title ?? 'Document'}
+                    {latestDocument?.title ?? 'Document'}
                   </div>
                 )}
               </div>
@@ -401,14 +473,14 @@ export function AlwaysVisibleArtifact({
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
           {documents && documents.length > 0 && (
-            <ArtifactActions
-              artifact={artifact}
-              currentVersionIndex={currentVersionIndex}
+            <DocumentActions
+              content={editorContent}
+              latestContent={latestDocument?.content || ''}
+              documentId={editorDocumentId}
+              isSaving={saveState === 'saving'}
               handleVersionChange={handleVersionChange}
+              currentVersionIndex={currentVersionIndex}
               isCurrentVersion={isCurrentVersion}
-              mode={mode}
-              metadata={metadata}
-              setMetadata={setMetadata}
             />
           )}
           {latestDocument && (
@@ -447,6 +519,7 @@ export function AlwaysVisibleArtifact({
                         documentId={editorDocumentId}
                         initialLastSaved={latestDocument ? new Date(latestDocument.updatedAt) : null}
                         onStatusChange={(newSaveState: SaveState) => {
+                           setSaveState(newSaveState.status);
                         }}
                         onCreateDocumentRequest={handleCreateDocumentFromEditor}
                       />

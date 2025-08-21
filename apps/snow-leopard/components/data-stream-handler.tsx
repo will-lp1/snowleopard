@@ -3,21 +3,16 @@
 import { useChat } from '@ai-sdk/react';
 import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { artifactDefinitions, ArtifactKind } from './artifact';
-import { initialArtifactData, useArtifact } from '@/hooks/use-artifact';
+import { useDocument } from '@/hooks/use-document';
 
 export type DataStreamDelta = {
   type:
     | 'text-delta'
-    | 'code-delta'
-    | 'sheet-delta'
-    | 'image-delta'
     | 'title'
     | 'id'
     | 'clear'
     | 'finish'
-    | 'kind'
-    | 'artifactUpdate'
+    | 'documentUpdate'
     | 'force-save';
   content: string;
 };
@@ -31,7 +26,7 @@ interface StreamMetadata {
 export function DataStreamHandler({ id }: { id: string }) {
   const router = useRouter();
   const { data: dataStream } = useChat({ id });
-  const { artifact, setArtifact, setMetadata } = useArtifact();
+  const { document, setDocument } = useDocument();
   const lastProcessedIndex = useRef(-1);
 
   useEffect(() => {
@@ -41,36 +36,29 @@ export function DataStreamHandler({ id }: { id: string }) {
     lastProcessedIndex.current = dataStream.length - 1;
 
     (newDeltas as DataStreamDelta[]).forEach((delta: DataStreamDelta) => {
-      const artifactDefinition = artifactDefinitions.find(
-        (artifactDefinition) => artifactDefinition.kind === artifact.kind,
-      );
-
-      if (artifactDefinition?.onStreamPart) {
-        artifactDefinition.onStreamPart({
-          streamPart: delta,
-          setArtifact,
-          setMetadata,
-        });
-      }
-
-      setArtifact((draftArtifact) => {
-        if (!draftArtifact) {
-          return { ...initialArtifactData, status: 'streaming' };
+      setDocument((currentDocument) => {
+        if (!currentDocument) {
+          return {
+            documentId: 'init',
+            title: '',
+            content: '',
+            status: 'streaming'
+          };
         }
 
         switch (delta.type) {
           case 'text-delta':
-            if (typeof window !== 'undefined' && draftArtifact.documentId) {
+            if (typeof window !== 'undefined' && currentDocument.documentId) {
               window.dispatchEvent(
                 new CustomEvent('editor:stream-text', {
                   detail: {
-                    documentId: draftArtifact.documentId,
+                    documentId: currentDocument.documentId,
                     content: delta.content,
                   },
                 }),
               );
             }
-            return draftArtifact;
+            return currentDocument;
 
           case 'id':
             console.log(`[DataStreamHandler] Received ID delta: ${delta.content}. Updating artifact state.`);
@@ -78,33 +66,33 @@ export function DataStreamHandler({ id }: { id: string }) {
             console.log(`[DataStreamHandler] Navigating to /documents/${newDocId}`);
             router.push(`/documents/${newDocId}`);
             return {
-              ...draftArtifact,
+              ...currentDocument,
               documentId: newDocId,
             };
 
           case 'force-save':
-            if (draftArtifact.documentId && draftArtifact.documentId !== 'init') {
+            if (currentDocument.documentId && currentDocument.documentId !== 'init') {
               if (typeof window !== 'undefined') {
                 window.dispatchEvent(new CustomEvent('editor:force-save-document', {
-                  detail: { documentId: draftArtifact.documentId }
+                  detail: { documentId: currentDocument.documentId }
                 }));
               }
             }
-            return draftArtifact;
+            return currentDocument;
 
           case 'finish':
-            if (draftArtifact.status === 'streaming' && draftArtifact.documentId !== 'init') {
-                console.log(`[DataStreamHandler] Dispatching creation-stream-finished for ${draftArtifact.documentId}`);
+            if (currentDocument.status === 'streaming' && currentDocument.documentId !== 'init') {
+                console.log(`[DataStreamHandler] Dispatching creation-stream-finished for ${currentDocument.documentId}`);
                 window.dispatchEvent(new CustomEvent('editor:creation-stream-finished', {
-                    detail: { documentId: draftArtifact.documentId }
+                    detail: { documentId: currentDocument.documentId }
                 }));
             }
             return {
-              ...draftArtifact,
+              ...currentDocument,
               status: 'idle',
             };
 
-          case 'artifactUpdate':
+          case 'documentUpdate':
             try {
               const updateData = JSON.parse(delta.content as string);
               console.log('[DataStreamHandler] Received artifactUpdate, dispatching to editor:', updateData);
@@ -113,9 +101,9 @@ export function DataStreamHandler({ id }: { id: string }) {
                 console.log('[DataStreamHandler] Window context confirmed. Attempting to dispatch editor:stream-data...');
                 try {
                   window.dispatchEvent(new CustomEvent('editor:stream-data', {
-                    detail: { type: 'artifactUpdate', content: delta.content }
+                    detail: { type: 'documentUpdate', content: delta.content }
                   }));
-                  console.log('[DataStreamHandler] Dispatched editor:stream-data successfully.', { detail: { type: 'artifactUpdate', content: delta.content } });
+                  console.log('[DataStreamHandler] Dispatched editor:stream-data successfully.', { detail: { type: 'documentUpdate', content: delta.content } });
                 } catch (dispatchError) {
                   console.error('[DataStreamHandler] Error dispatching editor:stream-data:', dispatchError);
                 }
@@ -123,16 +111,16 @@ export function DataStreamHandler({ id }: { id: string }) {
                 console.warn('[DataStreamHandler] Window context not found. Cannot dispatch event.');
               }
             } catch (error) {
-              console.error('[DataStreamHandler] Error parsing artifactUpdate content:', error);
+              console.error('[DataStreamHandler] Error parsing documentUpdate content:', error);
             }
-            return draftArtifact;
+            return currentDocument;
 
           default:
-            return draftArtifact;
+            return currentDocument;
         }
       });
     });
-  }, [dataStream, setArtifact, setMetadata, artifact, router]);
+  }, [dataStream, setDocument, document, router]);
 
   return null;
 }

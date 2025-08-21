@@ -1,10 +1,8 @@
 import { DataStreamWriter, tool } from 'ai';
 import { z } from 'zod';
 import { Session } from '@/lib/auth';
-import { artifactKinds } from '@/lib/artifacts/server';
 import { saveDocument } from '@/lib/db/queries';
 import { generateUUID } from '@/lib/utils';
-import type { ArtifactKind } from '@/components/artifact';
 
 interface CreateDocumentProps {
   session: Session;
@@ -17,23 +15,17 @@ export const createDocument = ({ session, dataStream }: CreateDocumentProps) =>
       'Creates a new document record in the database, streams back its ID so the editor can initialize it.',
     parameters: z.object({
       title: z.string().describe('The title for the new document.'),
-      kind: z
-        .enum(artifactKinds)
-        .describe('The kind of document to create (e.g., text).')
-        .optional(),
     }),
-    execute: async ({ title, kind = 'text' }) => {
-      // Generate a new document ID
+    execute: async ({ title }) => {
       const newDocumentId = generateUUID();
       const userId = session.user.id;
 
       try {
-        // Save the new document with empty content
         await saveDocument({
           id: newDocumentId,
           title,
           content: '',
-          kind: kind as ArtifactKind,
+          kind: 'text',
           userId,
         });
 

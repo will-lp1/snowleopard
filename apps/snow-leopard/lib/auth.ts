@@ -22,10 +22,18 @@ if (!process.env.BETTER_AUTH_URL) {
 }
 
 if (stripeEnabled) {
-  if (!process.env.STRIPE_SECRET_KEY) throw new Error('Missing STRIPE_SECRET_KEY');
-  if (!process.env.STRIPE_WEBHOOK_SECRET) throw new Error('Missing STRIPE_WEBHOOK_SECRET');
-  if (!process.env.STRIPE_PRO_MONTHLY_PRICE_ID) throw new Error('Missing STRIPE_PRO_MONTHLY_PRICE_ID');
-  if (!process.env.STRIPE_PRO_YEARLY_PRICE_ID) throw new Error('Missing STRIPE_PRO_YEARLY_PRICE_ID');
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error("STRIPE_SECRET_KEY is missing but Stripe is enabled.");
+  }
+  if (!process.env.STRIPE_PRO_MONTHLY_PRICE_ID) {
+    throw new Error("STRIPE_PRO_MONTHLY_PRICE_ID is missing but Stripe is enabled.");
+  }
+  if (!process.env.STRIPE_PRO_YEARLY_PRICE_ID) {
+    throw new Error("STRIPE_PRO_YEARLY_PRICE_ID is missing but Stripe is enabled.");
+  }
+  if (!process.env.STRIPE_WEBHOOK_SECRET) {
+    throw new Error("STRIPE_WEBHOOK_SECRET is missing but Stripe is enabled.");
+  }
 }
 
 const emailVerificationEnabled = process.env.EMAIL_VERIFY_ENABLED === 'true';
@@ -34,21 +42,6 @@ console.log(`Email Verification Enabled: ${emailVerificationEnabled}`);
 if (emailVerificationEnabled) {
   if (!process.env.RESEND_API_KEY) throw new Error('Missing RESEND_API_KEY because EMAIL_VERIFY_ENABLED is true');
   if (!process.env.EMAIL_FROM) throw new Error('Missing EMAIL_FROM because EMAIL_VERIFY_ENABLED is true');
-}
-
-if (stripeEnabled) {
-  if (!process.env.STRIPE_SECRET_KEY) {
-    throw new Error("STRIPE_SECRET_KEY environment variable is missing but STRIPE_ENABLED is true.");
-  }
-  if (!process.env.STRIPE_PRO_MONTHLY_PRICE_ID) {
-    throw new Error("STRIPE_PRO_MONTHLY_PRICE_ID environment variable is missing but STRIPE_ENABLED is true.");
-  }
-    if (!process.env.STRIPE_PRO_YEARLY_PRICE_ID) {
-    throw new Error("STRIPE_PRO_YEARLY_PRICE_ID environment variable is missing but STRIPE_ENABLED is true.");
-  }
-  if (!process.env.STRIPE_WEBHOOK_SECRET) {
-    throw new Error("STRIPE_WEBHOOK_SECRET environment variable is missing but STRIPE_ENABLED is true.");
-  }
 }
 
 if (googleEnabled) {
@@ -99,12 +92,13 @@ authPlugins.push(
     stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET!,
     createCustomerOnSignUp: true,
     subscription: {
-      enabled: process.env.STRIPE_ENABLED === 'true',
+      enabled: stripeEnabled,
       plans,
       requireEmailVerification: emailVerificationEnabled,
     },
   })
 );
+
 
 authPlugins.push(nextCookies());
 

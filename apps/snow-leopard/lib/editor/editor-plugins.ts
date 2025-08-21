@@ -42,5 +42,6 @@ export function createEditorPlugins(opts: EditorPluginOptions): Plugin[] {
       debounceMs: 200,
       documentId: opts.documentId,
     }),
+    emojiPlugin(),
   ];
 } 
