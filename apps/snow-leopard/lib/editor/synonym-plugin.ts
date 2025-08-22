@@ -68,7 +68,7 @@ export function synonymsPlugin(): Plugin<SynonymPluginState> {
     const event = new CustomEvent('synonym-overlay:open', {
       detail: {
         synonyms,
-        position: { x: rect.left + rect.width / 2, y: rect.bottom - 4 },
+        position: { x: rect.left + rect.width / 2, y: rect.bottom + 1 },
         from,
         to,
         view,
