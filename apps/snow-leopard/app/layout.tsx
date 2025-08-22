@@ -7,40 +7,9 @@ import { CSPostHogProvider } from '@/providers/posthog-provider';
 import { PostHogPageView } from '@/providers/posthog-pageview';
 import { Analytics } from "@vercel/analytics/react"
 import MobileWarning from '@/components/mobile-warning';
+import { seoConfig } from '@/config/seo';
 
-export const metadata: Metadata = {
-  title: 'Snow Leopard',
-  description: 'Tab, Tab, Apply Brilliance',
-  metadataBase: new URL('https://www.cursorforwrit.ing'),
-  verification: {
-    google: 'q_spHn9uTXgy715SiSp97ElF_ZbU5SxZbIUnhn6Oe8E',
-  },
-  openGraph: {
-    title: 'Snow Leopard',
-    description: 'The most satisfying, intuitive AI writing tool, and it\'s open source.',
-    url: 'https://www.cursorforwrit.ing',
-    siteName: 'snowleopard',
-    locale: 'en_US',
-    type: 'website',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Snow Leopard',
-    description: 'The most satisfying, intuitive AI writing tool, and it\'s open source.',
-    creator: '@wlovedaypowell',
-    images: [
-      {
-        url: '/api/og',
-        alt: 'Snow Leopard - Tab, Tab, Apply Brilliance',
-      },
-    ],
-  },
-  icons: {
-    icon: '/favicon.ico',
-    shortcut: '/favicon.ico',
-    apple: '/favicon.ico',
-  },
-};
+export const metadata: Metadata = seoConfig
 
 export const viewport = {
   maximumScale: 1, 
