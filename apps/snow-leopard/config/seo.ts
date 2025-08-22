@@ -1,28 +1,28 @@
 import type { Metadata } from "next";
 
-const TITLE = "Snowleopard – Open-source Writing & Productivity Tool";
+const TITLE = "Snow Leopard";
 const DESCRIPTION =
-  "Snowleopard is an open-source productivity tool for writing, note-taking, and organizing ideas with AI assistance. Fast, customizable, and user-friendly.";
+  "Snow Leopard is an open-source productivity tool for writing, note-taking, and organizing ideas with AI assistance. Fast, customizable, and user-friendly.";
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://www.cursorforwrit.ing/";
 
 export const seoConfig: Metadata = {
   title: {
     default: TITLE,
-    template: "%s | Snowleopard", 
+    template: "%s | Snow Leopard", 
   },
   description: DESCRIPTION,
-  applicationName: "Snowleopard",
-  creator: "Will and Praash",
+  applicationName: "Snow Leopard",
   category: "Productivity",
   keywords: [
     // Branding
-    "Snowleopard",
+    "Snow Leopard",
     "Saru",
-    "Snow Saru",
-    "Snowleopard app",
-    "Snowleopard AI",
-    "Snowleopard open source",
+    "snow leopard",
+    "Snow Leopard Writing",
+    "Snow Leopard app",
+    "Snow Leopard AI",
+    "Snow Leopard open source",
 
     // Core Product
     "AI writing tool",
@@ -36,6 +36,8 @@ export const seoConfig: Metadata = {
     "AI notes",
     "AI powered writing",
     "AI notepad",
+    "AI humanizer",
+
 
     // Open-source & Tech
     "open-source notes app",
@@ -55,7 +57,6 @@ export const seoConfig: Metadata = {
     "knowledge base app",
     "markdown notes app",
     "team collaboration tool",
-    "docs editor",
     "online note-taking tool",
     "writing productivity app",
     "writing software",
@@ -100,9 +101,6 @@ export const seoConfig: Metadata = {
   icons: {
     icon: "/favicon.ico",
   },
-  alternates: {
-    canonical: BASE_URL,
-  },
   metadataBase: new URL(BASE_URL),
   verification:{
     google: 'q_spHn9uTXgy715SiSp97ElF_ZbU5SxZbIUnhn6Oe8E',
@@ -111,7 +109,7 @@ export const seoConfig: Metadata = {
     title: TITLE,
     description: DESCRIPTION,
     url: BASE_URL,
-    siteName: "Snowleopard",
+    siteName: "Snow Leopard",
     locale: "en_US",
     type: "website",
     images: [
@@ -119,7 +117,7 @@ export const seoConfig: Metadata = {
         url: '/api/og',
         width: 1200,
         height: 630,
-        alt: "Snowleopard – Open-source Writing Tool",
+        alt: "Snow Leopard – Open Source Writing Tool",
       },
     ],
   },
@@ -127,8 +125,8 @@ export const seoConfig: Metadata = {
     card: "summary_large_image",
     title: TITLE,
     description: DESCRIPTION,
-    site: "https://www.cursorforwrit.ing/",
-    creator: "@WriteWithSaru", 
+    site: "@WriteWithSaru",
+    creator: "@WriteWithSaru",
     images: [
         {
           url: '/api/og',
