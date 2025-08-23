@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useSWRConfig } from 'swr';
 import { RotateCcw, Clock, Loader2 } from 'lucide-react';
 import { format, formatDistance, isToday, isYesterday, differenceInDays } from 'date-fns';
@@ -100,10 +100,8 @@ export const VersionHeader = ({
     return format(date, 'h:mm a');
   };
 
-  // Use currentVersionIndex directly instead of activeIndex
   const currentDoc = documents[currentVersionIndex];
-
-  if (!currentDoc) return null; // Handle case where currentDoc might be undefined
+  if (!currentDoc) return null; 
 
   const dateString = formatVersionLabel(new Date(currentDoc.createdAt));
   const timeString = formatVersionTime(new Date(currentDoc.createdAt));
@@ -112,13 +110,12 @@ export const VersionHeader = ({
   return (
     <TooltipProvider>
       <div
-        className="relative border-b border-border backdrop-blur-sm overflow-hidden"
+        className="relative border-b border-border backdrop-blur-sm overflow-hidden bg-red-500"
       >
-        <div className="px-4 py-2.5 flex items-center justify-between"> {/* Simplified to single row */}
+        <div className="px-4 py-2.5 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1.5 text-sm text-primary/90 font-medium">
-                 {/* Display version based on currentVersionIndex */}
-                <span className="rounded-full bg-primary/10 w-5 h-5 flex items-center justify-center text-[10px] text-primary">
+                <span className="rounded-full bg-primary/10 size-5 flex items-center justify-center text-[10px] text-primary">
                   {currentVersionIndex + 1}
                 </span>
                 <span>
@@ -130,7 +127,7 @@ export const VersionHeader = ({
               </div>
               
               <div className="flex items-center text-xs text-muted-foreground gap-1">
-                <Clock className="w-3 h-3" />
+                <Clock className="size-3" />
                 <span>{relativeTimeString}</span>
               </div>
             </div>
@@ -146,9 +143,9 @@ export const VersionHeader = ({
                     disabled={isMutating}
                   >
                     {isMutating ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
+                      <Loader2 className="size-3 animate-spin" />
                     ) : (
-                      <RotateCcw className="h-3 w-3" />
+                      <RotateCcw className="size-3" />
                     )}
                     <span>Restore</span>
                   </Button>
