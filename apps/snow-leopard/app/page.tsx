@@ -2,16 +2,17 @@
 
 import Link from "next/link";
 import { Crimson_Text } from "next/font/google";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
+import { CardHeader, Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { GripVertical, X, Check } from 'lucide-react';
 import Image from 'next/image';
-import { TooltipProvider } from '@/components/ui/tooltip';
-import { Header } from "@/components/landing/header";
-import { Footer } from "@/components/landing/footer";
-import { Features } from "@/components/landing/features";
-import { useCounter } from "@/components/landing/use-counter";
+import { motion, useInView } from "framer-motion";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
+import Script from 'next/script';
+import { Switch } from "@/components/ui/switch";
 
 const crimson = Crimson_Text({
   weight: ["400", "700"],
@@ -19,24 +20,43 @@ const crimson = Crimson_Text({
   display: "swap",
 });
 
+const StyleToggleDemo = ({ inView }: { inView: boolean }) => {
+  const [isEnabled, setIsEnabled] = useState(false);
+  useEffect(() => {
+    if (inView) {
+      const timer = setTimeout(() => setIsEnabled(true), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [inView]);
+
+  return (
+    <div className="rounded-md border p-4 w-full">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium">Apply Writer Style</span>
+        <Switch checked={isEnabled} onCheckedChange={setIsEnabled} className="scale-110" />
+      </div>
+    </div>
+  );
+};
+
 export default function Home() {
   const router = useRouter();
+  const featuresRef = useRef<HTMLElement>(null);
+  const isFeaturesInView = useInView(featuresRef, { once: true, amount: 0.3 });
+  const card1Ref = useRef<HTMLDivElement>(null);
+  const card2Ref = useRef<HTMLDivElement>(null);
+  const card3Ref = useRef<HTMLDivElement>(null);
+  const card4Ref = useRef<HTMLDivElement>(null);
+  const card5Ref = useRef<HTMLDivElement>(null);
+  const card6Ref = useRef<HTMLDivElement>(null);
+  const card1InView = useInView(card1Ref, { once: true, amount: 0.5 });
+  const card2InView = useInView(card2Ref, { once: true, amount: 0.5 });
+  const card3InView = useInView(card3Ref, { once: true, amount: 0.5 });
+  const card4InView = useInView(card4Ref, { once: true, amount: 0.5 });
+  const card5InView = useInView(card5Ref, { once: true, amount: 0.5 });
+  const card6InView = useInView(card6Ref, { once: true, amount: 0.5 });
+
   const [hasSession, setHasSession] = useState<boolean>(false);
-
-  const [starGoal, setStarGoal] = useState(0);
-  const { count: animatedStarCount } = useCounter(starGoal);
-
-  useEffect(() => {
-    // Fetch GitHub stars once on mount
-    fetch("https://api.github.com/repos/will-lp1/snowleopard")
-      .then((res) => res.json())
-      .then((data) => {
-        if (typeof data.stargazers_count === "number") {
-          setStarGoal(data.stargazers_count);
-        }
-      })
-      .catch(() => {});
-  }, []);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -72,35 +92,28 @@ export default function Home() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
       {/* Header */}
-      <Header
-        hasSession={hasSession}
-        animatedStarCount={animatedStarCount}
-        onBeginClick={handleBeginClick}
-      />
+      <header className="absolute top-0 w-full z-10 py-4">
+        <div className="container mx-auto flex justify-between items-center px-6 md:px-8 lg:px-12">
+          <h1 className="text-xl font-normal tracking-tighter text-foreground/90">
+            snow leopard
+          </h1>
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-full group flex items-center"
+            onClick={handleBeginClick}
+          >
+            {hasSession ? "Open" : "Begin"}
+            <span className="inline-block ml-2 text-xs transition-transform group-hover:translate-x-0.5">
+              ›
+            </span>
+          </Button>
+        </div>
+      </header>
 
       {/* Hero Section */}
       <section id="hero" className="pt-20 pb-20 bg-background">
         <div className="container mx-auto px-6 md:px-8 lg:px-12 flex flex-col items-center text-center">
-          {/* Accelerator Banner */}
-          <Link
-            href="https://vercel.com/ai-accelerator"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors backdrop-blur-sm"
-          >
-            <svg
-              aria-hidden="true"
-              focusable="false"
-              role="img"
-              className="size-3.5 sm:size-4 text-foreground"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path d="M12 2L1 21h22L12 2z" />
-            </svg>
-            <span className="font-semibold">Backed by Vercel</span>
-          </Link>
           {/* Title Group */}
           <div className="space-y-0">
             <div className="relative">
@@ -140,9 +153,17 @@ export default function Home() {
                 ›
               </span>
             </Button>
+            <Button asChild variant="secondary" size="sm" className="rounded-full">
+              <Link href="https://github.com/will-lp1/snowleopard" target="_blank" rel="noopener noreferrer">
+                GitHub{" "}
+                <span className="inline-block ml-2 text-xs transition-transform group-hover:translate-x-0.5">
+                  ›
+                </span>
+              </Link>
+            </Button>
           </div>
 
-          <div className="mt-12 flex justify-center w-full">
+          <div className="mt-16 flex justify-center w-full">
             <div className="hero-frame">
               <Image
                 src="/images/lightmode.png"
@@ -165,8 +186,219 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Features Section */}
-      <Features />
+      <section
+        id="features"
+        ref={featuresRef}
+        aria-labelledby="features-heading"
+        className={`py-20 ${isFeaturesInView ? 'in-view' : ''}`}
+      >
+        <div className="container mx-auto px-6 md:px-8 lg:px-12">
+          <div className="text-center mb-16">
+            <h2 id="features-heading" className={`text-4xl md:text-5xl font-medium ${crimson.className} tracking-tight text-foreground`}>
+              Explore the Magic
+            </h2>
+            <p className="mt-4 text-lg text-muted-foreground max-w-xl mx-auto">
+              Discover how Snow Leopard transforms your writing experience with these core features.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Card 1: Inline Suggestion Demo */}
+            <motion.div
+              ref={card1Ref}
+              initial={{ opacity: 0, y: 20 }}
+              animate={card1InView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="w-full h-full"
+            >
+              <Card className="h-full flex flex-col min-h-[320px] rounded-xl overflow-visible">
+                <CardHeader className="p-6 text-base font-medium">
+                  Real-time Inline Suggestions
+                </CardHeader>
+                <CardContent className="p-6 text-sm text-muted-foreground flex-grow">
+                  <p className="demo-prose-mirror-style">
+                    <span className="demo-text-base">You start typing, and the AI offers</span>
+                    <span className="inline-suggestion-wrapper">
+                      <span className="demo-inline-suggestion-animated" data-suggestion=" a helpful completion."></span>
+                      <kbd className="inline-tab-icon">Tab</kbd>
+                    </span>
+                  </p>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Card 2: Suggestion Overlay Demo */}
+            <motion.div
+              ref={card2Ref}
+              initial={{ opacity: 0, y: 20 }}
+              animate={card2InView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="w-full h-full"
+            >
+              <Card className="h-full flex flex-col min-h-[320px] rounded-xl overflow-visible">
+                <CardHeader className="p-6 text-base font-medium">
+                  Powerful Selection Edits
+                </CardHeader>
+                <CardContent className="p-6 text-sm text-muted-foreground flex-grow relative overflow-visible">
+                  <p className="demo-prose-mirror-style">
+                    <span className="demo-text-base">This phrasing <span className="demo-selected-text-animated">is a bit weak and verbose.</span> Let&apos;s ask the AI to improve it.</span>
+                  </p>
+                  <div className="demo-suggestion-overlay-animated border border-border">
+                    <div className="demo-overlay-header">
+                      <GripVertical size={14} className="text-muted-foreground/70 demo-overlay-drag-handle" />
+                      <h3 className="text-xs font-medium">Suggestion</h3>
+                    </div>
+                    <div className="demo-overlay-input-placeholder">
+                    </div>
+                    <div className="demo-overlay-diff-view">
+                      <span className="text-red-500 line-through dark:text-red-400/70">is a bit weak and verbose.</span>
+                      <span className="text-green-600 dark:text-green-400/70 ml-1 demo-diff-new-text-animated">lacks punch and impact.</span>
+                    </div>
+                    <div className="demo-overlay-actions">
+                      <Button variant="ghost" size="sm" className="h-7 px-2 py-1 text-xs hover:text-destructive rounded-full">
+                         <X size={13} strokeWidth={2.5} className="mr-1" /> Reject
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-7 px-2 py-1 text-xs hover:text-primary rounded-full">
+                         <Check size={13} strokeWidth={2.5} className="mr-1" /> Accept
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Card 3: Smart Synonyms Demo */}
+            <motion.div
+              ref={card3Ref}
+              initial={{ opacity: 0, y: 20 }}
+              animate={card3InView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.6, delay: 0.3 }}
+              className="w-full h-full"
+            >
+              <Card className="h-full flex flex-col min-h-[320px] rounded-xl overflow-visible">
+                <CardHeader className="p-6 text-base font-medium">
+                  Instant Synonym Finder
+                </CardHeader>
+                <CardContent className="p-6 text-sm text-muted-foreground flex-grow">
+                  <p className="demo-prose-mirror-style relative">
+                    <span className="demo-text-base">Find better words with ease. The AI presents contextually</span>
+                    <span className="demo-synonym-word-animated" data-word="relevant">
+                      relevant
+                       <span className="demo-synonym-menu-animated">
+                          <span>apt</span>
+                          <span>pertinent</span>
+                          <span>fitting</span>
+                        </span>
+                    </span>
+                    <span className="demo-text-base"> synonyms.</span>
+                  </p>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Card 4: AI Writing That Sounds Like You */}
+            <motion.div
+              ref={card4Ref}
+              initial={{ opacity: 0, y: 20 }}
+              animate={card4InView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="w-full h-full"
+            >
+              <Card className="h-full flex flex-col min-h-[320px] rounded-xl overflow-visible">
+                <CardHeader className="p-6 text-base font-medium">
+                  AI Writing That Sounds Like You
+                </CardHeader>
+                <CardContent className="p-6 text-sm text-muted-foreground flex-grow flex flex-col justify-between items-center">
+                  <div className="w-full flex flex-col items-center flex-grow justify-center">
+                    <StyleToggleDemo inView={card4InView} />
+                  </div>
+                  <p className="text-center w-full mt-8">Trained on your writing to apply your unique style.</p>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Card 5: Access Premium Models */}
+            <motion.div
+              ref={card5Ref}
+              initial={{ opacity: 0, y: 20 }}
+              animate={card5InView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.6, delay: 0.25 }}
+              className="w-full h-full"
+            >
+              <Card className="h-full flex flex-col min-h-[320px] rounded-xl">
+                <CardHeader className="p-6 text-base font-medium">
+                  Access Premium Models
+                </CardHeader>
+                <CardContent className="p-6 text-sm text-muted-foreground flex-grow flex flex-col justify-between items-center">
+                  <div className="w-full flex items-center justify-center gap-0" style={{ height: '112px' }}>
+                    {modelNames.map((name, i) => {
+                      const mid = (modelNames.length - 1) / 2;
+                      const offset = i - mid;
+                      const rot = offset * 8;
+                      const y = Math.abs(offset) * 8;
+                      return (
+                        <motion.div
+                          key={name}
+                          initial={{ opacity: 0, rotate: 0, y: 0 }}
+                          animate={card5InView ? { opacity: 1, rotate: rot, y, transition: { delay: 0.2 + i * 0.1, type: 'spring', stiffness: 140, damping: 15 } } : {}}
+                          className="w-20 h-28 bg-background border border-border rounded-lg flex items-center justify-center mx-[-4px] shadow-sm relative"
+                          style={{ zIndex: 10 - Math.abs(offset) }}
+                        >
+                          {i === proIndex && (
+                            <span className="absolute top-1 right-1 bg-accent text-accent-foreground text-[10px] px-1 rounded">Pro</span>
+                          )}
+                          <span className="text-xs font-medium">{name}</span>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                  <p className="text-sm text-muted-foreground text-center w-full mt-8">
+                    Unlimited, free access to the best AI models.
+                  </p>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Card 6: One-Click Publish & Share */}
+            <motion.div
+              ref={card6Ref}
+              initial={{ opacity: 0, y: 20 }}
+              animate={card6InView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.6, delay: 0.3 }}
+              className="w-full h-full"
+            >
+              <Card className="h-full flex flex-col min-h-[320px] rounded-xl">
+                <CardHeader className="p-6 text-base font-medium">
+                  One-Click Publish & Share
+                </CardHeader>
+                <CardContent className="p-6 text-sm text-muted-foreground flex-grow flex flex-col justify-between items-center">
+                  <div className="w-full flex flex-col items-center">
+                    {/* Mini page preview */}
+                    <div className="relative w-44 h-32 rounded-lg border border-border bg-background shadow-sm overflow-hidden">
+                      {/* URL bar */}
+                      <div className="h-5 bg-muted flex items-center px-2 text-[9px] text-muted-foreground/90 font-mono gap-1">
+                        <span className="truncate">you/your-post</span>
+                      </div>
+                       {/* Content preview */}
+                      <div className="p-3 space-y-1">
+                        <div className="h-2.5 bg-muted rounded w-2/3" />
+                        <div className="h-2.5 bg-muted rounded w-full" />
+                        <div className="h-2.5 bg-muted rounded w-5/6" />
+                      </div>
+                      {/* Chat bubble */}
+                      <div className="absolute bottom-2 right-2 w-8 h-4 rounded-full bg-primary flex items-center justify-center text-[6px] text-primary-foreground shadow">
+                        Ask Leo
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground text-center w-full mt-8">
+                    Publish in one click & share with AI chat support.
+                  </p>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </div>
+        </div>
+      </section>
       
       {/* Social Proof Section */}
       <section id="social-proof" className="py-20 bg-background">
@@ -206,16 +438,50 @@ export default function Home() {
                 />
               </div>
               
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-x-2.5 gap-y-2 text-base text-muted-foreground mt-4 sm:mt-0">
-                <span>Also used by</span>
-                <div className="flex items-center gap-2">
-                  <Image src="/images/figma.svg" alt="Figma" width={64} height={18} className="h-4 w-auto opacity-90 invert dark:invert-0" />
-                  <Image src="/images/vercel.svg" alt="Vercel" width={64} height={18} className="h-4 w-auto opacity-90 invert dark:invert-0" />
-                  <Image src="/images/granola.svg" alt="Granola" width={64} height={18} className="h-4 w-auto opacity-90 invert dark:invert-0" />
-                </div>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-x-2 gap-y-2 text-base text-muted-foreground">
+                <span>Part of the</span>
+                <Link
+                  href="https://vercel.com/ai-accelerator"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-foreground hover:underline underline-offset-2"
+                >
+                  Vercel AI Accelerator
+                </Link>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
+                      & used by the Vercel team
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-sm font-normal">
+                    Including{' '}
+                    <a 
+                      href="https://twitter.com/leerob" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="font-medium text-blue-600 hover:text-blue-700"
+                    >
+                      @leerob
+                    </a>
+                  </TooltipContent>
+                </Tooltip>
               </div>
               
-              {/* Removed GitHub star embed for cleaner footer */}
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-x-2.5 gap-y-2 text-base text-muted-foreground">
+                <span>We&apos;re open-source & self-hostable</span>
+                <a
+                  className="github-button"
+                  href="https://github.com/will-lp1/snowleopard"
+                  data-icon="octicon-star"
+                  data-size="large"
+                  data-show-count="true"
+                  aria-label="Star will-lp1/snowleopard on GitHub"
+                >
+                  Star
+                </a>
+                <Script async defer src="https://buttons.github.io/buttons.js" />
+              </div>
             </div>
           </TooltipProvider>
           <div className="mt-10 text-center">
@@ -227,11 +493,21 @@ export default function Home() {
             >
               {hasSession ? "Open Snow Leopard" : "Get Started"}
             </Button>
+            <p className="mt-2 text-xs text-muted-foreground">No credit card required</p>
           </div>
         </div>
       </section>
 
-      <Footer animatedStarCount={animatedStarCount} />
+      <footer className="w-full border-t border-border bg-background/80 backdrop-blur-sm py-4 mt-8">
+        <div className="container mx-auto px-6 md:px-8 lg:px-12 flex items-center justify-between text-sm text-muted-foreground">
+          <span>© {new Date().getFullYear()} Snow Leopard. All rights reserved.</span>
+          <Button variant="outline" size="icon" className="size-8 shrink-0" asChild>
+            <Link href="https://github.com/will-lp1/snowleopard" target="_blank" rel="noopener noreferrer">
+              <Image src="/images/github-logo.png" alt="Github" width={16} height={16} className="dark:invert" />
+            </Link>
+          </Button>
+        </div>
+      </footer>
       <style jsx global>{`
         :root {
           --ease-out-quad: cubic-bezier(0.25, 0.46, 0.45, 0.94);
