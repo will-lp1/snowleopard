@@ -12,7 +12,7 @@ export async function createTextDocument({
     model: myProvider.languageModel('chat-model-large'),
     prompt: title,
     system:
-      'Write about the given topic in valid Markdown. Use headings (#, ##), lists, bold, italics, and code blocks where appropriate.',
+      'Write in valid Markdown. Only use headings (#, ##), bold and italics and only where appropriate.',
     experimental_transform: smoothStream({ chunking: 'line' }),
   });
 
@@ -37,9 +37,8 @@ export async function updateTextDocument({
     const { fullStream } = streamText({
       model: myProvider.languageModel('artifact-model'),
       system: `
-Provide the revised document content in valid Markdown only, using headings (#, ##),
-lists, bold, italics, and code blocks as needed. Show the complete updated document.
-Do not include any commentary. Use changing sections in place.
+Provide the revised document content in valid Markdown only, using headings (#, ##), bold and italics and only where appropriate.
+Do not include any commentary. Never use Tables. 
       `.trim(),
       experimental_transform: smoothStream({ chunking: 'line' }),
       prompt: description,
