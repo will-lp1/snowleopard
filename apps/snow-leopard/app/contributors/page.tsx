@@ -12,7 +12,7 @@ export default async function ContributorsPage() {
         <div className="container mx-auto px-4 sm:px-6 md:px-8 lg:px-12 py-8 sm:py-12">
           <RepositoryStats stats={stats} />
         </div>
-        <ContributorGraph contributors={contributors} stats={stats} />
+        <ContributorGraph contributors={contributors} />
       </div>
     );
   } catch (error) {

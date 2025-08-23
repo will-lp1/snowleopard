@@ -14,22 +14,8 @@ interface Contributor {
   type: string;
 }
 
-interface RepositoryStats {
-  stargazers_count: number;
-  forks_count: number;
-  open_issues_count: number;
-  subscribers_count: number;
-  language: string;
-  description: string;
-  created_at: string;
-  updated_at: string;
-}
-
-
-
 interface ContributorGraphProps {
   contributors: Contributor[];
-  stats: RepositoryStats;
 }
 
 export function ContributorGraph({ contributors }: ContributorGraphProps) {

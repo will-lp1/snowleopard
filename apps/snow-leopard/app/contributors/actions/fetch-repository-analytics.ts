@@ -148,10 +148,11 @@ async function generateActivityData(
     });
 
     const maxActivity = Math.max(...Object.values(activityByDay));
+    const safeMaxActivity = maxActivity || 1;
     const normalizedActivity = Object.entries(activityByDay).map(([day, count]) => ({
       day,
       activity1: Math.max(1, Math.floor(count * 0.2)), 
-      activity2: Math.max(1, Math.floor((count / maxActivity) * 5)), 
+      activity2: Math.max(1, Math.floor((count / safeMaxActivity) * 5)),
     }));
 
     return normalizedActivity;
