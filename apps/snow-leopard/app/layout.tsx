@@ -7,7 +7,6 @@ import { CSPostHogProvider } from '@/providers/posthog-provider';
 import { PostHogPageView } from '@/providers/posthog-pageview';
 import { Analytics } from "@vercel/analytics/react"
 import MobileWarning from '@/components/mobile-warning';
-import { LandingLayout } from '@/components/landing';
 import { seoConfig } from '@/config/seo';
 
 export const metadata: Metadata = seoConfig
@@ -63,9 +62,7 @@ export default async function RootLayout({
               <CSPostHogProvider>
                 <PostHogPageView />
                 <Toaster position="top-center" />
-                <LandingLayout>
-                  {children}
-                </LandingLayout>
+                {children}
                 <MobileWarning />
                 <Analytics />
               </CSPostHogProvider>
