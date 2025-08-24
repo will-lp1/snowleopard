@@ -17,7 +17,9 @@ export function Header({ hasSession, animatedStarCount, onBeginClick }: HeaderPr
       <div className="container mx-auto flex justify-between items-center px-6 md:px-8 lg:px-12">
         {/* Brand */}
         <h1 className="text-xl font-normal tracking-tighter text-foreground/90">
-          snow leopard
+          <Link href="/">
+            snow leopard
+          </Link>
         </h1>
 
         {/* Actions */}

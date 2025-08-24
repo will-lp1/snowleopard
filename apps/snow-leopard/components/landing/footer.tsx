@@ -10,12 +10,20 @@ interface FooterProps {
 export function Footer({ animatedStarCount }: FooterProps) {
   return (
     <footer className="w-full border-t border-border bg-background/80 backdrop-blur-sm py-4 mt-8">
-      <div className="container mx-auto px-6 md:px-8 lg:px-12 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
+      <div className="container mx-auto px-6 md:px-8 lg:px-12 flex flex-col items-center gap-4 text-sm text-muted-foreground md:grid md:grid-cols-3">
         {/* Left */}
-        <span>© {new Date().getFullYear()} Snow Leopard. All rights reserved.</span>
+        <span className="justify-self-start">© {new Date().getFullYear()} Snow Leopard. All rights reserved.</span>
 
-        {/* Community links */}
-        <div className="flex items-center gap-4">
+        {/* Center – Contributors */}
+        <Link
+          href="/contributors"
+          className="hover:text-foreground transition-colors justify-self-center"
+        >
+          Contributors
+        </Link>
+
+        {/* Right – Community links */}
+        <div className="flex items-center gap-4 justify-self-end">
           <Link
             href="https://discord.gg/pZCeQpvMPA"
             target="_blank"
