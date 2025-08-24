@@ -27,12 +27,11 @@ export default function Home() {
   const { count: animatedStarCount } = useCounter(starGoal);
 
   useEffect(() => {
-    // Fetch GitHub stars once on mount
-    fetch("https://api.github.com/repos/will-lp1/snowleopard")
+    fetch("/api/github-stars")
       .then((res) => res.json())
-      .then((data) => {
-        if (typeof data.stargazers_count === "number") {
-          setStarGoal(data.stargazers_count);
+      .then((data: { stars?: number }) => {
+        if (typeof data.stars === "number") {
+          setStarGoal(data.stars);
         }
       })
       .catch(() => {});

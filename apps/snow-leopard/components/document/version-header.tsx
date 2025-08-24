@@ -110,7 +110,7 @@ export const VersionHeader = ({
   return (
     <TooltipProvider>
       <div
-        className="relative border-b border-border backdrop-blur-sm overflow-hidden bg-red-500"
+        className="relative border-b border-border backdrop-blur-sm overflow-hidden"
       >
         <div className="px-4 py-2.5 flex items-center justify-between">
             <div className="flex items-center gap-2">
