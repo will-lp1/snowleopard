@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Crimson_Text } from "next/font/google";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ const crimson = Crimson_Text({
 
 export default function Home() {
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
 
   const { data: session } = authClient.useSession();
   const hasSession = !!session?.user;
@@ -39,11 +40,14 @@ export default function Home() {
   }, []);
 
   const handleBeginClick = () => {
-    if (hasSession) {
-      router.push("/documents");
-    } else {
-      router.push("/login?redirect=/documents");
-    }
+    if (isPending) return;
+    startTransition(() => {
+      if (hasSession) {
+        router.push("/documents");
+      } else {
+        router.push("/login?redirect=/documents");
+      }
+    });
   };
 
   const modelNames = ["Llama", "Kimi", "Deepseek", "Claude"] as const;
@@ -56,6 +60,7 @@ export default function Home() {
         hasSession={hasSession}
         animatedStarCount={animatedStarCount}
         onBeginClick={handleBeginClick}
+        isNavigating={isPending}
       />
 
       {/* Hero Section */}
@@ -115,6 +120,7 @@ export default function Home() {
               size="sm"
               className="rounded-full"
               onClick={handleBeginClick}
+              disabled={isPending}
             >
               {hasSession ? "Open" : "Begin"}{" "}
               <span className="inline-block ml-2 text-xs transition-transform group-hover:translate-x-0.5">
@@ -265,6 +271,7 @@ export default function Home() {
               size="lg"
               className="rounded-full px-8 py-3"
               onClick={handleBeginClick}
+              disabled={isPending}
             >
               {hasSession ? "Open Saru" : "Get Started"}
             </Button>

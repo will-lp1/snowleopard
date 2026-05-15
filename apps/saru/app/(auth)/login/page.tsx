@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { authClient } from '@/lib/auth-client';
 import { toast } from '@/components/toast';
@@ -14,6 +14,11 @@ const githubEnabled = process.env.NEXT_PUBLIC_GITHUB_ENABLED === 'true';
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const rawRedirect = searchParams.get('redirect') ?? '';
+  const redirectTo = rawRedirect.startsWith('/') && !rawRedirect.startsWith('//')
+    ? rawRedirect
+    : '/documents';
   const [isEmailLoading, setIsEmailLoading] = useState(false);
   const [isSocialLoading, setIsSocialLoading] = useState<string | null>(null);
   const [isSuccessful, setIsSuccessful] = useState(false);
@@ -27,7 +32,7 @@ export default function LoginPage() {
     await authClient.signIn.email({
       email: currentEmail,
       password,
-      callbackURL: "/documents"
+      callbackURL: redirectTo,
     }, {
       onRequest: () => {
         setIsEmailLoading(true);
@@ -58,8 +63,8 @@ export default function LoginPage() {
   const handleSocialLogin = async (provider: 'google' | 'github') => {
     await authClient.signIn.social({
       provider,
-      callbackURL: "/documents",
-      errorCallbackURL: "/login?error=social_signin_failed",
+      callbackURL: redirectTo,
+      errorCallbackURL: `/login?redirect=${encodeURIComponent(redirectTo)}&error=social_signin_failed`,
     }, {
       onRequest: () => {
         setIsSocialLoading(provider);
@@ -110,7 +115,7 @@ export default function LoginPage() {
         <p className="text-center text-sm text-gray-600 dark:text-zinc-400">
           {"Don't have an account? "}
           <Link
-            href="/register"
+            href={redirectTo !== '/documents' ? `/register?redirect=${encodeURIComponent(redirectTo)}` : '/register'}
             className="font-semibold text-gray-800 hover:underline dark:text-zinc-200"
           >
             Sign up

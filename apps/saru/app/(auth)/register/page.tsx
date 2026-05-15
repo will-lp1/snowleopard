@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { authClient } from '@/lib/auth-client';
 import { toast } from '@/components/toast';
@@ -14,6 +14,11 @@ const emailVerificationEnabled = process.env.NEXT_PUBLIC_EMAIL_VERIFY_ENABLED ==
 
 export default function RegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const rawRedirect = searchParams.get('redirect') ?? '';
+  const redirectTo = rawRedirect.startsWith('/') && !rawRedirect.startsWith('//')
+    ? rawRedirect
+    : '/documents';
   const [isEmailLoading, setIsEmailLoading] = useState(false);
   const [isSocialLoading, setIsSocialLoading] = useState<string | null>(null);
   const [isSuccessful, setIsSuccessful] = useState(false);
@@ -50,7 +55,7 @@ export default function RegisterPage() {
             type: 'success',
             description: 'Account created! Redirecting...'
           });
-          router.push('/documents'); 
+          router.push(redirectTo);
         }
       },
       onError: (ctx) => {
@@ -68,8 +73,8 @@ export default function RegisterPage() {
   const handleSocialLogin = async (provider: 'google' | 'github') => {
     await authClient.signIn.social({
       provider,
-      callbackURL: "/documents", 
-      errorCallbackURL: "/register?error=social_signin_failed",
+      callbackURL: redirectTo,
+      errorCallbackURL: `/register?redirect=${encodeURIComponent(redirectTo)}&error=social_signin_failed`,
     }, {
       onRequest: () => {
         setIsSocialLoading(provider);

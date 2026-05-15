@@ -9,9 +9,10 @@ interface HeaderProps {
   hasSession: boolean;
   animatedStarCount: number;
   onBeginClick: () => void;
+  isNavigating?: boolean;
 }
 
-export function Header({ hasSession, animatedStarCount, onBeginClick }: HeaderProps) {
+export function Header({ hasSession, animatedStarCount, onBeginClick, isNavigating }: HeaderProps) {
   return (
     <header className="absolute top-0 w-full z-10 py-4">
       <div className="container mx-auto flex justify-between items-center px-6 md:px-8 lg:px-12">
@@ -58,6 +59,7 @@ export function Header({ hasSession, animatedStarCount, onBeginClick }: HeaderPr
             size="sm"
             className="rounded-full group flex items-center h-8"
             onClick={onBeginClick}
+            disabled={isNavigating}
           >
             {hasSession ? "Open" : "Begin"}
             <span className="inline-block ml-2 text-xs transition-transform group-hover:translate-x-0.5">

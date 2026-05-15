@@ -19,8 +19,30 @@ if (posthogEnabled && typeof window !== 'undefined' && posthogKey && posthogHost
 }
 
 export function CSPostHogProvider({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    if (!posthogEnabled) return;
+
+    const handleError = (event: ErrorEvent) => {
+      posthog.captureException(event.error ?? new Error(event.message));
+    };
+
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const err = event.reason instanceof Error
+        ? event.reason
+        : new Error(String(event.reason));
+      posthog.captureException(err);
+    };
+
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+
+    return () => {
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
+  }, []);
+
   if (!posthogEnabled || !posthogKey || !posthogHost) {
-    console.warn('PostHog not enabled or configured. Skipping initialization.');
     return <>{children}</>;
   }
 
